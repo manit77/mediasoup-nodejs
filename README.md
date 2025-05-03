@@ -1,6 +1,6 @@
 # Mediasoup Demo
 
-##Instructions
+## Instructions
 
 1. install nodejs
 2. install ts-node globally
@@ -12,3 +12,8 @@
 8. cd ../
 9. npm start
 10. open browser to https://localhost:3000
+
+## editing main.js requires bundling the js file to an esm module
+1. edit main.js as needed
+2. bundle main.js to bundle.js
+3. npx esbuild main.js --bundle --outfile=bundle.js --format=esm
