@@ -17,3 +17,7 @@
 1. edit main.js as needed
 2. bundle main.js to bundle.js
 3. npx esbuild main.js --bundle --outfile=bundle.js --format=esm
+
+## download ffmpeg
+- https://www.ffmpeg.org/download.html
+- copy the ffmpeg executable to the bin folder
