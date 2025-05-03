@@ -72,3 +72,5 @@ package-lock.json
 *.esproj.user
 *.sln
 
+recordings/
+bin/
