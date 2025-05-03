@@ -1,0 +1,15 @@
+{
+  "name": "public",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "build": "npx esbuild main.js --bundle --outfile=bundle.js --format=esm"
+  },
+  "dependencies": {
+    "mediasoup-client": "^3.10.0"
+  }
+}
