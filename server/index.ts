@@ -4,8 +4,8 @@ import { WebSocket, WebSocketServer } from 'ws';
 import * as mediasoup from 'mediasoup';
 import fs from 'fs';
 import cors from 'cors';
-import ffmpeg from 'fluent-ffmpeg'; // Added for FFmpeg integration
-import path from 'path'; // Added for file path handling
+import ffmpeg from 'fluent-ffmpeg';
+import path from 'path';
 import dgram from 'dgram';
 
 ffmpeg.setFfmpegPath('./bin/ffmpeg');
@@ -24,9 +24,7 @@ let worker: mediasoup.types.Worker;
 let router: mediasoup.types.Router;
 let peerid = 1;
 
-// Directory to store recordings
 const recordingsDir = path.join(process.cwd(), 'recordings');
-// Ensure recordings directory exists
 if (!fs.existsSync(recordingsDir)) {
   fs.mkdirSync(recordingsDir);
 }
@@ -70,7 +68,7 @@ type Peer = {
   producers: mediasoup.types.Producer[];
   consumers: mediasoup.types.Consumer[];
   peerId: string;
-  recordings: Map<string, any>; // Added to track FFmpeg processes for each producer
+  recordings: Map<string, any>;
 };
 
 const peers = new Map<WebSocket, Peer>();
@@ -90,70 +88,41 @@ function getFreePort(): Promise<number> {
   });
 }
 
-async function startRecording(peer: Peer, router: mediasoup.types.Router) {
+async function startRecordingAudio(peer: Peer, router: mediasoup.types.Router) {
   const audioProducer = peer.producers.find((p) => p.kind === 'audio');
-  const videoProducer = peer.producers.find((p) => p.kind === 'video');
-  if (!audioProducer || !videoProducer) {
-    console.warn(`Missing audio or video producer for peer ${peer.peerId}`);
+  if (!audioProducer) {
+    console.warn(`No audio producer for peer ${peer.peerId}`);
     return;
   }
 
-  // Get two free ports for audio and video
+  if (peer.recordings.has('audio')) {
+    console.log(`Audio recording already in progress for peer ${peer.peerId}`);
+    return;
+  }
+
   const audioPort = await getFreePort();
-  const videoPort = await getFreePort();
-  const audioRtcpPort = audioPort + 1; // RTCP port is typically the next one
-  const videoRtcpPort = videoPort + 1;
+  const audioRtcpPort = await getFreePort();
 
-  // Create PlainTransports for audio and video
   const audioTransport = await router.createPlainTransport({
-    listenIp: { ip: '127.0.0.1' },
-    rtcpMux: false, // Explicit RTCP port
-    comedia: false, // Disable comedia for explicit port control
-  });
-
-  const videoTransport = await router.createPlainTransport({
     listenIp: { ip: '127.0.0.1' },
     rtcpMux: false,
     comedia: false,
   });
 
-  // Connect transports to specific ports
   await audioTransport.connect({ ip: '127.0.0.1', port: audioPort, rtcpPort: audioRtcpPort });
-  await videoTransport.connect({ ip: '127.0.0.1', port: videoPort, rtcpPort: videoRtcpPort });
 
-  // Create consumers
   const audioConsumer = await audioTransport.consume({
     producerId: audioProducer.id,
     rtpCapabilities: router.rtpCapabilities,
-    paused: false,
+    paused: true,
   });
 
-  const videoConsumer = await videoTransport.consume({
-    producerId: videoProducer.id,
-    rtpCapabilities: router.rtpCapabilities,
-    paused: false,
-  });
-
-  await videoConsumer.requestKeyFrame();
-
-  // Log consumer stats to verify data flow
-  // setInterval(async () => {
-  //   const audioStats = await audioConsumer.getStats();
-  //   const videoStats = await videoConsumer.getStats();
-  //   console.log(`Audio consumer stats:`, audioStats);
-  //   console.log(`Video consumer stats:`, videoStats);
-  // }, 5000);
-
-  // Get codec information
   const audioCodec = audioConsumer.rtpParameters.codecs[0];
-  const videoCodec = videoConsumer.rtpParameters.codecs[0];
   const audioPt = audioCodec.payloadType;
-  const videoPt = videoCodec.payloadType;
 
-  // Build SDP with detailed attributes
   const sdpContent = `v=0
 o=- 0 0 IN IP4 127.0.0.1
-s=MediaSoup Recording
+s=MediaSoup Audio Recording
 c=IN IP4 127.0.0.1
 t=0 0
 m=audio ${audioPort} RTP/AVP ${audioPt}
@@ -161,98 +130,180 @@ a=rtpmap:${audioPt} opus/48000/2
 a=fmtp:${audioPt} useinbandfec=1
 a=rtcp:${audioRtcpPort}
 a=recvonly
+`.trim();
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const sdpPath = path.join(recordingsDir, `peer-${peer.peerId}-audio-${timestamp}.sdp`);
+  const filename = path.join(recordingsDir, `peer-${peer.peerId}-audio-${timestamp}.webm`);
+  fs.writeFileSync(sdpPath, sdpContent);
+
+  const ffmpegProcess = ffmpeg()
+    .input(sdpPath)
+    .inputOptions([
+      '-protocol_whitelist file,udp,rtp',
+      '-analyzeduration 10000000',
+      '-probesize 10000000',
+    ])
+    .outputOptions([
+      '-c:a copy',
+      '-vn', // No video
+      '-f webm',
+    ])
+    .output(filename)
+    .on('start', (commandLine) => {
+      console.log(`Started FFmpeg audio with command: ${commandLine}`);
+    })
+    .on('progress', (progress) => {
+      console.log(`Audio recording progress for peer ${peer.peerId}: ${progress.timemark}`);
+    })
+    .on('stderr', (line) => {
+      console.log(`FFmpeg audio stderr: ${line}`);
+    })
+    .on('error', (err) => {
+      console.error(`FFmpeg audio error for peer ${peer.peerId}:`, err.message);
+      stopRecording(peer, 'audio');
+    })
+    .on('end', () => {
+      console.log(`Finished audio recording peer ${peer.peerId}`);
+      fs.unlinkSync(sdpPath);
+    });
+
+  setTimeout(async () => {
+    await audioConsumer.resume();
+    ffmpegProcess.run();
+  }, 2000);
+
+  peer.recordings.set('audio', {
+    ffmpegProcess,
+    consumers: [audioConsumer],
+    transports: [audioTransport],
+  });
+
+  audioProducer.on('transportclose', () => stopRecording(peer, 'audio'));
+
+  console.log(`Audio recording started for peer ${peer.peerId} on port ${audioPort}`);
+}
+
+async function startRecordingVideo(peer: Peer, router: mediasoup.types.Router) {
+  const videoProducer = peer.producers.find((p) => p.kind === 'video');
+  if (!videoProducer) {
+    console.warn(`No video producer for peer ${peer.peerId}`);
+    return;
+  }
+
+  if (peer.recordings.has('video')) {
+    console.log(`Video recording already in progress for peer ${peer.peerId}`);
+    return;
+  }
+
+  const videoPort = await getFreePort();
+  const videoRtcpPort = await getFreePort();
+
+  const videoTransport = await router.createPlainTransport({
+    listenIp: { ip: '127.0.0.1' },
+    rtcpMux: false,
+    comedia: false,
+  });
+
+  await videoTransport.connect({ ip: '127.0.0.1', port: videoPort, rtcpPort: videoRtcpPort });
+
+  const videoConsumer = await videoTransport.consume({
+    producerId: videoProducer.id,
+    rtpCapabilities: router.rtpCapabilities,
+    paused: true,
+  });
+
+  await videoConsumer.requestKeyFrame();
+
+  const videoCodec = videoConsumer.rtpParameters.codecs[0];
+  const videoPt = videoCodec.payloadType;
+
+  const sdpContent = `v=0
+o=- 0 0 IN IP4 127.0.0.1
+s=MediaSoup Video Recording
+c=IN IP4 127.0.0.1
+t=0 0
 m=video ${videoPort} RTP/AVP ${videoPt}
 a=rtpmap:${videoPt} VP8/90000
 a=rtcp:${videoRtcpPort}
 a=recvonly
 `.trim();
 
-  // Write SDP file
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const sdpPath = path.join(recordingsDir, `peer-${peer.peerId}-${timestamp}.sdp`);
-  const filename = path.join(recordingsDir, `peer-${peer.peerId}-${timestamp}.webm`);
+  const sdpPath = path.join(recordingsDir, `peer-${peer.peerId}-video-${timestamp}.sdp`);
+  const filename = path.join(recordingsDir, `peer-${peer.peerId}-video-${timestamp}.webm`);
   fs.writeFileSync(sdpPath, sdpContent);
 
-  // Configure FFmpeg
   const ffmpegProcess = ffmpeg()
     .input(sdpPath)
-    .inputOptions(['-protocol_whitelist file,udp,rtp'])
+    .inputOptions([
+      '-protocol_whitelist file,udp,rtp',
+      '-analyzeduration 10000000',
+      '-probesize 10000000',
+    ])
     .outputOptions([
-      '-c:v copy', // Initially copy to avoid re-encoding issues
-      '-c:a copy',
+      '-c:v copy',
+      '-an', // No audio
       '-f webm',
-      '-analyzeduration 10000000', // 10 seconds (in microseconds)
-      '-probesize 10000000',       // 10 MB
     ])
     .output(filename)
     .on('start', (commandLine) => {
-      console.log(`Started FFmpeg with command: ${commandLine}`);
+      console.log(`Started FFmpeg video with command: ${commandLine}`);
     })
     .on('progress', (progress) => {
-      console.log(`Recording progress for peer ${peer.peerId}: ${progress.timemark}`);
+      console.log(`Video recording progress for peer ${peer.peerId}: ${progress.timemark}`);
     })
-    .on("stderr", (line) => {
-      console.log(line);
+    .on('stderr', (line) => {
+      console.log(`FFmpeg video stderr: ${line}`);
     })
     .on('error', (err) => {
-      console.error(`FFmpeg error for peer ${peer.peerId}:`, err.message);
+      console.error(`FFmpeg video error for peer ${peer.peerId}:`, err.message);
+      stopRecording(peer, 'video');
     })
     .on('end', () => {
-      console.log(`Finished recording peer ${peer.peerId}`);
+      console.log(`Finished video recording peer ${peer.peerId}`);
       fs.unlinkSync(sdpPath);
     });
 
-    setTimeout(async () => {
-      await audioConsumer.resume();
-      await videoConsumer.resume();
-      ffmpegProcess.run();
-    }, 2000); // 2-second delay
+  setTimeout(async () => {
+    await videoConsumer.resume();
+    ffmpegProcess.run();
+  }, 2000);
 
-  // Store recording info
-  peer.recordings.set('combined', {
+  peer.recordings.set('video', {
     ffmpegProcess,
-    consumers: [audioConsumer, videoConsumer],
-    transports: [audioTransport, videoTransport],
+    consumers: [videoConsumer],
+    transports: [videoTransport],
   });
 
-  // Cleanup on producer close
-  for (const producer of [audioProducer, videoProducer]) {
-    producer.on('transportclose', () => stopRecording(peer, 'combined'));
-  }
+  videoProducer.on('transportclose', () => stopRecording(peer, 'video'));
 
-
-  console.log(`Recording started for peer ${peer.peerId} on ports audio:${audioPort}, video:${videoPort}`);
+  console.log(`Video recording started for peer ${peer.peerId} on port ${videoPort}`);
 }
 
 function stopRecording(peer: Peer, id: string) {
   const record = peer.recordings.get(id);
-
   if (!record) {
     return;
   }
 
   record.ffmpegProcess.kill('SIGINT');
-
   for (const c of record.consumers) {
     c.close();
   }
-
   for (const t of record.transports) {
     t.close();
   }
-
   peer.recordings.delete(id);
-
-  console.log(`Stopped recording ${peer.peerId}`);
+  console.log(`Stopped ${id} recording for peer ${peer.peerId}`);
 }
-
 
 wss.on('connection', (ws) => {
   let peerobj: Peer = {
     producers: [],
     consumers: [],
     peerId: peerid.toString(),
-    recordings: new Map(), // Initialize recordings map
+    recordings: new Map(),
   };
 
   peers.set(ws, peerobj);
@@ -278,7 +329,6 @@ wss.on('connection', (ws) => {
       case 'createTransport':
         const transport = await createTransport();
         peer.transport = transport;
-
         send(ws, {
           action: 'transportCreated',
           data: {
@@ -293,7 +343,6 @@ wss.on('connection', (ws) => {
       case 'createConsumerTransport':
         const consumerTransport = await createTransport();
         peer.consumerTransport = consumerTransport;
-
         send(ws, {
           action: 'consumerTransportCreated',
           data: {
@@ -303,14 +352,12 @@ wss.on('connection', (ws) => {
             dtlsParameters: consumerTransport.dtlsParameters,
           },
         });
-
         const allOtherProducers = [...peers.entries()]
           .filter(([other]) => other !== ws)
           .flatMap(([, p]) => p.producers.map((prod) => ({
             id: prod.id,
             kind: prod.kind,
           })));
-
         if (allOtherProducers.length > 0) {
           send(ws, {
             action: 'existingProducers',
@@ -337,13 +384,15 @@ wss.on('connection', (ws) => {
           kind: data.kind,
           rtpParameters: data.rtpParameters,
         });
-
         peer.producers.push(producer);
-       
-        // Start recording for this producer
-        startRecording(peer, router);
 
-        // Inform all other peers of this new producer
+        // Start recording based on producer kind
+        if (data.kind === 'audio') {
+          await startRecordingAudio(peer, router);
+        } else if (data.kind === 'video') {
+          await startRecordingVideo(peer, router);
+        }
+
         for (const [client, otherPeer] of peers.entries()) {
           if (client !== ws) {
             client.send(
@@ -354,7 +403,6 @@ wss.on('connection', (ws) => {
             );
           }
         }
-
         send(ws, { action: 'produced', data: { id: producer.id } });
         break;
 
@@ -362,25 +410,20 @@ wss.on('connection', (ws) => {
         const remoteProducer = [...peers.values()]
           .flatMap((p) => p.producers)
           .find((p) => p.id === data.producerId);
-
         if (!remoteProducer) {
           console.error('** remoteProducer not found');
           break;
         }
-
         if (!peer.consumerTransport) {
           console.error('** peer.consumerTransport not found');
           break;
         }
-
         const consumer = await peer.consumerTransport.consume({
           producerId: remoteProducer.id,
           rtpCapabilities: data.rtpCapabilities,
           paused: false,
         });
-
         peer.consumers.push(consumer);
-
         send(ws, {
           action: 'consumed',
           data: {
@@ -397,11 +440,9 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     const peer = peers.get(ws);
     if (peer) {
-      // Stop all recordings for this peer
-      peer.recordings.forEach((_, producerId) => {
-        stopRecording(peer, producerId);
+      peer.recordings.forEach((_, id) => {
+        stopRecording(peer, id);
       });
-      // Close all producers and consumers
       peer.producers.forEach((producer) => producer.close());
       peer.consumers.forEach((consumer) => consumer.close());
       peer.transport?.close();
