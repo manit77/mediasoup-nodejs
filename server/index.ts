@@ -134,13 +134,15 @@ async function startRecording(peer: Peer, router: mediasoup.types.Router) {
     paused: false,
   });
 
+  await videoConsumer.requestKeyFrame();
+
   // Log consumer stats to verify data flow
-  setInterval(async () => {
-    const audioStats = await audioConsumer.getStats();
-    const videoStats = await videoConsumer.getStats();
-    console.log(`Audio consumer stats:`, audioStats);
-    console.log(`Video consumer stats:`, videoStats);
-  }, 5000);
+  // setInterval(async () => {
+  //   const audioStats = await audioConsumer.getStats();
+  //   const videoStats = await videoConsumer.getStats();
+  //   console.log(`Audio consumer stats:`, audioStats);
+  //   console.log(`Video consumer stats:`, videoStats);
+  // }, 5000);
 
   // Get codec information
   const audioCodec = audioConsumer.rtpParameters.codecs[0];
@@ -179,6 +181,8 @@ a=recvonly
       '-c:v copy', // Initially copy to avoid re-encoding issues
       '-c:a copy',
       '-f webm',
+      '-analyzeduration 10000000', // 10 seconds (in microseconds)
+      '-probesize 10000000',       // 10 MB
     ])
     .output(filename)
     .on('start', (commandLine) => {
@@ -186,6 +190,9 @@ a=recvonly
     })
     .on('progress', (progress) => {
       console.log(`Recording progress for peer ${peer.peerId}: ${progress.timemark}`);
+    })
+    .on("stderr", (line) => {
+      console.log(line);
     })
     .on('error', (err) => {
       console.error(`FFmpeg error for peer ${peer.peerId}:`, err.message);
@@ -195,7 +202,11 @@ a=recvonly
       fs.unlinkSync(sdpPath);
     });
 
-  ffmpegProcess.run();
+    setTimeout(async () => {
+      await audioConsumer.resume();
+      await videoConsumer.resume();
+      ffmpegProcess.run();
+    }, 2000); // 2-second delay
 
   // Store recording info
   peer.recordings.set('combined', {
@@ -209,9 +220,6 @@ a=recvonly
     producer.on('transportclose', () => stopRecording(peer, 'combined'));
   }
 
-  // Ensure consumers are resumed
-  await audioConsumer.resume();
-  await videoConsumer.resume();
 
   console.log(`Recording started for peer ${peer.peerId} on ports audio:${audioPort}, video:${videoPort}`);
 }
@@ -331,7 +339,7 @@ wss.on('connection', (ws) => {
         });
 
         peer.producers.push(producer);
-
+       
         // Start recording for this producer
         startRecording(peer, router);
 
