@@ -143,6 +143,8 @@ a=recvonly
       '-protocol_whitelist file,udp,rtp',
       '-analyzeduration 10000000',
       '-probesize 10000000',
+      '-fflags', '+genpts',
+      '-use_wallclock_as_timestamps 1'
     ])
     .outputOptions([
       '-c:a copy',
@@ -210,10 +212,26 @@ async function startRecordingVideo(peer: Peer, router: mediasoup.types.Router) {
   const videoConsumer = await videoTransport.consume({
     producerId: videoProducer.id,
     rtpCapabilities: router.rtpCapabilities,
-    paused: true,
+    paused: true
   });
 
-  await videoConsumer.requestKeyFrame();
+  // Create DirectTransport for the consumer
+  //const videoTransport = await router.createDirectTransport();
+
+  // Create a video consumer to consume the producer's video
+  // const videoConsumer = await videoTransport.consume({
+  //   producerId: videoProducer.id,
+  //   rtpCapabilities: router.rtpCapabilities
+  // });
+
+  await videoConsumer.enableTraceEvent(['rtp', "keyframe"]);
+
+  videoConsumer.on("trace", packet => {
+    //console.log("trace:", packet.type);
+    if (packet.type == "keyframe") {
+      console.log("*** keyframe received");
+    }
+  })
 
   const videoCodec = videoConsumer.rtpParameters.codecs[0];
   const videoPt = videoCodec.payloadType;
@@ -240,6 +258,8 @@ a=recvonly
       '-protocol_whitelist file,udp,rtp',
       '-analyzeduration 10000000',
       '-probesize 10000000',
+      '-fflags', '+genpts',
+      '-use_wallclock_as_timestamps 1'
     ])
     .outputOptions([
       '-c:v copy',
@@ -247,14 +267,23 @@ a=recvonly
       '-f webm',
     ])
     .output(filename)
-    .on('start', (commandLine) => {
+    .on('start', async (commandLine) => {
       console.log(`Started FFmpeg video with command: ${commandLine}`);
+      await videoConsumer.resume();
+      await videoConsumer.requestKeyFrame();
     })
     .on('progress', (progress) => {
       console.log(`Video recording progress for peer ${peer.peerId}: ${progress.timemark}`);
     })
-    .on('stderr', (line) => {
+    .on('stderr', async (line) => {
       console.log(`FFmpeg video stderr: ${line}`);
+      if(line.indexOf("Keyframe missing") > 0){
+        console.log("requesting key frame");
+        await videoConsumer.requestKeyFrame();
+      } else if(line.indexOf("Received no start marker; dropping frame") > 0){
+        console.log("requesting key frame");
+        await videoConsumer.requestKeyFrame();
+      }
     })
     .on('error', (err) => {
       console.error(`FFmpeg video error for peer ${peer.peerId}:`, err.message);
@@ -265,10 +294,8 @@ a=recvonly
       fs.unlinkSync(sdpPath);
     });
 
-  setTimeout(async () => {
-    await videoConsumer.resume();
-    ffmpegProcess.run();
-  }, 2000);
+  ffmpegProcess.run();
+ 
 
   peer.recordings.set('video', {
     ffmpegProcess,
@@ -392,6 +419,9 @@ wss.on('connection', (ws) => {
         } else if (data.kind === 'video') {
           await startRecordingVideo(peer, router);
         }
+
+        //combine the audio and video
+        //ffmpeg -i video.webm -i audio.webm -fflags +genpts -c:v libvpx-vp9 -c:a libopus -map 0:v:0 -map 1:a:0 output.webm
 
         for (const [client, otherPeer] of peers.entries()) {
           if (client !== ws) {
