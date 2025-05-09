@@ -7,9 +7,12 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "build": "npx esbuild main.js --bundle --outfile=bundle.js --format=esm"
+    "build": "tsc && npx esbuild main.ts --bundle --outfile=bundle.js --platform=browser"
   },
   "dependencies": {
     "mediasoup-client": "^3.10.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.4"
   }
 }

@@ -1,4 +1,4 @@
-import * as mediasoup from 'mediasoup';
+import * as mediasoup from 'mediasoup-client';
 
 /**
  * server receives these payload types
@@ -39,26 +39,26 @@ export enum payloadTypeServer {
 
 export class RegisterMsg {
     private type = payloadTypeClient.register;
-    authToken : string = "";
-    displayName : string = "";
+    authToken: string = "";
+    displayName: string = "";
 }
 
 export class RegisterResultMsg {
-    private type = payloadTypeServer.registerResult;   
+    private type = payloadTypeServer.registerResult;
     data?: {
         peerid: string,
-        displayName : string,
+        displayName: string,
         rtpCapabilities: any,
     };
 }
 
 export class CreateProducerTransportMsg {
     private type = payloadTypeClient.createProducerTransport;
-}    
+}
 
 export class ProducerTransportCreatedMsg {
     private type = payloadTypeServer.producerTransportCreated;
-    data: {
+    data?: {
         transportId: string,
         iceParameters: any,
         iceServers: any,
@@ -70,8 +70,8 @@ export class ProducerTransportCreatedMsg {
 
 export class ConnectProducerTransportMsg {
     private type = payloadTypeClient.connectProducerTransport;
-    data ? : {
-        dtlsParameters : any
+    data?: {
+        dtlsParameters: any
     }
 }
 
@@ -81,7 +81,7 @@ export class CreateConsumerTransportMsg {
 
 export class ConsumerTransportCreatedMsg {
     private type = payloadTypeServer.consumerTransportCreated;
-    data: {
+    data?: {
         transportId: string,
         iceParameters: any,
         iceServers: any,
@@ -93,42 +93,42 @@ export class ConsumerTransportCreatedMsg {
 
 export class ConnectConsumerTransportMsg {
     private type = payloadTypeClient.connectConsumerTransport;
-    data ? : {
-        dtlsParameters : any
+    data?: {
+        dtlsParameters: any
     }
 }
 
 export class RoomJoinMsg {
-    private type = payloadTypeClient.roomJoin;    
+    private type = payloadTypeClient.roomJoin;
     data?: {
         roomId: string,
-        roomToken : string
+        roomToken: string
     }
 }
 
 export class RoomJoinResultMsg {
-    private type = payloadTypeServer.roomJoinResult;    
-    data: {
+    private type = payloadTypeServer.roomJoinResult;
+    data?: {
         roomId: string,
         peers: {
-            peerId: string,            
+            peerId: string,
             producers?: { producerId: string, kind: "audio" | "video" }[]
         }[]
-    } = { roomId: "", peers: [] };
+    };
 }
 
 export class RoomNewPeerMsg {
     private type = payloadTypeServer.roomNewPeer;
     data: {
         peerId: string;
-        displayName : string;
+        displayName: string;
         producers?: { producerId: string, kind: "audio" | "video" }[]
     } | undefined;
 }
 
 export class RoomNewProducerMsg {
     private type = payloadTypeServer.roomNewProducer;
-    data: {
+    data?: {
         peerId: string,
         producerId: string,
         kind: string,
@@ -137,23 +137,23 @@ export class RoomNewProducerMsg {
 
 export class ProducerMsg {
     private type = payloadTypeClient.produce;
-    data: {
+    data?: {
         kind: "audio" | "video",
         rtpParameters: any
-    }
+    };
 }
 
 export class ProducedMsg {
     private type = payloadTypeServer.produced;
-    data: {
+    data?: {
         kind: "audio" | "video",
         rtpParameters: any
-    }
+    };
 }
 
 export class ConsumeMsg {
     action = payloadTypeClient.consume;
-    data: {
+    data?: {
         remotePeerId: string,
         producerId: string,
         rtpCapabilities: any
@@ -162,7 +162,7 @@ export class ConsumeMsg {
 
 export class ConsumedMsg {
     action = payloadTypeServer.consumed;
-    data: {
+    data?: {
         peerId: string
         consumerId: string,
         producerId: string,
