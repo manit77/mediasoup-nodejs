@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ConsumedMsg = exports.ConsumeMsg = exports.ProducedMsg = exports.ProduceMsg = exports.RoomNewProducerMsg = exports.RoomNewPeerMsg = exports.RoomJoinResultMsg = exports.RoomJoinMsg = exports.ConnectConsumerTransportMsg = exports.ConsumerTransportCreatedMsg = exports.CreateConsumerTransportMsg = exports.ConnectProducerTransportMsg = exports.ProducerTransportCreatedMsg = exports.CreateProducerTransportMsg = exports.RegisterResultMsg = exports.RegisterMsg = exports.payloadTypeServer = exports.payloadTypeClient = void 0;
+exports.ConsumedMsg = exports.ConsumeMsg = exports.ProducedMsg = exports.ProduceMsg = exports.RoomNewProducerMsg = exports.RoomPeerLeftMsg = exports.RoomNewPeerMsg = exports.RoomJoinResultMsg = exports.RoomJoinMsg = exports.ConnectConsumerTransportMsg = exports.ConsumerTransportCreatedMsg = exports.CreateConsumerTransportMsg = exports.ConnectProducerTransportMsg = exports.ProducerTransportCreatedMsg = exports.CreateProducerTransportMsg = exports.RegisterResultMsg = exports.RegisterMsg = exports.payloadTypeServer = exports.payloadTypeClient = void 0;
 /**
  * server receives these payload types
  */
@@ -29,6 +29,7 @@ var payloadTypeServer;
     payloadTypeServer["roomJoinResult"] = "roomJoinResult";
     payloadTypeServer["roomNewPeer"] = "roomNewPeer";
     payloadTypeServer["roomNewProducer"] = "roomNewProducer";
+    payloadTypeServer["roomPeerLeft"] = "roomPeerLeft";
 })(payloadTypeServer || (exports.payloadTypeServer = payloadTypeServer = {}));
 class RegisterMsg {
     constructor() {
@@ -98,6 +99,12 @@ class RoomNewPeerMsg {
     }
 }
 exports.RoomNewPeerMsg = RoomNewPeerMsg;
+class RoomPeerLeftMsg {
+    constructor() {
+        this.type = payloadTypeServer.roomPeerLeft;
+    }
+}
+exports.RoomPeerLeftMsg = RoomPeerLeftMsg;
 class RoomNewProducerMsg {
     constructor() {
         this.type = payloadTypeServer.roomNewProducer;
@@ -118,13 +125,13 @@ class ProducedMsg {
 exports.ProducedMsg = ProducedMsg;
 class ConsumeMsg {
     constructor() {
-        this.action = payloadTypeClient.consume;
+        this.type = payloadTypeClient.consume;
     }
 }
 exports.ConsumeMsg = ConsumeMsg;
 class ConsumedMsg {
     constructor() {
-        this.action = payloadTypeServer.consumed;
+        this.type = payloadTypeServer.consumed;
     }
 }
 exports.ConsumedMsg = ConsumedMsg;

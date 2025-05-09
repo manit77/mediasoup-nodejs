@@ -16,11 +16,12 @@ export class Room {
     }
 
     removePeer(peerId: string): void {
+        console.log("removePeer ", peerId);
         this.peers.delete(peerId);
     }
 
     async broadCastExcept(except: Peer, msg: any) {
-        console.log("broadCastExcept", this.peers.size);
+        console.log("broadCastExcept ", except.id);
         for (let peer of this.peers.values()) {
             if (except != peer) {
                 peer.socket.send(JSON.stringify(msg));

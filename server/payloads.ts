@@ -34,6 +34,7 @@ export enum payloadTypeServer {
     roomJoinResult = "roomJoinResult",
     roomNewPeer = "roomNewPeer",
     roomNewProducer = "roomNewProducer",
+    roomPeerLeft = "roomPeerLeft",
 
 }
 
@@ -106,6 +107,14 @@ export class RoomJoinMsg {
     }
 }
 
+export class RoomLeaveMsg {
+    private type = payloadTypeClient.roomLeave;
+    data?: {
+        roomId: string,
+        roomToken: string
+    }
+}
+
 export class RoomJoinResultMsg {
     private type = payloadTypeServer.roomJoinResult;
     data?: {
@@ -126,6 +135,14 @@ export class RoomNewPeerMsg {
     } | undefined;
 }
 
+export class RoomPeerLeftMsg {
+    private type = payloadTypeServer.roomPeerLeft;
+    data: {
+        peerId: string;
+        roomId: string;        
+    } | undefined;
+}
+
 export class RoomNewProducerMsg {
     private type = payloadTypeServer.roomNewProducer;
     data?: {
@@ -134,6 +151,8 @@ export class RoomNewProducerMsg {
         kind: string,
     };
 }
+
+
 
 export class ProduceMsg {
     private type = payloadTypeClient.produce;
@@ -151,7 +170,7 @@ export class ProducedMsg {
 }
 
 export class ConsumeMsg {
-    action = payloadTypeClient.consume;
+    type = payloadTypeClient.consume;
     data?: {
         remotePeerId: string,
         producerId: string,
@@ -160,7 +179,7 @@ export class ConsumeMsg {
 }
 
 export class ConsumedMsg {
-    action = payloadTypeServer.consumed;
+    type = payloadTypeServer.consumed;
     data?: {
         peerId: string
         consumerId: string,

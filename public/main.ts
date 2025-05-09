@@ -1,5 +1,5 @@
 import * as mediasoupClient from 'mediasoup-client';
-import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg, ConsumerTransportCreatedMsg, CreateConsumerTransportMsg, CreateProducerTransportMsg, payloadTypeServer, ProducedMsg, ProducerTransportCreatedMsg, RegisterMsg, RegisterResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomNewPeerMsg } from './payload';
+import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg, ConsumerTransportCreatedMsg, CreateConsumerTransportMsg, CreateProducerTransportMsg, payloadTypeServer, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg, RegisterMsg, RegisterResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomPeerLeftMsg } from './payload';
 
 (async () => {
 
@@ -10,6 +10,8 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
     const ctlRemoteVideos = document.getElementById('ctlRemoteVideos') as HTMLDivElement;
     const ctlDisplayName = document.getElementById("ctlDisplayName") as HTMLInputElement;
     const ctlJoinRoomButton = document.getElementById("ctlJoinRoomButton") as HTMLButtonElement;
+    const ctlLeaveRoomButton = document.getElementById("ctlLeaveRoomButton") as HTMLButtonElement;
+
     const ctlRoomId = document.getElementById("ctlRoomId") as HTMLInputElement;
     const ctlSatus = document.getElementById("ctlSatus") as HTMLDivElement;
 
@@ -17,33 +19,53 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
     let sendTransport: mediasoupClient.types.Transport;
     let recvTransport: mediasoupClient.types.Transport;
     let localPeerId = "";
+    let localRoomId = "";
 
     await initMediaSoupDevice();
     await initWebsocket();
 
-    async function createVideoElement(peerId: string, track: MediaStreamTrack) {
-        const video = document.createElement('video');
-        video.id = peerId;
-        video.autoplay = true;
-        video.playsInline = true;
-        video.style.width = '300px';
-        video.srcObject = new MediaStream([track]);
-        ctlRemoteVideos!.appendChild(video);
-        return video;
+    async function addTrackToRemoteVideo(peerId: string, track: MediaStreamTrack) {
+        // Find the existing video element
+        let video = document.getElementById(peerId) as HTMLVideoElement | null;
+
+        if (!video) {
+            //add new element
+            video = document.createElement('video');
+            video.id = peerId;
+            video.autoplay = true;
+            video.playsInline = true;
+            video.style.width = '300px';
+            video.srcObject = new MediaStream([track]);
+            ctlRemoteVideos!.appendChild(video);
+        }
+
+        // Get the current MediaStream or create a new one if none exists
+        let mediaStream = video.srcObject as MediaStream;
+        if (!mediaStream) {
+            mediaStream = new MediaStream();
+            video.srcObject = mediaStream;
+        }
+
+        // Add the new track to the MediaStream
+        mediaStream.addTrack(track);
+
+        // Ensure the video is set to play
+        video.play().catch(error => {
+            console.error('Error playing video:', error);
+        });
     }
 
-    ctlJoinRoomButton.onclick = (event) => {
+    ctlJoinRoomButton.onclick = async (event) => {
         event.preventDefault();
-
+        ctlJoinRoomButton.disabled = false;
         let roomid = ctlRoomId.value;
-        let roomToken = "";
+        await roomJoin(roomid);
+    }
 
-        let msg = new RoomJoinMsg();
-        msg.data = {
-            roomId: roomid,
-            roomToken: roomToken
-        };
-        send(msg);
+    ctlLeaveRoomButton.onclick = async (event) => {
+        event.preventDefault();
+        ctlLeaveRoomButton.disabled = false;       
+        await roomLeave();
     }
 
     async function send(msg: any) {
@@ -52,6 +74,7 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
     };
 
     async function writeLog(statusText: string) {
+        console.log(statusText);
         // ctlSatus.innerHTML = statusText + ctlSatus.innerText + "<br>";
         ctlSatus.innerHTML = `${statusText}<br>${ctlSatus.innerHTML}`;
     }
@@ -97,6 +120,12 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
                 case payloadTypeServer.roomNewPeer:
                     onRoomNewPeer(msgIn);
                     break;
+                case payloadTypeServer.roomNewProducer:
+                    onRoomNewProducer(msgIn);
+                    break;
+                case payloadTypeServer.roomPeerLeft:
+                    onRoomPeerLeft(msgIn);
+                    break;
                 case payloadTypeServer.produced:
                     onProduced(msgIn);
                     break;
@@ -109,6 +138,7 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
 
         ws.addEventListener("close", async () => {
             writeLog("websocket closed");
+            ctlJoinRoomButton.disabled = true;
         });
     }
 
@@ -133,6 +163,8 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
         await createProducerTransport();
         await createConsumerTransport();
 
+        ctlJoinRoomButton.disabled = false;
+
     }
 
     async function createProducerTransport() {
@@ -146,6 +178,25 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
         let msg = new CreateConsumerTransportMsg();
         send(msg);
     }
+
+    async function roomJoin(roomid: string) {
+        let msg = new RoomJoinMsg();
+        msg.data = {
+            roomId: roomid,
+            roomToken: ""
+        };
+        send(msg);
+    }
+
+    async function roomLeave() {
+        let msg = new RoomLeaveMsg();
+        msg.data = {
+            roomId: localRoomId,
+            roomToken: ""
+        };
+        send(msg);
+    }
+
 
     async function onConsumerTransportCreated(msgIn: ConsumerTransportCreatedMsg) {
         console.log("-- onConsumerTransportCreated");
@@ -203,7 +254,7 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
             console.log("-- sendTransport produce");
 
             //fires when we call produce with local tracks
-            let msg = new ProducedMsg();
+            let msg = new ProduceMsg();
             msg.data = {
                 kind: kind,
                 rtpParameters: rtpParameters
@@ -220,20 +271,37 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
         console.log("-- onRoomJoinResult");
 
         if (msgIn.data!.roomId) {
+            localRoomId = msgIn.data!.roomId;
+
             writeLog("joined room " + msgIn.data!.roomId);
+            ctlRoomId.value = msgIn.data!.roomId;
+            ctlJoinRoomButton.disabled = true;
+            ctlJoinRoomButton.style.visibility = "hidden";
+
+            ctlLeaveRoomButton.disabled = false;
+            ctlLeaveRoomButton.style.visibility = "visible";
+
+        } else {
+            localRoomId = "";
+
+            ctlJoinRoomButton.disabled = false;
+
+            ctlLeaveRoomButton.disabled = true;
+            ctlLeaveRoomButton.style.visibility = "hidden";
         }
 
         //publish local stream
         await produceLocalStreams();
 
+        console.log("-- onRoomJoinResult peers :" + msgIn.data?.peers.length);
         //connect to existing peers
         if (msgIn.data && msgIn.data.peers) {
             for (let peer of msgIn.data.peers) {
                 console.log(peer.peerId);
-
+                console.log("-- onRoomJoinResult producers :" + peer.producers?.length);
                 if (peer.producers) {
                     for (let producer of peer.producers) {
-                        console.log(producer.kind, producer.producerId);
+                        console.log("-- onRoomJoinResult producer " + producer.kind, producer.producerId);
                         consumeProducer(peer.peerId, producer.producerId);
                     }
                 }
@@ -243,7 +311,7 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
     }
 
     async function onRoomNewPeer(msgIn: RoomNewPeerMsg) {
-
+        console.log("onRoomNewPeer " + msgIn.data?.peerId + " producers: " + msgIn.data?.producers?.length);
         writeLog("new PeeerJoined " + msgIn.data?.peerId);
 
         if (msgIn.data?.producers) {
@@ -253,17 +321,38 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
         }
     }
 
-    async function produceLocalStreams() {
+    async function onRoomPeerLeft(msgIn: RoomPeerLeftMsg) {
+        writeLog("peer left the room:" + msgIn.data?.peerId);
 
-        //get the tracks and start sending the streams "produce"
-        const localStream = ctlVideo.srcObject as any;
-        for (const track of localStream.getTracks()) {
-            await sendTransport.produce({ track });
+        //destroy the video element
+        if (msgIn.data && msgIn.data.peerId) {
+            let video = document.getElementById(msgIn.data?.peerId);
+            video?.remove();
         }
 
     }
 
+    async function onRoomNewProducer(msgIn: RoomNewProducerMsg) {
+        writeLog("onRoomNewProducer: " + msgIn.data?.kind);
+        consumeProducer(msgIn.data?.peerId!, msgIn.data?.producerId!);
+    }
+
+    async function produceLocalStreams() {
+        writeLog("produceLocalStreams");
+        //get the tracks and start sending the streams "produce"
+        const localStream = ctlVideo.srcObject as any;
+        for (const track of localStream.getTracks()) {
+            console.log("sendTransport produce ");
+            await sendTransport.produce({ track });
+        }
+    }
+
     async function consumeProducer(remotePeerId: string, producerId: string) {
+        console.log("consumeProducer :" + remotePeerId, producerId);
+        if (remotePeerId == localPeerId) {
+            console.error("you can't consume yourself.");
+        }
+
         let msg = new ConsumeMsg();
         msg.data = {
             remotePeerId: remotePeerId,
@@ -281,13 +370,11 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
             kind: msgIn.data!.kind,
             rtpParameters: msgIn.data!.rtpParameters
         });
-
-        createVideoElement(msgIn.data!.peerId, consumer.track);
-
+        addTrackToRemoteVideo(msgIn.data!.peerId, consumer.track);
     }
 
-    async function onProduced(msgIn: ProducedMsg){
-        writeLog("stream produced " + msgIn.data?.kind);
+    async function onProduced(msgIn: ProducedMsg) {
+        writeLog("onProduced " + msgIn.data?.kind);
     }
 
 })();

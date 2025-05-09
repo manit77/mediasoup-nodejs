@@ -8,7 +8,13 @@ import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
 
 import { Peer, Room } from './room';
-import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg, ConsumerTransportCreatedMsg, CreateProducerTransportMsg, payloadTypeClient, payloadTypeServer, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg, RegisterMsg, RegisterResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomNewPeerMsg, RoomNewProducerMsg } from './payloads';
+import {
+    ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg
+    , ConsumerTransportCreatedMsg, CreateProducerTransportMsg, payloadTypeClient
+    , ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg, RegisterMsg
+    , RegisterResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomNewPeerMsg, RoomNewProducerMsg
+    , RoomPeerLeftMsg
+} from './payloads';
 import { randomUUID } from 'crypto';
 import { stopRecording } from './recorder';
 
@@ -67,6 +73,8 @@ export class RoomServer {
         this.webSocketServer = new WebSocketServer({ server: this.httpServer });
         this.webSocketServer.on('connection', (ws) => {
 
+            console.log("socket connected peers: " + this.peers.size);
+
             ws.on('message', async (message) => {
                 const msgIn = JSON.parse(message.toString());
 
@@ -104,6 +112,11 @@ export class RoomServer {
                         break;
                     }
 
+                    case payloadTypeClient.roomLeave: {
+                        this.onRoomLeave(ws);
+                        break;
+                    }
+
                     case payloadTypeClient.produce: {
                         this.onProduce(ws, msgIn);
                         break;
@@ -132,12 +145,16 @@ export class RoomServer {
                     peer.producerTransport?.close();
                     peer.consumerTransport?.close();
 
+                   
+                    if (peer.room) {
+                        this.onRoomLeave(ws)
+                    }
+
+                    peer.room = null;
                     //delete from peers
                     this.peers.delete(ws);
 
-                    peer.room?.removePeer(peer.id);
-
-                    console.log(`Peer ${peer.id} disconnected and resources cleaned up`);
+                    console.log(`Peer ${peer.id} disconnected and resources cleaned up. peers: ` + this.peers.size + " rooms:" + this.rooms.size);
                 }
             });
         });
@@ -158,11 +175,14 @@ export class RoomServer {
     }
 
     onRegister(ws: WebSocket, msgIn: RegisterMsg) {
+        console.log("onRegister " + msgIn.displayName);
+
         //get or set peer
         let peer = this.peers.get(ws);
         if (!peer) {
             peer = new Peer(randomUUID().toString(), ws);
             this.peers.set(ws, peer);
+            console.log("new peer created " + peer.id);
         }
 
         let msg = new RegisterResultMsg();
@@ -278,28 +298,32 @@ export class RoomServer {
             return;
         }
 
+        if(peer.room){
+            console.error("peer already in a room");
+            return;
+        }
+
         //*** this demo allows creating new rooms automatically
         let roomid: string = msgIn.data.roomId;
-        if(!roomid) {
+        if (!roomid) {
             roomid = randomUUID().toString();
-            console.log("new room id created.")
+            console.log("new room id: " + roomid)
         }
 
         let room = this.rooms.get(roomid);
         if (!room) {
-            room = new Room(randomUUID().toString());
-            console.log("new room created.");
+            room = new Room(roomid);
+            console.log("new room created: " + roomid);
+            this.rooms.set(room.id, room);
         }
-
-        this.rooms.set(room.id, room);
 
         //send join room result back to peer, and the peer's producers in the room 
         let msg = new RoomJoinResultMsg();
-        msg.data = {roomId : roomid, peers: []};
+        msg.data = { roomId: roomid, peers: [] };
 
         for (let remotePeer of room.peers.values()) {
             msg.data.peers.push({
-                peerId: peer.id,
+                peerId: remotePeer.id,
                 producers: remotePeer.producers.map(producer => ({ producerId: producer.id, kind: producer.kind }))
             });
         }
@@ -320,6 +344,41 @@ export class RoomServer {
             producers: peer.producers.map(producer => ({ producerId: producer.id, kind: producer.kind }))
         }
         room.broadCastExcept(peer!, roomNewPeer);
+
+    }
+
+    async onRoomLeave(ws: WebSocket) {
+        console.log("onRoomLeave");
+
+        let peer = this.peers.get(ws);
+        if (!peer) {
+            console.error("peer not found.");
+            return;
+        }
+
+        if (!peer.room) {
+            console.error("no room found.");
+            return;
+        }
+
+        peer.room.removePeer(peer.id);
+
+        //broadcast to all peers that the peer has left the room
+        let msg = new RoomPeerLeftMsg();
+        msg.data = {
+            peerId: peer.id,
+            roomId: peer.room.id
+        }
+        peer.room.broadCastExcept(peer!, msg);
+
+        //stop the producers and consumer channels
+        peer.producers.map(producer => producer.close());
+        peer.producers = [];
+
+        peer.consumers.map(consumer => consumer.close());
+        peer.consumers = [];
+
+        peer.room = null;
 
     }
 
@@ -436,7 +495,7 @@ export class RoomServer {
         //send the consumer data back to the client
         let consumed = new ConsumedMsg();
         consumed.data = {
-            peerId: peer.id,
+            peerId: remotePeer.id,
             consumerId: consumer.id,
             producerId: remoteProducer.id,
             kind: consumer.kind,

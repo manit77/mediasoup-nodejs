@@ -52,6 +52,7 @@ const payload_1 = require("./payload");
     const ctlRemoteVideos = document.getElementById('ctlRemoteVideos');
     const ctlDisplayName = document.getElementById("ctlDisplayName");
     const ctlJoinRoomButton = document.getElementById("ctlJoinRoomButton");
+    const ctlLeaveRoomButton = document.getElementById("ctlLeaveRoomButton");
     const ctlRoomId = document.getElementById("ctlRoomId");
     const ctlSatus = document.getElementById("ctlSatus");
     let device;
@@ -60,29 +61,40 @@ const payload_1 = require("./payload");
     let localPeerId = "";
     yield initMediaSoupDevice();
     yield initWebsocket();
-    function createVideoElement(peerId, track) {
+    function addTrackToRemoteVideo(peerId, track) {
         return __awaiter(this, void 0, void 0, function* () {
-            const video = document.createElement('video');
-            video.id = peerId;
-            video.autoplay = true;
-            video.playsInline = true;
-            video.style.width = '300px';
-            video.srcObject = new MediaStream([track]);
-            ctlRemoteVideos.appendChild(video);
-            return video;
+            // Find the existing video element
+            let video = document.getElementById(peerId);
+            if (!video) {
+                //add new element
+                video = document.createElement('video');
+                video.id = peerId;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.style.width = '300px';
+                video.srcObject = new MediaStream([track]);
+                ctlRemoteVideos.appendChild(video);
+            }
+            // Get the current MediaStream or create a new one if none exists
+            let mediaStream = video.srcObject;
+            if (!mediaStream) {
+                mediaStream = new MediaStream();
+                video.srcObject = mediaStream;
+            }
+            // Add the new track to the MediaStream
+            mediaStream.addTrack(track);
+            // Ensure the video is set to play
+            video.play().catch(error => {
+                console.error('Error playing video:', error);
+            });
         });
     }
-    ctlJoinRoomButton.onclick = (event) => {
+    ctlJoinRoomButton.onclick = (event) => __awaiter(void 0, void 0, void 0, function* () {
         event.preventDefault();
+        ctlJoinRoomButton.disabled = false;
         let roomid = ctlRoomId.value;
-        let roomToken = "";
-        let msg = new payload_1.RoomJoinMsg();
-        msg.data = {
-            roomId: roomid,
-            roomToken: roomToken
-        };
-        send(msg);
-    };
+        yield roomJoin(roomid);
+    });
     function send(msg) {
         return __awaiter(this, void 0, void 0, function* () {
             console.log("ws_send ", msg);
@@ -92,6 +104,7 @@ const payload_1 = require("./payload");
     ;
     function writeLog(statusText) {
         return __awaiter(this, void 0, void 0, function* () {
+            console.log(statusText);
             // ctlSatus.innerHTML = statusText + ctlSatus.innerText + "<br>";
             ctlSatus.innerHTML = `${statusText}<br>${ctlSatus.innerHTML}`;
         });
@@ -132,6 +145,12 @@ const payload_1 = require("./payload");
                     case payload_1.payloadTypeServer.roomNewPeer:
                         onRoomNewPeer(msgIn);
                         break;
+                    case payload_1.payloadTypeServer.roomNewProducer:
+                        onRoomNewProducer(msgIn);
+                        break;
+                    case payload_1.payloadTypeServer.roomPeerLeft:
+                        onRoomPeerLeft(msgIn);
+                        break;
                     case payload_1.payloadTypeServer.produced:
                         onProduced(msgIn);
                         break;
@@ -142,6 +161,7 @@ const payload_1 = require("./payload");
             }));
             ws.addEventListener("close", () => __awaiter(this, void 0, void 0, function* () {
                 writeLog("websocket closed");
+                ctlJoinRoomButton.disabled = true;
             }));
         });
     }
@@ -162,6 +182,7 @@ const payload_1 = require("./payload");
             yield device.load({ routerRtpCapabilities: msgIn.data.rtpCapabilities });
             yield createProducerTransport();
             yield createConsumerTransport();
+            ctlJoinRoomButton.disabled = false;
         });
     }
     function createProducerTransport() {
@@ -175,6 +196,16 @@ const payload_1 = require("./payload");
         return __awaiter(this, void 0, void 0, function* () {
             console.log("-- createConsumerTransport");
             let msg = new payload_1.CreateConsumerTransportMsg();
+            send(msg);
+        });
+    }
+    function roomJoin(roomid) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let msg = new payload_1.RoomJoinMsg();
+            msg.data = {
+                roomId: roomid,
+                roomToken: ""
+            };
             send(msg);
         });
     }
@@ -225,7 +256,7 @@ const payload_1 = require("./payload");
             sendTransport.on('produce', ({ kind, rtpParameters }, callback) => {
                 console.log("-- sendTransport produce");
                 //fires when we call produce with local tracks
-                let msg = new payload_1.ProducedMsg();
+                let msg = new payload_1.ProduceMsg();
                 msg.data = {
                     kind: kind,
                     rtpParameters: rtpParameters
@@ -238,19 +269,32 @@ const payload_1 = require("./payload");
     }
     function onRoomJoinResult(msgIn) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
             console.log("-- onRoomJoinResult");
             if (msgIn.data.roomId) {
                 writeLog("joined room " + msgIn.data.roomId);
+                ctlRoomId.value = msgIn.data.roomId;
+                ctlJoinRoomButton.disabled = true;
+                ctlJoinRoomButton.style.visibility = "hidden";
+                ctlLeaveRoomButton.disabled = false;
+                ctlLeaveRoomButton.style.visibility = "visible";
+            }
+            else {
+                ctlJoinRoomButton.disabled = false;
+                ctlLeaveRoomButton.disabled = true;
+                ctlLeaveRoomButton.style.visibility = "hidden";
             }
             //publish local stream
             yield produceLocalStreams();
+            console.log("-- onRoomJoinResult peers :" + ((_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.peers.length));
             //connect to existing peers
             if (msgIn.data && msgIn.data.peers) {
                 for (let peer of msgIn.data.peers) {
                     console.log(peer.peerId);
+                    console.log("-- onRoomJoinResult producers :" + ((_b = peer.producers) === null || _b === void 0 ? void 0 : _b.length));
                     if (peer.producers) {
                         for (let producer of peer.producers) {
-                            console.log(producer.kind, producer.producerId);
+                            console.log("-- onRoomJoinResult producer " + producer.kind, producer.producerId);
                             consumeProducer(peer.peerId, producer.producerId);
                         }
                     }
@@ -260,26 +304,51 @@ const payload_1 = require("./payload");
     }
     function onRoomNewPeer(msgIn) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
-            writeLog("new PeeerJoined " + ((_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.peerId));
-            if ((_b = msgIn.data) === null || _b === void 0 ? void 0 : _b.producers) {
+            var _a, _b, _c, _d, _e;
+            console.log("onRoomNewPeer " + ((_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.peerId) + " producers: " + ((_c = (_b = msgIn.data) === null || _b === void 0 ? void 0 : _b.producers) === null || _c === void 0 ? void 0 : _c.length));
+            writeLog("new PeeerJoined " + ((_d = msgIn.data) === null || _d === void 0 ? void 0 : _d.peerId));
+            if ((_e = msgIn.data) === null || _e === void 0 ? void 0 : _e.producers) {
                 for (let producer of msgIn.data.producers) {
                     consumeProducer(msgIn.data.peerId, producer.producerId);
                 }
             }
         });
     }
+    function onRoomPeerLeft(msgIn) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
+            writeLog("peer left the room:" + ((_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.peerId));
+            //destroy the video element
+            if (msgIn.data && msgIn.data.peerId) {
+                let video = document.getElementById((_b = msgIn.data) === null || _b === void 0 ? void 0 : _b.peerId);
+                video === null || video === void 0 ? void 0 : video.remove();
+            }
+        });
+    }
+    function onRoomNewProducer(msgIn) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c;
+            writeLog("onRoomNewProducer: " + ((_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.kind));
+            consumeProducer((_b = msgIn.data) === null || _b === void 0 ? void 0 : _b.peerId, (_c = msgIn.data) === null || _c === void 0 ? void 0 : _c.producerId);
+        });
+    }
     function produceLocalStreams() {
         return __awaiter(this, void 0, void 0, function* () {
+            writeLog("produceLocalStreams");
             //get the tracks and start sending the streams "produce"
             const localStream = ctlVideo.srcObject;
             for (const track of localStream.getTracks()) {
+                console.log("sendTransport produce ");
                 yield sendTransport.produce({ track });
             }
         });
     }
     function consumeProducer(remotePeerId, producerId) {
         return __awaiter(this, void 0, void 0, function* () {
+            console.log("consumeProducer :" + remotePeerId, producerId);
+            if (remotePeerId == localPeerId) {
+                console.error("you can't consume yourself.");
+            }
             let msg = new payload_1.ConsumeMsg();
             msg.data = {
                 remotePeerId: remotePeerId,
@@ -297,13 +366,13 @@ const payload_1 = require("./payload");
                 kind: msgIn.data.kind,
                 rtpParameters: msgIn.data.rtpParameters
             });
-            createVideoElement(msgIn.data.peerId, consumer.track);
+            addTrackToRemoteVideo(msgIn.data.peerId, consumer.track);
         });
     }
     function onProduced(msgIn) {
         return __awaiter(this, void 0, void 0, function* () {
             var _a;
-            writeLog("stream produced " + ((_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.kind));
+            writeLog("onProduced " + ((_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.kind));
         });
     }
 }))();
