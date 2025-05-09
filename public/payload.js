@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ConsumedMsg = exports.ConsumeMsg = exports.ProducedMsg = exports.ProducerMsg = exports.RoomNewProducerMsg = exports.RoomNewPeerMsg = exports.RoomJoinResultMsg = exports.RoomJoinMsg = exports.ConnectConsumerTransportMsg = exports.ConsumerTransportCreatedMsg = exports.CreateConsumerTransportMsg = exports.ConnectProducerTransportMsg = exports.ProducerTransportCreatedMsg = exports.CreateProducerTransportMsg = exports.RegisterResultMsg = exports.RegisterMsg = exports.payloadTypeServer = exports.payloadTypeClient = void 0;
+exports.ConsumedMsg = exports.ConsumeMsg = exports.ProducedMsg = exports.ProduceMsg = exports.RoomNewProducerMsg = exports.RoomNewPeerMsg = exports.RoomJoinResultMsg = exports.RoomJoinMsg = exports.ConnectConsumerTransportMsg = exports.ConsumerTransportCreatedMsg = exports.CreateConsumerTransportMsg = exports.ConnectProducerTransportMsg = exports.ProducerTransportCreatedMsg = exports.CreateProducerTransportMsg = exports.RegisterResultMsg = exports.RegisterMsg = exports.payloadTypeServer = exports.payloadTypeClient = void 0;
 /**
  * server receives these payload types
  */
@@ -89,7 +89,6 @@ exports.RoomJoinMsg = RoomJoinMsg;
 class RoomJoinResultMsg {
     constructor() {
         this.type = payloadTypeServer.roomJoinResult;
-        this.data = { roomId: "", peers: [] };
     }
 }
 exports.RoomJoinResultMsg = RoomJoinResultMsg;
@@ -105,12 +104,12 @@ class RoomNewProducerMsg {
     }
 }
 exports.RoomNewProducerMsg = RoomNewProducerMsg;
-class ProducerMsg {
+class ProduceMsg {
     constructor() {
         this.type = payloadTypeClient.produce;
     }
 }
-exports.ProducerMsg = ProducerMsg;
+exports.ProduceMsg = ProduceMsg;
 class ProducedMsg {
     constructor() {
         this.type = payloadTypeServer.produced;

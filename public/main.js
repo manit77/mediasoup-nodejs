@@ -32,203 +32,278 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const mediasoupClient = __importStar(require("mediasoup-client"));
 const payload_1 = require("./payload");
-const ws = new WebSocket(`wss://${location.host}`);
-const ctlVideo = document.getElementById('ctlVideo');
-const ctlPeerId = document.getElementById('ctlPeerId');
-const ctlRemoteVideos = document.getElementById('ctlRemoteVideos');
-const ctlDisplayName = document.getElementById("ctlDisplayName");
-const ctlJoinRoomButton = document.getElementById("ctlJoinRoomButton");
-const ctlRoomId = document.getElementById("ctlRoomId");
-const ctlSatus = document.getElementById("ctlSatus");
-let device;
-let sendTransport;
-let recvTransport;
-let localPeerId = "";
-const createVideoElement = (peerId, track) => {
-    const video = document.createElement('video');
-    video.id = peerId;
-    video.autoplay = true;
-    video.playsInline = true;
-    video.style.width = '300px';
-    video.srcObject = new MediaStream([track]);
-    ctlRemoteVideos.appendChild(video);
-    return video;
-};
-ctlJoinRoomButton.onclick = (event) => {
-    event.preventDefault();
-    let roomid = ctlRoomId.value;
-    let roomToken = "";
-    let msg = new payload_1.RoomJoinMsg();
-    msg.data = {
-        roomId: roomid,
-        roomToken: roomToken
+(() => __awaiter(void 0, void 0, void 0, function* () {
+    const wsURI = "wss://localhost:3000";
+    let ws;
+    const ctlVideo = document.getElementById('ctlVideo');
+    const ctlPeerId = document.getElementById('ctlPeerId');
+    const ctlRemoteVideos = document.getElementById('ctlRemoteVideos');
+    const ctlDisplayName = document.getElementById("ctlDisplayName");
+    const ctlJoinRoomButton = document.getElementById("ctlJoinRoomButton");
+    const ctlRoomId = document.getElementById("ctlRoomId");
+    const ctlSatus = document.getElementById("ctlSatus");
+    let device;
+    let sendTransport;
+    let recvTransport;
+    let localPeerId = "";
+    yield initMediaSoupDevice();
+    yield initWebsocket();
+    function createVideoElement(peerId, track) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const video = document.createElement('video');
+            video.id = peerId;
+            video.autoplay = true;
+            video.playsInline = true;
+            video.style.width = '300px';
+            video.srcObject = new MediaStream([track]);
+            ctlRemoteVideos.appendChild(video);
+            return video;
+        });
+    }
+    ctlJoinRoomButton.onclick = (event) => {
+        event.preventDefault();
+        let roomid = ctlRoomId.value;
+        let roomToken = "";
+        let msg = new payload_1.RoomJoinMsg();
+        msg.data = {
+            roomId: roomid,
+            roomToken: roomToken
+        };
+        send(msg);
     };
-    send(msg);
-};
-ws.addEventListener('open', async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    ctlVideo.srcObject = stream;
-    initMediaSoupDevice();
-    register();
-});
-ws.addEventListener('message', async (event) => {
-    const msgIn = JSON.parse(event.data);
-    console.log("ws_receive ", msgIn);
-    switch (msgIn.type) {
-        case payload_1.payloadTypeServer.registerResult:
-            onRegisterResult(msgIn);
-        case payload_1.payloadTypeServer.producerTransportCreated:
-            onProducerTransportCreated(msgIn);
-            break;
-        case payload_1.payloadTypeServer.consumerTransportCreated:
-            onConsumerTransportCreated(msgIn);
-            break;
-        case payload_1.payloadTypeServer.roomJoinResult:
-            onRoomJoinResult(msgIn);
-            break;
-        case payload_1.payloadTypeServer.roomNewPeer:
-            onRoomNewPeer(msgIn);
-            break;
-        case payload_1.payloadTypeServer.consumed:
-            onConsumed(msgIn);
-            break;
+    function send(msg) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log("ws_send ", msg);
+            ws.send(JSON.stringify(msg));
+        });
     }
-});
-const send = (msg = {}) => {
-    console.log("ws_send ", msg);
-    ws.send(JSON.stringify(msg));
-};
-async function writeLog(statusText) {
-    ctlSatus.innerText = statusText + ctlSatus.innerText;
-}
-async function initMediaSoupDevice() {
-    //init a new media soup device
-    device = new mediasoupClient.Device();
-    writeLog("mediasoup initialized");
-}
-async function register() {
-    let msg = new payload_1.RegisterMsg();
-    msg.authToken = ""; //need authtoken from server
-    msg.displayName = ctlDisplayName.value;
-    send(msg);
-}
-async function onRegisterResult(msgIn) {
-    localPeerId = msgIn.data.peerid;
-    ctlPeerId.innerText = localPeerId;
-    await device.load({ routerRtpCapabilities: msgIn.data.rtpCapabilities });
-    createProducerTransport();
-    createConsumerTransport();
-}
-async function createProducerTransport() {
-    let msg = new payload_1.CreateProducerTransportMsg();
-    send(msg);
-}
-async function createConsumerTransport() {
-    let msg = new payload_1.CreateConsumerTransportMsg();
-    send(msg);
-}
-async function onConsumerTransportCreated(msgIn) {
-    recvTransport = device.createRecvTransport({
-        id: msgIn.data.transportId,
-        iceServers: msgIn.data.iceServers,
-        iceCandidates: msgIn.data.iceCandidates,
-        iceParameters: msgIn.data.iceParameters,
-        dtlsParameters: msgIn.data.dtlsParameters,
-        iceTransportPolicy: msgIn.data.iceTransportPolicy
-    });
-    recvTransport.on('connect', ({ dtlsParameters }, callback) => {
-        let msg = new payload_1.ConnectConsumerTransportMsg();
-        msg.data = {
-            dtlsParameters: dtlsParameters
-        };
-        send(msg);
-        callback();
-    });
-}
-async function onProducerTransportCreated(msgIn) {
-    //the server has created a transport
-    //create a client transport to connect to the server transport
-    sendTransport = device.createSendTransport({
-        id: msgIn.data.transportId,
-        iceServers: msgIn.data.iceServers,
-        iceCandidates: msgIn.data.iceCandidates,
-        iceParameters: msgIn.data.iceParameters,
-        dtlsParameters: msgIn.data.dtlsParameters,
-        iceTransportPolicy: msgIn.data.iceTransportPolicy
-    });
-    sendTransport.on("connect", ({ dtlsParameters }, callback) => {
-        //fires when the transport connects to the mediasoup server
-        let msg = new payload_1.ConnectProducerTransportMsg();
-        msg.data = {
-            dtlsParameters: dtlsParameters
-        };
-        send(msg);
-        callback();
-    });
-    sendTransport.on('produce', ({ kind, rtpParameters }, callback) => {
-        //fires when we call produce with local tracks
-        let msg = new payload_1.ProducedMsg();
-        msg.data = {
-            kind: kind,
-            rtpParameters: rtpParameters
-        };
-        send(msg);
-        //what is the id value???
-        callback({ id: 'placeholder' });
-    });
-}
-async function onRoomJoinResult(msgIn) {
-    if (msgIn.data.roomId) {
-        ctlSatus.innerText = "joined room " + msgIn.data.roomId;
+    ;
+    function writeLog(statusText) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // ctlSatus.innerHTML = statusText + ctlSatus.innerText + "<br>";
+            ctlSatus.innerHTML = `${statusText}<br>${ctlSatus.innerHTML}`;
+        });
     }
-    //publish local stream
-    await produceLocalStreams();
-    //connect to existing peers
-    if (msgIn.data && msgIn.data.peers) {
-        for (let peer of msgIn.data.peers) {
-            console.log(peer.peerId);
-            if (peer.producers) {
-                for (let producer of peer.producers) {
-                    console.log(producer.kind, producer.producerId);
-                    consumeProducer(peer.peerId, producer.producerId);
+    function initMediaSoupDevice() {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log("-- initMediaSoupDevice");
+            //init a new media soup device
+            device = new mediasoupClient.Device();
+            writeLog("mediasoup initialized");
+        });
+    }
+    function initWebsocket() {
+        return __awaiter(this, void 0, void 0, function* () {
+            ws = new WebSocket(wsURI);
+            ws.addEventListener('open', () => __awaiter(this, void 0, void 0, function* () {
+                writeLog("websocket open " + wsURI);
+                const stream = yield navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                ctlVideo.srcObject = stream;
+                register();
+            }));
+            ws.addEventListener('message', (event) => __awaiter(this, void 0, void 0, function* () {
+                const msgIn = JSON.parse(event.data);
+                console.log("-- ws_receive ", msgIn);
+                switch (msgIn.type) {
+                    case payload_1.payloadTypeServer.registerResult:
+                        onRegisterResult(msgIn);
+                        break;
+                    case payload_1.payloadTypeServer.producerTransportCreated:
+                        onProducerTransportCreated(msgIn);
+                        break;
+                    case payload_1.payloadTypeServer.consumerTransportCreated:
+                        onConsumerTransportCreated(msgIn);
+                        break;
+                    case payload_1.payloadTypeServer.roomJoinResult:
+                        onRoomJoinResult(msgIn);
+                        break;
+                    case payload_1.payloadTypeServer.roomNewPeer:
+                        onRoomNewPeer(msgIn);
+                        break;
+                    case payload_1.payloadTypeServer.produced:
+                        onProduced(msgIn);
+                        break;
+                    case payload_1.payloadTypeServer.consumed:
+                        onConsumed(msgIn);
+                        break;
+                }
+            }));
+            ws.addEventListener("close", () => __awaiter(this, void 0, void 0, function* () {
+                writeLog("websocket closed");
+            }));
+        });
+    }
+    function register() {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log("-- register");
+            let msg = new payload_1.RegisterMsg();
+            msg.authToken = ""; //need authtoken from server
+            msg.displayName = ctlDisplayName.value;
+            send(msg);
+        });
+    }
+    function onRegisterResult(msgIn) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log("-- onRegisterResult");
+            localPeerId = msgIn.data.peerid;
+            ctlPeerId.innerText = localPeerId;
+            yield device.load({ routerRtpCapabilities: msgIn.data.rtpCapabilities });
+            yield createProducerTransport();
+            yield createConsumerTransport();
+        });
+    }
+    function createProducerTransport() {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log("-- createProducerTransport");
+            let msg = new payload_1.CreateProducerTransportMsg();
+            send(msg);
+        });
+    }
+    function createConsumerTransport() {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log("-- createConsumerTransport");
+            let msg = new payload_1.CreateConsumerTransportMsg();
+            send(msg);
+        });
+    }
+    function onConsumerTransportCreated(msgIn) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log("-- onConsumerTransportCreated");
+            recvTransport = device.createRecvTransport({
+                id: msgIn.data.transportId,
+                iceServers: msgIn.data.iceServers,
+                iceCandidates: msgIn.data.iceCandidates,
+                iceParameters: msgIn.data.iceParameters,
+                dtlsParameters: msgIn.data.dtlsParameters,
+                iceTransportPolicy: msgIn.data.iceTransportPolicy
+            });
+            recvTransport.on('connect', ({ dtlsParameters }, callback) => {
+                let msg = new payload_1.ConnectConsumerTransportMsg();
+                msg.data = {
+                    dtlsParameters: dtlsParameters
+                };
+                send(msg);
+                callback();
+            });
+        });
+    }
+    function onProducerTransportCreated(msgIn) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log("-- onProducerTransportCreated");
+            //the server has created a transport
+            //create a client transport to connect to the server transport
+            sendTransport = device.createSendTransport({
+                id: msgIn.data.transportId,
+                iceServers: msgIn.data.iceServers,
+                iceCandidates: msgIn.data.iceCandidates,
+                iceParameters: msgIn.data.iceParameters,
+                dtlsParameters: msgIn.data.dtlsParameters,
+                iceTransportPolicy: msgIn.data.iceTransportPolicy
+            });
+            sendTransport.on("connect", ({ dtlsParameters }, callback) => {
+                console.log("-- sendTransport connect");
+                //fires when the transport connects to the mediasoup server
+                let msg = new payload_1.ConnectProducerTransportMsg();
+                msg.data = {
+                    dtlsParameters: dtlsParameters
+                };
+                send(msg);
+                callback();
+            });
+            sendTransport.on('produce', ({ kind, rtpParameters }, callback) => {
+                console.log("-- sendTransport produce");
+                //fires when we call produce with local tracks
+                let msg = new payload_1.ProducedMsg();
+                msg.data = {
+                    kind: kind,
+                    rtpParameters: rtpParameters
+                };
+                send(msg);
+                //what is the id value???
+                callback({ id: 'placeholder' });
+            });
+        });
+    }
+    function onRoomJoinResult(msgIn) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log("-- onRoomJoinResult");
+            if (msgIn.data.roomId) {
+                writeLog("joined room " + msgIn.data.roomId);
+            }
+            //publish local stream
+            yield produceLocalStreams();
+            //connect to existing peers
+            if (msgIn.data && msgIn.data.peers) {
+                for (let peer of msgIn.data.peers) {
+                    console.log(peer.peerId);
+                    if (peer.producers) {
+                        for (let producer of peer.producers) {
+                            console.log(producer.kind, producer.producerId);
+                            consumeProducer(peer.peerId, producer.producerId);
+                        }
+                    }
                 }
             }
-        }
+        });
     }
-}
-async function onRoomNewPeer(msgIn) {
-    writeLog("new PeeerJoined " + msgIn.data?.peerId);
-    if (msgIn.data?.producers) {
-        for (let producer of msgIn.data.producers) {
-            consumeProducer(msgIn.data.peerId, producer.producerId);
-        }
+    function onRoomNewPeer(msgIn) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
+            writeLog("new PeeerJoined " + ((_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.peerId));
+            if ((_b = msgIn.data) === null || _b === void 0 ? void 0 : _b.producers) {
+                for (let producer of msgIn.data.producers) {
+                    consumeProducer(msgIn.data.peerId, producer.producerId);
+                }
+            }
+        });
     }
-}
-async function produceLocalStreams() {
-    //get the tracks and start sending the streams "produce"
-    const localStream = ctlVideo.srcObject;
-    for (const track of localStream.getTracks()) {
-        await sendTransport.produce({ track });
+    function produceLocalStreams() {
+        return __awaiter(this, void 0, void 0, function* () {
+            //get the tracks and start sending the streams "produce"
+            const localStream = ctlVideo.srcObject;
+            for (const track of localStream.getTracks()) {
+                yield sendTransport.produce({ track });
+            }
+        });
     }
-}
-async function consumeProducer(remotePeerId, producerId) {
-    let msg = new payload_1.ConsumeMsg();
-    msg.data = {
-        remotePeerId: remotePeerId,
-        producerId: producerId,
-        rtpCapabilities: device.rtpCapabilities
-    };
-    send(msg);
-}
-async function onConsumed(msgIn) {
-    const consumer = await recvTransport.consume({
-        id: msgIn.data.consumerId,
-        producerId: msgIn.data.producerId,
-        kind: msgIn.data.kind,
-        rtpParameters: msgIn.data.rtpParameters
-    });
-    createVideoElement(msgIn.data.peerId, consumer.track);
-}
+    function consumeProducer(remotePeerId, producerId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let msg = new payload_1.ConsumeMsg();
+            msg.data = {
+                remotePeerId: remotePeerId,
+                producerId: producerId,
+                rtpCapabilities: device.rtpCapabilities
+            };
+            send(msg);
+        });
+    }
+    function onConsumed(msgIn) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const consumer = yield recvTransport.consume({
+                id: msgIn.data.consumerId,
+                producerId: msgIn.data.producerId,
+                kind: msgIn.data.kind,
+                rtpParameters: msgIn.data.rtpParameters
+            });
+            createVideoElement(msgIn.data.peerId, consumer.track);
+        });
+    }
+    function onProduced(msgIn) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            writeLog("stream produced " + ((_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.kind));
+        });
+    }
+}))();

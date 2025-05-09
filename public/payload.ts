@@ -135,7 +135,7 @@ export class RoomNewProducerMsg {
     };
 }
 
-export class ProducerMsg {
+export class ProduceMsg {
     private type = payloadTypeClient.produce;
     data?: {
         kind: "audio" | "video",

@@ -29,9 +29,9 @@
     mod
   ));
 
-  // node_modules/ms/index.js
+  // ../node_modules/ms/index.js
   var require_ms = __commonJS({
-    "node_modules/ms/index.js"(exports, module) {
+    "../node_modules/ms/index.js"(exports, module) {
       var s = 1e3;
       var m = s * 60;
       var h = m * 60;
@@ -145,9 +145,9 @@
     }
   });
 
-  // node_modules/debug/src/common.js
+  // ../node_modules/debug/src/common.js
   var require_common = __commonJS({
-    "node_modules/debug/src/common.js"(exports, module) {
+    "../node_modules/debug/src/common.js"(exports, module) {
       function setup(env) {
         createDebug.debug = createDebug;
         createDebug.default = createDebug;
@@ -322,9 +322,9 @@
     }
   });
 
-  // node_modules/debug/src/browser.js
+  // ../node_modules/debug/src/browser.js
   var require_browser = __commonJS({
-    "node_modules/debug/src/browser.js"(exports, module) {
+    "../node_modules/debug/src/browser.js"(exports, module) {
       exports.formatArgs = formatArgs;
       exports.save = save;
       exports.load = load;
@@ -492,9 +492,9 @@
     }
   });
 
-  // node_modules/ua-parser-js/src/main/ua-parser.js
+  // ../node_modules/ua-parser-js/src/main/ua-parser.js
   var require_ua_parser = __commonJS({
-    "node_modules/ua-parser-js/src/main/ua-parser.js"(exports, module) {
+    "../node_modules/ua-parser-js/src/main/ua-parser.js"(exports, module) {
       (function(window2, undefined2) {
         "use strict";
         var LIBVERSION = "2.0.3", UA_MAX_LENGTH = 500, USER_AGENT = "user-agent", EMPTY = "", UNKNOWN = "?", FUNC_TYPE = "function", UNDEF_TYPE = "undefined", OBJ_TYPE = "object", STR_TYPE = "string", UA_BROWSER = "browser", UA_CPU = "cpu", UA_DEVICE = "device", UA_ENGINE = "engine", UA_OS = "os", UA_RESULT = "result", NAME = "name", TYPE = "type", VENDOR = "vendor", VERSION = "version", ARCHITECTURE = "architecture", MAJOR = "major", MODEL = "model", CONSOLE = "console", MOBILE = "mobile", TABLET = "tablet", SMARTTV = "smarttv", WEARABLE = "wearable", XR = "xr", EMBEDDED = "embedded", INAPP = "inapp", BRANDS = "brands", FORMFACTORS = "formFactors", FULLVERLIST = "fullVersionList", PLATFORM = "platform", PLATFORMVER = "platformVersion", BITNESS = "bitness", CH_HEADER = "sec-ch-ua", CH_HEADER_FULL_VER_LIST = CH_HEADER + "-full-version-list", CH_HEADER_ARCH = CH_HEADER + "-arch", CH_HEADER_BITNESS = CH_HEADER + "-" + BITNESS, CH_HEADER_FORM_FACTORS = CH_HEADER + "-form-factors", CH_HEADER_MOBILE = CH_HEADER + "-" + MOBILE, CH_HEADER_MODEL = CH_HEADER + "-" + MODEL, CH_HEADER_PLATFORM = CH_HEADER + "-" + PLATFORM, CH_HEADER_PLATFORM_VER = CH_HEADER_PLATFORM + "-version", CH_ALL_VALUES = [BRANDS, FULLVERLIST, MOBILE, MODEL, PLATFORM, PLATFORMVER, ARCHITECTURE, FORMFACTORS, BITNESS], AMAZON = "Amazon", APPLE = "Apple", ASUS = "ASUS", BLACKBERRY = "BlackBerry", GOOGLE = "Google", HUAWEI = "Huawei", LENOVO = "Lenovo", HONOR = "Honor", LG = "LG", MICROSOFT = "Microsoft", MOTOROLA = "Motorola", NVIDIA = "Nvidia", ONEPLUS = "OnePlus", OPPO = "OPPO", SAMSUNG = "Samsung", SHARP = "Sharp", SONY = "Sony", XIAOMI = "Xiaomi", ZEBRA = "Zebra", CHROME = "Chrome", CHROMIUM = "Chromium", CHROMECAST = "Chromecast", EDGE = "Edge", FIREFOX = "Firefox", OPERA = "Opera", FACEBOOK = "Facebook", SOGOU = "Sogou", PREFIX_MOBILE = "Mobile ", SUFFIX_BROWSER = " Browser", WINDOWS = "Windows";
@@ -2181,9 +2181,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/Logger.js
+  // ../node_modules/mediasoup-client/lib/Logger.js
   var require_Logger = __commonJS({
-    "node_modules/mediasoup-client/lib/Logger.js"(exports) {
+    "../node_modules/mediasoup-client/lib/Logger.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Logger = void 0;
@@ -2221,9 +2221,9 @@
     }
   });
 
-  // node_modules/npm-events-package/events.js
+  // ../node_modules/npm-events-package/events.js
   var require_events = __commonJS({
-    "node_modules/npm-events-package/events.js"(exports, module) {
+    "../node_modules/npm-events-package/events.js"(exports, module) {
       "use strict";
       var R = typeof Reflect === "object" ? Reflect : null;
       var ReflectApply = R && typeof R.apply === "function" ? R.apply : function ReflectApply2(target, receiver, args) {
@@ -2590,9 +2590,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/enhancedEvents.js
+  // ../node_modules/mediasoup-client/lib/enhancedEvents.js
   var require_enhancedEvents = __commonJS({
-    "node_modules/mediasoup-client/lib/enhancedEvents.js"(exports) {
+    "../node_modules/mediasoup-client/lib/enhancedEvents.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.EnhancedEventEmitter = void 0;
@@ -2668,9 +2668,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/errors.js
+  // ../node_modules/mediasoup-client/lib/errors.js
   var require_errors = __commonJS({
-    "node_modules/mediasoup-client/lib/errors.js"(exports) {
+    "../node_modules/mediasoup-client/lib/errors.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.InvalidStateError = exports.UnsupportedError = void 0;
@@ -2701,9 +2701,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/utils.js
+  // ../node_modules/mediasoup-client/lib/utils.js
   var require_utils = __commonJS({
-    "node_modules/mediasoup-client/lib/utils.js"(exports) {
+    "../node_modules/mediasoup-client/lib/utils.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.clone = clone;
@@ -2736,9 +2736,9 @@
     }
   });
 
-  // node_modules/h264-profile-level-id/lib/Logger.js
+  // ../node_modules/h264-profile-level-id/lib/Logger.js
   var require_Logger2 = __commonJS({
-    "node_modules/h264-profile-level-id/lib/Logger.js"(exports) {
+    "../node_modules/h264-profile-level-id/lib/Logger.js"(exports) {
       "use strict";
       var __importDefault = exports && exports.__importDefault || function(mod) {
         return mod && mod.__esModule ? mod : { "default": mod };
@@ -2776,9 +2776,9 @@
     }
   });
 
-  // node_modules/h264-profile-level-id/lib/index.js
+  // ../node_modules/h264-profile-level-id/lib/index.js
   var require_lib = __commonJS({
-    "node_modules/h264-profile-level-id/lib/index.js"(exports) {
+    "../node_modules/h264-profile-level-id/lib/index.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.ProfileLevelId = exports.Level = exports.Profile = void 0;
@@ -3208,9 +3208,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/ortc.js
+  // ../node_modules/mediasoup-client/lib/ortc.js
   var require_ortc = __commonJS({
-    "node_modules/mediasoup-client/lib/ortc.js"(exports) {
+    "../node_modules/mediasoup-client/lib/ortc.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.validateRtpCapabilities = validateRtpCapabilities;
@@ -3899,9 +3899,9 @@
     }
   });
 
-  // node_modules/awaitqueue/lib/Logger.js
+  // ../node_modules/awaitqueue/lib/Logger.js
   var require_Logger3 = __commonJS({
-    "node_modules/awaitqueue/lib/Logger.js"(exports) {
+    "../node_modules/awaitqueue/lib/Logger.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Logger = void 0;
@@ -3939,9 +3939,9 @@
     }
   });
 
-  // node_modules/awaitqueue/lib/errors.js
+  // ../node_modules/awaitqueue/lib/errors.js
   var require_errors2 = __commonJS({
-    "node_modules/awaitqueue/lib/errors.js"(exports) {
+    "../node_modules/awaitqueue/lib/errors.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.AwaitQueueRemovedTaskError = exports.AwaitQueueStoppedError = void 0;
@@ -3968,9 +3968,9 @@
     }
   });
 
-  // node_modules/awaitqueue/lib/AwaitQueue.js
+  // ../node_modules/awaitqueue/lib/AwaitQueue.js
   var require_AwaitQueue = __commonJS({
-    "node_modules/awaitqueue/lib/AwaitQueue.js"(exports) {
+    "../node_modules/awaitqueue/lib/AwaitQueue.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.AwaitQueue = void 0;
@@ -4092,9 +4092,9 @@
     }
   });
 
-  // node_modules/awaitqueue/lib/index.js
+  // ../node_modules/awaitqueue/lib/index.js
   var require_lib2 = __commonJS({
-    "node_modules/awaitqueue/lib/index.js"(exports) {
+    "../node_modules/awaitqueue/lib/index.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.AwaitQueueRemovedTaskError = exports.AwaitQueueStoppedError = exports.AwaitQueue = void 0;
@@ -4112,9 +4112,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/Producer.js
+  // ../node_modules/mediasoup-client/lib/Producer.js
   var require_Producer = __commonJS({
-    "node_modules/mediasoup-client/lib/Producer.js"(exports) {
+    "../node_modules/mediasoup-client/lib/Producer.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Producer = void 0;
@@ -4411,9 +4411,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/Consumer.js
+  // ../node_modules/mediasoup-client/lib/Consumer.js
   var require_Consumer = __commonJS({
-    "node_modules/mediasoup-client/lib/Consumer.js"(exports) {
+    "../node_modules/mediasoup-client/lib/Consumer.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Consumer = void 0;
@@ -4618,9 +4618,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/DataProducer.js
+  // ../node_modules/mediasoup-client/lib/DataProducer.js
   var require_DataProducer = __commonJS({
-    "node_modules/mediasoup-client/lib/DataProducer.js"(exports) {
+    "../node_modules/mediasoup-client/lib/DataProducer.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.DataProducer = void 0;
@@ -4808,9 +4808,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/DataConsumer.js
+  // ../node_modules/mediasoup-client/lib/DataConsumer.js
   var require_DataConsumer = __commonJS({
-    "node_modules/mediasoup-client/lib/DataConsumer.js"(exports) {
+    "../node_modules/mediasoup-client/lib/DataConsumer.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.DataConsumer = void 0;
@@ -4982,9 +4982,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/Transport.js
+  // ../node_modules/mediasoup-client/lib/Transport.js
   var require_Transport = __commonJS({
-    "node_modules/mediasoup-client/lib/Transport.js"(exports) {
+    "../node_modules/mediasoup-client/lib/Transport.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Transport = void 0;
@@ -5723,9 +5723,9 @@
     }
   });
 
-  // node_modules/sdp-transform/lib/grammar.js
+  // ../node_modules/sdp-transform/lib/grammar.js
   var require_grammar = __commonJS({
-    "node_modules/sdp-transform/lib/grammar.js"(exports, module) {
+    "../node_modules/sdp-transform/lib/grammar.js"(exports, module) {
       var grammar = module.exports = {
         v: [{
           name: "version",
@@ -6191,9 +6191,9 @@
     }
   });
 
-  // node_modules/sdp-transform/lib/parser.js
+  // ../node_modules/sdp-transform/lib/parser.js
   var require_parser = __commonJS({
-    "node_modules/sdp-transform/lib/parser.js"(exports) {
+    "../node_modules/sdp-transform/lib/parser.js"(exports) {
       var toIntIfInt = function(v) {
         return String(Number(v)) === v ? Number(v) : v;
       };
@@ -6298,9 +6298,9 @@
     }
   });
 
-  // node_modules/sdp-transform/lib/writer.js
+  // ../node_modules/sdp-transform/lib/writer.js
   var require_writer = __commonJS({
-    "node_modules/sdp-transform/lib/writer.js"(exports, module) {
+    "../node_modules/sdp-transform/lib/writer.js"(exports, module) {
       var grammar = require_grammar();
       var formatRegExp = /%[sdv%]/g;
       var format = function(formatStr) {
@@ -6404,9 +6404,9 @@
     }
   });
 
-  // node_modules/sdp-transform/lib/index.js
+  // ../node_modules/sdp-transform/lib/index.js
   var require_lib3 = __commonJS({
-    "node_modules/sdp-transform/lib/index.js"(exports) {
+    "../node_modules/sdp-transform/lib/index.js"(exports) {
       var parser = require_parser();
       var writer = require_writer();
       var grammar = require_grammar();
@@ -6422,9 +6422,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/sdp/commonUtils.js
+  // ../node_modules/mediasoup-client/lib/handlers/sdp/commonUtils.js
   var require_commonUtils = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/sdp/commonUtils.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/sdp/commonUtils.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.extractRtpCapabilities = extractRtpCapabilities;
@@ -6607,9 +6607,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/sdp/unifiedPlanUtils.js
+  // ../node_modules/mediasoup-client/lib/handlers/sdp/unifiedPlanUtils.js
   var require_unifiedPlanUtils = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/sdp/unifiedPlanUtils.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/sdp/unifiedPlanUtils.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.getRtpEncodings = getRtpEncodings;
@@ -6726,9 +6726,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/ortc/utils.js
+  // ../node_modules/mediasoup-client/lib/handlers/ortc/utils.js
   var require_utils2 = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/ortc/utils.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/ortc/utils.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.addNackSupportForOpus = addNackSupportForOpus;
@@ -6745,9 +6745,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/HandlerInterface.js
+  // ../node_modules/mediasoup-client/lib/handlers/HandlerInterface.js
   var require_HandlerInterface = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/HandlerInterface.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/HandlerInterface.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.HandlerInterface = void 0;
@@ -6761,9 +6761,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/sdp/MediaSection.js
+  // ../node_modules/mediasoup-client/lib/handlers/sdp/MediaSection.js
   var require_MediaSection = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/sdp/MediaSection.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/sdp/MediaSection.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.OfferMediaSection = exports.AnswerMediaSection = exports.MediaSection = void 0;
@@ -7283,9 +7283,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/sdp/RemoteSdp.js
+  // ../node_modules/mediasoup-client/lib/handlers/sdp/RemoteSdp.js
   var require_RemoteSdp = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/sdp/RemoteSdp.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/sdp/RemoteSdp.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.RemoteSdp = void 0;
@@ -7554,9 +7554,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/scalabilityModes.js
+  // ../node_modules/mediasoup-client/lib/scalabilityModes.js
   var require_scalabilityModes = __commonJS({
-    "node_modules/mediasoup-client/lib/scalabilityModes.js"(exports) {
+    "../node_modules/mediasoup-client/lib/scalabilityModes.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.parse = parse;
@@ -7578,9 +7578,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/Chrome111.js
+  // ../node_modules/mediasoup-client/lib/handlers/Chrome111.js
   var require_Chrome111 = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/Chrome111.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/Chrome111.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Chrome111 = void 0;
@@ -8246,9 +8246,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/Chrome74.js
+  // ../node_modules/mediasoup-client/lib/handlers/Chrome74.js
   var require_Chrome74 = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/Chrome74.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/Chrome74.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Chrome74 = void 0;
@@ -8917,9 +8917,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/Chrome70.js
+  // ../node_modules/mediasoup-client/lib/handlers/Chrome70.js
   var require_Chrome70 = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/Chrome70.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/Chrome70.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Chrome70 = void 0;
@@ -9507,9 +9507,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/sdp/planBUtils.js
+  // ../node_modules/mediasoup-client/lib/handlers/sdp/planBUtils.js
   var require_planBUtils = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/sdp/planBUtils.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/sdp/planBUtils.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.getRtpEncodings = getRtpEncodings;
@@ -9648,9 +9648,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/Chrome67.js
+  // ../node_modules/mediasoup-client/lib/handlers/Chrome67.js
   var require_Chrome67 = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/Chrome67.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/Chrome67.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Chrome67 = void 0;
@@ -10217,9 +10217,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/Chrome55.js
+  // ../node_modules/mediasoup-client/lib/handlers/Chrome55.js
   var require_Chrome55 = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/Chrome55.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/Chrome55.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Chrome55 = void 0;
@@ -10729,9 +10729,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/Firefox120.js
+  // ../node_modules/mediasoup-client/lib/handlers/Firefox120.js
   var require_Firefox120 = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/Firefox120.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/Firefox120.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Firefox120 = void 0;
@@ -11391,9 +11391,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/Firefox60.js
+  // ../node_modules/mediasoup-client/lib/handlers/Firefox60.js
   var require_Firefox60 = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/Firefox60.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/Firefox60.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Firefox60 = void 0;
@@ -12049,9 +12049,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/Safari12.js
+  // ../node_modules/mediasoup-client/lib/handlers/Safari12.js
   var require_Safari12 = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/Safari12.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/Safari12.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Safari12 = void 0;
@@ -12718,9 +12718,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/Safari11.js
+  // ../node_modules/mediasoup-client/lib/handlers/Safari11.js
   var require_Safari11 = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/Safari11.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/Safari11.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Safari11 = void 0;
@@ -13280,9 +13280,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/ortc/edgeUtils.js
+  // ../node_modules/mediasoup-client/lib/handlers/ortc/edgeUtils.js
   var require_edgeUtils = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/ortc/edgeUtils.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/ortc/edgeUtils.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.getCapabilities = getCapabilities;
@@ -13333,9 +13333,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/Edge11.js
+  // ../node_modules/mediasoup-client/lib/handlers/Edge11.js
   var require_Edge11 = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/Edge11.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/Edge11.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Edge11 = void 0;
@@ -13745,9 +13745,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/ReactNativeUnifiedPlan.js
+  // ../node_modules/mediasoup-client/lib/handlers/ReactNativeUnifiedPlan.js
   var require_ReactNativeUnifiedPlan = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/ReactNativeUnifiedPlan.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/ReactNativeUnifiedPlan.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.ReactNativeUnifiedPlan = void 0;
@@ -14442,9 +14442,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/ReactNative.js
+  // ../node_modules/mediasoup-client/lib/handlers/ReactNative.js
   var require_ReactNative = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/ReactNative.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/ReactNative.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.ReactNative = void 0;
@@ -14963,9 +14963,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/Device.js
+  // ../node_modules/mediasoup-client/lib/Device.js
   var require_Device = __commonJS({
-    "node_modules/mediasoup-client/lib/Device.js"(exports) {
+    "../node_modules/mediasoup-client/lib/Device.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Device = void 0;
@@ -15389,25 +15389,25 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/RtpParameters.js
+  // ../node_modules/mediasoup-client/lib/RtpParameters.js
   var require_RtpParameters = __commonJS({
-    "node_modules/mediasoup-client/lib/RtpParameters.js"(exports) {
+    "../node_modules/mediasoup-client/lib/RtpParameters.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
     }
   });
 
-  // node_modules/mediasoup-client/lib/SctpParameters.js
+  // ../node_modules/mediasoup-client/lib/SctpParameters.js
   var require_SctpParameters = __commonJS({
-    "node_modules/mediasoup-client/lib/SctpParameters.js"(exports) {
+    "../node_modules/mediasoup-client/lib/SctpParameters.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
     }
   });
 
-  // node_modules/mediasoup-client/lib/types.js
+  // ../node_modules/mediasoup-client/lib/types.js
   var require_types = __commonJS({
-    "node_modules/mediasoup-client/lib/types.js"(exports) {
+    "../node_modules/mediasoup-client/lib/types.js"(exports) {
       "use strict";
       var __createBinding = exports && exports.__createBinding || (Object.create ? function(o, m, k, k2) {
         if (k2 === void 0) k2 = k;
@@ -15439,36 +15439,36 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/max.js
+  // ../node_modules/uuid/dist/cjs-browser/max.js
   var require_max = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/max.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/max.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.default = "ffffffff-ffff-ffff-ffff-ffffffffffff";
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/nil.js
+  // ../node_modules/uuid/dist/cjs-browser/nil.js
   var require_nil = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/nil.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/nil.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.default = "00000000-0000-0000-0000-000000000000";
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/regex.js
+  // ../node_modules/uuid/dist/cjs-browser/regex.js
   var require_regex = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/regex.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/regex.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.default = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$/i;
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/validate.js
+  // ../node_modules/uuid/dist/cjs-browser/validate.js
   var require_validate = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/validate.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/validate.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       var regex_js_1 = require_regex();
@@ -15479,9 +15479,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/parse.js
+  // ../node_modules/uuid/dist/cjs-browser/parse.js
   var require_parse = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/parse.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/parse.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       var validate_js_1 = require_validate();
@@ -15496,9 +15496,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/stringify.js
+  // ../node_modules/uuid/dist/cjs-browser/stringify.js
   var require_stringify = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/stringify.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/stringify.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.unsafeStringify = void 0;
@@ -15522,9 +15522,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/rng.js
+  // ../node_modules/uuid/dist/cjs-browser/rng.js
   var require_rng = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/rng.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/rng.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       var getRandomValues;
@@ -15542,9 +15542,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/v1.js
+  // ../node_modules/uuid/dist/cjs-browser/v1.js
   var require_v1 = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/v1.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/v1.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.updateV1State = void 0;
@@ -15631,9 +15631,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/v1ToV6.js
+  // ../node_modules/uuid/dist/cjs-browser/v1ToV6.js
   var require_v1ToV6 = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/v1ToV6.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/v1ToV6.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       var parse_js_1 = require_parse();
@@ -15650,9 +15650,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/md5.js
+  // ../node_modules/uuid/dist/cjs-browser/md5.js
   var require_md5 = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/md5.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/md5.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       function md5(bytes) {
@@ -15793,9 +15793,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/v35.js
+  // ../node_modules/uuid/dist/cjs-browser/v35.js
   var require_v35 = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/v35.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/v35.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.URL = exports.DNS = exports.stringToBytes = void 0;
@@ -15840,9 +15840,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/v3.js
+  // ../node_modules/uuid/dist/cjs-browser/v3.js
   var require_v3 = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/v3.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/v3.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.URL = exports.DNS = void 0;
@@ -15864,9 +15864,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/native.js
+  // ../node_modules/uuid/dist/cjs-browser/native.js
   var require_native = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/native.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/native.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       var randomUUID = typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID.bind(crypto);
@@ -15874,9 +15874,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/v4.js
+  // ../node_modules/uuid/dist/cjs-browser/v4.js
   var require_v4 = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/v4.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/v4.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       var native_js_1 = require_native();
@@ -15909,9 +15909,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/sha1.js
+  // ../node_modules/uuid/dist/cjs-browser/sha1.js
   var require_sha1 = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/sha1.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/sha1.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       function f(s, x, y, z) {
@@ -15983,9 +15983,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/v5.js
+  // ../node_modules/uuid/dist/cjs-browser/v5.js
   var require_v5 = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/v5.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/v5.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.URL = exports.DNS = void 0;
@@ -16007,9 +16007,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/v6.js
+  // ../node_modules/uuid/dist/cjs-browser/v6.js
   var require_v6 = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/v6.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/v6.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       var stringify_js_1 = require_stringify();
@@ -16032,9 +16032,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/v6ToV1.js
+  // ../node_modules/uuid/dist/cjs-browser/v6ToV1.js
   var require_v6ToV1 = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/v6ToV1.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/v6ToV1.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       var parse_js_1 = require_parse();
@@ -16051,9 +16051,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/v7.js
+  // ../node_modules/uuid/dist/cjs-browser/v7.js
   var require_v7 = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/v7.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/v7.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.updateV7State = void 0;
@@ -16123,9 +16123,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/version.js
+  // ../node_modules/uuid/dist/cjs-browser/version.js
   var require_version = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/version.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/version.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       var validate_js_1 = require_validate();
@@ -16139,9 +16139,9 @@
     }
   });
 
-  // node_modules/uuid/dist/cjs-browser/index.js
+  // ../node_modules/uuid/dist/cjs-browser/index.js
   var require_cjs_browser = __commonJS({
-    "node_modules/uuid/dist/cjs-browser/index.js"(exports) {
+    "../node_modules/uuid/dist/cjs-browser/index.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.version = exports.validate = exports.v7 = exports.v6ToV1 = exports.v6 = exports.v5 = exports.v4 = exports.v3 = exports.v1ToV6 = exports.v1 = exports.stringify = exports.parse = exports.NIL = exports.MAX = void 0;
@@ -16204,9 +16204,60 @@
     }
   });
 
-  // node_modules/fake-mediastreamtrack/lib/utils.js
+  // ../node_modules/fake-mediastreamtrack/lib/FakeEventTarget.js
+  var require_FakeEventTarget = __commonJS({
+    "../node_modules/fake-mediastreamtrack/lib/FakeEventTarget.js"(exports) {
+      "use strict";
+      Object.defineProperty(exports, "__esModule", { value: true });
+      exports.FakeEventTarget = void 0;
+      var FakeEventTarget = class {
+        listeners = {};
+        addEventListener(type, callback, options = {}) {
+          if (!callback) {
+            return;
+          }
+          this.listeners[type] ??= [];
+          this.listeners[type].push({
+            callback,
+            once: options.once === true
+          });
+        }
+        removeEventListener(type, callback) {
+          if (!this.listeners[type]) {
+            return;
+          }
+          this.listeners[type] = this.listeners[type].filter((listener) => listener.callback !== callback);
+        }
+        dispatchEvent(event) {
+          if (!event || typeof event.type !== "string") {
+            throw new Error("invalid event object");
+          }
+          const entries = this.listeners[event.type];
+          if (!entries) {
+            return true;
+          }
+          for (const listener of [...entries]) {
+            try {
+              listener.callback.call(this, event);
+            } catch (error) {
+              setTimeout(() => {
+                throw error;
+              }, 0);
+            }
+            if (listener.once) {
+              this.removeEventListener(event.type, listener.callback);
+            }
+          }
+          return !event.defaultPrevented;
+        }
+      };
+      exports.FakeEventTarget = FakeEventTarget;
+    }
+  });
+
+  // ../node_modules/fake-mediastreamtrack/lib/utils.js
   var require_utils3 = __commonJS({
-    "node_modules/fake-mediastreamtrack/lib/utils.js"(exports) {
+    "../node_modules/fake-mediastreamtrack/lib/utils.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.clone = clone;
@@ -16224,15 +16275,16 @@
     }
   });
 
-  // node_modules/fake-mediastreamtrack/lib/index.js
+  // ../node_modules/fake-mediastreamtrack/lib/index.js
   var require_lib4 = __commonJS({
-    "node_modules/fake-mediastreamtrack/lib/index.js"(exports) {
+    "../node_modules/fake-mediastreamtrack/lib/index.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.FakeMediaStreamTrack = void 0;
       var uuid_1 = require_cjs_browser();
+      var FakeEventTarget_1 = require_FakeEventTarget();
       var utils_1 = require_utils3();
-      var FakeMediaStreamTrack = class _FakeMediaStreamTrack extends EventTarget {
+      var FakeMediaStreamTrack = class _FakeMediaStreamTrack extends FakeEventTarget_1.FakeEventTarget {
         #id;
         #kind;
         #label;
@@ -16374,8 +16426,8 @@
         addEventListener(type, listener, options) {
           super.addEventListener(type, listener, options);
         }
-        removeEventListener(type, listener, options) {
-          super.removeEventListener(type, listener, options);
+        removeEventListener(type, listener) {
+          super.removeEventListener(type, listener);
         }
         /**
          * Changes `readyState` member to "ended" and fires a custom "stopped" event
@@ -16459,9 +16511,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/handlers/FakeHandler.js
+  // ../node_modules/mediasoup-client/lib/handlers/FakeHandler.js
   var require_FakeHandler = __commonJS({
-    "node_modules/mediasoup-client/lib/handlers/FakeHandler.js"(exports) {
+    "../node_modules/mediasoup-client/lib/handlers/FakeHandler.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.FakeHandler = void 0;
@@ -16754,9 +16806,9 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/test/fakeParameters.js
+  // ../node_modules/mediasoup-client/lib/test/fakeParameters.js
   var require_fakeParameters = __commonJS({
-    "node_modules/mediasoup-client/lib/test/fakeParameters.js"(exports) {
+    "../node_modules/mediasoup-client/lib/test/fakeParameters.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.generateRouterRtpCapabilities = generateRouterRtpCapabilities;
@@ -17435,16 +17487,16 @@
     }
   });
 
-  // node_modules/mediasoup-client/lib/index.js
+  // ../node_modules/mediasoup-client/lib/index.js
   var require_lib5 = __commonJS({
-    "node_modules/mediasoup-client/lib/index.js"(exports) {
+    "../node_modules/mediasoup-client/lib/index.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.debug = exports.testFakeParameters = exports.FakeHandler = exports.ortc = exports.parseScalabilityMode = exports.detectDeviceAsync = exports.detectDevice = exports.Device = exports.version = exports.types = void 0;
       var debug_1 = require_browser();
       exports.debug = debug_1.default;
       exports.types = require_types();
-      exports.version = "3.10.0";
+      exports.version = "3.10.1";
       var Device_1 = require_Device();
       Object.defineProperty(exports, "Device", { enumerable: true, get: function() {
         return Device_1.Device;
@@ -17600,6 +17652,9 @@
               case "roomNewPeer" /* roomNewPeer */:
                 onRoomNewPeer(msgIn);
                 break;
+              case "produced" /* produced */:
+                onProduced(msgIn);
+                break;
               case "consumed" /* consumed */:
                 onConsumed(msgIn);
                 break;
@@ -17732,6 +17787,9 @@
             rtpParameters: msgIn.data.rtpParameters
           });
           createVideoElement(msgIn.data.peerId, consumer.track);
+        }
+        async function onProduced(msgIn) {
+          writeLog("stream produced " + msgIn.data?.kind);
         }
       })();
     }

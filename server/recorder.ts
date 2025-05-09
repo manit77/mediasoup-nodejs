@@ -5,6 +5,8 @@ import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
 import { getFreeUDPPort } from "./utils";
 
+ffmpeg.setFfmpegPath('./bin/ffmpeg');
+
 export async function startRecordingAudio(recordingsDir: string, peer: Peer, router: mediasoup.types.Router) {
   const audioProducer = peer.producers?.find((p) => p.kind === 'audio');
   if (!audioProducer) {

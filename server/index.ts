@@ -13,7 +13,6 @@ import { randomUUID } from 'crypto';
 import { stopRecording } from './recorder';
 import { RoomServer } from './server';
 
-ffmpeg.setFfmpegPath('./bin/ffmpeg');
 
 const app = express();
 app.use(cors());

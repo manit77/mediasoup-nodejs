@@ -11,6 +11,7 @@ export class Room {
     }
 
     async addPeer(peer: Peer) {
+        console.log("addPeer", peer.id);
         this.peers.set(peer.id, peer);
     }
 
@@ -19,6 +20,7 @@ export class Room {
     }
 
     async broadCastExcept(except: Peer, msg: any) {
+        console.log("broadCastExcept", this.peers.size);
         for (let peer of this.peers.values()) {
             if (except != peer) {
                 peer.socket.send(JSON.stringify(msg));

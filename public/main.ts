@@ -97,6 +97,9 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
                 case payloadTypeServer.roomNewPeer:
                     onRoomNewPeer(msgIn);
                     break;
+                case payloadTypeServer.produced:
+                    onProduced(msgIn);
+                    break;
                 case payloadTypeServer.consumed:
                     onConsumed(msgIn);
                     break;
@@ -281,6 +284,10 @@ import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, 
 
         createVideoElement(msgIn.data!.peerId, consumer.track);
 
+    }
+
+    async function onProduced(msgIn: ProducedMsg){
+        writeLog("stream produced " + msgIn.data?.kind);
     }
 
 })();
