@@ -378,7 +378,13 @@ export class RoomServer {
         peer.consumers.map(consumer => consumer.close());
         peer.consumers = [];
 
+        if(peer.room.peers.size == 0){
+            this.rooms.delete(peer.room.id);
+        }
+        
         peer.room = null;
+
+    
 
     }
 

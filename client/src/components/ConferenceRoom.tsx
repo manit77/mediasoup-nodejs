@@ -1,27 +1,38 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, MicOff, Video, VideoOff, LogOut, Users, MessageSquare } from 'lucide-react';
 import * as mediasoupClient from 'mediasoup-client';
 import { ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg, ConsumerTransportCreatedMsg, CreateConsumerTransportMsg, CreateProducerTransportMsg, payloadTypeServer, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg, RegisterMsg, RegisterResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomPeerLeftMsg } from './payload';
 
 interface Peer {
-  id: string;
-  name: string;
+  peerId: string;
+  displayName: string;
   hasVideo: boolean;
   hasAudio: boolean;
+  videoEle: HTMLVideoElement;
+}
+
+interface StreamInfo {
+  peerId: string,
+  stream : MediaStream
 }
 
 const ConferenceRoom: React.FC = () => {
-  const [localPeerId, setLocalPeerId] = useState<string>("");
-  const [displayName, setDisplayName] = useState<string>("");
   const [localRoomId, setLocalRoomId] = useState<string>("");
   const [roomConnected, setRoomConnected] = useState<boolean>(false);
+
   const [logs, setLogs] = useState<string[]>([]);
   const [peers, setPeers] = useState<Peer[]>([]);
+  const [localPeer, setLocalPeer] = useState<Peer>({ peerId: "", displayName: "", hasAudio: false, hasVideo: false, videoEle: null });
   const [audioEnabled, setAudioEnabled] = useState<boolean>(true);
   const [videoEnabled, setVideoEnabled] = useState<boolean>(true);
   const [activeView, setActiveView] = useState<"grid" | "focus" | "chat">("grid");
 
-  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const localVideoContainer = useRef<HTMLDivElement | null>(null);
+  const remoteVideoContainers = useRef<{}>({});
+  //const remoteVideoElements = useRef<{}>({});
+  const [remoteStreams, setRemoteStreams] = useState<StreamInfo[]>([]);
+
+  // onst localVideoRef = useRef<HTMLVideoElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const deviceRef = useRef<mediasoupClient.types.Device | null>(null);
@@ -44,6 +55,21 @@ const ConferenceRoom: React.FC = () => {
       wsRef.current?.close();
     };
   }, []);
+
+  // useEffect(() => {
+  //   console.log("Peers updated:", peers);
+  //   // Optional: Re-sync video elements or producers if needed
+  //   peers.forEach((peer) => {
+  //     if (!remoteVideoContainers.current[peer.peerId] && peer.videoEle) {
+  //       console.log(`Restoring video for peer ${peer.peerId}`);
+  //       const div = document.createElement("div");
+  //       div.className = "w-full h-full bg-gray-700";
+  //       div.appendChild(peer.videoEle);
+  //       remoteVideoContainers.current[peer.peerId] = div;
+  //     }
+  //   });
+  // }, [peers]);
+
 
   const initMediaSoupDevice = async () => {
 
@@ -123,7 +149,7 @@ const ConferenceRoom: React.FC = () => {
 
   };
 
-  async function send(msg: any) {
+  const send = async (msg: any) => {
     console.log("ws_send ", msg);
     wsRef.current.send(JSON.stringify(msg));
   };
@@ -143,28 +169,113 @@ const ConferenceRoom: React.FC = () => {
     writeLog(`Camera ${!videoEnabled ? 'enabled' : 'disabled'}`);
   };
 
+  const addPeer = (newPeer: Peer) => {
+    setPeers((prevPeers) => {
+      // Prevent duplicates by checking peerId
+      if (prevPeers.some((p) => p.peerId === newPeer.peerId)) {
+        console.log(`Peer ${newPeer.peerId} already exists, skipping add`);
+        return prevPeers;
+      }
+      console.log(`Adding peer ${newPeer.peerId}`);
+      return [...prevPeers, newPeer];
+    });
+  };
+
+  const removePeer = (peerId: string) => {
+    setPeers((prevPeers) => {
+      const updatedPeers = prevPeers.filter((p) => p.peerId !== peerId);
+      console.log(`Removing peer ${peerId}, new peers count: ${updatedPeers.length}`);
+      return updatedPeers;
+    });
+
+    // Clean up video element
+    const video = document.getElementById(peerId) as HTMLVideoElement | null;
+    if (video) {
+      video.srcObject = null; // Clear MediaStream
+      video.remove();
+      console.log(`Removed video element for peer ${peerId}`);
+    }
+
+    // Clean up ref
+    if (remoteVideoContainers.current[peerId]) {
+      delete remoteVideoContainers.current[peerId];
+    }    
+  };
+
+
+  const addRemoteStream = (peerId: string, track: MediaStreamTrack) => {
+    setRemoteStreams((prev) => {
+      const existing = prev.find(s => s.peerId === peerId);
+  
+      if (!existing) {
+        // No stream yet, create new one
+        const newStreamInfo: StreamInfo = {
+          peerId,
+          stream: new MediaStream([track])
+        };
+        return [...prev, newStreamInfo];
+      } else {
+        // Clone the stream and add track immutably
+        const newStream = new MediaStream(existing.stream.getTracks());
+        newStream.addTrack(track);
+  
+        const updated = prev.map(s =>
+          s.peerId === peerId ? { peerId, stream: newStream } : s
+        );
+  
+        return updated;
+      }
+    });
+  };
+  
+  const removeRemoteStream = (peerId: string) => {
+    setRemoteStreams((prev) => {
+      const streamInfo = prev.find((stream) => stream.peerId === peerId);
+      if (streamInfo) {
+        // Stop all tracks to free resources
+        streamInfo.stream.getTracks().forEach((track) => track.stop());
+        console.log(`Removed stream for peer ${peerId}`);
+      }
+      const updatedStreams = prev.filter((stream) => stream.peerId !== peerId);
+      return updatedStreams;
+    });
+  
+    // Clean up video element and container
+    const video = document.getElementById(peerId) as HTMLVideoElement | null;
+    if (video) {
+      video.srcObject = null;
+      video.remove();
+    }
+    if (remoteVideoContainers.current[peerId]) {
+      delete remoteVideoContainers.current[peerId];
+    }
+  };
+
+
+
   const register = async () => {
     console.log("-- register");
 
     let msg = new RegisterMsg();
     msg.authToken = ""; //need authtoken from server
-    msg.displayName = displayName;
+    msg.displayName = localPeer.displayName;
     send(msg);
   }
 
-  async function handleRoomJoin() {
+  const handleRoomJoin = async () => {
     roomJoin(localRoomId);
   }
 
-  async function handleRoomLeave() {
+  const handleRoomLeave = async () => {
     roomLeave();
   }
 
-  async function onRegisterResult(msgIn: RegisterResultMsg) {
+  const onRegisterResult = async (msgIn: RegisterResultMsg) => {
 
     writeLog("-- onRegisterResult");
 
-    setLocalPeerId(msgIn.data!.peerid);
+    localPeer.peerId = msgIn.data!.peerid;
+    setLocalPeer(localPeer);
 
     await deviceRef.current.load({ routerRtpCapabilities: msgIn.data!.rtpCapabilities });
 
@@ -212,48 +323,67 @@ const ConferenceRoom: React.FC = () => {
     return !!roomConnected;
   }
 
-  async function addTrackToRemoteVideo(peerId: string, kind: string, track: MediaStreamTrack) {
+  const addTrackToRemoteVideo = async (peerId: string, kind: string, track: MediaStreamTrack) => {
 
-    let peer = peers.find(p => p.id === peerId);
+    addRemoteStream(peerId, track);    
 
-    if (kind === "video") {
-      peer.hasVideo = true;    
-    } else if (kind === "audioo") {
-      peer.hasVideo = true;     
-    }
+    // const peer = peers.find((p) => p.peerId === peerId);
+    // if (!peer) {
+    //   console.error(`Peer ${peerId} not found in addTrackToRemoteVideo`);
+    //   writeLog(`Error: Peer ${peerId} not found for track ${kind}`);
+    //   return;
+    // }
 
-    // Find the existing video element
-    let video = document.getElementById(peerId) as HTMLVideoElement | null;
+    // console.log(`Adding ${kind} track for peer ${peerId}`);
 
-    if (!video) {
-      //add new element
-      video = document.createElement('video');
-      video.id = peerId;
-      video.autoplay = true;
-      video.playsInline = true;
-      video.style.width = '300px';
-      video.srcObject = new MediaStream([track]);
-    }
+    // if (kind === "video") {
+    //   peer.hasVideo = true;
+    // } else if (kind === "audio") { // Fixed typo: "audioo" → "audio"
+    //   peer.hasAudio = true;
+    // }
 
-    // Get the current MediaStream or create a new one if none exists
-    let mediaStream = video.srcObject as MediaStream;
-    if (!mediaStream) {
-      mediaStream = new MediaStream();
-      video.srcObject = mediaStream;
-    }
+    // let video = document.getElementById(peerId) as HTMLVideoElement | null;
 
-    // Add the new track to the MediaStream
-    mediaStream.addTrack(track);
+    // if (!video) {
+    //   video = document.createElement("video");
+    //   video.id = peerId;
+    //   video.autoplay = true;
+    //   video.playsInline = true;
+    //   video.className = "w-full h-full object-cover";
+    //   video.srcObject = new MediaStream([track]);
+    //   //peer.videoEle = video;
+    // }
 
-    // Ensure the video is set to play
-    video.play().catch(error => {
-      console.error('Error playing video:', error);
-    });
+    // let mediaStream = video.srcObject as MediaStream;
+    // if (!mediaStream) {
+    //   mediaStream = new MediaStream();
+    //   video.srcObject = mediaStream;
+    // }
 
-    setPeers(peers);
+    // mediaStream.addTrack(track);
+
+    // video.play().catch((error) => {
+    //   console.error(`Error playing video for peer ${peerId}:`, error);
+    // });
+
+    // if (remoteVideoContainers.current[peerId]) {
+    //   const div = remoteVideoContainers.current[peerId] as HTMLDivElement;
+    //   if (!div.contains(video)) {
+    //     div.appendChild(video);
+    //   }
+    // } else {
+    //   console.warn(`No video container for peer ${peerId}`);
+    // }
+
+    // Update peer in state to reflect changes
+    // setPeers((prev) =>
+    //   prev.map((p) => (p.peerId === peerId ? { ...p, hasVideo: peer.hasVideo, hasAudio: peer.hasAudio, videoEle: peer.videoEle } : p))
+    // );
+
+    //remoteVideoElements.current[peerId] = video;
 
 
-  }
+  };
 
   async function onConsumerTransportCreated(msgIn: ConsumerTransportCreatedMsg) {
     console.log("-- onConsumerTransportCreated");
@@ -337,7 +467,18 @@ const ConferenceRoom: React.FC = () => {
     }
 
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    localVideoRef.current.srcObject = stream;
+
+    let video = document.createElement("video");
+    video.id = "localvideo";
+    video.autoplay = true;
+    video.playsInline = true;
+    video.className = "w-full h-full object-cover";
+    video.srcObject = stream;
+
+    localVideoContainer.current.appendChild(video);
+    localPeer.videoEle = video;
+
+    setLocalPeer((prev) => ({ ...prev, videoEle: video }));
 
     //publish local stream
     await produceLocalStreams();
@@ -347,14 +488,15 @@ const ConferenceRoom: React.FC = () => {
     //connect to existing peers  
     if (msgIn.data && msgIn.data.peers) {
       for (let peer of msgIn.data.peers) {
-        let newpeer = {
-          id: peer.peerId,
-          name: "",
+        let newpeer: Peer = {
+          peerId: peer.peerId,
+          displayName: "",
           hasAudio: false,
           hasVideo: false,
+          videoEle: null
         };
 
-        peers.push(newpeer);
+        addPeer(newpeer);
 
         console.log(peer.peerId);
         console.log("-- onRoomJoinResult producers :" + peer.producers?.length);
@@ -367,7 +509,7 @@ const ConferenceRoom: React.FC = () => {
       }
     }
 
-    setPeers(peers);
+
 
   }
 
@@ -376,14 +518,16 @@ const ConferenceRoom: React.FC = () => {
     writeLog("new PeeerJoined " + msgIn.data?.peerId);
 
     let newPeer: Peer = {
-      id: msgIn.data.peerId,
-      name: "",
+      peerId: msgIn.data.peerId,
+      displayName: "",
       hasAudio: false,
-      hasVideo: false
+      hasVideo: false,
+      videoEle: null
     };
 
-    peers.push(newPeer)
-    setPeers(peers);
+    addPeer(newPeer);
+
+    console.log(peers);
 
     if (msgIn.data?.producers) {
       for (let producer of msgIn.data.producers) {
@@ -393,16 +537,10 @@ const ConferenceRoom: React.FC = () => {
   }
 
   async function onRoomPeerLeft(msgIn: RoomPeerLeftMsg) {
-    writeLog("peer left the room:" + msgIn.data?.peerId);
+    writeLog("peer left the room, peerid:" + msgIn.data?.peerId);
 
-    let idx = peers.findIndex(p => p.id == msgIn.data?.peerId);
-    setPeers(peers.splice(idx, 1));
-
-    //destroy the video element
-    if (msgIn.data && msgIn.data.peerId) {
-      let video = document.getElementById(msgIn.data?.peerId);
-      video?.remove();
-    }
+    removePeer(msgIn.data.peerId);
+    removeRemoteStream(msgIn.data.peerId);
 
   }
 
@@ -414,7 +552,7 @@ const ConferenceRoom: React.FC = () => {
   async function produceLocalStreams() {
     writeLog("produceLocalStreams");
     //get the tracks and start sending the streams "produce"
-    const localStream = localVideoRef.current.srcObject as any;
+    const localStream = localPeer.videoEle.srcObject as any;
     for (const track of localStream.getTracks()) {
       console.log("sendTransport produce ");
       await sendTransportRef.current.produce({ track });
@@ -423,7 +561,7 @@ const ConferenceRoom: React.FC = () => {
 
   async function consumeProducer(remotePeerId: string, producerId: string) {
     console.log("consumeProducer :" + remotePeerId, producerId);
-    if (remotePeerId === localPeerId) {
+    if (remotePeerId === localPeer.peerId) {
       console.error("you can't consume yourself.");
     }
 
@@ -478,8 +616,7 @@ const ConferenceRoom: React.FC = () => {
                   <label className="block text-sm mb-1">Display Name</label>
                   <input
                     type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
+                    value={localPeer.displayName}
                     className="w-full px-4 py-2 rounded bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter your name"
                   />
@@ -506,7 +643,7 @@ const ConferenceRoom: React.FC = () => {
                 </div>
 
                 <div className="text-sm text-gray-400 mt-4">
-                  Your Peer ID: <span className="font-mono">{localPeerId}</span>
+                  Your Peer ID: <span className="font-mono">{localPeer.peerId}</span>
                 </div>
               </div>
             </div>
@@ -543,23 +680,9 @@ const ConferenceRoom: React.FC = () => {
                 {activeView === 'grid' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 h-full">
                     {/* Local video */}
-                    <div className="relative bg-gray-800 rounded-lg overflow-hidden">
-                      <video
-                        ref={localVideoRef}
-                        className={`w-full h-full object-cover ${!videoEnabled && 'hidden'}`}
-                        autoPlay
-                        playsInline
-                        muted
-                      />
-                      {!videoEnabled && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
-                          <div className="h-20 w-20 rounded-full bg-gray-600 flex items-center justify-center">
-                            <span className="text-2xl font-bold">{displayName.charAt(0)}</span>
-                          </div>
-                        </div>
-                      )}
+                    <div ref={localVideoContainer} className="relative bg-gray-800 rounded-lg overflow-hidden">
                       <div className="absolute bottom-2 left-2 bg-gray-900 bg-opacity-60 px-2 py-1 rounded">
-                        {displayName} (You)
+                        {localPeer.displayName}
                       </div>
                       <div className="absolute top-2 right-2 flex space-x-1">
                         {!audioEnabled && (
@@ -575,39 +698,38 @@ const ConferenceRoom: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Remote videos - mapped from peers */}
-                    {peers.map(peer => (
-                      <div key={peer.id} className="relative bg-gray-800 rounded-lg overflow-hidden">
-                        {peer.hasVideo || peer.hasAudio ? (
-                          <div className="w-full h-full bg-gray-700">                            
-                            <div className="w-full h-full" style={{ background: `hsl(${peer.id.charCodeAt(0) * 10}, 70%, 40%)` }}>
-                              
-                            </div>
+                    {remoteStreams.map((streamInfo) => {
+                      console.log(`Rendering stream for peer ${streamInfo.peerId}`);
+                      return (
+                        <div key={streamInfo.peerId} className="relative bg-gray-800 rounded-lg overflow-hidden">
+                          <video
+                            ref={el => {
+                              if (el) {
+                                console.log("set srcObject", streamInfo.peerId)
+                                el.srcObject = streamInfo.stream;
+                              }
+                            }}
+                            autoPlay
+                            playsInline
+                            muted={false}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute bottom-2 left-2 bg-gray-900 bg-opacity-60 px-2 py-1 rounded">
+                            name
                           </div>
-                        ) : (
-                          <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
-                            <div className="h-20 w-20 rounded-full bg-gray-600 flex items-center justify-center">
-                              <span className="text-2xl font-bold">{peer.name.charAt(0)}</span>
-                            </div>
-                          </div>
-                        )}
-                        <div className="absolute bottom-2 left-2 bg-gray-900 bg-opacity-60 px-2 py-1 rounded">
-                          {peer.name}
-                        </div>
-                        <div className="absolute top-2 right-2 flex space-x-1">
-                          {!peer.hasAudio && (
+                          <div className="absolute top-2 right-2 flex space-x-1">
                             <span className="bg-red-500 p-1 rounded">
                               <MicOff size={16} />
                             </span>
-                          )}
-                          {!peer.hasVideo && (
+
                             <span className="bg-red-500 p-1 rounded">
                               <VideoOff size={16} />
                             </span>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+
                   </div>
                 )}
 
@@ -616,9 +738,9 @@ const ConferenceRoom: React.FC = () => {
                     {/* Main focused video */}
                     <div className="flex-grow bg-gray-800 rounded-lg mb-4 relative">
                       {/* Mock main focused video - using first peer or local */}
-                      <div className="w-full h-full" style={{ background: peers.length > 0 ? `hsl(${peers[0].id.charCodeAt(0) * 10}, 70%, 40%)` : 'black' }}></div>
+                      <div className="w-full h-full" style={{ background: peers.length > 0 ? `hsl(${peers[0].peerId.charCodeAt(0) * 10}, 70%, 40%)` : 'black' }}></div>
                       <div className="absolute bottom-4 left-4 bg-gray-900 bg-opacity-60 px-2 py-1 rounded">
-                        {peers.length > 0 ? peers[0].name : displayName + ' (You)'}
+                        {peers.length > 0 ? peers[0].displayName : localPeer.displayName + ' (You)'}
                       </div>
                     </div>
 
@@ -626,16 +748,10 @@ const ConferenceRoom: React.FC = () => {
                     <div className="h-24 flex space-x-2 overflow-x-auto">
                       {/* Local thumbnail */}
                       <div className="h-full w-32 bg-gray-800 rounded flex-shrink-0 relative" onClick={() => { }}>
-                        <video
-                          ref={localVideoRef}
-                          className={`w-full h-full object-cover ${!videoEnabled && 'hidden'}`}
-                          autoPlay
-                          playsInline
-                          muted
-                        />
+
                         {!videoEnabled && (
                           <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
-                            <span className="text-lg font-bold">{displayName.charAt(0)}</span>
+                            <span className="text-lg font-bold">{localPeer.displayName.charAt(0)}</span>
                           </div>
                         )}
                         <div className="absolute bottom-1 left-1 text-xs bg-gray-900 bg-opacity-60 px-1 rounded">
@@ -644,14 +760,10 @@ const ConferenceRoom: React.FC = () => {
                       </div>
 
                       {/* Remote thumbnails */}
-                      {peers.map(peer => (
-                        <div key={peer.id} className="h-full w-32 bg-gray-800 rounded flex-shrink-0 relative" onClick={() => { }}>
-                          <div className="w-full h-full" style={{ background: `hsl(${peer.id.charCodeAt(0) * 10}, 70%, 40%)` }}></div>
-                          <div className="absolute bottom-1 left-1 text-xs bg-gray-900 bg-opacity-60 px-1 rounded">
-                            {peer.name}
-                          </div>
+                      <div className="h-full w-32 bg-gray-800 rounded flex-shrink-0 relative" onClick={() => { }}>
+                        <div className="absolute bottom-1 left-1 text-xs bg-gray-900 bg-opacity-60 px-1 rounded">
                         </div>
-                      ))}
+                      </div>
                     </div>
                   </div>
                 )}
