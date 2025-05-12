@@ -1,0 +1,101 @@
+
+type eventsTypes = "onopen" | "onerror" | "onclose" | "onmessage";
+
+export class WebSocketManager {
+    socket: WebSocket = null;
+    callbacks: Map<eventsTypes, Function[]> = new Map();
+    state: "" | "connecting" | "connected" | "disconnected" | "reconnecting";
+    autoReconnect = false;
+    // Initialize WebSocket connection
+    initialize = async (uri: string, autoReconnect = false) => {
+        this.autoReconnect = autoReconnect;
+
+        this.socket = new WebSocket(`${uri}`);
+        this.state = "connecting";
+
+        this.socket.onopen = () => {
+            this.state = "connected";
+            console.log('Signaling server connected');
+            this.fireEvent("onopen");
+        };
+
+        this.socket.onerror = (error) => {
+            this.state = "disconnected";
+            console.error('Signaling server error:', error);
+            this.fireEvent("onerror");
+        };
+
+        this.socket.onclose = () => {
+
+            if (autoReconnect) {
+                this.state = "reconnecting";
+                this.fireEvent("onclose");
+                setTimeout(() => {
+                    this.initialize(uri, autoReconnect);
+                }, 1000);
+            } else {
+                this.state = "disconnected";
+                console.log('Signaling server disconnected');
+                this.fireEvent("onclose");
+            }
+        };
+
+        // Handle incoming messages
+        this.socket.onmessage = (event) => {           
+            this.fireEvent("onmessage", event);
+        };
+    }
+
+    private fireEvent(type: eventsTypes, data?: any) {
+        // Trigger registered callbacks for onmessage
+        if (this.callbacks.has(type)) {
+            this.callbacks.get(type).forEach((callback) => callback(data));
+        }
+    }
+
+    // Register a callback for a specific message type (e.g., 'offer', 'answer', 'ice-candidate')
+    addEventHandler(type: eventsTypes, callback: Function) {
+        if (!this.callbacks.has(type)) {
+            this.callbacks.set(type, []);
+        }
+        this.callbacks.get(type).push(callback);
+    }
+
+    //remove the event handler
+    removeEventHandler(type: eventsTypes, callback: Function) {
+
+        this.callbacks.get(type).push(callback);
+
+        let cbarr = this.callbacks.get(type);
+        let idx = cbarr.findIndex(cb => cb === callback);
+        if (idx > -1) {
+            cbarr.splice(idx, 1);
+        }
+
+    }
+
+    // Send a message to the signaling server
+    send(data: any) {
+        try {
+            if(this.socket.readyState === WebSocket.OPEN){
+                this.socket.send(data);
+            } else {
+                console.error("socket not connected.")
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    // Close the connection
+    disconnect() {
+        this.autoReconnect = false;
+        this.callbacks.clear();
+        this.state = "";
+        if (this.socket) {
+            this.socket.close();
+            this.socket = null;            
+        }
+    }
+
+}

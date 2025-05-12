@@ -11,16 +11,20 @@ import {
     JoinResultMsg,
     NeedOfferMsg,
     InviteMsg,
-    InviteResultMsg
+    InviteResultMsg,
+    RegisterResultMsg
 } from './sharedModels';
+import { WebSocketManager } from './webSocketManager';
 
 class ConferenceApp {
-    private socket: WebSocket;
+    private socket: WebSocketManager;
     private localStream: MediaStream | null = null;
     private peerConnections: Map<string, RTCPeerConnection> = new Map();
     private participantId: string = '';
     private conferenceRoomId: string = '';
     private isInCall: boolean = false;
+    private wsURI = 'wss://localhost:3001';
+
     private confirmCallback: ((accepted: boolean) => void) | null = null;
 
     // DOM Elements
@@ -29,6 +33,7 @@ class ConferenceApp {
     private usernameInput: HTMLInputElement;
     private loginBtn: HTMLButtonElement;
     private connectionStatus: HTMLElement;
+    private userNameLabel: HTMLDivElement;
     private contactsList: HTMLElement;
     private refreshContactsBtn: HTMLElement;
     private localVideo: HTMLVideoElement;
@@ -47,9 +52,9 @@ class ConferenceApp {
     private modalNewConferenceOkButtton: HTMLButtonElement;
     private modalNewConferenceCloseButtton: HTMLButtonElement;
 
-    private modalJoinConference: HTMLDivElement;    
+    private modalJoinConference: HTMLDivElement;
     private modalJoinConferenceCancelButton: HTMLButtonElement;
-    
+
     private newConferenceButton: HTMLButtonElement;
     private joinConferenceButton: HTMLButtonElement;
 
@@ -64,6 +69,7 @@ class ConferenceApp {
         this.usernameInput = document.getElementById('username') as HTMLInputElement;
         this.loginBtn = document.getElementById('loginBtn') as HTMLButtonElement;
         this.connectionStatus = document.getElementById('connectionStatus') as HTMLElement;
+        this.userNameLabel = document.getElementById('userNameLabel') as HTMLDivElement;
         this.contactsList = document.getElementById('contactsList') as HTMLElement;
         this.refreshContactsBtn = document.getElementById('refreshContactsBtn') as HTMLElement;
         this.localVideo = document.getElementById('localVideo') as HTMLVideoElement;
@@ -191,10 +197,10 @@ class ConferenceApp {
         }
 
         // Connect to WebSocket server
-        this.socket = new WebSocket('wss://localhost:3001');
+        this.socket = new WebSocketManager();
 
-        this.socket.onopen = () => {
-            this.connectionStatus.textContent = 'Status: Connected';
+        this.socket.addEventHandler("onopen", () => {
+            this.connectionStatus.textContent = 'Connected';
             this.connectionStatus.classList.add('connected');
             this.connectionStatus.classList.remove('disconnected');
 
@@ -202,31 +208,32 @@ class ConferenceApp {
             const registerMsg: RegisterMsg = new RegisterMsg();
             registerMsg.data.userName = username;
             this.sendToServer(registerMsg);
-        };
+        });
 
-        this.socket.onclose = () => {
-            this.connectionStatus.textContent = 'Status: Disconnected';
+        this.socket.addEventHandler("onclose", () => {
+            this.connectionStatus.textContent = 'Disconnected';
             this.connectionStatus.classList.remove('connected');
             this.connectionStatus.classList.add('disconnected');
-        };
+        });
 
-        this.socket.onerror = (error) => {
+        this.socket.addEventHandler("onerror", (error: any) => {
             console.error('WebSocket Error:', error);
-            this.connectionStatus.textContent = 'Status: Connection Error';
+            this.connectionStatus.textContent = 'Connection Error';
             this.connectionStatus.classList.remove('connected');
             this.connectionStatus.classList.add('disconnected');
-        };
+        });
 
-        this.socket.onmessage = (event) => {
+        this.socket.addEventHandler("onmessage", (event: any) => {
             const message = JSON.parse(event.data);
             this.handleMessage(message);
-        };
+        });
+
+        this.socket.initialize(this.wsURI, true);
     }
 
     private sendToServer(message: any) {
         console.log("sendToServer " + message.type, message);
-
-        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        if (this.socket) {
             this.socket.send(JSON.stringify(message));
         } else {
             console.error('Socket is not connected');
@@ -276,16 +283,29 @@ class ConferenceApp {
         }
     }
 
-    private handleRegisterResult(message: any) {
-        this.participantId = message.data.participantId;
-        console.log('Registered with participantId:', this.participantId);
+    private handleRegisterResult(message: RegisterResultMsg) {
+        if (message.data.error) {
+            this.showModal("Login Failed", message.data.error, false);
+        } else {
+            this.userNameLabel.innerText = message.data.userName;
+            this.participantId = message.data.participantId;
+            console.log('Registered with participantId:', this.participantId, "conferenceRoomId:", message.data.conferenceRoomId);
+            
+            // Show main panel and hide login panel
+            this.loginPanel.classList.add('hidden');
+            this.mainPanel.classList.remove('hidden');
 
-        // Show main panel and hide login panel
-        this.loginPanel.classList.add('hidden');
-        this.mainPanel.classList.remove('hidden');
+            if(message.data.conferenceRoomId) {
+                //we logged into an existing conference
+                //rejoin conference?
+                this.conferenceRoomId = message.data.conferenceRoomId;
+                this.updateUIForCall();
+            }
 
-        // Get contacts
-        this.getContacts();
+            // Get contacts
+            this.getContacts();
+
+        }
     }
 
     private getContacts() {

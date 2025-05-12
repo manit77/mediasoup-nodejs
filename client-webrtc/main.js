@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const sharedModels_1 = require("./sharedModels");
+const webSocketManager_1 = require("./webSocketManager");
 class ConferenceApp {
     constructor() {
         this.localStream = null;
@@ -17,6 +18,7 @@ class ConferenceApp {
         this.participantId = '';
         this.conferenceRoomId = '';
         this.isInCall = false;
+        this.wsURI = 'wss://localhost:3001';
         this.confirmCallback = null;
         this.initElements();
         this.addEventListeners();
@@ -27,6 +29,7 @@ class ConferenceApp {
         this.usernameInput = document.getElementById('username');
         this.loginBtn = document.getElementById('loginBtn');
         this.connectionStatus = document.getElementById('connectionStatus');
+        this.userNameLabel = document.getElementById('userNameLabel');
         this.contactsList = document.getElementById('contactsList');
         this.refreshContactsBtn = document.getElementById('refreshContactsBtn');
         this.localVideo = document.getElementById('localVideo');
@@ -135,8 +138,8 @@ class ConferenceApp {
             return;
         }
         // Connect to WebSocket server
-        this.socket = new WebSocket('wss://localhost:3001');
-        this.socket.onopen = () => {
+        this.socket = new webSocketManager_1.WebSocketManager();
+        this.socket.addEventHandler("onopen", () => {
             this.connectionStatus.textContent = 'Status: Connected';
             this.connectionStatus.classList.add('connected');
             this.connectionStatus.classList.remove('disconnected');
@@ -144,26 +147,27 @@ class ConferenceApp {
             const registerMsg = new sharedModels_1.RegisterMsg();
             registerMsg.data.userName = username;
             this.sendToServer(registerMsg);
-        };
-        this.socket.onclose = () => {
+        });
+        this.socket.addEventHandler("onclose", () => {
             this.connectionStatus.textContent = 'Status: Disconnected';
             this.connectionStatus.classList.remove('connected');
             this.connectionStatus.classList.add('disconnected');
-        };
-        this.socket.onerror = (error) => {
+        });
+        this.socket.addEventHandler("onerror", (error) => {
             console.error('WebSocket Error:', error);
             this.connectionStatus.textContent = 'Status: Connection Error';
             this.connectionStatus.classList.remove('connected');
             this.connectionStatus.classList.add('disconnected');
-        };
-        this.socket.onmessage = (event) => {
+        });
+        this.socket.addEventHandler("onmessage", (event) => {
             const message = JSON.parse(event.data);
             this.handleMessage(message);
-        };
+        });
+        this.socket.initialize(this.wsURI, true);
     }
     sendToServer(message) {
         console.log("sendToServer " + message.type, message);
-        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        if (this.socket) {
             this.socket.send(JSON.stringify(message));
         }
         else {
@@ -212,13 +216,25 @@ class ConferenceApp {
         }
     }
     handleRegisterResult(message) {
-        this.participantId = message.data.participantId;
-        console.log('Registered with participantId:', this.participantId);
-        // Show main panel and hide login panel
-        this.loginPanel.classList.add('hidden');
-        this.mainPanel.classList.remove('hidden');
-        // Get contacts
-        this.getContacts();
+        if (message.data.error) {
+            this.showModal("Login Failed", message.data.error, false);
+        }
+        else {
+            this.userNameLabel.innerText = message.data.userName;
+            this.participantId = message.data.participantId;
+            console.log('Registered with participantId:', this.participantId, "conferenceRoomId:", message.data.conferenceRoomId);
+            // Show main panel and hide login panel
+            this.loginPanel.classList.add('hidden');
+            this.mainPanel.classList.remove('hidden');
+            if (message.data.conferenceRoomId) {
+                //we logged into an existing conference
+                //rejoin conference?
+                this.conferenceRoomId = message.data.conferenceRoomId;
+                this.updateUIForCall();
+            }
+            // Get contacts
+            this.getContacts();
+        }
     }
     getContacts() {
         const contactsMsg = {

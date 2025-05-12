@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CloseConference = exports.ConferenceClosedMsg = exports.ParticipantLeftMsg = exports.NewParticipantMsg = exports.LeaveMsg = exports.NeedOfferMsg = exports.JoinResultMsg = exports.JoinMsg = exports.InviteResultMsg = exports.InviteMsg = exports.GetContactsMsg = exports.ConferenceLeaveMsg = exports.NewConferenceResultMsg = exports.NewConferenceMsg = exports.RegisterResultMsg = exports.RegisterMsg = exports.CallMessageType = exports.CallType = void 0;
+exports.CloseConference = exports.ConferenceClosedMsg = exports.ParticipantLeftMsg = exports.NewParticipantMsg = exports.LeaveMsg = exports.NeedOfferMsg = exports.JoinResultMsg = exports.JoinMsg = exports.InviteResultMsg = exports.InviteMsg = exports.GetContactsMsg = exports.ConferenceLeaveMsg = exports.NewConferenceResultMsg = exports.NewConferenceMsg = exports.RegisterResultMsg = exports.RegisterMsg = exports.ParticipantReconnectedMsg = exports.ReconnectResultMsg = exports.ReconnectMsg = exports.CallMessageType = exports.CallType = void 0;
 var CallType;
 (function (CallType) {
     CallType["webrtc"] = "webrtc";
@@ -23,16 +23,52 @@ var CallMessageType;
     CallMessageType["closeConference"] = "closeConference";
     CallMessageType["getContacts"] = "getContacts";
     CallMessageType["needOffer"] = "needOffer";
+    CallMessageType["reconnect"] = "reconnect";
+    CallMessageType["reconnectResult"] = "reconnectResult";
+    CallMessageType["participantReconnected"] = "participantReconnected";
     CallMessageType["rtc_offer"] = "rtc_offer";
     CallMessageType["rtc_answer"] = "rtc_answer";
     CallMessageType["rtc_ice"] = "rtc_ice";
 })(CallMessageType || (exports.CallMessageType = CallMessageType = {}));
+// Message sent by client to attempt reconnection
+class ReconnectMsg {
+    constructor() {
+        this.type = CallMessageType.reconnect;
+        this.data = {
+            participantId: ""
+        };
+    }
+}
+exports.ReconnectMsg = ReconnectMsg;
+// Server response to reconnection attempt
+class ReconnectResultMsg {
+    constructor() {
+        this.type = CallMessageType.reconnectResult;
+        this.data = {
+            conferenceRoomId: "",
+            participants: []
+        };
+    }
+}
+exports.ReconnectResultMsg = ReconnectResultMsg;
+// Broadcast to other participants when someone reconnects
+class ParticipantReconnectedMsg {
+    constructor() {
+        this.type = CallMessageType.participantReconnected;
+        this.data = {
+            participantId: "",
+            conferenceRoomId: ""
+        };
+    }
+}
+exports.ParticipantReconnectedMsg = ParticipantReconnectedMsg;
 class RegisterMsg {
     constructor() {
         this.type = CallMessageType.register;
         this.data = {
             userName: "",
-            authToken: ""
+            authToken: "",
+            participantId: ""
         };
     }
 }
@@ -43,7 +79,9 @@ class RegisterResultMsg {
         this.data = {
             userName: "",
             authToken: "",
-            participantId: ""
+            participantId: "",
+            conferenceRoomId: "",
+            error: ""
         };
     }
 }
@@ -101,7 +139,8 @@ class InviteMsg {
         this.data = {
             participantId: "",
             displayName: "",
-            conferenceRoomId: ""
+            conferenceRoomId: "",
+            newConfConfig: null
         };
     }
 }
@@ -142,8 +181,8 @@ class NeedOfferMsg {
     constructor() {
         this.type = CallMessageType.needOffer;
         this.data = {
-            conferenceRoomId: "",
-            participantId: ""
+            participantId: "",
+            conferenceRoomId: ""
         };
     }
 }
@@ -168,13 +207,14 @@ class NewParticipantMsg {
     }
 }
 exports.NewParticipantMsg = NewParticipantMsg;
+// Add the temporary flag to the ParticipantLeftMsg
+// This lets clients know if a participant just dropped or intentionally left
 class ParticipantLeftMsg {
     constructor() {
         this.type = CallMessageType.participantLeft;
         this.data = {
-            conferenceRoomId: "",
             participantId: "",
-            message: ""
+            conferenceRoomId: ""
         };
     }
 }

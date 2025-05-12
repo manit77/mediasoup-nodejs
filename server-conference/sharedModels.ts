@@ -41,7 +41,7 @@ export interface ConferenceObj {
 
 export interface Contact {
     contactId: string, //unique identifier of the contact, normally from the primary key
-    participantId: string
+    participantId: string,
     displayName: string,
     status: "online" | "offline" | "reconnecting",
 }
@@ -95,11 +95,18 @@ export class RegisterMsg {
 
 export class RegisterResultMsg {
     type = CallMessageType.registerResult;
-    data = {
-        userName: "",
-        authToken: "",
-        participantId: ""
-    }
+    data: {
+        userName: string,
+        authToken: string,
+        participantId: string,
+        conferenceRoomId: string,
+        error?: string
+    } = {
+            userName: "",
+            authToken: "",
+            participantId: "",
+            conferenceRoomId: ""
+        }
 }
 
 export class NewConferenceMsg {
@@ -146,7 +153,8 @@ export class InviteMsg {
     data = {
         participantId: "",
         displayName: "",
-        conferenceRoomId: ""
+        conferenceRoomId: "",
+        newConfConfig: null
     }
 }
 

@@ -33,6 +33,15 @@
             color: #333;
         }
 
+        .toolbar {
+            display: flex;
+            justify-content: flex-start;
+            /* Aligns items to the left */
+            align-items: center;
+            /* Vertically centers items */
+            gap: 10px;
+        }
+
         .status {
             margin: 10px 0;
             padding: 10px;
@@ -275,9 +284,14 @@
     <div class="container hidden" id="mainPanel">
         <div class="header">
             <h1>Web Conferencing</h1>
-            <button id="newConferenceButton">New Conference</button>
-            <button id="joinConferenceButton">Join Conference</button>
-            <div class="status" id="connectionStatus">Status: Connecting...</div>
+            <div class="toolbar">
+                <button id="newConferenceButton">New Conference</button>
+                <button id="joinConferenceButton">Join Conference</button>
+                <label>Status: </label>
+                <div class="status" id="connectionStatus">Status: Connecting...</div>
+                <label>Username: </label>
+                <div class="status" id="userNameLabel">[username]</div>
+            </div>
         </div>
 
         <div class="panel">
