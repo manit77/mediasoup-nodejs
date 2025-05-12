@@ -5,9 +5,11 @@ export enum CallType {
 
 export enum CallMessageType {
     register = "register", //register the partcipant
-    register_result = "register_result", //partcipant recieves a registration result
-    call = "call", //participant requests a party to join a conference, participant joins the conference on the server
-    call_result = "call_result", //participant receives a call result with the conferenceroomid
+    registerResult = "registerResult", //partcipant recieves a registration result
+    newConference = "newConference",
+    newConferenceResult = "newConferenceResult",
+    invite = "invite", //invite to join room
+    inviteResult = "inviteResult", //result of the invite, the other participant could reject it
     join = "join", //participant requests to join the conference room
     joinResult = "joinResult", //participant receives the joinResult
     leave = "leave", //participant signals the sever to leave the room
@@ -17,10 +19,14 @@ export enum CallMessageType {
     closeConference = "closeConference", // the participant closes the conference, and the confernece room is terminated on the server
     getContacts = "getContacts",
     needOffer = "needOffer",
+
+    reconnect = "reconnect",
+    reconnectResult = "reconnectResult",
+    participantReconnected = "participantReconnected",
+
     rtc_offer = "rtc_offer",
     rtc_answer = "rtc_answer",
     rtc_ice = "rtc_ice",
-
 }
 
 //object mapped from a database object
@@ -37,25 +43,88 @@ export interface Contact {
     contactId: string, //unique identifier of the contact, normally from the primary key
     participantId: string
     displayName: string,
-    status: "online" | "offline",
+    status: "online" | "offline" | "reconnecting",
 }
 
 export type ConferenceRole = "participant" | "leader" | "monitor";
+
+// Message sent by client to attempt reconnection
+export class ReconnectMsg {
+    type = CallMessageType.reconnect;
+    data: {
+        participantId: string;
+        conferenceRoomId?: string;
+    } = {
+            participantId: ""
+        };
+}
+
+// Server response to reconnection attempt
+export class ReconnectResultMsg {
+    type = CallMessageType.reconnectResult;
+    data: {
+        conferenceRoomId: string;
+        participants: { participantId: string, displayName: string }[];
+        error?: string;
+    } = {
+            conferenceRoomId: "",
+            participants: []
+        };
+}
+
+// Broadcast to other participants when someone reconnects
+export class ParticipantReconnectedMsg {
+    type = CallMessageType.participantReconnected;
+    data: {
+        participantId: string;
+        conferenceRoomId: string;
+    } = {
+            participantId: "",
+            conferenceRoomId: ""
+        };
+}
 
 export class RegisterMsg {
     type = CallMessageType.register;
     data = {
         userName: "",
-        authToken: ""
+        authToken: "",
+        participantId: ""
     }
 }
 
 export class RegisterResultMsg {
-    type = CallMessageType.register_result;
+    type = CallMessageType.registerResult;
     data = {
         userName: "",
         authToken: "",
         participantId: ""
+    }
+}
+
+export class NewConferenceMsg {
+    type = CallMessageType.newConference;
+    data = {
+        conferenceRoomId: "",
+        config: {
+            dateStart: new Date(),
+            dateEnd: null,
+            maxParticipants: 2,
+            allowConferenceVideo: true,
+            allowConferenceAudio: true,
+            allowParticipantVideo: true,
+            allowParticpantAudio: true,
+            inviteOnly: false, //anyone can join or by invite only
+        }
+    }
+}
+
+export class NewConferenceResultMsg {
+    type = CallMessageType.newConferenceResult;
+    data = {
+        conferenceRoomId: "",
+        conferenceToken: "",
+        error: ""
     }
 }
 
@@ -72,17 +141,17 @@ export class GetContactsMsg {
     data: Contact[] = [];
 }
 
-export class CallMsg {
-    type = CallMessageType.call;
+export class InviteMsg {
+    type = CallMessageType.invite;
     data = {
         participantId: "",
-        displayName : "",
+        displayName: "",
         conferenceRoomId: ""
     }
 }
 
-export class CallResultMsg {
-    type = CallMessageType.call_result;
+export class InviteResultMsg {
+    type = CallMessageType.inviteResult;
     data = {
         conferenceRoomId: "",
         conferenceToken: "",
@@ -100,7 +169,7 @@ export class JoinMsg {
 
 export class JoinResultMsg {
     type = CallMessageType.joinResult;
-    data = {        
+    data = {
         conferenceRoomId: "",
         participants: [],
         error: ""
@@ -109,17 +178,21 @@ export class JoinResultMsg {
 
 export class NeedOfferMsg {
     type = CallMessageType.needOffer;
-    data = {
-        conferenceRoomId: "",
-        participantId: ""        
-    }
+    data: {
+        participantId: string;
+        conferenceRoomId: string;
+        isReconnection?: boolean;
+    } = {
+            participantId: "",
+            conferenceRoomId: ""
+        };
 }
 
 export class LeaveMsg {
     type = CallMessageType.leave;
     data = {
         conferenceRoomId: "",
-        participantId : ""
+        participantId: ""
     }
 }
 
@@ -131,13 +204,18 @@ export class NewParticipantMsg {
     }
 }
 
+// Add the temporary flag to the ParticipantLeftMsg
+// This lets clients know if a participant just dropped or intentionally left
 export class ParticipantLeftMsg {
     type = CallMessageType.participantLeft;
-    data = {
-        conferenceRoomId: "",
-        participantId: "",
-        message: ""
-    }
+    data: {
+        participantId: string;
+        conferenceRoomId: string;
+        temporary?: boolean;
+    } = {
+            participantId: "",
+            conferenceRoomId: ""
+        };
 }
 
 export class ConferenceClosedMsg {

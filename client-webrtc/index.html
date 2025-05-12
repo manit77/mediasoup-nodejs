@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,50 +12,60 @@
             padding: 20px;
             background-color: #f5f5f5;
         }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
             background-color: white;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             padding: 20px;
         }
+
         .header {
             padding: 10px 0;
             border-bottom: 1px solid #eee;
             margin-bottom: 20px;
         }
+
         h1 {
             margin: 0;
             color: #333;
         }
+
         .status {
             margin: 10px 0;
             padding: 10px;
             border-radius: 4px;
             background-color: #f8f8f8;
         }
+
         .status.connected {
             background-color: #d4edda;
             color: #155724;
         }
+
         .status.disconnected {
             background-color: #f8d7da;
             color: #721c24;
         }
+
         .panel {
             display: grid;
             grid-template-columns: 1fr 2fr;
             gap: 20px;
         }
+
         .contacts-panel {
             border-right: 1px solid #eee;
         }
+
         .contacts-list {
             list-style: none;
             padding: 0;
             margin: 0;
         }
+
         .contact-item {
             padding: 10px;
             border-bottom: 1px solid #eee;
@@ -63,9 +74,11 @@
             justify-content: space-between;
             align-items: center;
         }
+
         .contact-item:hover {
             background-color: #f5f5f5;
         }
+
         .contact-item .status-indicator {
             width: 10px;
             height: 10px;
@@ -73,19 +86,23 @@
             background-color: #ccc;
             margin-right: 5px;
         }
+
         .contact-item .status-indicator.online {
             background-color: #28a745;
         }
+
         .video-panel {
             display: flex;
             flex-direction: column;
         }
+
         .video-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 10px;
             margin-bottom: 20px;
         }
+
         .video-wrapper {
             position: relative;
             border-radius: 6px;
@@ -93,25 +110,30 @@
             background-color: #000;
             aspect-ratio: 16/9;
         }
+
         video {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
+
         .local-video {
             width: 100%;
             height: 100%;
         }
+
         .remote-video {
             width: 100%;
             height: 100%;
         }
+
         .controls {
             display: flex;
             justify-content: center;
             gap: 10px;
             padding: 10px 0;
         }
+
         button {
             padding: 10px 20px;
             border: none;
@@ -121,41 +143,51 @@
             cursor: pointer;
             transition: background-color 0.2s;
         }
+
         button:hover {
             background-color: #0069d9;
         }
+
         button:disabled {
             background-color: #cccccc;
             cursor: not-allowed;
         }
+
         .call-btn {
             background-color: #28a745;
         }
+
         .call-btn:hover {
             background-color: #218838;
         }
+
         .hangup-btn {
             background-color: #dc3545;
         }
+
         .hangup-btn:hover {
             background-color: #c82333;
         }
+
         .login-form {
             max-width: 400px;
             margin: 100px auto;
             padding: 20px;
             background-color: white;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
+
         .form-group {
             margin-bottom: 15px;
         }
+
         .form-group label {
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
         }
+
         .form-group input {
             width: 100%;
             padding: 8px;
@@ -163,9 +195,11 @@
             border-radius: 4px;
             box-sizing: border-box;
         }
+
         .hidden {
             display: none !important;
         }
+
         /* Modal Styles */
         .modal {
             display: none;
@@ -174,50 +208,60 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0, 0, 0, 0.5);
             z-index: 1000;
             justify-content: center;
             align-items: center;
         }
+
         .modal-content {
             background-color: white;
             padding: 20px;
             border-radius: 8px;
             max-width: 500px;
             width: 90%;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
             position: relative;
         }
+
         .modal-header {
             font-size: 1.2em;
             font-weight: bold;
             margin-bottom: 10px;
             color: #333;
         }
+
         .modal-body {
             margin-bottom: 20px;
             color: #555;
         }
+
         .modal-footer {
             display: flex;
             justify-content: flex-end;
             gap: 10px;
         }
+
         .modal-close-btn {
             background-color: #6c757d;
         }
+
         .modal-close-btn:hover {
             background-color: #5a6268;
         }
+
         .modal-confirm-btn {
             background-color: #28a745;
         }
+
         .modal-confirm-btn:hover {
             background-color: #218838;
         }
     </style>
 </head>
+
 <body>
+
     <div class="login-form" id="loginPanel">
         <h2>Login to Conference App</h2>
         <div class="form-group">
@@ -227,12 +271,15 @@
         <button id="loginBtn">Login</button>
     </div>
 
+    <!-- Authenticated -->
     <div class="container hidden" id="mainPanel">
         <div class="header">
-            <h1>WebRTC Conference App</h1>
+            <h1>Web Conferencing</h1>
+            <button id="newConferenceButton">New Conference</button>
+            <button id="joinConferenceButton">Join Conference</button>
             <div class="status" id="connectionStatus">Status: Connecting...</div>
         </div>
-        
+
         <div class="panel">
             <div class="contacts-panel">
                 <h2>Contacts</h2>
@@ -241,7 +288,7 @@
                     <!-- Contacts will be added here dynamically -->
                 </ul>
             </div>
-            
+
             <div class="video-panel">
                 <h2>Conference</h2>
                 <div class="video-container" id="videoContainer">
@@ -251,7 +298,7 @@
                     </div>
                     <!-- Remote videos will be added here dynamically -->
                 </div>
-                
+
                 <div class="controls">
                     <button id="toggleVideoBtn">Toggle Video</button>
                     <button id="toggleAudioBtn">Toggle Audio</button>
@@ -273,6 +320,51 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal New Conference -->
+    <div class="modal" id="confModal">
+        <div class="modal-content">
+            <div class="modal-header" id="confModalHeader">New Conference</div>
+            <div class="modal-body">
+
+                Room Id: <input id="confConfRoomId" type="text"><br>
+                Date Start: <input id="confDateStartText" type="date"><br>
+                Date End: <input id="confDateEndText" type="date"><br>
+                Max Participants: <input id="confDateEndText" type="number"><br>
+                Allow Conference Video: <input type="checkbox"> <br>
+                Allow Conference Audio : <input type="checkbox"> <br>
+                Allow Participant Video: <input type="checkbox"> <br>
+                Allow Particpant Audio: <input type="checkbox"> <br>
+                Invite Only: <input type="checkbox"> <br>
+
+            </div>
+            <div class="modal-footer">
+                <button class="modal-close-btn" id="confModalCloseBtn">OK</button>
+                <button class="modal-close-btn" id="confModalCancelBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Conference -->
+    <div class="modal" id="confJoinModal">
+        <div class="modal-content">
+            <div class="modal-header">Join Conference</div>
+            <div class="modal-body">
+                Room Id: <input id="confJoinConfRoomId" type="text"> <button class="modal-close-btn"
+                    id="confJoinModalJoinWithRoomId">OK</button><br>
+                <!-- Conferences List -->
+                <div id="confJoinConfList">
+                    //TODO add conferences list from server
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-close-btn" id="confJoinModalCancelButton">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+
     <script type="module" src="bundle.js"></script>
 </body>
+
 </html>

@@ -40,8 +40,16 @@ class ConferenceApp {
         this.modalCloseBtn = document.getElementById('modalCloseBtn');
         this.modalConfirmBtn = document.getElementById('modalConfirmBtn');
         this.modalCancelBtn = document.getElementById('modalCancelBtn');
+        this.modalNewConference = document.getElementById('confModal');
+        this.modalNewConferenceOkButtton = document.getElementById('confModalCloseBtn');
+        this.modalNewConferenceCloseButtton = document.getElementById('confModalCancelBtn');
+        this.modalJoinConference = document.getElementById('confJoinModal');
+        this.modalJoinConferenceCancelButton = document.getElementById('confJoinModalCancelButton');
+        this.newConferenceButton = document.getElementById('newConferenceButton');
+        this.joinConferenceButton = document.getElementById('joinConferenceButton');
     }
     addEventListeners() {
+        console.log("addEventListeners");
         this.loginBtn.addEventListener('click', () => this.login());
         this.refreshContactsBtn.addEventListener('click', () => this.getContacts());
         this.toggleVideoBtn.addEventListener('click', () => this.toggleVideo());
@@ -62,6 +70,11 @@ class ConferenceApp {
             }
             this.hideModal();
         });
+        this.newConferenceButton.addEventListener("click", () => this.showNewConference());
+        this.joinConferenceButton.addEventListener("click", () => this.showJoinConference());
+        this.modalNewConferenceOkButtton.addEventListener("click", () => this.hideNewConference());
+        this.modalNewConferenceCloseButtton.addEventListener("click", () => this.hideNewConference());
+        this.modalJoinConferenceCancelButton.addEventListener("click", () => this.hideJoinConference());
     }
     showModal(header, message, isConfirmation = false, callback) {
         this.modalHeader.textContent = header;
@@ -82,6 +95,22 @@ class ConferenceApp {
     }
     hideModal() {
         this.messageModal.style.display = 'none';
+    }
+    showNewConference() {
+        console.log("showNewConference");
+        this.modalNewConference.style.display = "flex";
+    }
+    hideNewConference() {
+        console.log("hideNewConference");
+        this.modalNewConference.style.display = "none";
+    }
+    showJoinConference() {
+        console.log("showJoinConference");
+        this.modalJoinConference.style.display = "flex";
+    }
+    hideJoinConference() {
+        console.log("hideJoinConference");
+        this.modalJoinConference.style.display = "none";
     }
     init() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -133,7 +162,7 @@ class ConferenceApp {
         };
     }
     sendToServer(message) {
-        console.log("sendToServer", message);
+        console.log("sendToServer " + message.type, message);
         if (this.socket && this.socket.readyState === WebSocket.OPEN) {
             this.socket.send(JSON.stringify(message));
         }
@@ -142,19 +171,19 @@ class ConferenceApp {
         }
     }
     handleMessage(message) {
-        console.log('Received message:', message);
+        console.log('Received message ' + message.type, message);
         switch (message.type) {
-            case sharedModels_1.CallMessageType.register_result:
+            case sharedModels_1.CallMessageType.registerResult:
                 this.handleRegisterResult(message);
                 break;
             case sharedModels_1.CallMessageType.getContacts:
                 this.handleContactsReceived(message);
                 break;
-            case sharedModels_1.CallMessageType.call:
-                this.handleCallReceived(message);
+            case sharedModels_1.CallMessageType.invite:
+                this.handleInviteReceived(message);
                 break;
-            case sharedModels_1.CallMessageType.call_result:
-                this.handleCallResult(message);
+            case sharedModels_1.CallMessageType.inviteResult:
+                this.handleInviteResult(message);
                 break;
             case sharedModels_1.CallMessageType.needOffer:
                 this.handleNeedOffer(message);
@@ -212,7 +241,8 @@ class ConferenceApp {
             const callButton = document.createElement('button');
             callButton.textContent = 'Call';
             callButton.className = 'call-btn';
-            callButton.disabled = this.isInCall;
+            //disable only if already on a call with the contact
+            //callButton.disabled = this.isInCall;
             callButton.addEventListener('click', () => {
                 this.callContact(contact);
             });
@@ -223,11 +253,11 @@ class ConferenceApp {
         });
     }
     callContact(contact) {
-        const callMsg = new sharedModels_1.CallMsg();
+        const callMsg = new sharedModels_1.InviteMsg();
         callMsg.data.participantId = contact.participantId;
         this.sendToServer(callMsg);
     }
-    handleCallReceived(message) {
+    handleInviteReceived(message) {
         this.showModal('Incoming Call', `Incoming call from ${message.data.displayName}. Accept?`, true, (accepted) => {
             if (accepted) {
                 const joinMsg = new sharedModels_1.JoinMsg();
@@ -239,7 +269,7 @@ class ConferenceApp {
             }
         });
     }
-    handleCallResult(message) {
+    handleInviteResult(message) {
         if (message.data.error) {
             this.showModal('Call Error', `Call error: ${message.data.error}`);
             return;
@@ -311,11 +341,11 @@ class ConferenceApp {
     updateUIForCall() {
         // Update button states
         this.hangupBtn.disabled = !this.isInCall;
-        // Update contact call buttons
-        const callButtons = document.querySelectorAll('.call-btn');
-        callButtons.forEach((btn) => {
-            btn.disabled = this.isInCall;
-        });
+        //Update contact call buttons
+        //const callButtons = document.querySelectorAll('.call-btn');
+        //callButtons.forEach((btn) => {
+        // (btn as HTMLButtonElement).disabled = this.isInCall;
+        //});
     }
     createPeerConnection(remotePeerId) {
         return __awaiter(this, void 0, void 0, function* () {

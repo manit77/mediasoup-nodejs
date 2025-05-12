@@ -8,7 +8,7 @@
   };
 
   // sharedModels.ts
-  var RegisterMsg, CallMsg, JoinMsg, LeaveMsg;
+  var RegisterMsg, InviteMsg, JoinMsg, LeaveMsg;
   var init_sharedModels = __esm({
     "sharedModels.ts"() {
       RegisterMsg = class {
@@ -20,9 +20,9 @@
           };
         }
       };
-      CallMsg = class {
+      InviteMsg = class {
         constructor() {
-          this.type = "call" /* call */;
+          this.type = "invite" /* invite */;
           this.data = {
             participantId: "",
             displayName: "",
@@ -85,8 +85,16 @@
           this.modalCloseBtn = document.getElementById("modalCloseBtn");
           this.modalConfirmBtn = document.getElementById("modalConfirmBtn");
           this.modalCancelBtn = document.getElementById("modalCancelBtn");
+          this.modalNewConference = document.getElementById("confModal");
+          this.modalNewConferenceOkButtton = document.getElementById("confModalCloseBtn");
+          this.modalNewConferenceCloseButtton = document.getElementById("confModalCancelBtn");
+          this.modalJoinConference = document.getElementById("confJoinModal");
+          this.modalJoinConferenceCancelButton = document.getElementById("confJoinModalCancelButton");
+          this.newConferenceButton = document.getElementById("newConferenceButton");
+          this.joinConferenceButton = document.getElementById("joinConferenceButton");
         }
         addEventListeners() {
+          console.log("addEventListeners");
           this.loginBtn.addEventListener("click", () => this.login());
           this.refreshContactsBtn.addEventListener("click", () => this.getContacts());
           this.toggleVideoBtn.addEventListener("click", () => this.toggleVideo());
@@ -107,6 +115,11 @@
             }
             this.hideModal();
           });
+          this.newConferenceButton.addEventListener("click", () => this.showNewConference());
+          this.joinConferenceButton.addEventListener("click", () => this.showJoinConference());
+          this.modalNewConferenceOkButtton.addEventListener("click", () => this.hideNewConference());
+          this.modalNewConferenceCloseButtton.addEventListener("click", () => this.hideNewConference());
+          this.modalJoinConferenceCancelButton.addEventListener("click", () => this.hideJoinConference());
         }
         showModal(header, message, isConfirmation = false, callback) {
           this.modalHeader.textContent = header;
@@ -126,6 +139,22 @@
         }
         hideModal() {
           this.messageModal.style.display = "none";
+        }
+        showNewConference() {
+          console.log("showNewConference");
+          this.modalNewConference.style.display = "flex";
+        }
+        hideNewConference() {
+          console.log("hideNewConference");
+          this.modalNewConference.style.display = "none";
+        }
+        showJoinConference() {
+          console.log("showJoinConference");
+          this.modalJoinConference.style.display = "flex";
+        }
+        hideJoinConference() {
+          console.log("hideJoinConference");
+          this.modalJoinConference.style.display = "none";
         }
         async init() {
           try {
@@ -171,7 +200,7 @@
           };
         }
         sendToServer(message) {
-          console.log("sendToServer", message);
+          console.log("sendToServer " + message.type, message);
           if (this.socket && this.socket.readyState === WebSocket.OPEN) {
             this.socket.send(JSON.stringify(message));
           } else {
@@ -179,19 +208,19 @@
           }
         }
         handleMessage(message) {
-          console.log("Received message:", message);
+          console.log("Received message " + message.type, message);
           switch (message.type) {
-            case "register_result" /* register_result */:
+            case "registerResult" /* registerResult */:
               this.handleRegisterResult(message);
               break;
             case "getContacts" /* getContacts */:
               this.handleContactsReceived(message);
               break;
-            case "call" /* call */:
-              this.handleCallReceived(message);
+            case "invite" /* invite */:
+              this.handleInviteReceived(message);
               break;
-            case "call_result" /* call_result */:
-              this.handleCallResult(message);
+            case "inviteResult" /* inviteResult */:
+              this.handleInviteResult(message);
               break;
             case "needOffer" /* needOffer */:
               this.handleNeedOffer(message);
@@ -245,7 +274,6 @@
             const callButton = document.createElement("button");
             callButton.textContent = "Call";
             callButton.className = "call-btn";
-            callButton.disabled = this.isInCall;
             callButton.addEventListener("click", () => {
               this.callContact(contact);
             });
@@ -256,11 +284,11 @@
           });
         }
         callContact(contact) {
-          const callMsg = new CallMsg();
+          const callMsg = new InviteMsg();
           callMsg.data.participantId = contact.participantId;
           this.sendToServer(callMsg);
         }
-        handleCallReceived(message) {
+        handleInviteReceived(message) {
           this.showModal(
             "Incoming Call",
             `Incoming call from ${message.data.displayName}. Accept?`,
@@ -277,7 +305,7 @@
             }
           );
         }
-        handleCallResult(message) {
+        handleInviteResult(message) {
           if (message.data.error) {
             this.showModal("Call Error", `Call error: ${message.data.error}`);
             return;
@@ -336,10 +364,6 @@
         }
         updateUIForCall() {
           this.hangupBtn.disabled = !this.isInCall;
-          const callButtons = document.querySelectorAll(".call-btn");
-          callButtons.forEach((btn) => {
-            btn.disabled = this.isInCall;
-          });
         }
         async createPeerConnection(remotePeerId) {
           console.log("createPeerConnection");
