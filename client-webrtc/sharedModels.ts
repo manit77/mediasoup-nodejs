@@ -5,9 +5,11 @@ export enum CallType {
 
 export enum CallMessageType {
     register = "register", //register the partcipant
-    register_result = "register_result", //partcipant recieves a registration result
-    call = "call", //participant requests a party to join a conference, participant joins the conference on the server
-    call_result = "call_result", //participant receives a call result with the conferenceroomid
+    registerResult = "registerResult", //partcipant recieves a registration result
+    newConference = "newConference",
+    newConferenceResult = "newConferenceResult",
+    invite = "invite", //invite to join room
+    inviteResult = "inviteResult", //result of the invite, the other participant could reject it
     join = "join", //participant requests to join the conference room
     joinResult = "joinResult", //participant receives the joinResult
     leave = "leave", //participant signals the sever to leave the room
@@ -51,11 +53,37 @@ export class RegisterMsg {
 }
 
 export class RegisterResultMsg {
-    type = CallMessageType.register_result;
+    type = CallMessageType.registerResult;
     data = {
         userName: "",
         authToken: "",
         participantId: ""
+    }
+}
+
+export class NewConferenceMsg {
+    type = CallMessageType.newConference;
+    data = {
+        conferenceRoomId: "",
+        config: {
+            dateStart : new Date(),
+            dateEnd: null,
+            maxParticipants: 2,
+            allowConferenceVideo : true,
+            allowConferenceAudio : true,
+            allowParticipantVideo : true,
+            allowParticpantAudio : true,
+            inviteOnly : false, //anyone can join or by invite only
+        }
+    }
+}
+
+export class NewConferenceResultMsg {
+    type = CallMessageType.newConferenceResult;
+    data = {
+        conferenceRoomId: "",
+        conferenceToken: "",
+        error: ""
     }
 }
 
@@ -72,17 +100,17 @@ export class GetContactsMsg {
     data: Contact[] = [];
 }
 
-export class CallMsg {
-    type = CallMessageType.call;
+export class InviteMsg {
+    type = CallMessageType.invite;
     data = {
         participantId: "",
-        displayName : "",
+        displayName: "",
         conferenceRoomId: ""
     }
 }
 
-export class CallResultMsg {
-    type = CallMessageType.call_result;
+export class InviteResultMsg {
+    type = CallMessageType.inviteResult;
     data = {
         conferenceRoomId: "",
         conferenceToken: "",
@@ -100,7 +128,7 @@ export class JoinMsg {
 
 export class JoinResultMsg {
     type = CallMessageType.joinResult;
-    data = {        
+    data = {
         conferenceRoomId: "",
         participants: [],
         error: ""
@@ -111,7 +139,7 @@ export class NeedOfferMsg {
     type = CallMessageType.needOffer;
     data = {
         conferenceRoomId: "",
-        participantId: ""        
+        participantId: ""
     }
 }
 
@@ -119,7 +147,7 @@ export class LeaveMsg {
     type = CallMessageType.leave;
     data = {
         conferenceRoomId: "",
-        participantId : ""
+        participantId: ""
     }
 }
 

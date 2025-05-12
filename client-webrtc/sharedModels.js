@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CloseConference = exports.ConferenceClosedMsg = exports.ParticipantLeftMsg = exports.NewParticipantMsg = exports.LeaveMsg = exports.NeedOfferMsg = exports.JoinResultMsg = exports.JoinMsg = exports.CallResultMsg = exports.CallMsg = exports.GetContactsMsg = exports.ConferenceLeaveMsg = exports.RegisterResultMsg = exports.RegisterMsg = exports.CallMessageType = exports.CallType = void 0;
+exports.CloseConference = exports.ConferenceClosedMsg = exports.ParticipantLeftMsg = exports.NewParticipantMsg = exports.LeaveMsg = exports.NeedOfferMsg = exports.JoinResultMsg = exports.JoinMsg = exports.InviteResultMsg = exports.InviteMsg = exports.GetContactsMsg = exports.ConferenceLeaveMsg = exports.NewConferenceResultMsg = exports.NewConferenceMsg = exports.RegisterResultMsg = exports.RegisterMsg = exports.CallMessageType = exports.CallType = void 0;
 var CallType;
 (function (CallType) {
     CallType["webrtc"] = "webrtc";
@@ -9,9 +9,11 @@ var CallType;
 var CallMessageType;
 (function (CallMessageType) {
     CallMessageType["register"] = "register";
-    CallMessageType["register_result"] = "register_result";
-    CallMessageType["call"] = "call";
-    CallMessageType["call_result"] = "call_result";
+    CallMessageType["registerResult"] = "registerResult";
+    CallMessageType["newConference"] = "newConference";
+    CallMessageType["newConferenceResult"] = "newConferenceResult";
+    CallMessageType["invite"] = "invite";
+    CallMessageType["inviteResult"] = "inviteResult";
     CallMessageType["join"] = "join";
     CallMessageType["joinResult"] = "joinResult";
     CallMessageType["leave"] = "leave";
@@ -37,7 +39,7 @@ class RegisterMsg {
 exports.RegisterMsg = RegisterMsg;
 class RegisterResultMsg {
     constructor() {
-        this.type = CallMessageType.register_result;
+        this.type = CallMessageType.registerResult;
         this.data = {
             userName: "",
             authToken: "",
@@ -46,6 +48,36 @@ class RegisterResultMsg {
     }
 }
 exports.RegisterResultMsg = RegisterResultMsg;
+class NewConferenceMsg {
+    constructor() {
+        this.type = CallMessageType.newConference;
+        this.data = {
+            conferenceRoomId: "",
+            config: {
+                dateStart: new Date(),
+                dateEnd: null,
+                maxParticipants: 2,
+                allowConferenceVideo: true,
+                allowConferenceAudio: true,
+                allowParticipantVideo: true,
+                allowParticpantAudio: true,
+                inviteOnly: false, //anyone can join or by invite only
+            }
+        };
+    }
+}
+exports.NewConferenceMsg = NewConferenceMsg;
+class NewConferenceResultMsg {
+    constructor() {
+        this.type = CallMessageType.newConferenceResult;
+        this.data = {
+            conferenceRoomId: "",
+            conferenceToken: "",
+            error: ""
+        };
+    }
+}
+exports.NewConferenceResultMsg = NewConferenceResultMsg;
 class ConferenceLeaveMsg {
     constructor() {
         this.type = CallMessageType.participantLeft;
@@ -63,9 +95,9 @@ class GetContactsMsg {
     }
 }
 exports.GetContactsMsg = GetContactsMsg;
-class CallMsg {
+class InviteMsg {
     constructor() {
-        this.type = CallMessageType.call;
+        this.type = CallMessageType.invite;
         this.data = {
             participantId: "",
             displayName: "",
@@ -73,10 +105,10 @@ class CallMsg {
         };
     }
 }
-exports.CallMsg = CallMsg;
-class CallResultMsg {
+exports.InviteMsg = InviteMsg;
+class InviteResultMsg {
     constructor() {
-        this.type = CallMessageType.call_result;
+        this.type = CallMessageType.inviteResult;
         this.data = {
             conferenceRoomId: "",
             conferenceToken: "",
@@ -84,7 +116,7 @@ class CallResultMsg {
         };
     }
 }
-exports.CallResultMsg = CallResultMsg;
+exports.InviteResultMsg = InviteResultMsg;
 class JoinMsg {
     constructor() {
         this.type = CallMessageType.join;

@@ -2,8 +2,6 @@ import {
     CallMessageType,
     RegisterMsg,
     GetContactsMsg,
-    CallMsg,
-    CallResultMsg,
     JoinMsg,
     LeaveMsg,
     Contact,
@@ -11,7 +9,9 @@ import {
     ParticipantLeftMsg,
     NewParticipantMsg,
     JoinResultMsg,
-    NeedOfferMsg
+    NeedOfferMsg,
+    InviteMsg,
+    InviteResultMsg
 } from './sharedModels';
 
 class ConferenceApp {
@@ -43,6 +43,16 @@ class ConferenceApp {
     private modalConfirmBtn: HTMLButtonElement;
     private modalCancelBtn: HTMLButtonElement;
 
+    private modalNewConference: HTMLDivElement;
+    private modalNewConferenceOkButtton: HTMLButtonElement;
+    private modalNewConferenceCloseButtton: HTMLButtonElement;
+
+    private modalJoinConference: HTMLDivElement;    
+    private modalJoinConferenceCancelButton: HTMLButtonElement;
+    
+    private newConferenceButton: HTMLButtonElement;
+    private joinConferenceButton: HTMLButtonElement;
+
     constructor() {
         this.initElements();
         this.addEventListeners();
@@ -67,9 +77,22 @@ class ConferenceApp {
         this.modalCloseBtn = document.getElementById('modalCloseBtn') as HTMLButtonElement;
         this.modalConfirmBtn = document.getElementById('modalConfirmBtn') as HTMLButtonElement;
         this.modalCancelBtn = document.getElementById('modalCancelBtn') as HTMLButtonElement;
+
+        this.modalNewConference = document.getElementById('confModal') as HTMLDivElement;
+        this.modalNewConferenceOkButtton = document.getElementById('confModalCloseBtn') as HTMLButtonElement;
+        this.modalNewConferenceCloseButtton = document.getElementById('confModalCancelBtn') as HTMLButtonElement;
+
+        this.modalJoinConference = document.getElementById('confJoinModal') as HTMLDivElement;
+        this.modalJoinConferenceCancelButton = document.getElementById('confJoinModalCancelButton') as HTMLButtonElement;
+
+        this.newConferenceButton = document.getElementById('newConferenceButton') as HTMLButtonElement;
+        this.joinConferenceButton = document.getElementById('joinConferenceButton') as HTMLButtonElement;
+
     }
 
     private addEventListeners() {
+        console.log("addEventListeners");
+
         this.loginBtn.addEventListener('click', () => this.login());
         this.refreshContactsBtn.addEventListener('click', () => this.getContacts());
         this.toggleVideoBtn.addEventListener('click', () => this.toggleVideo());
@@ -90,6 +113,15 @@ class ConferenceApp {
             }
             this.hideModal();
         });
+
+        this.newConferenceButton.addEventListener("click", () => this.showNewConference());
+        this.joinConferenceButton.addEventListener("click", () => this.showJoinConference());
+
+        this.modalNewConferenceOkButtton.addEventListener("click", () => this.hideNewConference());
+        this.modalNewConferenceCloseButtton.addEventListener("click", () => this.hideNewConference());
+
+        this.modalJoinConferenceCancelButton.addEventListener("click", () => this.hideJoinConference());
+
     }
 
     private showModal(header: string, message: string, isConfirmation: boolean = false, callback?: (accepted: boolean) => void) {
@@ -112,6 +144,29 @@ class ConferenceApp {
 
     private hideModal() {
         this.messageModal.style.display = 'none';
+    }
+
+    private showNewConference() {
+        console.log("showNewConference");
+        this.modalNewConference.style.display = "flex";
+
+    }
+
+    private hideNewConference() {
+        console.log("hideNewConference");
+        this.modalNewConference.style.display = "none";
+    }
+
+    private showJoinConference() {
+        console.log("showJoinConference");
+        this.modalJoinConference.style.display = "flex";
+
+    }
+
+    private hideJoinConference() {
+        console.log("hideJoinConference");
+        this.modalJoinConference.style.display = "none";
+
     }
 
     public async init() {
@@ -169,7 +224,7 @@ class ConferenceApp {
     }
 
     private sendToServer(message: any) {
-        console.log("sendToServer", message);
+        console.log("sendToServer " + message.type, message);
 
         if (this.socket && this.socket.readyState === WebSocket.OPEN) {
             this.socket.send(JSON.stringify(message));
@@ -179,20 +234,20 @@ class ConferenceApp {
     }
 
     private handleMessage(message: any) {
-        console.log('Received message:', message);
+        console.log('Received message ' + message.type, message);
 
         switch (message.type) {
-            case CallMessageType.register_result:
+            case CallMessageType.registerResult:
                 this.handleRegisterResult(message);
                 break;
             case CallMessageType.getContacts:
                 this.handleContactsReceived(message);
                 break;
-            case CallMessageType.call:
-                this.handleCallReceived(message);
+            case CallMessageType.invite:
+                this.handleInviteReceived(message);
                 break;
-            case CallMessageType.call_result:
-                this.handleCallResult(message);
+            case CallMessageType.inviteResult:
+                this.handleInviteResult(message);
                 break;
             case CallMessageType.needOffer:
                 this.handleNeedOffer(message);
@@ -259,7 +314,9 @@ class ConferenceApp {
             const callButton = document.createElement('button');
             callButton.textContent = 'Call';
             callButton.className = 'call-btn';
-            callButton.disabled = this.isInCall;
+
+            //disable only if already on a call with the contact
+            //callButton.disabled = this.isInCall;
 
             callButton.addEventListener('click', () => {
                 this.callContact(contact);
@@ -274,12 +331,12 @@ class ConferenceApp {
     }
 
     private callContact(contact: Contact) {
-        const callMsg = new CallMsg();
+        const callMsg = new InviteMsg();
         callMsg.data.participantId = contact.participantId;
         this.sendToServer(callMsg);
     }
 
-    private handleCallReceived(message: any) {
+    private handleInviteReceived(message: any) {
         this.showModal(
             'Incoming Call',
             `Incoming call from ${message.data.displayName}. Accept?`,
@@ -298,7 +355,7 @@ class ConferenceApp {
         );
     }
 
-    private handleCallResult(message: CallResultMsg) {
+    private handleInviteResult(message: InviteResultMsg) {
         if (message.data.error) {
             this.showModal('Call Error', `Call error: ${message.data.error}`);
             return;
@@ -379,11 +436,11 @@ class ConferenceApp {
         // Update button states
         this.hangupBtn.disabled = !this.isInCall;
 
-        // Update contact call buttons
-        const callButtons = document.querySelectorAll('.call-btn');
-        callButtons.forEach((btn) => {
-            (btn as HTMLButtonElement).disabled = this.isInCall;
-        });
+        //Update contact call buttons
+        //const callButtons = document.querySelectorAll('.call-btn');
+        //callButtons.forEach((btn) => {
+        // (btn as HTMLButtonElement).disabled = this.isInCall;
+        //});
     }
 
     private async createPeerConnection(remotePeerId: string): Promise<RTCPeerConnection> {
@@ -439,7 +496,7 @@ class ConferenceApp {
             pc.ontrack = (event: RTCTrackEvent) => {
 
                 console.log("*** RTCPeerConnection: event", event);
-                if(event.type == "track") {
+                if (event.type == "track") {
                     (remoteVideo.srcObject as MediaStream).addTrack(event.track);
                 }
 
@@ -448,7 +505,7 @@ class ConferenceApp {
             // Save the connection
             this.peerConnections.set(remotePeerId, pc);
 
-            
+
             return pc;
         } catch (err) {
             console.error('Error creating peer connection:', err);
@@ -560,7 +617,7 @@ class ConferenceApp {
         if (this.isInCall) {
             const leaveMsg = new LeaveMsg();
             leaveMsg.data.conferenceRoomId = this.conferenceRoomId;
-            leaveMsg.data.participantId  = this.participantId;
+            leaveMsg.data.participantId = this.participantId;
             this.sendToServer(leaveMsg);
 
             this.resetCallState();
