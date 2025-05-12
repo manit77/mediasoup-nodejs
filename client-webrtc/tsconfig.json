@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "es2016",
+    "module": "commonjs", // or "esnext"
+    "outDir": ".", // Output in the same directory
+    "rootDir": ".", // Source files in the root directory
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "moduleResolution": "node"
+  },
+  "include": ["*.ts"],
+  "exclude": ["node_modules"]
+}

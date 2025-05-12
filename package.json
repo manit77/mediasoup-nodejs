@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "start": "ts-node server/index.ts"
+    "start-room": "ts-node server-room/index.ts",
+    "start-conference": "ts-node server-conference/index.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
