@@ -14,7 +14,6 @@ var payloadTypeClient;
     payloadTypeClient["connectConsumerTransport"] = "connectConsumerTransport";
     payloadTypeClient["roomNewToken"] = "roomNewToken";
     payloadTypeClient["roomNew"] = "roomNew";
-    payloadTypeClient["roomNewResult"] = "roomNewResult";
     payloadTypeClient["roomJoin"] = "roomJoin";
     payloadTypeClient["roomLeave"] = "roomLeave";
     payloadTypeClient["roomTerminate"] = "roomTerminate";
@@ -31,6 +30,7 @@ var payloadTypeServer;
     payloadTypeServer["consumerTransportCreated"] = "consumerTransportCreated";
     payloadTypeServer["produced"] = "produced";
     payloadTypeServer["consumed"] = "consumed";
+    payloadTypeServer["roomNewResult"] = "roomNewResult";
     payloadTypeServer["roomJoinResult"] = "roomJoinResult";
     payloadTypeServer["roomNewPeer"] = "roomNewPeer";
     payloadTypeServer["roomNewProducer"] = "roomNewProducer";
@@ -121,7 +121,7 @@ class RoomNewTokenResultMsg {
 exports.RoomNewTokenResultMsg = RoomNewTokenResultMsg;
 class RoomNewResultMsg {
     constructor() {
-        this.type = payloadTypeClient.roomNewResult;
+        this.type = payloadTypeServer.roomNewResult;
         this.data = {};
     }
 }

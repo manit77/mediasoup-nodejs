@@ -44,7 +44,7 @@ export class RoomHTTPServer {
     }
 
     registerPeer = async (msg: RegisterMsg) => {
-        return this.roomServer.onRegister(msg.data.peerId, msg);
+        return this.roomServer.onRegister("", msg);
     }
 
     terminatePeer = (msg: TerminatePeerMsg) => {

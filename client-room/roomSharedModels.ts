@@ -9,10 +9,9 @@ export enum payloadTypeClient {
     createConsumerTransport = "createConsumerTransport",
     connectProducerTransport = "connectProducerTransport",
     connectConsumerTransport = "connectConsumerTransport",
-
+    
     roomNewToken = "roomNewToken",
-    roomNew = "roomNew",
-    roomNewResult = "roomNewResult",
+    roomNew = "roomNew",    
     roomJoin = "roomJoin",
     roomLeave = "roomLeave",
     roomTerminate = "roomTerminate",
@@ -34,6 +33,7 @@ export enum payloadTypeServer {
     produced = "produced",
     consumed = "consumed",
 
+    roomNewResult = "roomNewResult",
     roomJoinResult = "roomJoinResult",
     roomNewPeer = "roomNewPeer",
     roomNewProducer = "roomNewProducer",
@@ -43,10 +43,10 @@ export enum payloadTypeServer {
 
 export class RegisterMsg {
     private type = payloadTypeClient.register;
-    data: {
-        peerId?: string,
+    data: {        
         authToken?: string,
-        displayName?: string
+        displayName?: string,
+        trackingId?: string
     } = {}
 }
 
@@ -54,6 +54,7 @@ export class RegisterResultMsg {
     private type = payloadTypeServer.registerResult;
     data?: {
         peerId?: string,
+        trackingId?: string,
         displayName?: string,
         rtpCapabilities?: any,
         error?: string
@@ -136,17 +137,19 @@ export class RoomNewTokenMsg {
 export class RoomNewTokenResultMsg {
     private type = payloadTypeClient.roomNew;
     data?: {
-        roomToken?: string,  
+        roomId?: string,
+        roomToken?: string,
         error?: string      
     } = {}
 }
 
 export class RoomNewResultMsg {
-    private type = payloadTypeClient.roomNewResult;
+    private type = payloadTypeServer.roomNewResult;
     data?: {
         peerId?: string,
         roomId?: string,
-        roomToken?: string
+        roomToken?: string,
+        error?: string,
     } = {}
 }
 
@@ -154,6 +157,7 @@ export class RoomJoinMsg {
     private type = payloadTypeClient.roomJoin;
     data?: {
         peerId?: string,
+        trackingId?: string,
         roomId?: string,
         roomToken?: string,
         maxPeers?: number
@@ -173,9 +177,11 @@ export class RoomJoinResultMsg {
     private type = payloadTypeServer.roomJoinResult;
     data?: {
         roomId?: string,
+        roomToken?: string,
         error?: string,
         peers?: {
             peerId: string,
+            trackingId: string,            
             producers?: { producerId: string, kind: "audio" | "video" }[]
         }[]
     } = { peers: [] };
@@ -185,6 +191,7 @@ export class RoomNewPeerMsg {
     private type = payloadTypeServer.roomNewPeer;
     data?: {
         peerId?: string;
+        trackingId?: string,
         displayName?: string;
         producers?: { producerId: string, kind: "audio" | "video" }[]
     } = {};
@@ -194,6 +201,7 @@ export class RoomPeerLeftMsg {
     private type = payloadTypeServer.roomPeerLeft;
     data?: {
         peerId?: string;
+        trackingId?: string,
         roomId?: string;
     } = {};
 }
@@ -202,6 +210,7 @@ export class RoomNewProducerMsg {
     private type = payloadTypeServer.roomNewProducer;
     data?: {
         peerId?: string,
+        trackingId?: string,
         producerId?: string,
         kind?: string,
     } = {};
@@ -244,6 +253,7 @@ export class ConsumedMsg {
     type = payloadTypeServer.consumed;
     data?: {
         peerId?: string
+        trackingId?: string,
         consumerId?: string,
         producerId?: string,
         kind?: "audio" | "video",

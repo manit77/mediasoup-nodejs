@@ -3,8 +3,8 @@ import {
     ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg, ConsumerTransportCreatedMsg
     , CreateConsumerTransportMsg, CreateProducerTransportMsg, payloadTypeServer, ProducedMsg, ProduceMsg
     , ProducerTransportCreatedMsg, RegisterMsg, RegisterResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg
-    , RoomNewPeerMsg, RoomNewProducerMsg, RoomPeerLeftMsg
-} from './sharedModels';
+    , RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomPeerLeftMsg
+} from './roomSharedModels';
 
 (async () => {
 
@@ -17,7 +17,7 @@ import {
     const ctlJoinRoomButton = document.getElementById("ctlJoinRoomButton") as HTMLButtonElement;
     const ctlLeaveRoomButton = document.getElementById("ctlLeaveRoomButton") as HTMLButtonElement;
 
-    const ctlRoomId = document.getElementById("ctlRoomId") as HTMLInputElement;
+    const ctlJoinInfo = document.getElementById("ctlJoinInfo") as HTMLInputElement;
     const ctlSatus = document.getElementById("ctlSatus") as HTMLDivElement;
 
     let device: mediasoupClient.types.Device;
@@ -25,6 +25,8 @@ import {
     let recvTransport: mediasoupClient.types.Transport;
     let localPeerId = "";
     let localRoomId = "";
+    let roomToken = "";
+    let authToken = "";
     let peers: string[] = [];
 
     await initMediaSoupDevice();
@@ -66,7 +68,7 @@ import {
         console.log("destroyRemoteVideo:" + peerId);
         let id = `video-${peerId}`;
         let video = document.getElementById(id) as HTMLVideoElement | null;
-        if (video) {            
+        if (video) {
             video.remove();
         }
     }
@@ -76,9 +78,29 @@ import {
         event.preventDefault();
 
         ctlJoinRoomButton.disabled = false;
-        let roomid = ctlRoomId.value;
+        
+        if (!ctlJoinInfo.value) {
+            const { roomId, roomToken } = await roomNewAwait();
+            if (roomId && roomToken) {                
+                let joinInfoStr = JSON.stringify({ roomId: roomId, roomToken: roomToken });
+                ctlJoinInfo.value = joinInfoStr;
+                console.log("attempt to join room ", joinInfoStr);
 
-        await roomJoin(roomid);
+                roomJoin(roomId);                                
+            } else {
+                console.log("roomid and roomToken is required.");
+            }
+        } else {
+            let joinInfo : { roomId: string, roomToken: string } = JSON.parse(ctlJoinInfo.value);            
+            if (!roomToken) {
+                roomToken = joinInfo.roomToken;
+                roomJoin(joinInfo.roomId);
+            } else {
+                console.log("roomToken is required.");
+            }
+
+        }
+
     }
 
     ctlLeaveRoomButton.onclick = async (event) => {
@@ -88,7 +110,7 @@ import {
 
         ctlLeaveRoomButton.disabled = true;
         ctlLeaveRoomButton.style.visibility = "hidden";
-        ctlRoomId.value = "";
+        ctlJoinInfo.value = "";
 
         ctlJoinRoomButton.disabled = false;
         ctlJoinRoomButton.style.visibility = "visible";
@@ -143,6 +165,9 @@ import {
                     break;
                 case payloadTypeServer.consumerTransportCreated:
                     onConsumerTransportCreated(msgIn);
+                    break;
+                case payloadTypeServer.roomNewResult:
+                    onRoomNewResult(msgIn);
                     break;
                 case payloadTypeServer.roomJoinResult:
                     onRoomJoinResult(msgIn);
@@ -228,32 +253,158 @@ import {
         send(msg);
     }
 
-    async function roomJoin(roomid: string) {
+    async function roomNewAwait(): Promise<{ roomId: string; roomToken: string }> {
+        console.log("roomNewAwait");
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error("Room creation timed out"));
+            }, 10000); // 10-second timeout
+
+            // Define a one-time message handler
+            const handleMessage = async (event: MessageEvent) => {
+                try {
+                    console.log("handleMessage roomNewResult");
+
+                    const msgIn: any = JSON.parse(event.data);
+
+                    // Only handle roomNewResult messages
+                    if (msgIn.type !== payloadTypeServer.roomNewResult) {
+                        return;
+                    }
+
+                    //this function will fire first since  its already added
+                    //await Promise.resolve(onRoomNewResult(msgIn));
+
+                    if (msgIn.data?.error) {
+                        reject(new Error(`Failed to create room: ${msgIn.data.error}`));
+                        return;
+                    }
+
+                    if (!msgIn.data?.roomId || !msgIn.data?.roomToken) {
+                        reject(new Error("Invalid response: missing roomId or roomToken"));
+                        return;
+                    }
+
+                    localRoomId = msgIn.data.roomId;
+                    roomToken = msgIn.data.roomToken;
+
+                    resolve({ roomId: msgIn.data.roomId, roomToken: msgIn.data.roomToken });
+                } catch (error: any) {
+                    reject(new Error(`Room creation failed: ${error}`));
+                } finally {
+                    // Remove this listener
+                    ws.removeEventListener("message", handleMessage);
+                    clearTimeout(timeout);
+                }
+            };
+
+            // Register temporary listener
+            ws.addEventListener("message", handleMessage);
+
+            // Send room creation request
+            roomNew();
+        });
+    }
+
+    function roomNew() {
+        let msg = new RoomNewMsg();
+        msg.data = {};
+        send(msg);
+    }
+
+    let onRoomNewResult = async (msgIn: RoomNewResultMsg) => {
+
+        console.log(`onRoomNewResult`);
+        if (msgIn.data?.error) {
+            console.log(`failed to create new room ${msgIn.data.error}`);
+
+        } else {
+            localRoomId = msgIn.data?.roomId!;
+            roomToken = msgIn.data?.roomToken!;
+
+            console.log(`onRoomNewResult ${localRoomId} ${roomToken}`);
+        }
+    }
+
+    function roomJoin(roomid: string) {
         let msg = new RoomJoinMsg();
         msg.data = {
             roomId: roomid,
-            roomToken: ""
+            roomToken: roomToken
         };
         send(msg);
+    }
+
+    async function onRoomJoinResult(msgIn: RoomJoinResultMsg) {
+
+        console.log("-- onRoomJoinResult");
+
+        if (!msgIn.data!.error) {
+            localRoomId = msgIn.data!.roomId!;
+            roomToken = msgIn.data!.roomToken!;
+
+            if (!roomToken) {
+                writeLog("joined room " + msgIn.data!.roomId);                
+                ctlJoinRoomButton.disabled = true;
+                ctlJoinRoomButton.style.visibility = "hidden";
+
+                ctlLeaveRoomButton.disabled = false;
+                ctlLeaveRoomButton.style.visibility = "visible";
+
+            } else {
+                console.error("not token received");
+            }
+
+        } else {
+            localRoomId = "";
+
+            ctlJoinRoomButton.disabled = false;
+
+            ctlLeaveRoomButton.disabled = true;
+            ctlLeaveRoomButton.style.visibility = "hidden";
+
+            writeLog(`join room failed. ${msgIn.data?.error} `)
+
+            return;
+        }
+
+        //publish local stream
+        await produceLocalStreams();
+
+        console.log("-- onRoomJoinResult peers :" + msgIn.data!.peers!.length);
+        //connect to existing peers
+        if (msgIn.data && msgIn.data.peers) {
+            for (let peer of msgIn.data.peers) {
+                peers.push(peer.peerId);
+                console.log(peer.peerId);
+                console.log("-- onRoomJoinResult producers :" + peer.producers?.length);
+                if (peer.producers) {
+                    for (let producer of peer.producers) {
+                        console.log("-- onRoomJoinResult producer " + producer.kind, producer.producerId);
+                        consumeProducer(peer.peerId, producer.producerId);
+                    }
+                }
+            }
+        }
+
     }
 
     async function roomLeave() {
 
-        for(let peerid of peers) {
+        for (let peerid of peers) {
             destroyRemoteVideo(peerid);
         }
-        
-        
+
+
         let msg = new RoomLeaveMsg();
         msg.data = {
             roomId: localRoomId,
-            roomToken: ""
+            roomToken: roomToken
         };
         send(msg);
 
-       
-    }
 
+    }
 
     async function onConsumerTransportCreated(msgIn: ConsumerTransportCreatedMsg) {
         console.log("-- onConsumerTransportCreated");
@@ -320,51 +471,6 @@ import {
             //what is the id value???
             callback({ id: 'placeholder' });
         });
-
-    }
-
-    async function onRoomJoinResult(msgIn: RoomJoinResultMsg) {
-
-        console.log("-- onRoomJoinResult");
-
-        if (msgIn.data!.roomId) {
-            localRoomId = msgIn.data!.roomId;
-
-            writeLog("joined room " + msgIn.data!.roomId);
-            ctlRoomId.value = msgIn.data!.roomId;
-            ctlJoinRoomButton.disabled = true;
-            ctlJoinRoomButton.style.visibility = "hidden";
-
-            ctlLeaveRoomButton.disabled = false;
-            ctlLeaveRoomButton.style.visibility = "visible";
-
-        } else {
-            localRoomId = "";
-
-            ctlJoinRoomButton.disabled = false;
-
-            ctlLeaveRoomButton.disabled = true;
-            ctlLeaveRoomButton.style.visibility = "hidden";
-        }
-
-        //publish local stream
-        await produceLocalStreams();
-
-        console.log("-- onRoomJoinResult peers :" + msgIn.data!.peers!.length);
-        //connect to existing peers
-        if (msgIn.data && msgIn.data.peers) {
-            for (let peer of msgIn.data.peers) {
-                peers.push(peer.peerId);
-                console.log(peer.peerId);
-                console.log("-- onRoomJoinResult producers :" + peer.producers?.length);
-                if (peer.producers) {
-                    for (let producer of peer.producers) {
-                        console.log("-- onRoomJoinResult producer " + producer.kind, producer.producerId);
-                        consumeProducer(peer.peerId, producer.producerId);
-                    }
-                }
-            }
-        }
 
     }
 

@@ -43,7 +43,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const mediasoupClient = __importStar(require("mediasoup-client"));
-const sharedModels_1 = require("./sharedModels");
+const roomSharedModels_1 = require("./roomSharedModels");
 (() => __awaiter(void 0, void 0, void 0, function* () {
     const wsURI = "wss://localhost:3000";
     let ws;
@@ -53,13 +53,15 @@ const sharedModels_1 = require("./sharedModels");
     const ctlDisplayName = document.getElementById("ctlDisplayName");
     const ctlJoinRoomButton = document.getElementById("ctlJoinRoomButton");
     const ctlLeaveRoomButton = document.getElementById("ctlLeaveRoomButton");
-    const ctlRoomId = document.getElementById("ctlRoomId");
+    const ctlJoinInfo = document.getElementById("ctlJoinInfo");
     const ctlSatus = document.getElementById("ctlSatus");
     let device;
     let sendTransport;
     let recvTransport;
     let localPeerId = "";
     let localRoomId = "";
+    let roomToken = "";
+    let authToken = "";
     let peers = [];
     yield initMediaSoupDevice();
     yield initWebsocket();
@@ -102,15 +104,35 @@ const sharedModels_1 = require("./sharedModels");
         console.log("ctlJoinRoomButton click");
         event.preventDefault();
         ctlJoinRoomButton.disabled = false;
-        let roomid = ctlRoomId.value;
-        yield roomJoin(roomid);
+        if (!ctlJoinInfo.value) {
+            const { roomId, roomToken } = yield roomNewAwait();
+            if (roomId && roomToken) {
+                let joinInfoStr = JSON.stringify({ roomId: roomId, roomToken: roomToken });
+                ctlJoinInfo.value = joinInfoStr;
+                console.log("attempt to join room ", joinInfoStr);
+                roomJoin(roomId);
+            }
+            else {
+                console.log("roomid and roomToken is required.");
+            }
+        }
+        else {
+            let joinInfo = JSON.parse(ctlJoinInfo.value);
+            if (!roomToken) {
+                roomToken = joinInfo.roomToken;
+                roomJoin(joinInfo.roomId);
+            }
+            else {
+                console.log("roomToken is required.");
+            }
+        }
     });
     ctlLeaveRoomButton.onclick = (event) => __awaiter(void 0, void 0, void 0, function* () {
         console.log("ctlLeaveRoomButton click");
         event.preventDefault();
         ctlLeaveRoomButton.disabled = true;
         ctlLeaveRoomButton.style.visibility = "hidden";
-        ctlRoomId.value = "";
+        ctlJoinInfo.value = "";
         ctlJoinRoomButton.disabled = false;
         ctlJoinRoomButton.style.visibility = "visible";
         yield roomLeave();
@@ -150,31 +172,34 @@ const sharedModels_1 = require("./sharedModels");
                 const msgIn = JSON.parse(event.data);
                 console.log("-- ws_receive ", msgIn);
                 switch (msgIn.type) {
-                    case sharedModels_1.payloadTypeServer.registerResult:
+                    case roomSharedModels_1.payloadTypeServer.registerResult:
                         onRegisterResult(msgIn);
                         break;
-                    case sharedModels_1.payloadTypeServer.producerTransportCreated:
+                    case roomSharedModels_1.payloadTypeServer.producerTransportCreated:
                         onProducerTransportCreated(msgIn);
                         break;
-                    case sharedModels_1.payloadTypeServer.consumerTransportCreated:
+                    case roomSharedModels_1.payloadTypeServer.consumerTransportCreated:
                         onConsumerTransportCreated(msgIn);
                         break;
-                    case sharedModels_1.payloadTypeServer.roomJoinResult:
+                    case roomSharedModels_1.payloadTypeServer.roomNewResult:
+                        onRoomNewResult(msgIn);
+                        break;
+                    case roomSharedModels_1.payloadTypeServer.roomJoinResult:
                         onRoomJoinResult(msgIn);
                         break;
-                    case sharedModels_1.payloadTypeServer.roomNewPeer:
+                    case roomSharedModels_1.payloadTypeServer.roomNewPeer:
                         onRoomNewPeer(msgIn);
                         break;
-                    case sharedModels_1.payloadTypeServer.roomNewProducer:
+                    case roomSharedModels_1.payloadTypeServer.roomNewProducer:
                         onRoomNewProducer(msgIn);
                         break;
-                    case sharedModels_1.payloadTypeServer.roomPeerLeft:
+                    case roomSharedModels_1.payloadTypeServer.roomPeerLeft:
                         onRoomPeerLeft(msgIn);
                         break;
-                    case sharedModels_1.payloadTypeServer.produced:
+                    case roomSharedModels_1.payloadTypeServer.produced:
                         onProduced(msgIn);
                         break;
-                    case sharedModels_1.payloadTypeServer.consumed:
+                    case roomSharedModels_1.payloadTypeServer.consumed:
                         onConsumed(msgIn);
                         break;
                 }
@@ -207,7 +232,7 @@ const sharedModels_1 = require("./sharedModels");
     function register() {
         return __awaiter(this, void 0, void 0, function* () {
             console.log("-- register");
-            let msg = new sharedModels_1.RegisterMsg();
+            let msg = new roomSharedModels_1.RegisterMsg();
             msg.data.authToken = ""; //need authtoken from server
             msg.data.displayName = ctlDisplayName.value;
             send(msg);
@@ -227,25 +252,132 @@ const sharedModels_1 = require("./sharedModels");
     function createProducerTransport() {
         return __awaiter(this, void 0, void 0, function* () {
             console.log("-- createProducerTransport");
-            let msg = new sharedModels_1.CreateProducerTransportMsg();
+            let msg = new roomSharedModels_1.CreateProducerTransportMsg();
             send(msg);
         });
     }
     function createConsumerTransport() {
         return __awaiter(this, void 0, void 0, function* () {
             console.log("-- createConsumerTransport");
-            let msg = new sharedModels_1.CreateConsumerTransportMsg();
+            let msg = new roomSharedModels_1.CreateConsumerTransportMsg();
             send(msg);
         });
     }
-    function roomJoin(roomid) {
+    function roomNewAwait() {
         return __awaiter(this, void 0, void 0, function* () {
-            let msg = new sharedModels_1.RoomJoinMsg();
-            msg.data = {
-                roomId: roomid,
-                roomToken: ""
-            };
-            send(msg);
+            console.log("roomNewAwait");
+            return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error("Room creation timed out"));
+                }, 10000); // 10-second timeout
+                // Define a one-time message handler
+                const handleMessage = (event) => __awaiter(this, void 0, void 0, function* () {
+                    var _a, _b, _c;
+                    try {
+                        console.log("handleMessage roomNewResult");
+                        const msgIn = JSON.parse(event.data);
+                        // Only handle roomNewResult messages
+                        if (msgIn.type !== roomSharedModels_1.payloadTypeServer.roomNewResult) {
+                            return;
+                        }
+                        //this function will fire first since  its already added
+                        //await Promise.resolve(onRoomNewResult(msgIn));
+                        if ((_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.error) {
+                            reject(new Error(`Failed to create room: ${msgIn.data.error}`));
+                            return;
+                        }
+                        if (!((_b = msgIn.data) === null || _b === void 0 ? void 0 : _b.roomId) || !((_c = msgIn.data) === null || _c === void 0 ? void 0 : _c.roomToken)) {
+                            reject(new Error("Invalid response: missing roomId or roomToken"));
+                            return;
+                        }
+                        localRoomId = msgIn.data.roomId;
+                        roomToken = msgIn.data.roomToken;
+                        resolve({ roomId: msgIn.data.roomId, roomToken: msgIn.data.roomToken });
+                    }
+                    catch (error) {
+                        reject(new Error(`Room creation failed: ${error}`));
+                    }
+                    finally {
+                        // Remove this listener
+                        ws.removeEventListener("message", handleMessage);
+                        clearTimeout(timeout);
+                    }
+                });
+                // Register temporary listener
+                ws.addEventListener("message", handleMessage);
+                // Send room creation request
+                roomNew();
+            });
+        });
+    }
+    function roomNew() {
+        let msg = new roomSharedModels_1.RoomNewMsg();
+        msg.data = {};
+        send(msg);
+    }
+    let onRoomNewResult = (msgIn) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a, _b, _c;
+        console.log(`onRoomNewResult`);
+        if ((_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.error) {
+            console.log(`failed to create new room ${msgIn.data.error}`);
+        }
+        else {
+            localRoomId = (_b = msgIn.data) === null || _b === void 0 ? void 0 : _b.roomId;
+            roomToken = (_c = msgIn.data) === null || _c === void 0 ? void 0 : _c.roomToken;
+            console.log(`onRoomNewResult ${localRoomId} ${roomToken}`);
+        }
+    });
+    function roomJoin(roomid) {
+        let msg = new roomSharedModels_1.RoomJoinMsg();
+        msg.data = {
+            roomId: roomid,
+            roomToken: roomToken
+        };
+        send(msg);
+    }
+    function onRoomJoinResult(msgIn) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
+            console.log("-- onRoomJoinResult");
+            if (!msgIn.data.error) {
+                localRoomId = msgIn.data.roomId;
+                roomToken = msgIn.data.roomToken;
+                if (!roomToken) {
+                    writeLog("joined room " + msgIn.data.roomId);
+                    ctlJoinRoomButton.disabled = true;
+                    ctlJoinRoomButton.style.visibility = "hidden";
+                    ctlLeaveRoomButton.disabled = false;
+                    ctlLeaveRoomButton.style.visibility = "visible";
+                }
+                else {
+                    console.error("not token received");
+                }
+            }
+            else {
+                localRoomId = "";
+                ctlJoinRoomButton.disabled = false;
+                ctlLeaveRoomButton.disabled = true;
+                ctlLeaveRoomButton.style.visibility = "hidden";
+                writeLog(`join room failed. ${(_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.error} `);
+                return;
+            }
+            //publish local stream
+            yield produceLocalStreams();
+            console.log("-- onRoomJoinResult peers :" + msgIn.data.peers.length);
+            //connect to existing peers
+            if (msgIn.data && msgIn.data.peers) {
+                for (let peer of msgIn.data.peers) {
+                    peers.push(peer.peerId);
+                    console.log(peer.peerId);
+                    console.log("-- onRoomJoinResult producers :" + ((_b = peer.producers) === null || _b === void 0 ? void 0 : _b.length));
+                    if (peer.producers) {
+                        for (let producer of peer.producers) {
+                            console.log("-- onRoomJoinResult producer " + producer.kind, producer.producerId);
+                            consumeProducer(peer.peerId, producer.producerId);
+                        }
+                    }
+                }
+            }
         });
     }
     function roomLeave() {
@@ -253,10 +385,10 @@ const sharedModels_1 = require("./sharedModels");
             for (let peerid of peers) {
                 destroyRemoteVideo(peerid);
             }
-            let msg = new sharedModels_1.RoomLeaveMsg();
+            let msg = new roomSharedModels_1.RoomLeaveMsg();
             msg.data = {
                 roomId: localRoomId,
-                roomToken: ""
+                roomToken: roomToken
             };
             send(msg);
         });
@@ -273,7 +405,7 @@ const sharedModels_1 = require("./sharedModels");
                 iceTransportPolicy: msgIn.data.iceTransportPolicy
             });
             recvTransport.on('connect', ({ dtlsParameters }, callback) => {
-                let msg = new sharedModels_1.ConnectConsumerTransportMsg();
+                let msg = new roomSharedModels_1.ConnectConsumerTransportMsg();
                 msg.data = {
                     dtlsParameters: dtlsParameters
                 };
@@ -298,7 +430,7 @@ const sharedModels_1 = require("./sharedModels");
             sendTransport.on("connect", ({ dtlsParameters }, callback) => {
                 console.log("-- sendTransport connect");
                 //fires when the transport connects to the mediasoup server
-                let msg = new sharedModels_1.ConnectProducerTransportMsg();
+                let msg = new roomSharedModels_1.ConnectProducerTransportMsg();
                 msg.data = {
                     dtlsParameters: dtlsParameters
                 };
@@ -308,7 +440,7 @@ const sharedModels_1 = require("./sharedModels");
             sendTransport.on('produce', ({ kind, rtpParameters }, callback) => {
                 console.log("-- sendTransport produce");
                 //fires when we call produce with local tracks
-                let msg = new sharedModels_1.ProduceMsg();
+                let msg = new roomSharedModels_1.ProduceMsg();
                 msg.data = {
                     kind: kind,
                     rtpParameters: rtpParameters
@@ -317,44 +449,6 @@ const sharedModels_1 = require("./sharedModels");
                 //what is the id value???
                 callback({ id: 'placeholder' });
             });
-        });
-    }
-    function onRoomJoinResult(msgIn) {
-        return __awaiter(this, void 0, void 0, function* () {
-            var _a;
-            console.log("-- onRoomJoinResult");
-            if (msgIn.data.roomId) {
-                localRoomId = msgIn.data.roomId;
-                writeLog("joined room " + msgIn.data.roomId);
-                ctlRoomId.value = msgIn.data.roomId;
-                ctlJoinRoomButton.disabled = true;
-                ctlJoinRoomButton.style.visibility = "hidden";
-                ctlLeaveRoomButton.disabled = false;
-                ctlLeaveRoomButton.style.visibility = "visible";
-            }
-            else {
-                localRoomId = "";
-                ctlJoinRoomButton.disabled = false;
-                ctlLeaveRoomButton.disabled = true;
-                ctlLeaveRoomButton.style.visibility = "hidden";
-            }
-            //publish local stream
-            yield produceLocalStreams();
-            console.log("-- onRoomJoinResult peers :" + msgIn.data.peers.length);
-            //connect to existing peers
-            if (msgIn.data && msgIn.data.peers) {
-                for (let peer of msgIn.data.peers) {
-                    peers.push(peer.peerId);
-                    console.log(peer.peerId);
-                    console.log("-- onRoomJoinResult producers :" + ((_a = peer.producers) === null || _a === void 0 ? void 0 : _a.length));
-                    if (peer.producers) {
-                        for (let producer of peer.producers) {
-                            console.log("-- onRoomJoinResult producer " + producer.kind, producer.producerId);
-                            consumeProducer(peer.peerId, producer.producerId);
-                        }
-                    }
-                }
-            }
         });
     }
     function onRoomNewPeer(msgIn) {
@@ -408,7 +502,7 @@ const sharedModels_1 = require("./sharedModels");
             if (remotePeerId == localPeerId) {
                 console.error("you can't consume yourself.");
             }
-            let msg = new sharedModels_1.ConsumeMsg();
+            let msg = new roomSharedModels_1.ConsumeMsg();
             msg.data = {
                 remotePeerId: remotePeerId,
                 producerId: producerId,

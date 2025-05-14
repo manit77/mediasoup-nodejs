@@ -152,7 +152,7 @@ export class ConferenceCallManager {
                     break;
                 case CallMessageType.needOffer:
                     this.onNeedOffer(message);
-                    break;
+                    break;                    
                 case CallMessageType.joinResult:
                     this.onJoinResult(message);
                     break;

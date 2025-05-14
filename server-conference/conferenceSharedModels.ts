@@ -19,13 +19,13 @@ export enum CallMessageType {
     participantLeft = "participantLeft", // a participants leaves the room
     conferenceClosed = "conferenceClosed",
     closeConference = "closeConference", // the participant closes the conference, and the confernece room is terminated on the server
-    getContacts = "getContacts",
-    needOffer = "needOffer",
+    getContacts = "getContacts",    
 
     reconnect = "reconnect",
     reconnectResult = "reconnectResult",
     participantReconnected = "participantReconnected",
 
+    rtc_needOffer = "rtc_needOffer",
     rtc_offer = "rtc_offer",
     rtc_answer = "rtc_answer",
     rtc_ice = "rtc_ice",
@@ -264,8 +264,8 @@ export class JoinResultMsg {
         }
 }
 
-export class NeedOfferMsg {
-    type = CallMessageType.needOffer;
+export class RTCNeedOfferMsg {
+    type = CallMessageType.rtc_needOffer;
     data: {
         participantId: string;
         displayName: string

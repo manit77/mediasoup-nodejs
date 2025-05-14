@@ -1,7 +1,7 @@
 import https from 'https';
 import { WebSocket, WebSocketServer } from 'ws';
 import { randomUUID } from 'crypto';
-import { CallMessageType, ConferenceClosedMsg, ConferenceLeaveMsg, ConferenceRole, GetContactsMsg, InviteMsg, InviteResultMsg, JoinMsg, JoinResultMsg, LeaveMsg, NeedOfferMsg, NewConferenceMsg, NewConferenceResultMsg, NewParticipantMsg, ParticipantLeftMsg, RegisterMsg, RegisterResultMsg, ReconnectMsg, ReconnectResultMsg, ParticipantReconnectedMsg, RejectMsg, ConferenceConfig, Contact, ConferenceType } from './conferenceSharedModels';
+import { CallMessageType, ConferenceClosedMsg, ConferenceLeaveMsg, ConferenceRole, GetContactsMsg, InviteMsg, InviteResultMsg, JoinMsg, JoinResultMsg, LeaveMsg, RTCNeedOfferMsg, NewConferenceMsg, NewConferenceResultMsg, NewParticipantMsg, ParticipantLeftMsg, RegisterMsg, RegisterResultMsg, ReconnectMsg, ReconnectResultMsg, ParticipantReconnectedMsg, RejectMsg, ConferenceConfig, Contact, ConferenceType } from './conferenceSharedModels';
 import { ConferenceRoom, Participant } from './models';
 import { RoomsAPI } from './roomsAPI/roomsAPI';
 
@@ -155,8 +155,6 @@ export class ConferenceServer {
         confRoom.config = config;
         confRoom.leader = leader;
 
-        
-
         confRoom.onParticipantRemove = (participant: Participant) => {
             console.log("onParticipantRemove");
             if (confRoom.participants.length == 0) {
@@ -172,7 +170,7 @@ export class ConferenceServer {
             console.log("onParticipantAdd");
             participant.conferenceRoom = confRoom;
 
-            if(confRoom.confType == ConferenceType.rooms) {
+            if (confRoom.confType == ConferenceType.rooms) {
                 //the client must add themselves to room
             }
         };
@@ -210,10 +208,10 @@ export class ConferenceServer {
         let result = await this.roomsAPI.newRoomToken(this.config.maxPeersRoom);
         if (result.data.error || !result.data.roomToken) {
             console.error("failed to create new room token in rooms");
-            return null;            
+            return null;
         }
         confRoom.conferenceToken = ""; //TODO: generate conference token
-        confRoom.roomToken = result.data.roomToken; 
+        confRoom.roomToken = result.data.roomToken;
         confRoom.roomId = result.data.roomId;
 
         this.conferences.set(confRoom.conferenceRoomId, confRoom);
@@ -363,12 +361,16 @@ export class ConferenceServer {
         this.send(ws, reconnectResultMsg);
 
         // alert the partcipant to send offers to others
-        for (let p of otherParticipants) {
-            let needOfferMsg = new NeedOfferMsg();
-            needOfferMsg.data.conferenceRoomId = conferenceRoom.conferenceRoomId;
-            needOfferMsg.data.participantId = p.participantId;
-            needOfferMsg.data.isReconnection = true;
-            this.send(participant.socket, needOfferMsg);
+        if (conferenceRoom.confType == ConferenceType.rooms) {
+
+        } else {
+            for (let p of otherParticipants) {
+                let needOfferMsg = new RTCNeedOfferMsg();
+                needOfferMsg.data.conferenceRoomId = conferenceRoom.conferenceRoomId;
+                needOfferMsg.data.participantId = p.participantId;
+                needOfferMsg.data.isReconnection = true;
+                this.send(participant.socket, needOfferMsg);
+            }
         }
     }
 
@@ -431,13 +433,17 @@ export class ConferenceServer {
 
             //send offer to all participants
             otherParticipants = participant.conferenceRoom.getParticipantsExcept(participant);
-            // alert the partcipant to send offer to otherParticipants
-            for (let p of otherParticipants) {
-                let needOfferMsg = new NeedOfferMsg();
-                needOfferMsg.data.conferenceRoomId = participant.conferenceRoom.conferenceRoomId;
-                needOfferMsg.data.participantId = p.participantId;
-                needOfferMsg.data.isReconnection = true;
-                this.send(participant.socket, needOfferMsg);
+            if (participant.conferenceRoom.confType == ConferenceType.rooms) {
+
+            } else {
+                // alert the partcipant to send offer to otherParticipants
+                for (let p of otherParticipants) {
+                    let needOfferMsg = new RTCNeedOfferMsg();
+                    needOfferMsg.data.conferenceRoomId = participant.conferenceRoom.conferenceRoomId;
+                    needOfferMsg.data.participantId = p.participantId;
+                    needOfferMsg.data.isReconnection = true;
+                    this.send(participant.socket, needOfferMsg);
+                }
             }
 
         }
@@ -712,7 +718,7 @@ export class ConferenceServer {
             } else {
                 //send need offer to participants except
                 for (let p of otherParticipants) {
-                    let needOfferMsg = new NeedOfferMsg();
+                    let needOfferMsg = new RTCNeedOfferMsg();
                     needOfferMsg.data.conferenceRoomId = conferenceRoom.conferenceRoomId;
                     needOfferMsg.data.participantId = participant.participantId;
                     this.send(p.socket, needOfferMsg);

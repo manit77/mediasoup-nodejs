@@ -9,10 +9,9 @@ export enum payloadTypeClient {
     createConsumerTransport = "createConsumerTransport",
     connectProducerTransport = "connectProducerTransport",
     connectConsumerTransport = "connectConsumerTransport",
-
+    
     roomNewToken = "roomNewToken",
-    roomNew = "roomNew",
-    roomNewResult = "roomNewResult",
+    roomNew = "roomNew",    
     roomJoin = "roomJoin",
     roomLeave = "roomLeave",
     roomTerminate = "roomTerminate",
@@ -34,6 +33,7 @@ export enum payloadTypeServer {
     produced = "produced",
     consumed = "consumed",
 
+    roomNewResult = "roomNewResult",
     roomJoinResult = "roomJoinResult",
     roomNewPeer = "roomNewPeer",
     roomNewProducer = "roomNewProducer",
@@ -144,11 +144,12 @@ export class RoomNewTokenResultMsg {
 }
 
 export class RoomNewResultMsg {
-    private type = payloadTypeClient.roomNewResult;
+    private type = payloadTypeServer.roomNewResult;
     data?: {
         peerId?: string,
         roomId?: string,
-        roomToken?: string
+        roomToken?: string,
+        error?: string,
     } = {}
 }
 
@@ -176,10 +177,11 @@ export class RoomJoinResultMsg {
     private type = payloadTypeServer.roomJoinResult;
     data?: {
         roomId?: string,
+        roomToken?: string,
         error?: string,
         peers?: {
             peerId: string,
-            trackingId: string,
+            trackingId: string,            
             producers?: { producerId: string, kind: "audio" | "video" }[]
         }[]
     } = { peers: [] };

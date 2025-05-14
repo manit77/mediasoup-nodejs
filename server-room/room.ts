@@ -7,17 +7,16 @@ export class Room {
     roomToken: string = "";
     maxPeers = 2;
 
-    constructor(roomId: string, token: string, maxPeers: number) {
-        this.id = roomId;
-        this.roomToken = token;
-        this.maxPeers = maxPeers;
-        this.peers = new Map();
+    constructor() {        
     }
 
     addPeer(peer: Peer, roomToken: string): boolean {
         
         if(this.roomToken && this.roomToken !== roomToken){
-            console.error("token mismatch");
+            console.error("token provided does not match room token");
+            console.error(this.roomToken);
+            console.error(roomToken);
+
             return false;
         }
 

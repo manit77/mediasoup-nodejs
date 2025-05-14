@@ -203,24 +203,59 @@ export class RoomServer {
      * @returns 
      */
     private createPeer(trackingId: string) {
-        let peer = new Peer();        
-        peer.id = randomUUID().toString();    
+        let peer = new Peer();
+        peer.id = randomUUID().toString();
         peer.trackingid = trackingId;
         this.peers.set(peer.id, peer);
         return peer;
     }
 
-    private createRoom(roomId: string, roomToken: string, maxPeers: number) {
+    /**
+     * create a new room
+     * @param peerId which peerid created the room
+     * @param roomId can be assiged or genereated
+     * @param maxPeers 
+     * @returns 
+     */
+    private createRoom(roomId: string, roomToken: string, maxPeers: number): Room {
 
-        if(!roomId) {
+        console.log(`createRoom roomId:${roomId} roomToken: ${roomToken} maxPeers: ${maxPeers}`);
+
+        if (!roomId) {
             roomId = randomUUID().toString();
         }
 
-        console.log("createRoom");
-        let room = new Room(roomId, roomToken, maxPeers);
-        console.log("new room created: " + room.id);
+        if (this.rooms.has(roomId)) {
+            console.error("room already exists");
+            return null;
+        }
+
+        let room = new Room();
+        room.id = roomId;
+        room.roomToken = roomToken;
+
+        if (!roomToken) {
+            let [payload, newToken] = this.createRoomToken(roomId, maxPeers);
+            room.roomToken = newToken;
+            room.maxPeers = payload.maxPeers;
+        }
+
         this.rooms.set(room.id, room);
+
+        console.log("new room added: " + room.id);
+        this.printStats();
+
         return room;
+    }
+
+    createRoomToken(roomId: string, maxPeers: number): [TokenPayload, string] {
+
+        let payload: TokenPayload = {
+            roomId: !roomId ? randomUUID().toString() : roomId,
+            expiresIn: Math.floor(Date.now() / 1000) + (this.config.newRoomTokenExpiresInMinutes * 60),
+            maxPeers: maxPeers
+        };
+        return [payload, jwt.jwtSign(this.config.secretKey, payload)]
     }
 
     private async send(peerId: string, msg: any) {
@@ -373,15 +408,10 @@ export class RoomServer {
      * the roomid will used later as the room's id
      */
     onRoomNewToken(peerId: string, msgIn: RoomNewTokenMsg): RoomNewTokenResultMsg {
-        let payload: TokenPayload = {
-            roomId: randomUUID().toString(),
-            peerId: peerId ?? "",
-            expiresIn: Math.floor(Date.now() / 1000) + (this.config.newRoomTokenExpiresInMinutes * 60),
-            maxPeers: msgIn.data.maxPeers
-        };
 
         let msg = new RoomNewTokenResultMsg();
-        let roomToken = jwt.jwtSign(this.config.secretKey, payload);
+        let [payload, roomToken] = this.createRoomToken("", msgIn.data.maxPeers)
+
         if (roomToken) {
             msg.data.roomId = payload.roomId;
             msg.data.roomToken = roomToken;
@@ -408,22 +438,15 @@ export class RoomServer {
             maxPeers = msgIn.data.maxPeers;
         }
 
-        let room = this.createRoom("", msgIn.data.peerId, maxPeers);
+        let room = this.createRoom("", msgIn.data.roomToken, maxPeers);
 
-        let payload = {
-            roomId: room.id,
-            expiresIn: Math.floor(Date.now() / 1000) + (this.config.newRoomTokenExpiresInMinutes * 60)
-        };
+        let roomNewMsg = new RoomNewResultMsg();
+        roomNewMsg.data.roomId = room.id;
+        roomNewMsg.data.roomToken = room.roomToken;
 
-        console.log("expiresIn:", new Date(payload.expiresIn * 1000));
+        this.send(peerId, roomNewMsg);
 
-        let msg = new RoomNewResultMsg();
-        msg.data.roomId = room.id;
-        msg.data.roomToken = jwt.jwtSign(this.config.secretKey, payload);
-
-        this.send(peerId, msgIn);
-
-        return msg;
+        return roomNewMsg;
     }
 
     validateRoomToken(token: string): boolean {
@@ -495,69 +518,71 @@ export class RoomServer {
      * @param msgIn 
      * @returns 
      */
-    onRoomJoin(peerId: string, msgIn: RoomJoinMsg) {
-        console.log("onRoomJoin " + peerId);
-        
-        let errorMsg = new RoomJoinResultMsg();
+    // onRoomJoin(peerId: string, msgIn: RoomJoinMsg) {
+    //     console.log("onRoomJoin " + peerId);
 
-        let peer = this.peers.get(peerId);
-        if (!peer) {
-            console.error("peer not found: " + peerId);
-            errorMsg.data.error = "peer not found.";
-            return errorMsg;
-        }
-       
-        if (peer.room) {
-            console.error("peer already in a room");
-            errorMsg.data.error = "peer already in a room.";
-            return errorMsg;
-        }
-        let room : Room;
-        if(msgIn.data.roomId) {
-            room = this.rooms.get(msgIn.data.roomId);
-        }
-        
-        if (!room) {
-            room = this.createRoom("", msgIn.data.roomToken ?? "", msgIn.data.maxPeers ?? 2);
-            console.log("new room created: " + room.id);
-            this.rooms.set(room.id, room);
-        }
+    //     let errorMsg = new RoomJoinResultMsg();
 
-        //send join room result back to peer, and the peer's producers in the room 
-        let joinRoomResult = new RoomJoinResultMsg();
-        joinRoomResult.data = { roomId: room.id, peers: [] };
+    //     let peer = this.peers.get(peerId);
+    //     if (!peer) {
+    //         console.error("peer not found: " + peerId);
+    //         errorMsg.data.error = "peer not found.";
+    //         return errorMsg;
+    //     }
 
-        for (let remotePeer of room.peers.values()) {
-            joinRoomResult.data.peers.push({
-                peerId: remotePeer.id,
-                trackingId: remotePeer.trackingid,
-                producers: remotePeer.producers.map(producer => ({ producerId: producer.id, kind: producer.kind }))
-            });
-        }
+    //     if (peer.room) {
+    //         console.error("peer already in a room");
+    //         errorMsg.data.error = "peer already in a room.";
+    //         return errorMsg;
+    //     }
+    //     let room: Room;
+    //     if (msgIn.data.roomId) {
+    //         room = this.rooms.get(msgIn.data.roomId);
+    //     }
 
-        this.send(peerId, joinRoomResult);
+    //     if (!room) {
+    //         room = this.createRoom("", msgIn.data.roomToken ?? "", msgIn.data.maxPeers ?? 2);
+    //         console.log("new room created: " + room.id);
+    //         this.rooms.set(room.id, room);
+    //     }
 
-        //add peer to room
-        if(!room.addPeer(peer, msgIn.data.roomToken)){            
-            errorMsg.data.error = "unable to join room.";
-            return errorMsg;
-        }    
+    //     //send join room result back to peer, and the peer's producers in the room 
+    //     let joinRoomResult = new RoomJoinResultMsg();
+    //     joinRoomResult.data = { roomId: room.id, peers: [] };
 
-        console.log("peers in room: " + room.peers.size);
+    //     for (let remotePeer of room.peers.values()) {
+    //         joinRoomResult.data.peers.push({
+    //             peerId: remotePeer.id,
+    //             trackingId: remotePeer.trackingid,
+    //             producers: remotePeer.producers.map(producer => ({ producerId: producer.id, kind: producer.kind }))
+    //         });
+    //     }
 
-        //broadcast to all peers in the room that a new peer has joined
-        let roomNewPeerMsg = new RoomNewPeerMsg();
-        roomNewPeerMsg.data = {
-            peerId: peer.id,
-            trackingId: peer.trackingid,
-            displayName: "",
-            producers: peer.producers.map(producer => ({ producerId: producer.id, kind: producer.kind }))
-        }
-        this.broadCastExcept(room, peer, roomNewPeerMsg);
+    //     this.send(peerId, joinRoomResult);
 
-        return joinRoomResult;
+    //     //add peer to room
+    //     if (!room.addPeer(peer, msgIn.data.roomToken)) {
+    //         errorMsg.data.error = "unable to join room.";
+    //         return errorMsg;
+    //     }
 
-    }
+    //     console.log("peers in room: " + room.peers.size);
+
+    //     //broadcast to all peers in the room that a new peer has joined
+    //     let roomNewPeerMsg = new RoomNewPeerMsg();
+    //     roomNewPeerMsg.data = {
+    //         peerId: peer.id,
+    //         trackingId: peer.trackingid,
+    //         displayName: "",
+    //         producers: peer.producers.map(producer => ({ producerId: producer.id, kind: producer.kind }))
+    //     }
+    //     this.broadCastExcept(room, peer, roomNewPeerMsg);
+
+    //     this.printStats();
+
+    //     return joinRoomResult;
+
+    // }
 
     /**
      * join with an auth token
@@ -565,7 +590,7 @@ export class RoomServer {
      * @param msgIn 
      * @returns 
      */
-    onRoomJoinToken(peerId: string, msgIn: RoomJoinMsg) {
+    onRoomJoin(peerId: string, msgIn: RoomJoinMsg) {
 
         let peer: Peer;
 
@@ -576,12 +601,14 @@ export class RoomServer {
         if (!peer) {
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "invalid peerid";
+            this.send(peerId, msgError);
             return msgError;
         }
-        
+
         if (!msgIn.data.roomToken) {
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "token required";
+            this.send(peerId, msgError);
             return msgError;
         }
 
@@ -589,28 +616,38 @@ export class RoomServer {
         if (!payload) {
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "invalidate token";
+            this.send(peerId, msgError);
             return msgError;
         }
 
-        if(!peer) {
+        if (!peer) {
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "peer not created";
-            return msgError;            
+            this.send(peerId, msgError);
+            return msgError;
         }
 
+        let room: Room = this.rooms.get(payload.roomId);
 
-        let room: Room;
-        for (let r of this.rooms.values()) {
-            if (r.roomToken === msgIn.data.roomToken) {
-                room = r;
-                break;
+        if (room) {
+            if(room.addPeer(peer, msgIn.data.roomToken)){
+                console.log(`peer ${peer.id} added to room`);
+            } else {
+                console.log(`error: could not add peer ${peer.id} room: ${room.id}`);
             }
+        } else {
+            let msgError = new RoomJoinResultMsg();
+            msgError.data.error = "room not found";
+            this.send(peerId, msgError);
+            return msgError;
         }
 
-        if (!room) {
-            //create new room, the payload contains the already generated roomid
-            room = this.createRoom(payload.roomId, msgIn.data.roomToken, payload.maxPeers);
-            room.addPeer(peer, msgIn.data.roomToken);
+        if (!room.peers.has(peer.id)) {
+            console.log("peer not added to room");
+            let msgError = new RoomJoinResultMsg();
+            msgError.data.error = "peer not added to room";
+            this.send(peerId, msgError);
+            return msgError;
         }
 
         let joinRoomResult = new RoomJoinResultMsg();
@@ -625,6 +662,8 @@ export class RoomServer {
         }
 
         this.send(peerId, joinRoomResult);
+
+        this.printStats();
 
         return joinRoomResult;
 
@@ -666,7 +705,9 @@ export class RoomServer {
         if (room.peers.size == 0) {
             this.rooms.delete(room.id);
         }
-        
+
+        this.printStats();
+
         return true;
 
     }
@@ -800,6 +841,10 @@ export class RoomServer {
         this.send(peerId, consumed);
 
         return true;
+    }
+
+    printStats() {
+        console.log(`### rooms: ${this.rooms.size}, peers: ${this.peers.size} ###`);
     }
 
 }
