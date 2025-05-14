@@ -179,6 +179,8 @@ export class NewConferenceResultMsg {
     data = {
         conferenceRoomId: "",
         conferenceToken: "",
+        roomId: "",
+        roomToken: "",
         error: ""
     }
 }
@@ -215,50 +217,49 @@ export class InviteMsg {
 export class InviteResultMsg {
     type = CallMessageType.inviteResult;
     data: {
-        conferenceRoomId: string,
-        conferenceToken: string,
-        participantId: string,
-        conferenceType: ConferenceType
+        conferenceRoomId?: string,
+        conferenceToken?: string,
+        roomToken?: string,
+        roomId?: string,
+        participantId?: string,
+        conferenceType?: ConferenceType
         error?: string
     } = {
-            participantId: "",
-            conferenceRoomId: "",
-            conferenceToken: "",
-            conferenceType: ConferenceType.p2p
         }
 }
 
 export class RejectMsg {
     type = CallMessageType.reject;
     data: {
-        conferenceRoomId: string,
-        fromParticipantId: string,
-        toParticipantId: string,
+        conferenceRoomId?: string,
+        fromParticipantId?: string,
+        toParticipantId?: string,
     } = {
-            conferenceRoomId: "",
-            fromParticipantId: "",
-            toParticipantId: "",
         }
 }
 
 export class JoinMsg {
     type = CallMessageType.join;
     data: {
-        conferenceRoomId: string,
+        conferenceRoomId?: string,
+        conferenceToken?: string,
+        roomId?: string,
+        roomToken?: string,
         error?: string
     } = {
-            conferenceRoomId: "",
         }
 }
 
 export class JoinResultMsg {
     type = CallMessageType.joinResult;
-    data: {
-        conferenceRoomId: string,
+    data?: {
+        conferenceRoomId?: string,
+        conferenceToken?: string;
+        roomId? : string;
+        roomToken ?: string;
         participants: IParticipant[],
         error?: string
-    } = {
-            conferenceRoomId: "",
+    } = {            
             participants: []
         }
 }

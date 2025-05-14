@@ -44,52 +44,56 @@ export class ConferenceServer {
 
             ws.onmessage = async (message) => {
 
-                const msgIn = JSON.parse(message.data.toString());
+                try {
+                    const msgIn = JSON.parse(message.data.toString());
 
-                console.log("msgIn, ", msgIn);
+                    console.log("msgIn, ", msgIn);
 
-                if (!msgIn.type) {
-                    console.error("message has no type");
-                }
+                    if (!msgIn.type) {
+                        console.error("message has no type");
+                    }
 
-                switch (msgIn.type) {
+                    switch (msgIn.type) {
 
-                    case CallMessageType.register:
-                        this.onRegister(ws, msgIn);
-                        break;
-                    case CallMessageType.getContacts:
-                        this.onGetContacts(ws, msgIn);
-                        break;
-                    case CallMessageType.newConference:
-                        this.onNewConference(ws, msgIn);
-                        break;
-                    case CallMessageType.invite:
-                        this.onInvite(ws, msgIn);
-                        break;
-                    case CallMessageType.reject:
-                        this.onReject(ws, msgIn);
-                        break;
-                    case CallMessageType.join:
-                        this.onJoin(ws, msgIn);
-                        break;
-                    case CallMessageType.leave:
-                        this.onLeave(ws, msgIn);
-                        break;
-                    case CallMessageType.closeConference:
-                        this.onCloseConference(ws, msgIn);
-                        break;
-                    case CallMessageType.rtc_answer:
-                        this.onRTCAnswer(ws, msgIn);
-                        break;
-                    case CallMessageType.rtc_offer:
-                        this.onRTCOffer(ws, msgIn);
-                        break;
-                    case CallMessageType.rtc_ice:
-                        this.onRTCIce(ws, msgIn);
-                        break;
-                    case CallMessageType.reconnect:
-                        this.onReconnect(ws, msgIn);
-                        break;
+                        case CallMessageType.register:
+                            this.onRegister(ws, msgIn);
+                            break;
+                        case CallMessageType.getContacts:
+                            this.onGetContacts(ws, msgIn);
+                            break;
+                        case CallMessageType.newConference:
+                            this.onNewConference(ws, msgIn);
+                            break;
+                        case CallMessageType.invite:
+                            this.onInvite(ws, msgIn);
+                            break;
+                        case CallMessageType.reject:
+                            this.onReject(ws, msgIn);
+                            break;
+                        case CallMessageType.join:
+                            this.onJoin(ws, msgIn);
+                            break;
+                        case CallMessageType.leave:
+                            this.onLeave(ws, msgIn);
+                            break;
+                        case CallMessageType.closeConference:
+                            this.onCloseConference(ws, msgIn);
+                            break;
+                        case CallMessageType.rtc_answer:
+                            this.onRTCAnswer(ws, msgIn);
+                            break;
+                        case CallMessageType.rtc_offer:
+                            this.onRTCOffer(ws, msgIn);
+                            break;
+                        case CallMessageType.rtc_ice:
+                            this.onRTCIce(ws, msgIn);
+                            break;
+                        case CallMessageType.reconnect:
+                            this.onReconnect(ws, msgIn);
+                            break;
+                    }
+                } catch (err) {
+                    console.error(err);
                 }
             };
 
@@ -128,7 +132,7 @@ export class ConferenceServer {
      * @param maxParticipants 
      * @returns 
      */
-    newConferenceRoom(conferenceRoomId: string = "", leader: Participant, config: ConferenceConfig) {
+    async newConferenceRoom(conferenceRoomId: string = "", leader: Participant, config: ConferenceConfig) {
 
         if (conferenceRoomId == null || conferenceRoomId === undefined) {
             console.error("invalid conferenceRoomId.");
@@ -142,6 +146,7 @@ export class ConferenceServer {
         }
 
         if (!config) {
+            console.log("use default ConferenceConfig")
             config = new ConferenceConfig();
         }
 
@@ -150,7 +155,7 @@ export class ConferenceServer {
         confRoom.config = config;
         confRoom.leader = leader;
 
-        this.conferences.set(confRoom.conferenceRoomId, confRoom);
+        
 
         confRoom.onParticipantRemove = (participant: Participant) => {
             console.log("onParticipantRemove");
@@ -166,6 +171,10 @@ export class ConferenceServer {
         confRoom.onParticipantAdd = (participant: Participant) => {
             console.log("onParticipantAdd");
             participant.conferenceRoom = confRoom;
+
+            if(confRoom.confType == ConferenceType.rooms) {
+                //the client must add themselves to room
+            }
         };
 
         confRoom.onClosed = () => {
@@ -196,6 +205,18 @@ export class ConferenceServer {
             }
 
         };
+
+        //create a new room token in our Rooms Server, room is not created but a token is
+        let result = await this.roomsAPI.newRoomToken(this.config.maxPeersRoom);
+        if (result.data.error || !result.data.roomToken) {
+            console.error("failed to create new room token in rooms");
+            return null;            
+        }
+        confRoom.conferenceToken = ""; //TODO: generate conference token
+        confRoom.roomToken = result.data.roomToken; 
+        confRoom.roomId = result.data.roomId;
+
+        this.conferences.set(confRoom.conferenceRoomId, confRoom);
 
         return confRoom;
     }
@@ -525,7 +546,7 @@ export class ConferenceServer {
             return;
         }
 
-        let confRoom = this.newConferenceRoom(msgIn.data.conferenceRoomId, participant, msgIn.data.config);
+        let confRoom = await this.newConferenceRoom(msgIn.data.conferenceRoomId, participant, msgIn.data.config);
         if (!confRoom) {
             let msg = new NewConferenceResultMsg();
             msg.data.error = "conference not created."
@@ -534,20 +555,33 @@ export class ConferenceServer {
 
         let msg = new NewConferenceResultMsg();
         msg.data.conferenceRoomId = confRoom.conferenceRoomId;
+        msg.data.conferenceToken = confRoom.conferenceToken;
+        msg.data.roomToken = confRoom.roomToken;
+        msg.data.roomId = confRoom.roomId;
 
         this.send(participant.socket, msg);
     }
 
     async onInvite(ws: WebSocket, msgIn: InviteMsg) {
+        console.log("onInvite");
         //new call
         //create a room if needed
         let caller = this.participants.get(ws);
+
+        if (!caller) {
+            console.error("caller not found.");
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.error = "failed to add you to the conference.";
+            this.send(ws, errorMsg);
+            return;
+        }
+
         let confRoom: ConferenceRoom = caller.conferenceRoom;
 
         if (!confRoom) {
             //create the room and join
             let config = msgIn.data.newConfConfig;
-            confRoom = this.newConferenceRoom(msgIn.data.conferenceRoomId, caller, config)
+            confRoom = await this.newConferenceRoom(msgIn.data.conferenceRoomId, caller, config)
 
             if (confRoom) {
                 if (!confRoom.addParticipant(caller)) {
@@ -591,17 +625,6 @@ export class ConferenceServer {
         let inviteResultMsg = new InviteResultMsg();
         if (msgIn.data.newConfConfig && msgIn.data.newConfConfig.type == ConferenceType.rooms) {
             inviteResultMsg.data.conferenceType = ConferenceType.rooms;
-            //create a new room token in our Rooms Server, room is not created but a token is
-            let result = await this.roomsAPI.newRoomToken(this.config.maxPeersRoom);
-            if (result.data.error || !result.data.roomToken) {
-                let errorMsg = new InviteResultMsg();
-                errorMsg.data.error = "failed to create.";
-                this.send(caller.socket, errorMsg);
-                return;
-            }
-            confRoom.conferenceToken = result.data.roomToken;
-            confRoom.roomId = result.data.roomId;            
-
         } else {
             inviteResultMsg.data.conferenceType = ConferenceType.p2p;
         }

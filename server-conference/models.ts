@@ -22,7 +22,8 @@ export class ConferenceRoom {
     conferenceRoomId: string; //conference server roomid generated
     roomId: string; //roomid from room server
     participants: Participant[] = [];
-    conferenceToken : string = "";
+    conferenceToken : string = ""; //provided by our conferencing server
+    roomToken : string = ""; //provided by the rooms server
 
     isClosed = false;
     leader?: Participant;

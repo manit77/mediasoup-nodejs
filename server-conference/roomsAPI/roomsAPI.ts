@@ -1,5 +1,6 @@
 import axios from "axios";
 import { RoomNewTokenMsg, RoomNewTokenResultMsg, RoomTerminateMsg } from "../../server-room/roomSharedModels";
+import https from "https"
 
 export class RoomsAPI {
 
@@ -29,20 +30,27 @@ export class RoomsAPI {
     }
 
     private async post(path: string, dataObj: any): Promise<any> {
-        var url = this.config.apiURI + path
-        console.log("post, " + url);
-        var options = { 'headers': { 'Content-Type': 'application/json' } };
-        var payloadJsonString = JSON.stringify(dataObj);
+        const url = `${this.config.apiURI}${path}`;
+        console.log(`POST: ${url}`);
+    
+        const agent = new https.Agent({ rejectUnauthorized: false }); // Use only in development
+        const options = {
+            headers: { 'Content-Type': 'application/json' },
+            httpsAgent: agent,
+        };
+    
         try {
-            let result = await axios.post(url, payloadJsonString, options);
-            if (result.status == 200) {
+            console.log(`POST: ${url}, Data:`, dataObj);
+            const result = await axios.post(url, dataObj, options); // Pass dataObj directly
+            if (result.status >= 200 && result.status < 300) { // Handle all 2xx status codes
                 return result.data;
             }
+            console.warn(`Unexpected status code: ${result.status}`);
             return null;
         } catch (err) {
-            console.error(err);
+            console.error(`POST error: ${err.message}`);
+            return null;
         }
-        return null;
     }
 
 

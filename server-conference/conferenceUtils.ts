@@ -29,7 +29,7 @@ export class ConferenceUtils {
             payload.expiresIn = Math.floor(Date.now() / 1000) + (this.config.authTokenExpiresInMinutes * 60);
         }
 
-        let authToken = jwt.encode(this.config.secretKey, payload);
+        let authToken = jwt.jwtSign(this.config.secretKey, payload);
 
         if (authToken) {
             loginResult.data.error = "login failed";
@@ -43,7 +43,7 @@ export class ConferenceUtils {
     validateAuthToken(token: string): boolean {
         try {
             // Verify and decode the token
-            const payload = jwt.decode(token, this.config.secretKey) as IAuthPayload;
+            const payload = jwt.jwtVerify(this.config.secretKey, token) as IAuthPayload;
 
             // Check if roomId exists in the payload
             if (!payload.username) {
