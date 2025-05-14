@@ -156,6 +156,7 @@ export class RoomJoinMsg {
     private type = payloadTypeClient.roomJoin;
     data?: {
         peerId?: string,
+        trackingId?: string,
         roomId?: string,
         roomToken?: string,
         maxPeers?: number
@@ -198,6 +199,7 @@ export class RoomPeerLeftMsg {
     private type = payloadTypeServer.roomPeerLeft;
     data?: {
         peerId?: string;
+        trackingId?: string,
         roomId?: string;
     } = {};
 }
@@ -206,6 +208,7 @@ export class RoomNewProducerMsg {
     private type = payloadTypeServer.roomNewProducer;
     data?: {
         peerId?: string,
+        trackingId?: string,
         producerId?: string,
         kind?: string,
     } = {};
@@ -248,6 +251,7 @@ export class ConsumedMsg {
     type = payloadTypeServer.consumed;
     data?: {
         peerId?: string
+        trackingId?: string,
         consumerId?: string,
         producerId?: string,
         kind?: "audio" | "video",
