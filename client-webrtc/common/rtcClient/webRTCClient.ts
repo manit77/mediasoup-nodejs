@@ -7,7 +7,7 @@ type ConnectionInfo = {
 export class WebRTCClient {
   private DSTR = "WebRTCClient";
 
-  localStream: MediaStream | null = null;
+  private localStream: MediaStream | null = null;
   private peerConnections: Map<string, ConnectionInfo> = new Map();
 
   //private onNewConnection: (conn: ConnectionInfo)=> void,
@@ -19,6 +19,14 @@ export class WebRTCClient {
   async initLocalMedia(): Promise<MediaStream> {
     this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     return this.localStream;
+  }
+
+  setLocalstream(stream: MediaStream) {
+    this.localStream = stream;
+    //publish the local stream to all peer connections
+    for (let [k, conn] of this.peerConnections) {
+      this.publishLocalStream(conn.pc);
+    }
   }
 
   closeAll(): void {
@@ -64,14 +72,23 @@ export class WebRTCClient {
       }
     };
 
-    if (this.localStream) {
-      this.localStream.getTracks().forEach(track => pc.addTrack(track, this.localStream!));
-    }
+    this.publishLocalStream(pc);
+
+
 
     const connInfo = { key: key, pc: pc, stream: remoteStream };
     this.peerConnections.set(key, connInfo);
 
     return connInfo;
+  }
+
+  publishLocalStream(pc: RTCPeerConnection) {
+    //publish the local stream to the remote peer connection
+    this.localStream.getTracks().forEach(localTrack => {
+      if (!pc.getSenders().some(sender => sender.track === localTrack)) {
+        pc.addTrack(localTrack, this.localStream);
+      }
+    });
   }
 
   //removes a peer connection
@@ -92,9 +109,9 @@ export class WebRTCClient {
   async createOffer(key: string): Promise<RTCSessionDescriptionInit> {
     console.log(this.DSTR, "createOffer");
     const remote = this.peerConnections.get(key);
-    if (!remote){
+    if (!remote) {
       throw new Error(`Peer ${key} not found`);
-    } 
+    }
 
     const offer = await remote.pc.createOffer();
     await remote.pc.setLocalDescription(offer);
@@ -127,10 +144,10 @@ export class WebRTCClient {
   async setRemoteDescription(key: string, desc: RTCSessionDescriptionInit): Promise<void> {
     console.log(this.DSTR, "setRemoteDescription");
     const remote = this.peerConnections.get(key);
-    if (!remote){
+    if (!remote) {
       throw new Error(`Peer ${key} not found`);
     }
-    if(!remote.pc)   {
+    if (!remote.pc) {
       throw new Error(`PeerConnection not found for :${key}`);
     }
 

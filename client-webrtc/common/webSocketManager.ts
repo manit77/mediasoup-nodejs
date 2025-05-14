@@ -7,7 +7,9 @@ export class WebSocketManager {
     state: "" | "connecting" | "connected" | "disconnected" | "reconnecting";
     autoReconnect = false;
     // Initialize WebSocket connection
-    initialize = async (uri: string, autoReconnect = false) => {
+    connect = async (uri: string, autoReconnect = false) => {
+        console.log(`initialize ${uri} `);
+
         this.autoReconnect = autoReconnect;
 
         this.socket = new WebSocket(`${uri}`);
@@ -15,13 +17,13 @@ export class WebSocketManager {
 
         this.socket.onopen = () => {
             this.state = "connected";
-            console.log('Signaling server connected');
+            console.log('socket server connected');
             this.fireEvent("onopen");
         };
 
         this.socket.onerror = (error) => {
             this.state = "disconnected";
-            console.error('Signaling server error:', error);
+            console.error('socket server error:', error);
             this.fireEvent("onerror");
         };
 
@@ -31,17 +33,17 @@ export class WebSocketManager {
                 this.state = "reconnecting";
                 this.fireEvent("onclose");
                 setTimeout(() => {
-                    this.initialize(uri, autoReconnect);
+                    this.connect(uri, autoReconnect);
                 }, 1000);
             } else {
                 this.state = "disconnected";
-                console.log('Signaling server disconnected');
+                console.log('socket server disconnected');
                 this.fireEvent("onclose");
             }
         };
 
         // Handle incoming messages
-        this.socket.onmessage = (event) => {           
+        this.socket.onmessage = (event) => {
             this.fireEvent("onmessage", event);
         };
     }
@@ -76,8 +78,9 @@ export class WebSocketManager {
 
     // Send a message to the signaling server
     send(data: any) {
+        console.log("send", data);
         try {
-            if(this.socket.readyState === WebSocket.OPEN){
+            if (this.socket.readyState === WebSocket.OPEN) {
                 this.socket.send(data);
             } else {
                 console.error("socket not connected.")
@@ -94,7 +97,7 @@ export class WebSocketManager {
         this.state = "";
         if (this.socket) {
             this.socket.close();
-            this.socket = null;            
+            this.socket = null;
         }
     }
 

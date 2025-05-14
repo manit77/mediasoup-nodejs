@@ -1,9 +1,10 @@
-export enum CallType {
-    webrtc = "webrtc",
+export enum ConferenceType {
+    p2p = "p2p",
     rooms = "rooms"
 }
 
 export enum CallMessageType {
+    login = "login",
     register = "register", //register the partcipant
     registerResult = "registerResult", //partcipant recieves a registration result
     newConference = "newConference",
@@ -30,6 +31,23 @@ export enum CallMessageType {
     rtc_ice = "rtc_ice",
 }
 
+export interface LoginMsg {
+    type: "login"
+    data: {
+        username: string,
+        password: string
+    }
+}
+
+export interface LoginResultMsg {
+    type: "loginResult"
+    data: {
+        authToken: string,
+        error?: string
+    }
+}
+
+
 //object mapped from a database object
 export interface ConferenceObj {
     conferenceId: number, //primary key
@@ -51,7 +69,26 @@ export class ConferenceConfig {
     allowParticpantAudio = true;
 
     inviteOnly = false; //anyone can join or by invite only
-    type: "p2p" | "room" = "p2p"; //p2p is using p2p webrtc calls, room is using sfu conferencing
+    type: ConferenceType = ConferenceType.p2p; //p2p is using p2p webrtc calls, room is using sfu conferencing
+
+    /**
+     * room will terminate when there are not participants for this duration
+     */
+    timeOutNoParticipantsSecs = 30000;
+    /**
+     * maxDuration for the room
+     */
+    timeOutMaxDurationSecs = 3600000;
+
+    /**
+     username of the leader, if no match then all are participants
+      */
+    leaderUserName = "";
+    /**
+     * if the leader exits close the room
+     */
+    closeConferenceOnLeaderExit = false;
+
 }
 
 export interface Contact {
@@ -142,6 +179,8 @@ export class NewConferenceResultMsg {
     data = {
         conferenceRoomId: "",
         conferenceToken: "",
+        roomId: "",
+        roomToken: "",
         error: ""
     }
 }
@@ -165,59 +204,62 @@ export class InviteMsg {
         participantId: string,
         displayName: string,
         conferenceRoomId: string,
-        newConfConfig?: ConferenceConfig
+        newConfConfig?: ConferenceConfig,
+        conferenceToken: string,
     } = {
             participantId: "",
             displayName: "",
-            conferenceRoomId: ""
+            conferenceRoomId: "",
+            conferenceToken: "",
         }
 }
 
 export class InviteResultMsg {
     type = CallMessageType.inviteResult;
     data: {
-        conferenceRoomId: string,
-        conferenceToken: string,
-        participantId: string,
+        conferenceRoomId?: string,
+        conferenceToken?: string,
+        roomToken?: string,
+        roomId?: string,
+        participantId?: string,
+        conferenceType?: ConferenceType
         error?: string
     } = {
-            participantId: "",
-            conferenceRoomId: "",
-            conferenceToken: ""
         }
 }
 
 export class RejectMsg {
     type = CallMessageType.reject;
     data: {
-        conferenceRoomId: string,
-        fromParticipantId: string,
-        toParticipantId: string,
+        conferenceRoomId?: string,
+        fromParticipantId?: string,
+        toParticipantId?: string,
     } = {
-            conferenceRoomId: "",
-            fromParticipantId: "",
-            toParticipantId: "",
         }
 }
 
 export class JoinMsg {
     type = CallMessageType.join;
     data: {
-        conferenceRoomId: string,
+        conferenceRoomId?: string,
+        conferenceToken?: string,
+        roomId?: string,
+        roomToken?: string,
         error?: string
     } = {
-            conferenceRoomId: "",
         }
 }
 
 export class JoinResultMsg {
     type = CallMessageType.joinResult;
-    data: {
-        conferenceRoomId: string,
+    data?: {
+        conferenceRoomId?: string,
+        conferenceToken?: string;
+        roomId?: string;
+        roomToken?: string;
         participants: IParticipant[],
         error?: string
     } = {
-            conferenceRoomId: "",
             participants: []
         }
 }

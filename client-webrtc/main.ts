@@ -15,7 +15,7 @@ import {
     InviteResultMsg,
     RegisterResultMsg,
     RejectMsg
-} from './common/conferenceSaredModels';
+} from './common/conferenceSharedModels';
 import { WebSocketManager } from './common/webSocketManager';
 
 type confirmCallback = (accepted: boolean) => void;
@@ -118,7 +118,10 @@ class ConferenceApp {
 
     public async init() {        
         let uri = `${window.location.protocol == "https:" ? "wss" : "ws"}://${window.location.hostname}:${window.location.port}`
-        this.confMgr.connect(true, uri);
+        //client is responsible for getting the local stream
+        //client is responsible for connecting
+        this.confMgr.getUserMedia();
+        this.confMgr.connect(true, uri);        
     }
 
     private initElements() {

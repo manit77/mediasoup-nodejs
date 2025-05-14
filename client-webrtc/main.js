@@ -14,9 +14,6 @@ class ConferenceApp {
     get isInCall() {
         return this.confMgr.isInConference();
     }
-    get isConnected() {
-        return this.confMgr.isConnected;
-    }
     constructor() {
         this.confMgr = new conferenceCallManager_1.ConferenceCallManager();
         this.initElements();
@@ -224,7 +221,7 @@ class ConferenceApp {
             callButton.textContent = 'Call';
             callButton.className = 'call-btn';
             callButton.addEventListener('click', () => {
-                this.contactClick(contact);
+                this.callContact(contact);
             });
             li.appendChild(statusIndicator);
             li.appendChild(nameSpan);
@@ -232,11 +229,13 @@ class ConferenceApp {
             this.contactsList.appendChild(li);
         });
     }
-
-    contactClick(contact) {
+    /**
+     * this will initiate a webrtc call
+     * @param contact
+     */
+    callContact(contact) {
         this.confMgr.invite(contact);
     }
-
     handleInviteReceived(msg) {
         console.log("handleInviteReceived");
         this.showModal('Incoming Call', `Incoming call from ${msg.data.displayName}. Accept?`, (accepted) => {
