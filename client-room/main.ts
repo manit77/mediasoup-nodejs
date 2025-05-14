@@ -25,18 +25,20 @@ import {
     let recvTransport: mediasoupClient.types.Transport;
     let localPeerId = "";
     let localRoomId = "";
+    let peers: string[] = [];
 
     await initMediaSoupDevice();
     await initWebsocket();
 
-    async function addTrackToRemoteVideo(peerId: string, track: MediaStreamTrack) {
+    function addTrackToRemoteVideo(peerId: string, track: MediaStreamTrack) {
         // Find the existing video element
-        let video = document.getElementById(peerId) as HTMLVideoElement | null;
+        let id = `video-${peerId}`;
+        let video = document.getElementById(id) as HTMLVideoElement | null;
 
         if (!video) {
             //add new element
             video = document.createElement('video');
-            video.id = peerId;
+            video.id = id;
             video.autoplay = true;
             video.playsInline = true;
             video.style.width = '300px';
@@ -60,17 +62,40 @@ import {
         });
     }
 
+    function destroyRemoteVideo(peerId: string) {
+        console.log("destroyRemoteVideo:" + peerId);
+        let id = `video-${peerId}`;
+        let video = document.getElementById(id) as HTMLVideoElement | null;
+        if (video) {            
+            video.remove();
+        }
+    }
+
     ctlJoinRoomButton.onclick = async (event) => {
+        console.log("ctlJoinRoomButton click");
         event.preventDefault();
+
         ctlJoinRoomButton.disabled = false;
         let roomid = ctlRoomId.value;
+
         await roomJoin(roomid);
     }
 
     ctlLeaveRoomButton.onclick = async (event) => {
+
+        console.log("ctlLeaveRoomButton click");
         event.preventDefault();
-        ctlLeaveRoomButton.disabled = false;
+
+        ctlLeaveRoomButton.disabled = true;
+        ctlLeaveRoomButton.style.visibility = "hidden";
+        ctlRoomId.value = "";
+
+        ctlJoinRoomButton.disabled = false;
+        ctlJoinRoomButton.style.visibility = "visible";
+
         await roomLeave();
+
+
     }
 
     async function send(msg: any) {
@@ -147,12 +172,31 @@ import {
         });
     }
 
+    /**
+     * register ->                                  //registers a new peer
+     *   <- registerResult                          //returns a peerid
+     * createProducerTransport ->                   //request server to create a producer transport
+     * createConsumerTransport ->                   //request server to create a consumer transport
+     *   <- producerTransportCreated                //signals client the transport is created
+     *   <- consumerTransportCreated                //signals client the transport is created
+     * connectConsumerTransport ->                  //request server to connect the client and server transports
+     * connectProducerTransport ->                  //request server to connect the client and server transports
+     * roomJoin ->                                  //join a room or create a new one
+     *   <- joinRoomResult                          //returns a roomid
+     * // is has room members
+     * // do produce/consume for each                      
+     * produce ->                                   //request server to receive a local stream
+     *   <- produced                                //signals client the local stream being received
+     * // consumeProducer()
+     * consume ->                                   //request server to consume stream
+     *   <- consumed                                //signals client the stream is being consumed
+     */
     async function register() {
         console.log("-- register");
 
         let msg = new RegisterMsg();
-        msg.authToken = ""; //need authtoken from server
-        msg.displayName = ctlDisplayName.value;
+        msg.data.authToken = ""; //need authtoken from server
+        msg.data.displayName = ctlDisplayName.value;
         send(msg);
     }
 
@@ -160,7 +204,7 @@ import {
 
         console.log("-- onRegisterResult");
 
-        localPeerId = msgIn.data!.peerid
+        localPeerId = msgIn.data!.peerId!;
         ctlPeerId.innerText = localPeerId;
 
         await device.load({ routerRtpCapabilities: msgIn.data!.rtpCapabilities });
@@ -194,12 +238,20 @@ import {
     }
 
     async function roomLeave() {
+
+        for(let peerid of peers) {
+            destroyRemoteVideo(peerid);
+        }
+        
+        
         let msg = new RoomLeaveMsg();
         msg.data = {
             roomId: localRoomId,
             roomToken: ""
         };
         send(msg);
+
+       
     }
 
 
@@ -207,7 +259,7 @@ import {
         console.log("-- onConsumerTransportCreated");
 
         recvTransport = device.createRecvTransport({
-            id: msgIn.data!.transportId,
+            id: msgIn.data!.transportId!,
             iceServers: msgIn.data!.iceServers,
             iceCandidates: msgIn.data!.iceCandidates,
             iceParameters: msgIn.data!.iceParameters,
@@ -232,7 +284,7 @@ import {
         //the server has created a transport
         //create a client transport to connect to the server transport
         sendTransport = device.createSendTransport({
-            id: msgIn.data!.transportId,
+            id: msgIn.data!.transportId!,
             iceServers: msgIn.data!.iceServers,
             iceCandidates: msgIn.data!.iceCandidates,
             iceParameters: msgIn.data!.iceParameters,
@@ -298,10 +350,11 @@ import {
         //publish local stream
         await produceLocalStreams();
 
-        console.log("-- onRoomJoinResult peers :" + msgIn.data?.peers.length);
+        console.log("-- onRoomJoinResult peers :" + msgIn.data!.peers!.length);
         //connect to existing peers
         if (msgIn.data && msgIn.data.peers) {
             for (let peer of msgIn.data.peers) {
+                peers.push(peer.peerId);
                 console.log(peer.peerId);
                 console.log("-- onRoomJoinResult producers :" + peer.producers?.length);
                 if (peer.producers) {
@@ -319,9 +372,11 @@ import {
         console.log("onRoomNewPeer " + msgIn.data?.peerId + " producers: " + msgIn.data?.producers?.length);
         writeLog("new PeeerJoined " + msgIn.data?.peerId);
 
+        peers.push(msgIn.data!.peerId!);
+
         if (msgIn.data?.producers) {
             for (let producer of msgIn.data.producers) {
-                consumeProducer(msgIn.data.peerId, producer.producerId);
+                consumeProducer(msgIn.data.peerId!, producer.producerId);
             }
         }
     }
@@ -331,8 +386,12 @@ import {
 
         //destroy the video element
         if (msgIn.data && msgIn.data.peerId) {
-            let video = document.getElementById(msgIn.data?.peerId);
-            video?.remove();
+            destroyRemoteVideo(msgIn.data.peerId);
+        }
+
+        let idx = peers.findIndex(peerid => peerid == msgIn.data?.peerId);
+        if (idx > -1) {
+            peers.splice(idx, 1);
         }
 
     }
@@ -375,7 +434,7 @@ import {
             kind: msgIn.data!.kind,
             rtpParameters: msgIn.data!.rtpParameters
         });
-        addTrackToRemoteVideo(msgIn.data!.peerId, consumer.track);
+        addTrackToRemoteVideo(msgIn.data!.peerId!, consumer.track);
     }
 
     async function onProduced(msgIn: ProducedMsg) {

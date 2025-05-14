@@ -10,9 +10,10 @@ export enum CallMessageType {
     newConferenceResult = "newConferenceResult",
     invite = "invite", //invite to join room
     inviteResult = "inviteResult", //result of the invite, the other participant could reject it
+    reject = "reject", //the receiver rejects
     join = "join", //participant requests to join the conference room
     joinResult = "joinResult", //participant receives the joinResult
-    leave = "leave", //participant signals the sever to leave the room
+    leave = "leave", //participant signals to leave the room
     newParticipant = "newParticipant", // all participants gets alerted of a new participant in the room
     participantLeft = "participantLeft", // a participants leaves the room
     conferenceClosed = "conferenceClosed",
@@ -39,6 +40,20 @@ export interface ConferenceObj {
     dateEnd: Date
 }
 
+export class ConferenceConfig {
+    dateStart = new Date();
+    dateEnd?: Date = null;
+    maxParticipants: number = 2;
+    allowConferenceVideo = true;
+    allowConferenceAudio = true;
+
+    allowParticipantVideo = true;
+    allowParticpantAudio = true;
+
+    inviteOnly = false; //anyone can join or by invite only
+    type: "p2p" | "room" = "p2p"; //p2p is using p2p webrtc calls, room is using sfu conferencing
+}
+
 export interface Contact {
     contactId: string, //unique identifier of the contact, normally from the primary key
     participantId: string,
@@ -47,6 +62,11 @@ export interface Contact {
 }
 
 export type ConferenceRole = "participant" | "leader" | "monitor";
+
+export interface IParticipant {
+    participantId: string;
+    displayName: string
+}
 
 // Message sent by client to attempt reconnection
 export class ReconnectMsg {
@@ -64,7 +84,7 @@ export class ReconnectResultMsg {
     type = CallMessageType.reconnectResult;
     data: {
         conferenceRoomId: string;
-        participants: { participantId: string, displayName: string }[];
+        participants: IParticipant[];
         error?: string;
     } = {
             conferenceRoomId: "",
@@ -95,29 +115,25 @@ export class RegisterMsg {
 
 export class RegisterResultMsg {
     type = CallMessageType.registerResult;
-    data = {
-        userName: "",
-        authToken: "",
-        participantId: "",
-        conferenceRoomId : "",
-        error: ""
-    }
+    data: {
+        userName: string,
+        authToken: string,
+        participantId: string,
+        conferenceRoomId: string,
+        error?: string
+    } = {
+            userName: "",
+            authToken: "",
+            participantId: "",
+            conferenceRoomId: ""
+        }
 }
 
 export class NewConferenceMsg {
     type = CallMessageType.newConference;
     data = {
         conferenceRoomId: "",
-        config: {
-            dateStart: new Date(),
-            dateEnd: null,
-            maxParticipants: 2,
-            allowConferenceVideo: true,
-            allowConferenceAudio: true,
-            allowParticipantVideo: true,
-            allowParticpantAudio: true,
-            inviteOnly: false, //anyone can join or by invite only
-        }
+        config: new ConferenceConfig()
     }
 }
 
@@ -145,48 +161,77 @@ export class GetContactsMsg {
 
 export class InviteMsg {
     type = CallMessageType.invite;
-    data = {
-        participantId: "",
-        displayName: "",
-        conferenceRoomId: "",
-        newConfConfig : null
-    }
+    data: {
+        participantId: string,
+        displayName: string,
+        conferenceRoomId: string,
+        newConfConfig?: ConferenceConfig
+    } = {
+            participantId: "",
+            displayName: "",
+            conferenceRoomId: ""
+        }
 }
 
 export class InviteResultMsg {
     type = CallMessageType.inviteResult;
-    data = {
-        conferenceRoomId: "",
-        conferenceToken: "",
-        error: ""
-    }
+    data: {
+        conferenceRoomId: string,
+        conferenceToken: string,
+        participantId: string,
+        error?: string
+    } = {
+            participantId: "",
+            conferenceRoomId: "",
+            conferenceToken: ""
+        }
+}
+
+export class RejectMsg {
+    type = CallMessageType.reject;
+    data: {
+        conferenceRoomId: string,
+        fromParticipantId: string,
+        toParticipantId: string,
+    } = {
+            conferenceRoomId: "",
+            fromParticipantId: "",
+            toParticipantId: "",
+        }
 }
 
 export class JoinMsg {
     type = CallMessageType.join;
-    data = {
-        conferenceRoomId: "",
-        error: ""
-    }
+    data: {
+        conferenceRoomId: string,
+        error?: string
+    } = {
+            conferenceRoomId: "",
+        }
 }
 
 export class JoinResultMsg {
     type = CallMessageType.joinResult;
-    data = {
-        conferenceRoomId: "",
-        participants: [],
-        error: ""
-    }
+    data: {
+        conferenceRoomId: string,
+        participants: IParticipant[],
+        error?: string
+    } = {
+            conferenceRoomId: "",
+            participants: []
+        }
 }
 
 export class NeedOfferMsg {
     type = CallMessageType.needOffer;
     data: {
         participantId: string;
+        displayName: string
         conferenceRoomId: string;
         isReconnection?: boolean;
     } = {
             participantId: "",
+            displayName: "",
             conferenceRoomId: ""
         };
 }
@@ -203,7 +248,8 @@ export class NewParticipantMsg {
     type = CallMessageType.newParticipant;
     data = {
         conferenceRoomId: "",
-        participantId: ""
+        participantId: "",
+        displayName: ""
     }
 }
 

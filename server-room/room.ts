@@ -4,46 +4,47 @@ import { WebSocket } from 'ws';
 export class Room {
     id: string;
     peers: Map<string, Peer> = new Map();
+    roomToken: string = "";
+    maxPeers = 2;
 
-    constructor(roomId: string) {
+    constructor(roomId: string, token: string, maxPeers: number) {
         this.id = roomId;
+        this.roomToken = token;
+        this.maxPeers = maxPeers;
         this.peers = new Map();
     }
 
-    async addPeer(peer: Peer) {
+    addPeer(peer: Peer, roomToken: string): boolean {
+        
+        if(this.roomToken && this.roomToken !== roomToken){
+            console.error("token mismatch");
+            return false;
+        }
+
+        peer.room = this;
+
         console.log("addPeer", peer.id);
         this.peers.set(peer.id, peer);
+
+        return true;
+
     }
 
     removePeer(peerId: string): void {
         console.log("removePeer ", peerId);
-        this.peers.delete(peerId);
-    }
-
-    async broadCastExcept(except: Peer, msg: any) {
-        console.log("broadCastExcept ", except.id);
-        for (let peer of this.peers.values()) {
-            if (except != peer) {
-                peer.socket.send(JSON.stringify(msg));
-            }
-        }
-    }
-
-    async broadCastAll(msg: any) {
-        for (let peer of this.peers.values()) {
-            peer.socket.send(JSON.stringify(msg));
+        let peer = this.peers.get(peerId);
+        if(peer) {
+            peer.room = null;            
+            this.peers.delete(peerId);
         }
     }
 
 }
 
 export class Peer {
-    public id: string;
-    public socket: WebSocket;
+    public id: string;    
 
-    constructor(roomId: string, socket: WebSocket) {
-        this.id = roomId;
-        this.socket = socket;
+    constructor() {        
     }
 
     producerTransport?: mediasoup.types.WebRtcTransport;

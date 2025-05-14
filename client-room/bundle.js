@@ -17468,16 +17468,15 @@
     }
   });
 
-  // payload.ts
-  var RegisterMsg, CreateProducerTransportMsg, ConnectProducerTransportMsg, CreateConsumerTransportMsg, ConnectConsumerTransportMsg, RoomJoinMsg, ProduceMsg, ConsumeMsg;
-  var init_payload = __esm({
-    "payload.ts"() {
+  // sharedModels.ts
+  var RegisterMsg, CreateProducerTransportMsg, ConnectProducerTransportMsg, CreateConsumerTransportMsg, ConnectConsumerTransportMsg, RoomJoinMsg, RoomLeaveMsg, ProduceMsg, ConsumeMsg;
+  var init_sharedModels = __esm({
+    "sharedModels.ts"() {
       "use strict";
       RegisterMsg = class {
         constructor() {
           this.type = "register" /* register */;
-          this.authToken = "";
-          this.displayName = "";
+          this.data = {};
         }
       };
       CreateProducerTransportMsg = class {
@@ -17488,6 +17487,7 @@
       ConnectProducerTransportMsg = class {
         constructor() {
           this.type = "connectProducerTransport" /* connectProducerTransport */;
+          this.data = {};
         }
       };
       CreateConsumerTransportMsg = class {
@@ -17498,21 +17498,31 @@
       ConnectConsumerTransportMsg = class {
         constructor() {
           this.type = "connectConsumerTransport" /* connectConsumerTransport */;
+          this.data = {};
         }
       };
       RoomJoinMsg = class {
         constructor() {
           this.type = "roomJoin" /* roomJoin */;
+          this.data = {};
+        }
+      };
+      RoomLeaveMsg = class {
+        constructor() {
+          this.type = "roomLeave" /* roomLeave */;
+          this.data = {};
         }
       };
       ProduceMsg = class {
         constructor() {
           this.type = "produce" /* produce */;
+          this.data = {};
         }
       };
       ConsumeMsg = class {
         constructor() {
           this.type = "consume" /* consume */;
+          this.data = {};
         }
       };
     }
@@ -17522,7 +17532,7 @@
   var require_main = __commonJS({
     "main.ts"() {
       var mediasoupClient = __toESM(require_lib5());
-      init_payload();
+      init_sharedModels();
       (async () => {
         const wsURI = "wss://localhost:3000";
         let ws;
@@ -17538,13 +17548,16 @@
         let sendTransport;
         let recvTransport;
         let localPeerId = "";
+        let localRoomId = "";
+        let peers = [];
         await initMediaSoupDevice();
         await initWebsocket();
-        async function addTrackToRemoteVideo(peerId, track) {
-          let video = document.getElementById(peerId);
+        function addTrackToRemoteVideo(peerId, track) {
+          let id = `video-${peerId}`;
+          let video = document.getElementById(id);
           if (!video) {
             video = document.createElement("video");
-            video.id = peerId;
+            video.id = id;
             video.autoplay = true;
             video.playsInline = true;
             video.style.width = "300px";
@@ -17561,11 +17574,30 @@
             console.error("Error playing video:", error);
           });
         }
+        function destroyRemoteVideo(peerId) {
+          console.log("destroyRemoteVideo:" + peerId);
+          let id = `video-${peerId}`;
+          let video = document.getElementById(id);
+          if (video) {
+            video.remove();
+          }
+        }
         ctlJoinRoomButton.onclick = async (event) => {
+          console.log("ctlJoinRoomButton click");
           event.preventDefault();
           ctlJoinRoomButton.disabled = false;
           let roomid = ctlRoomId.value;
           await roomJoin(roomid);
+        };
+        ctlLeaveRoomButton.onclick = async (event) => {
+          console.log("ctlLeaveRoomButton click");
+          event.preventDefault();
+          ctlLeaveRoomButton.disabled = true;
+          ctlLeaveRoomButton.style.visibility = "hidden";
+          ctlRoomId.value = "";
+          ctlJoinRoomButton.disabled = false;
+          ctlJoinRoomButton.style.visibility = "visible";
+          await roomLeave();
         };
         async function send(msg) {
           console.log("ws_send ", msg);
@@ -17630,13 +17662,13 @@
         async function register() {
           console.log("-- register");
           let msg = new RegisterMsg();
-          msg.authToken = "";
-          msg.displayName = ctlDisplayName.value;
+          msg.data.authToken = "";
+          msg.data.displayName = ctlDisplayName.value;
           send(msg);
         }
         async function onRegisterResult(msgIn) {
           console.log("-- onRegisterResult");
-          localPeerId = msgIn.data.peerid;
+          localPeerId = msgIn.data.peerId;
           ctlPeerId.innerText = localPeerId;
           await device.load({ routerRtpCapabilities: msgIn.data.rtpCapabilities });
           await createProducerTransport();
@@ -17657,6 +17689,17 @@
           let msg = new RoomJoinMsg();
           msg.data = {
             roomId: roomid,
+            roomToken: ""
+          };
+          send(msg);
+        }
+        async function roomLeave() {
+          for (let peerid of peers) {
+            destroyRemoteVideo(peerid);
+          }
+          let msg = new RoomLeaveMsg();
+          msg.data = {
+            roomId: localRoomId,
             roomToken: ""
           };
           send(msg);
@@ -17713,6 +17756,7 @@
         async function onRoomJoinResult(msgIn) {
           console.log("-- onRoomJoinResult");
           if (msgIn.data.roomId) {
+            localRoomId = msgIn.data.roomId;
             writeLog("joined room " + msgIn.data.roomId);
             ctlRoomId.value = msgIn.data.roomId;
             ctlJoinRoomButton.disabled = true;
@@ -17720,14 +17764,16 @@
             ctlLeaveRoomButton.disabled = false;
             ctlLeaveRoomButton.style.visibility = "visible";
           } else {
+            localRoomId = "";
             ctlJoinRoomButton.disabled = false;
             ctlLeaveRoomButton.disabled = true;
             ctlLeaveRoomButton.style.visibility = "hidden";
           }
           await produceLocalStreams();
-          console.log("-- onRoomJoinResult peers :" + msgIn.data?.peers.length);
+          console.log("-- onRoomJoinResult peers :" + msgIn.data.peers.length);
           if (msgIn.data && msgIn.data.peers) {
             for (let peer of msgIn.data.peers) {
+              peers.push(peer.peerId);
               console.log(peer.peerId);
               console.log("-- onRoomJoinResult producers :" + peer.producers?.length);
               if (peer.producers) {
@@ -17742,6 +17788,7 @@
         async function onRoomNewPeer(msgIn) {
           console.log("onRoomNewPeer " + msgIn.data?.peerId + " producers: " + msgIn.data?.producers?.length);
           writeLog("new PeeerJoined " + msgIn.data?.peerId);
+          peers.push(msgIn.data.peerId);
           if (msgIn.data?.producers) {
             for (let producer of msgIn.data.producers) {
               consumeProducer(msgIn.data.peerId, producer.producerId);
@@ -17751,8 +17798,11 @@
         async function onRoomPeerLeft(msgIn) {
           writeLog("peer left the room:" + msgIn.data?.peerId);
           if (msgIn.data && msgIn.data.peerId) {
-            let video = document.getElementById(msgIn.data?.peerId);
-            video?.remove();
+            destroyRemoteVideo(msgIn.data.peerId);
+          }
+          let idx = peers.findIndex((peerid) => peerid == msgIn.data?.peerId);
+          if (idx > -1) {
+            peers.splice(idx, 1);
           }
         }
         async function onRoomNewProducer(msgIn) {

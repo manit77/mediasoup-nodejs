@@ -9,6 +9,6 @@
     "skipLibCheck": true,
     "moduleResolution": "node"
   },
-  "include": ["*.ts"],
+  "include": ["*.ts", "common/conferenceCallManager.ts", "common/conferenceSaredModels.ts", "common/webSocketManager.ts"],
   "exclude": ["node_modules"]
 }

@@ -294,6 +294,7 @@
             </div>
         </div>
 
+        <!-- Contacts Panel -->
         <div class="panel">
             <div class="contacts-panel">
                 <h2>Contacts</h2>
@@ -303,20 +304,28 @@
                 </ul>
             </div>
 
+            <!-- Contacts Panel -->
             <div class="video-panel">
-                <h2>Conference</h2>
-                <div class="video-container" id="videoContainer">
-                    <div class="video-wrapper">
-                        <video id="localVideo" class="local-video" autoplay muted playsinline></video>
-                        <div class="participant-name">You</div>
+                <div id="conferenceToolBar" class="toolbar">
+                    <h2>Conference</h2>
+                    <label id="conferenceRoomIdLabel"></label>
+                    <div id="conferenceControls">
+                        <button id="hangupBtn" class="hangup-btn" disabled>Hang Up</button>
                     </div>
+                </div>
+
+                <div class="video-wrapper">
+                    <video id="localVideo" class="local-video" autoplay muted playsinline></video>
+                    <div class="participant-name">You</div>
+                </div>
+               
+                <div class="video-container" id="videoContainer">                    
                     <!-- Remote videos will be added here dynamically -->
                 </div>
 
                 <div class="controls">
                     <button id="toggleVideoBtn">Toggle Video</button>
                     <button id="toggleAudioBtn">Toggle Audio</button>
-                    <button id="hangupBtn" class="hangup-btn" disabled>Hang Up</button>
                 </div>
             </div>
         </div>
@@ -327,10 +336,9 @@
         <div class="modal-content">
             <div class="modal-header" id="modalHeader">Message</div>
             <div class="modal-body" id="modalBody"></div>
-            <div class="modal-footer">
-                <button class="modal-close-btn" id="modalCloseBtn">OK</button>
-                <button class="modal-confirm-btn hidden" id="modalConfirmBtn">Accept</button>
-                <button class="modal-close-btn hidden" id="modalCancelBtn">Cancel</button>
+            <div class="modal-footer">                
+                <button class="modal-confirm-btn" id="modalConfirmBtn">Ok</button>
+                <button class="modal-close-btn" id="modalCancelBtn">Cancel</button>
             </div>
         </div>
     </div>

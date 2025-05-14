@@ -8,13 +8,18 @@ import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
 
 import { Peer, Room } from './room';
-import { ConsumedMsg, ConsumeMsg, ConsumerTransportCreatedMsg, payloadTypeClient, payloadTypeServer, ProducedMsg, ProducerTransportCreatedMsg, RegisterResultMsg, RoomJoinResultMsg, RoomNewPeerMsg, RoomNewProducerMsg } from './sharedModels';
+import { ConsumedMsg, ConsumeMsg, ConsumerTransportCreatedMsg, payloadTypeClient, payloadTypeServer, ProducedMsg, ProducerTransportCreatedMsg, RegisterResultMsg, RoomJoinResultMsg, RoomNewPeerMsg, RoomNewProducerMsg } from './roomSharedModels';
 import { randomUUID } from 'crypto';
 import { stopRecording } from './recorder';
-import { RoomServer } from './server';
+import { RoomServer } from './roomServer';
+import { RoomSocketServer } from './roomSocketServer';
 
 
-const app = express();
+let config = {
+  serverPort: 3000
+}
+
+const app = express()
 app.use(cors());
 
 const certInfo = {
@@ -25,9 +30,18 @@ const certInfo = {
 const server = https.createServer(certInfo, app);
 app.use(express.static('client-room'));
 
-let roomServer = new RoomServer(server);
 
-roomServer.start();
+
+server.listen(config.serverPort, async () => {
+  console.log(`Server running at https://0.0.0.0:${config.serverPort}`);
+
+  //manager for media soup room server
+  let roomServer = new RoomServer();
+  let socketServer = new RoomSocketServer(server, roomServer);  
+
+});
+
+
 
 
 

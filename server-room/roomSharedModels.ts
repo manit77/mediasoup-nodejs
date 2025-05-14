@@ -136,7 +136,8 @@ export class RoomNewTokenMsg {
 export class RoomNewTokenResultMsg {
     private type = payloadTypeClient.roomNew;
     data?: {
-        roomToken?: string,  
+        roomId?: string,
+        roomToken?: string,
         error?: string      
     } = {}
 }
