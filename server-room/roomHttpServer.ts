@@ -11,7 +11,7 @@ import {
     TerminatePeerMsg
 } from './roomSharedModels';
 import { RoomServer } from './roomServer';
-import { JoinMsg } from '../client-webrtc/common/conferenceSaredModels';
+import { JoinMsg } from '../client-webrtc/common/conferenceSharedModels';
 
 const DSTR = "RoomHTTPServer";
 

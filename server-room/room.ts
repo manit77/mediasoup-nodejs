@@ -42,7 +42,8 @@ export class Room {
 }
 
 export class Peer {
-    public id: string;    
+    public id: string;   
+    public trackingid: string; 
 
     constructor() {        
     }

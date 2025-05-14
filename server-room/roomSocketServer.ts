@@ -9,7 +9,7 @@ import { RoomServer } from './roomServer';
 const DSTR = "RoomSocketServer";
 
 export class RoomSocketServer {
-    
+
     webSocketServer: WebSocketServer;
     peers = new Map<string, WebSocket>();
 
@@ -36,30 +36,35 @@ export class RoomSocketServer {
             console.log(DSTR, "socket connected peers: " + this.peers.size);
 
             ws.on('message', async (message) => {
+                try {
+                    
+                    console.log(DSTR, "msgIn, ", message.toString());
+                    const msgIn = JSON.parse(message.toString());
+                    
 
-                const msgIn = JSON.parse(message.toString());
-                console.log(DSTR, "msgIn, ", msgIn);
+                    if (msgIn.type == payloadTypeClient.register) {
+                        //we need to tie the peerid to the socket
+                        let registerResult = this.roomServer.onRegister("", msgIn);
+                        if (registerResult.data.peerId) {
+                            this.peers.set(registerResult.data.peerId, ws);
+                            this.send(ws, registerResult);
+                            console.error(DSTR, "socket registered:" + registerResult.data.peerId);
 
-                if (msgIn.type == payloadTypeClient.register) {
-                    //we need to tie the peerid to the socket
-                    let registerResult = this.roomServer.onRegister("", msgIn);
-                    if (registerResult.data.peerId) {
-                        this.peers.set(registerResult.data.peerId, ws);
-                        this.send(ws, registerResult);
-                        console.error(DSTR, "socket registered:" + registerResult.data.peerId);
+                        } else {
+                            console.error(DSTR, "register failed, no peerid for socket.");
+                        }
 
                     } else {
-                        console.error(DSTR, "register failed, no peerid for socket.");
-                    }
 
-                } else {
-
-                    let peerid = this.findPeerBySocket(ws);
-                    if (peerid) {
-                        this.roomServer.inMessage(peerid, msgIn)
-                    } else {
-                        console.log(DSTR, "peer not found by socket");
+                        let peerid = this.findPeerBySocket(ws);
+                        if (peerid) {
+                            this.roomServer.inMessage(peerid, msgIn)
+                        } else {
+                            console.log(DSTR, "peer not found by socket");
+                        }
                     }
+                } catch (err) {
+                    console.error(err);
                 }
 
             });

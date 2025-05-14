@@ -7,7 +7,7 @@ import {
     ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg
     , ConsumerTransportCreatedMsg, CreateProducerTransportMsg, payloadTypeClient
     , ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg, RegisterMsg
-    , RegisterResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
+    , RegisterResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
     , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
     RoomTerminateMsg,
     TerminatePeerMsg
@@ -197,9 +197,15 @@ export class RoomServer {
         });
     }
 
-    private createPeer() {
-        let peer = new Peer();
+    /**
+     * 
+     * @param trackingId custom id from a client
+     * @returns 
+     */
+    private createPeer(trackingId: string) {
+        let peer = new Peer();        
         peer.id = randomUUID().toString();    
+        peer.trackingid = trackingId;
         this.peers.set(peer.id, peer);
         return peer;
     }
@@ -245,7 +251,7 @@ export class RoomServer {
         //get or set peer
         let peer = this.peers.get(peerId);
         if (!peer) {
-            peer = this.createPeer();
+            peer = this.createPeer(msgIn.data.trackingId);
             this.peers.set(peer.id, peer);
             console.log("new peer created " + peer.id);
         }
@@ -254,6 +260,7 @@ export class RoomServer {
         msg.data = {
             displayName: "",
             peerId: peer.id,
+            trackingId: peer.trackingid,
             rtpCapabilities: this.router.rtpCapabilities
         };
 
@@ -374,7 +381,7 @@ export class RoomServer {
         };
 
         let msg = new RoomNewTokenResultMsg();
-        let roomToken = jwt.encode(this.config.secretKey, payload);
+        let roomToken = jwt.jwtSign(this.config.secretKey, payload);
         if (roomToken) {
             msg.data.roomId = payload.roomId;
             msg.data.roomToken = roomToken;
@@ -412,7 +419,7 @@ export class RoomServer {
 
         let msg = new RoomNewResultMsg();
         msg.data.roomId = room.id;
-        msg.data.roomToken = jwt.encode(this.config.secretKey, payload);
+        msg.data.roomToken = jwt.jwtSign(this.config.secretKey, payload);
 
         this.send(peerId, msgIn);
 
@@ -422,7 +429,7 @@ export class RoomServer {
     validateRoomToken(token: string): boolean {
         try {
             // Verify and decode the token
-            const payload = jwt.decode(token, this.config.secretKey) as TokenPayload;
+            const payload = jwt.jwtVerify(token, this.config.secretKey) as TokenPayload;
 
             // Check if roomId exists in the payload
             if (!payload.roomId) {
@@ -483,7 +490,7 @@ export class RoomServer {
     }
 
     /**
-     * joins or creates a room, this expects the peer to have transports
+     * joins or creates a room, expects a peer already created
      * @param peerId 
      * @param msgIn 
      * @returns 
@@ -523,6 +530,7 @@ export class RoomServer {
         for (let remotePeer of room.peers.values()) {
             joinRoomResult.data.peers.push({
                 peerId: remotePeer.id,
+                trackingId: remotePeer.trackingid,
                 producers: remotePeer.producers.map(producer => ({ producerId: producer.id, kind: producer.kind }))
             });
         }
@@ -541,6 +549,7 @@ export class RoomServer {
         let roomNewPeerMsg = new RoomNewPeerMsg();
         roomNewPeerMsg.data = {
             peerId: peer.id,
+            trackingId: peer.trackingid,
             displayName: "",
             producers: peer.producers.map(producer => ({ producerId: producer.id, kind: producer.kind }))
         }
@@ -568,18 +577,15 @@ export class RoomServer {
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "invalid peerid";
             return msgError;
-        } else {
-            //create new peer
-            peer = this.createPeer();
         }
-
+        
         if (!msgIn.data.roomToken) {
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "token required";
             return msgError;
         }
 
-        let payload = jwt.decode(this.config.secretKey, msgIn.data.roomToken) as TokenPayload;
+        let payload = jwt.jwtVerify(this.config.secretKey, msgIn.data.roomToken) as TokenPayload;
         if (!payload) {
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "invalidate token";
@@ -613,6 +619,7 @@ export class RoomServer {
         for (let remotePeer of room.peers.values()) {
             joinRoomResult.data.peers.push({
                 peerId: remotePeer.id,
+                trackingId: remotePeer.trackingid,
                 producers: remotePeer.producers.map(producer => ({ producerId: producer.id, kind: producer.kind }))
             });
         }
@@ -644,6 +651,7 @@ export class RoomServer {
         let msg = new RoomPeerLeftMsg();
         msg.data = {
             peerId: peer.id,
+            trackingId: peer.trackingid,
             roomId: room.id
         }
         this.broadCastAll(room, msg);
@@ -707,6 +715,7 @@ export class RoomServer {
             let newProducerMsg = new RoomNewProducerMsg();
             newProducerMsg.data = {
                 peerId: peer.id,
+                trackingId: peer.trackingid,
                 producerId: producer.id,
                 kind: producer.kind
             }
@@ -781,6 +790,7 @@ export class RoomServer {
         let consumed = new ConsumedMsg();
         consumed.data = {
             peerId: remotePeer.id,
+            trackingId: remotePeer.trackingid,
             consumerId: consumer.id,
             producerId: remoteProducer.id,
             kind: consumer.kind,

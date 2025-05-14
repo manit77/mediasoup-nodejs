@@ -13,6 +13,7 @@ import { randomUUID } from 'crypto';
 import { stopRecording } from './recorder';
 import { RoomServer } from './roomServer';
 import { RoomSocketServer } from './roomSocketServer';
+import { RoomHTTPServer } from './roomHttpServer';
 
 
 let config = {
@@ -28,8 +29,9 @@ const certInfo = {
 };
 
 const server = https.createServer(certInfo, app);
+app.use(cors());
 app.use(express.static('client-room'));
-
+app.use(express.json({ limit: '1mb' }));
 
 
 server.listen(config.serverPort, async () => {
@@ -38,6 +40,7 @@ server.listen(config.serverPort, async () => {
   //manager for media soup room server
   let roomServer = new RoomServer();
   let socketServer = new RoomSocketServer(server, roomServer);  
+  let httpServer = new RoomHTTPServer(app, roomServer);
 
 });
 

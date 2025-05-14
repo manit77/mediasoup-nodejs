@@ -43,10 +43,10 @@ export enum payloadTypeServer {
 
 export class RegisterMsg {
     private type = payloadTypeClient.register;
-    data: {
-        peerId?: string,
+    data: {        
         authToken?: string,
-        displayName?: string
+        displayName?: string,
+        trackingId?: string
     } = {}
 }
 
@@ -54,6 +54,7 @@ export class RegisterResultMsg {
     private type = payloadTypeServer.registerResult;
     data?: {
         peerId?: string,
+        trackingId?: string,
         displayName?: string,
         rtpCapabilities?: any,
         error?: string
@@ -177,6 +178,7 @@ export class RoomJoinResultMsg {
         error?: string,
         peers?: {
             peerId: string,
+            trackingId: string,
             producers?: { producerId: string, kind: "audio" | "video" }[]
         }[]
     } = { peers: [] };
@@ -186,6 +188,7 @@ export class RoomNewPeerMsg {
     private type = payloadTypeServer.roomNewPeer;
     data?: {
         peerId?: string;
+        trackingId?: string,
         displayName?: string;
         producers?: { producerId: string, kind: "audio" | "video" }[]
     } = {};
