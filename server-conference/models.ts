@@ -6,6 +6,14 @@ export interface IAuthPayload {
     expiresIn: number
 }
 
+export interface IConfPayload {
+    conferenceId: number,
+    conferenceRoomId: string,
+    expiresIn: number,
+    maxPeers: number
+}
+
+
 /**
  * active participant, the user has already authenticated
  */
@@ -18,12 +26,11 @@ export class Participant {
 }
 
 export class ConferenceRoom {
-    externalId: number; //primary key from database
+    conferenceId: number; //primary key from database
+    title: string; //title of the room
     conferenceRoomId: string; //conference server roomid generated
-    roomId: string; //roomid from room server
+    conferenceToken: string = ""; //provided by our conferencing server    
     participants: Participant[] = [];
-    conferenceToken : string = ""; //provided by our conferencing server
-    roomToken : string = ""; //provided by the rooms server
 
     isClosed = false;
     leader?: Participant;
@@ -31,7 +38,12 @@ export class ConferenceRoom {
     // configs
     config: ConferenceConfig = new ConferenceConfig();
 
-    get confType()  {
+    //rooms
+    roomId: string; //roomid from room server
+    roomToken: string = ""; //provided by the rooms server
+
+
+    get confType() {
         return this.config.type;
     }
 

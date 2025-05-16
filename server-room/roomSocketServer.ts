@@ -65,6 +65,7 @@ export class RoomSocketServer {
                     }
                 } catch (err) {
                     console.error(err);
+                    console.log(message);
                 }
 
             });

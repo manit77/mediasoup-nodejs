@@ -1,7 +1,8 @@
 import {
     CallMessageType, ConferenceClosedMsg, ConferenceConfig, ConferenceType
     , GetContactsMsg, InviteMsg, InviteResultMsg, JoinMsg, JoinResultMsg
-    , LeaveMsg, NeedOfferMsg, NewParticipantMsg, ParticipantLeftMsg, RegisterMsg, RegisterResultMsg, RejectMsg
+    , LeaveMsg, NewConferenceMsg, NewParticipantMsg, ParticipantLeftMsg, RegisterMsg, RegisterResultMsg, RejectMsg,
+    RTCNeedOfferMsg
 } from "./conferenceSharedModels";
 import { WebSocketManager } from "./webSocketManager";
 import { WebRTCClient } from "./rtcClient/webRTCClient";
@@ -19,6 +20,7 @@ interface Participant {
 interface Conference {
     conferenceRoomId: string,
     conferenceToken: string, //provided  by the conferencing server
+    conferenceTitle: string,
     roomToken: string, //provided by rooms server
     roomId: string,
     participants: Map<string, Participant>,
@@ -56,6 +58,7 @@ export class ConferenceCallManager {
         participants: new Map(),
         config: new ConferenceConfig(),
         conferenceToken: "",
+        conferenceTitle: "",
         roomToken: "",
         roomId: ""
     };
@@ -80,8 +83,12 @@ export class ConferenceCallManager {
 
     }
 
+    writeLog(...params: any) {
+        console.log(this.DSTR, ...params);
+    }
+
     rtc_onIceCandidate = (participantId: string, candidate: RTCIceCandidate) => {
-        console.log(this.DSTR, "rtc_onIceCandidate");
+        this.writeLog("rtc_onIceCandidate");
         //send ice candidate to server
         if (candidate) {
             const iceMsg = {
@@ -98,7 +105,7 @@ export class ConferenceCallManager {
 
     connect(autoReconnect: boolean, conf_wsURIOverride: string = "", room_wsURIOverride: string = "") {
 
-        console.log(this.DSTR, "connect");
+        this.writeLog("connect");
 
         if (conf_wsURIOverride) {
             this.config.conf_wsURI = conf_wsURIOverride;
@@ -132,7 +139,7 @@ export class ConferenceCallManager {
 
         this.socket.addEventHandler("onmessage", (event: any) => {
             const message = JSON.parse(event.data);
-            console.log('Received message ' + message.type, message);
+            this.writeLog('Received message ' + message.type, message);
 
             switch (message.type) {
                 case CallMessageType.registerResult:
@@ -150,9 +157,9 @@ export class ConferenceCallManager {
                 case CallMessageType.inviteResult:
                     this.onInviteResult(message);
                     break;
-                case CallMessageType.needOffer:
-                    this.onNeedOffer(message);
-                    break;                    
+                case CallMessageType.rtc_needOffer:
+                    this.onRTCNeedOffer(message);
+                    break;
                 case CallMessageType.joinResult:
                     this.onJoinResult(message);
                     break;
@@ -182,7 +189,7 @@ export class ConferenceCallManager {
     }
 
     disconnect() {
-        console.log(this.DSTR, "disconnect");
+        this.writeLog("disconnect");
         this.socket.disconnect();
     }
 
@@ -191,7 +198,7 @@ export class ConferenceCallManager {
     }
 
     public async getUserMedia(): Promise<MediaStream> {
-        console.log(this.DSTR, "getUserMedia");
+        this.writeLog("getUserMedia");
         try {
 
             if (this.localStream) {
@@ -212,7 +219,7 @@ export class ConferenceCallManager {
     }
 
     register(username: string) {
-        console.log(this.DSTR, "register");
+        this.writeLog("register");
         // Register with the server
         const registerMsg: RegisterMsg = new RegisterMsg();
         registerMsg.data.userName = username;
@@ -220,60 +227,65 @@ export class ConferenceCallManager {
     }
 
     getContacts() {
-        console.log(this.DSTR, "getContacts");
+        this.writeLog("getContacts");
         const contactsMsg = new GetContactsMsg();
         this.sendToServer(contactsMsg);
     }
 
+    newConference(title: string) {
+        let msg = new NewConferenceMsg();
+        msg.data.conferenceTitle = title;
+        msg.data.conferenceConfig.type = ConferenceType.rooms;
+        this.sendToServer(msg);
+    }
+
     invite(contact: Contact) {
-        console.log(this.DSTR, "invite");
+        this.writeLog("invite");
         const callMsg = new InviteMsg();
         callMsg.data.participantId = contact.participantId;
 
-        callMsg.data.newConfConfig = new ConferenceConfig();
-        callMsg.data.newConfConfig.maxParticipants = 2;
+        callMsg.data.conferenceConfig = new ConferenceConfig();
+        callMsg.data.conferenceConfig.maxParticipants = 2;
         // callMsg.data.newConfConfig.type  = ConferenceType.p2p;
-        callMsg.data.newConfConfig.type = ConferenceType.rooms;
+        callMsg.data.conferenceConfig.type = ConferenceType.rooms;
 
         this.sendToServer(callMsg);
     }
 
     private async onInviteResult(message: InviteResultMsg) {
-        console.log(this.DSTR, "onInviteResult");
+        this.writeLog("onInviteResult");
         if (message.data.conferenceRoomId) {
+
             this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
-            this.conferenceRoom.config.type = message.data.conferenceType;
+            this.conferenceRoom.config.type = message.data.conferenceConfig.type;
             this.conferenceRoom.conferenceToken = message.data.conferenceToken;
             this.conferenceRoom.roomToken = message.data.roomToken;
             this.conferenceRoom.roomId = message.data.roomId;
 
             if (this.conferenceRoom.config.type == ConferenceType.rooms) {
                 await this.roomsCreateTransports();
-                this.join(this.conferenceRoom.conferenceRoomId);
-            } else {
-                //join the room
-                this.join(this.conferenceRoom.conferenceRoomId);
             }
+
+            //join the conference room
+            const joinMsg = new JoinMsg();
+            joinMsg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
+            joinMsg.data.conferenceToken = this.conferenceRoom.conferenceToken;
+            joinMsg.data.roomId = this.conferenceRoom.roomId;
+            joinMsg.data.roomToken = this.conferenceRoom.roomToken;
+            this.sendToServer(joinMsg);
+
 
         }
         this.onEvent(EventTypes.inviteResult, message);
     }
 
-    join(conferenceRoomId: string) {
-        console.log(this.DSTR, "join");
-        const joinMsg = new JoinMsg();
-        joinMsg.data.conferenceRoomId = conferenceRoomId;
-        joinMsg.data.conferenceRoomId
-        this.sendToServer(joinMsg);
-    }
-
     private async onJoinResult(message: JoinResultMsg) {
-        console.log(this.DSTR, "onJoinResult");
+        this.writeLog("onJoinResult");
 
         this.onEvent(EventTypes.joinResult, message);
 
         if (message.data.error) {
-            console.log(this.DSTR, "onJoinResult error: ", message.data.error);
+            this.writeLog("onJoinResult error: ", message.data.error);
             return;
         }
 
@@ -284,15 +296,22 @@ export class ConferenceCallManager {
 
         if (this.conferenceRoom.config.type == ConferenceType.rooms) {
             //join the room
-            this.roomsClient.roomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
+            await this.roomsClient.connectAsync(this.config.room_wsURI);
+            if (!this.localStream) {
+                this.writeLog("localStream is required.");
+                return;
+            } else {
+                this.roomsClient.setLocalstream(this.localStream);
+                this.roomsClient.roomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
+            }
             //the roomsClient will produce the local stream when roomJoin is successful
         }
 
-        console.log(this.DSTR, 'joined conference room:', this.conferenceRoom.conferenceRoomId);
-        console.log(this.DSTR, 'participants:', message.data.participants.length);
+        this.writeLog('joined conference room:', this.conferenceRoom.conferenceRoomId);
+        this.writeLog('participants:', message.data.participants.length);
 
         for (let p of message.data.participants) {
-            console.log(this.DSTR, 'createPeerConnection for existing:', p.participantId);
+            this.writeLog('createPeerConnection for existing:', p.participantId);
             if (this.conferenceRoom.config.type == ConferenceType.rooms) {
                 //the rooms client will create the producer for each client                
 
@@ -318,8 +337,27 @@ export class ConferenceCallManager {
 
     }
 
+    async onInviteReceived(message: InviteMsg) {
+        this.writeLog("onInviteReceived");
+        if (message.data.conferenceConfig.type == ConferenceType.rooms) {
+            this.conferenceRoom.roomId = message.data.roomId;
+            this.conferenceRoom.roomToken = message.data.roomToken;
+        }
+        this.onEvent(EventTypes.inviteReceived, message);
+    }
+
+    acceptInvite(message: InviteMsg) {
+        this.writeLog("join");
+        const joinMsg = new JoinMsg();
+        joinMsg.data.conferenceRoomId = message.data.conferenceRoomId;
+        joinMsg.data.conferenceToken = message.data.conferenceToken;
+        joinMsg.data.roomId = message.data.roomId;
+        joinMsg.data.roomToken = message.data.roomToken;
+        this.sendToServer(joinMsg);
+    }
+
     reject(participantId: string, conferenceRoomId: string) {
-        console.log(this.DSTR, "reject");
+        this.writeLog("reject");
         let msg = new RejectMsg();
         msg.data.conferenceRoomId = conferenceRoomId;
         msg.data.fromParticipantId = this.participantId;
@@ -330,7 +368,7 @@ export class ConferenceCallManager {
     }
 
     toggleVideo() {
-        console.log(this.DSTR, "toggleVideo");
+        this.writeLog("toggleVideo");
         if (this.localStream) {
             const videoTrack = this.localStream.getVideoTracks()[0];
             if (videoTrack) {
@@ -340,7 +378,7 @@ export class ConferenceCallManager {
     }
 
     toggleAudio() {
-        console.log(this.DSTR, "toggleAudio");
+        this.writeLog("toggleAudio");
         if (this.localStream) {
             const audioTrack = this.localStream.getAudioTracks()[0];
             if (audioTrack) {
@@ -350,7 +388,7 @@ export class ConferenceCallManager {
     }
 
     leave() {
-        console.log(this.DSTR, "leave");
+        this.writeLog("leave");
         if (this.conferenceRoom.conferenceRoomId) {
             const leaveMsg = new LeaveMsg();
             leaveMsg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
@@ -358,18 +396,18 @@ export class ConferenceCallManager {
             this.sendToServer(leaveMsg);
             this.conferenceRoom.conferenceRoomId = "";
         } else {
-            console.log(this.DSTR, "not in conerence");
+            this.writeLog("not in conerence");
         }
         this.resetCallState();
     }
 
     getParticipant(participantId: string): Participant {
-        console.log(this.DSTR, "getParticipant");
+        this.writeLog("getParticipant");
         return this.conferenceRoom.participants.get(participantId);
     }
 
     private sendToServer(message: any) {
-        console.log(this.DSTR, "sendToServer " + message.type, message);
+        this.writeLog("sendToServer " + message.type, message);
         if (this.socket) {
             this.socket.send(JSON.stringify(message));
         } else {
@@ -378,7 +416,7 @@ export class ConferenceCallManager {
     }
 
     private onRegisterResult(message: RegisterResultMsg) {
-        console.log(this.DSTR, "onRegisterResult");
+        this.writeLog("onRegisterResult");
         if (message.data.error) {
             console.error(message.data.error);
             this.onEvent(EventTypes.registerResult, message);
@@ -387,7 +425,7 @@ export class ConferenceCallManager {
             this.onEvent(EventTypes.registerResult, message);
 
             this.participantId = message.data.participantId;
-            console.log('Registered with participantId:', this.participantId, "conferenceRoomId:", message.data.conferenceRoomId);
+            this.writeLog('Registered with participantId:', this.participantId, "conferenceRoomId:", message.data.conferenceRoomId);
 
             if (message.data.conferenceRoomId) {
                 //we logged into an existing conference
@@ -398,7 +436,7 @@ export class ConferenceCallManager {
     }
 
     private onContactsReceived(message: GetContactsMsg) {
-        console.log(this.DSTR, "onContactsReceived");
+        this.writeLog("onContactsReceived");
         this.contacts = message.data.filter(c => c.participantId !== this.participantId);
         //fire event new contacts
 
@@ -406,24 +444,19 @@ export class ConferenceCallManager {
 
     }
 
-    private onInviteReceived(message: InviteMsg) {
-        console.log(this.DSTR, "onInviteReceived");
-        this.onEvent(EventTypes.inviteReceived, message);
-    }
-
     private onRejectReceived(message: InviteResultMsg) {
-        console.log(this.DSTR, "onRejectReceived");
+        this.writeLog("onRejectReceived");
         this.onEvent(EventTypes.rejectReceived, message);
     }
 
-    private onNeedOffer(message: NeedOfferMsg) {
+    private onRTCNeedOffer(message: RTCNeedOfferMsg) {
         //this is only a webrtc call
-        console.log(this.DSTR, "onNeedOffer " + message.data.participantId);
+        this.writeLog("onNeedOffer " + message.data.participantId);
 
         //server will send need offer when needed to connect
         let connInfo = this.rtcClient.createPeerConnection(message.data.participantId);
         this.conferenceRoom.participants.set(message.data.participantId, {
-            participantId: message.data.participantId,                        
+            participantId: message.data.participantId,
             displayName: message.data.displayName,
             peerConnection: connInfo.pc,
             mediaStream: connInfo.stream
@@ -433,20 +466,31 @@ export class ConferenceCallManager {
     }
 
     private onNewParticipant(message: NewParticipantMsg) {
-        console.log(this.DSTR, 'New participant joined:', message.data);
-        let connInfo = this.rtcClient.createPeerConnection(message.data.participantId);
-        this.conferenceRoom.participants.set(message.data.participantId, {
+        this.writeLog('onNewParticipant - New participant joined:', message.data);
+
+        let partcipant = {
             participantId: message.data.participantId,
             displayName: message.data.participantId,
-            peerConnection: connInfo.pc,
-            mediaStream: connInfo.stream
-        });
+            peerConnection: null,
+            mediaStream: null
+        };
+
+        this.conferenceRoom.participants.set(message.data.participantId, partcipant);
+
+        if (this.conferenceRoom.config.type == ConferenceType.rooms) {
+
+        } else {
+            let connInfo = this.rtcClient.createPeerConnection(partcipant.participantId);
+            partcipant.peerConnection = connInfo.pc;
+            partcipant.mediaStream = connInfo.stream;
+        }
+
         this.onEvent(EventTypes.newParticipant, message);
     }
 
     private onParticipantLeft(message: ParticipantLeftMsg) {
         const participantId = message.data.participantId;
-        console.log(this.DSTR, 'Participant left:', participantId);
+        this.writeLog('Participant left:', participantId);
 
         // Close peer connection
         let p = this.conferenceRoom.participants.get(participantId);
@@ -467,7 +511,7 @@ export class ConferenceCallManager {
 
     private onConferenceClosed(message: ConferenceClosedMsg) {
         //we received a conference closed message
-        console.log(this.DSTR, "onConferenceClosed");
+        this.writeLog("onConferenceClosed");
         this.resetCallState();
     }
 
@@ -485,7 +529,7 @@ export class ConferenceCallManager {
     }
 
     private async sendOffer(pc: RTCPeerConnection, toParticipantId: string) {
-        console.log(this.DSTR, "sendOffer");
+        this.writeLog("sendOffer");
         // Create and send offer
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -502,7 +546,7 @@ export class ConferenceCallManager {
     }
 
     private async onRTCOffer(message: any) {
-        console.log(this.DSTR, "onRTCOffer");
+        this.writeLog("onRTCOffer");
         try {
             const fromParticipantId = message.data.fromParticipantId;
 
@@ -525,7 +569,7 @@ export class ConferenceCallManager {
     }
 
     private async onRTCAnswer(message: any) {
-        console.log(this.DSTR, "onRTCAnswer");
+        this.writeLog("onRTCAnswer");
 
         try {
             const fromParticipantId = message.data.fromParticipantId;
@@ -540,7 +584,7 @@ export class ConferenceCallManager {
     }
 
     private async onRTCIce(message: any) {
-        console.log(this.DSTR, "onRTCIce");
+        this.writeLog("onRTCIce");
         try {
             const fromParticipantId = message.data.fromParticipantId;
             const p = this.conferenceRoom.participants.get(fromParticipantId);
@@ -554,11 +598,12 @@ export class ConferenceCallManager {
     }
 
     private async roomsCreateTransports() {
+        this.writeLog("roomsCreateTransports");
 
         this.roomsClient.onRoomNewPeerEvent = (peer: Peer) => {
             //map the participantid to the peerid
             let p = this.conferenceRoom.participants.get(peer.trackingId);
-            if(p) {
+            if (p) {
                 p.peerId = peer.peerId;
             }
         };
@@ -569,42 +614,41 @@ export class ConferenceCallManager {
         //connect and wait for a connection
         await this.roomsClient.connectAsync(this.config.room_wsURI);
 
-        //register will create the transports, after a successful registration
-        this.roomsClient.register(this.participantId, "");
 
         //wait for transport to be created, and connected        
         let isTransportsConnected = { recv: false, send: false };
-        let transportsConnectedResolve: any;
-        let transportsConnectedReject: any;
+
+        let transportConnectedResolve: any;
+        let transportConnectedReject: any;
         let transportsConnected = () => {
+            this.writeLog("await transportsConnected created")
             return new Promise((resolve, reject) => {
-                transportsConnectedResolve = resolve;
-                transportsConnectedReject = reject;
+                transportConnectedResolve = resolve;
+                transportConnectedReject = reject;
+
+                setTimeout(() => {
+                    transportConnectedReject("transports timedOut");
+                }, 5000);
             });
         };
 
         this.roomsClient.onTransportsReady = async (transport) => {
-            await this.roomsClient.waitForTransportConnected(transport);
-            if (transport.direction == "recv") {
-                isTransportsConnected.recv = true;
-            }
+
+            this.writeLog("onTransportsReady direction:" + transport.direction);
 
             if (transport.direction == "send") {
                 isTransportsConnected.send = true;
+                transportConnectedResolve();
             }
-
-            transportsConnected();
-
-            if (isTransportsConnected.send && isTransportsConnected.recv) {
-                transportsConnectedResolve(true);
-            }
-            setTimeout(() => {
-                transportsConnectedReject("transports timedOut");
-            }, 5000);
 
         };
 
+        //register will create the transports, after a successful registration
+        this.roomsClient.register(this.participantId, "");
+
         await transportsConnected();
+
+        this.writeLog("transported created received.")
 
     }
 

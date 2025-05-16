@@ -1,20 +1,13 @@
 import { ConferenceCallManager, EventTypes } from './common/conferenceCallManager';
-import {
-    CallMessageType,
-    RegisterMsg,
-    GetContactsMsg,
-    JoinMsg,
-    LeaveMsg,
+import {    
     Contact,
     ConferenceClosedMsg,
     ParticipantLeftMsg,
     NewParticipantMsg,
-    JoinResultMsg,
-    NeedOfferMsg,
+    JoinResultMsg,    
     InviteMsg,
     InviteResultMsg,
-    RegisterResultMsg,
-    RejectMsg
+    RegisterResultMsg,    
 } from './common/conferenceSharedModels';
 import { WebSocketManager } from './common/webSocketManager';
 
@@ -42,7 +35,6 @@ class ConferenceApp {
 
     //conference controls
     private hangupBtn: HTMLButtonElement;
-    private conferenceRoomIdLabel: HTMLLabelElement;
 
     //confirm modal
     private messageModal: HTMLElement;
@@ -51,15 +43,37 @@ class ConferenceApp {
     private modalConfirmBtn: HTMLButtonElement;
     private modalCancelBtn: HTMLButtonElement;
 
-    private modalNewConference: HTMLDivElement;
-    private modalNewConferenceOkButtton: HTMLButtonElement;
-    private modalNewConferenceCloseButtton: HTMLButtonElement;
+    confModal :  HTMLDivElement;
+    confModalOkBtn : HTMLButtonElement;
+    confModalCancelBtn : HTMLButtonElement;
 
     private modalJoinConference: HTMLDivElement;
     private modalJoinConferenceCancelButton: HTMLButtonElement;
 
     private newConferenceButton: HTMLButtonElement;
     private joinConferenceButton: HTMLButtonElement;
+
+    //  <div class="modal" id="confModal">
+    //     <div class="modal-content">
+    //         <div class="modal-header" id="confModalHeader">New Conference</div>
+    //         <div class="modal-body">
+    //             Title: <input id="confConfRoomTitle" type="text"><br>
+    //             Date Start: <input id="confDateStartText" type="date"><br>
+    //             Date End: <input id="confDateEndText" type="date"><br>
+    //             Max Participants: <input id="confDateEndText" type="number" value="2"><br>
+    //             Allow Conference Video: <input type="checkbox"> <br>
+    //             Allow Conference Audio : <input type="checkbox"> <br>
+    //             Allow Participant Video: <input type="checkbox"> <br>
+    //             Allow Particpant Audio: <input type="checkbox"> <br>
+    //             Invite Only: <input type="checkbox"> <br>
+    //         </div>
+    //         <div class="modal-footer">
+    //             <button class="modal-close-btn" id="confModalOkBtn">OK</button>
+    //             <button class="modal-close-btn" id="confModalCancelBtn">Cancel</button>
+    //         </div>
+    //     </div>
+    // </div>
+
 
     constructor() {
         this.initElements();
@@ -147,9 +161,9 @@ class ConferenceApp {
         this.modalConfirmBtn = document.getElementById('modalConfirmBtn') as HTMLButtonElement;
         this.modalCancelBtn = document.getElementById('modalCancelBtn') as HTMLButtonElement;
 
-        this.modalNewConference = document.getElementById('confModal') as HTMLDivElement;
-        this.modalNewConferenceOkButtton = document.getElementById('confModalCloseBtn') as HTMLButtonElement;
-        this.modalNewConferenceCloseButtton = document.getElementById('confModalCancelBtn') as HTMLButtonElement;
+        this.confModal = document.getElementById('confModal') as HTMLDivElement;
+        this.confModalOkBtn = document.getElementById('confModalOkBtn') as HTMLButtonElement;
+        this.confModalCancelBtn = document.getElementById('confModalCancelBtn') as HTMLButtonElement;
 
         this.modalJoinConference = document.getElementById('confJoinModal') as HTMLDivElement;
         this.modalJoinConferenceCancelButton = document.getElementById('confJoinModalCancelButton') as HTMLButtonElement;
@@ -171,11 +185,14 @@ class ConferenceApp {
         //modal controls
         this.modalCancelBtn.addEventListener('click', () => this.hideModal());
 
-        this.newConferenceButton.addEventListener("click", () => this.showNewConference());
-        this.joinConferenceButton.addEventListener("click", () => this.showJoinConference());
+        this.newConferenceButton.addEventListener("click", () => this.confModalShow());
+        this.joinConferenceButton.addEventListener("click", () => this.showJoinConference());    
 
-        this.modalNewConferenceOkButtton.addEventListener("click", () => this.hideNewConference());
-        this.modalNewConferenceCloseButtton.addEventListener("click", () => this.hideNewConference());
+        this.confModalOkBtn.addEventListener("click", () => {            
+            this.confModalHide();
+    });
+        this.confModalCancelBtn.addEventListener("click", () => this.confModalHide());
+
         this.modalJoinConferenceCancelButton.addEventListener("click", () => this.hideJoinConference());
 
     }
@@ -236,15 +253,14 @@ class ConferenceApp {
         this.messageModal.style.display = 'none';
     }
 
-    private showNewConference() {
+    private confModalShow() {
         console.log("showNewConference");
-        this.modalNewConference.style.display = "flex";
-
+        this.confModal.style.display = "flex";
     }
 
-    private hideNewConference() {
+    private confModalHide() {
         console.log("hideNewConference");
-        this.modalNewConference.style.display = "none";
+        this.confModal.style.display = "none";
     }
 
     private showJoinConference() {
@@ -334,7 +350,7 @@ class ConferenceApp {
             `Incoming call from ${msg.data.displayName}. Accept?`,
             (accepted: boolean) => {
                 if (accepted) {
-                    this.confMgr.join(msg.data.conferenceRoomId);
+                    this.confMgr.acceptInvite(msg);
                 } else {
                     this.confMgr.reject(msg.data.participantId, msg.data.conferenceRoomId);
                 }

@@ -198,7 +198,7 @@ import {
     }
 
     /**
-     * register ->                                  //registers a new peer
+     * register ->                                  //registers a new peer, with an optional app value trackingId
      *   <- registerResult                          //returns a peerid
      * createProducerTransport ->                   //request server to create a producer transport
      * createConsumerTransport ->                   //request server to create a consumer transport
@@ -206,15 +206,18 @@ import {
      *   <- consumerTransportCreated                //signals client the transport is created
      * connectConsumerTransport ->                  //request server to connect the client and server transports
      * connectProducerTransport ->                  //request server to connect the client and server transports
-     * roomJoin ->                                  //join a room or create a new one
-     *   <- joinRoomResult                          //returns a roomid
-     * // is has room members
-     * // do produce/consume for each                      
-     * produce ->                                   //request server to receive a local stream
-     *   <- produced                                //signals client the local stream being received
+     * roomNew ->                                   //creates a new room
+     *   <-- roomNewResult                          //returns the roomid, and authoken for the room
+     * roomJoin ->                                  //join a room with roomid, and authtoken
+     *   <- joinRoomResult                          //if successful returns a list of existing peers and their producers
+     * // execute producer/consumer for each peer
+     * produce ->                                   //request server to receive a stream from the client
+     *   <- produced                                //signals client stream is ready
+     * //connect the producer stream
      * // consumeProducer()
-     * consume ->                                   //request server to consume stream
+     * consume ->                                   //request server to consume a producer stream
      *   <- consumed                                //signals client the stream is being consumed
+     * //connect the consumer stream                //connect the client's consumer with the servers consumer
      */
     async function register() {
         console.log("-- register");
@@ -270,10 +273,7 @@ import {
                     // Only handle roomNewResult messages
                     if (msgIn.type !== payloadTypeServer.roomNewResult) {
                         return;
-                    }
-
-                    //this function will fire first since  its already added
-                    //await Promise.resolve(onRoomNewResult(msgIn));
+                    }                 
 
                     if (msgIn.data?.error) {
                         reject(new Error(`Failed to create room: ${msgIn.data.error}`));

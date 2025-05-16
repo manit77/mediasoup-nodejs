@@ -348,20 +348,18 @@
         <div class="modal-content">
             <div class="modal-header" id="confModalHeader">New Conference</div>
             <div class="modal-body">
-
-                Room Id: <input id="confConfRoomId" type="text"><br>
+                Title: <input id="confConfRoomTitle" type="text"><br>
                 Date Start: <input id="confDateStartText" type="date"><br>
                 Date End: <input id="confDateEndText" type="date"><br>
-                Max Participants: <input id="confDateEndText" type="number"><br>
+                Max Participants: <input id="confDateEndText" type="number" value="2"><br>
                 Allow Conference Video: <input type="checkbox"> <br>
                 Allow Conference Audio : <input type="checkbox"> <br>
                 Allow Participant Video: <input type="checkbox"> <br>
                 Allow Particpant Audio: <input type="checkbox"> <br>
                 Invite Only: <input type="checkbox"> <br>
-
             </div>
             <div class="modal-footer">
-                <button class="modal-close-btn" id="confModalCloseBtn">OK</button>
+                <button class="modal-close-btn" id="confModalOkBtn">OK</button>
                 <button class="modal-close-btn" id="confModalCancelBtn">Cancel</button>
             </div>
         </div>
@@ -372,7 +370,7 @@
         <div class="modal-content">
             <div class="modal-header">Join Conference</div>
             <div class="modal-body">
-                Room Id: <input id="confJoinConfRoomId" type="text"> <button class="modal-close-btn"
+                Join Info: <input id="confJoinConfRoomId" type="text"> <button class="modal-close-btn"
                     id="confJoinModalJoinWithRoomId">OK</button><br>
                 <!-- Conferences List -->
                 <div id="confJoinConfList">

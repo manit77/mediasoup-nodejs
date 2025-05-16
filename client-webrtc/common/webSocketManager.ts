@@ -2,13 +2,19 @@
 type eventsTypes = "onopen" | "onerror" | "onclose" | "onmessage";
 
 export class WebSocketManager {
+    logPre = "WebSocketManager";
     socket: WebSocket = null;
     callbacks: Map<eventsTypes, Function[]> = new Map();
     state: "" | "connecting" | "connected" | "disconnected" | "reconnecting";
     autoReconnect = false;
+
+    writeLog(...params: any) {
+        console.log(this.logPre, ...params);
+    }
+
     // Initialize WebSocket connection
     connect = async (uri: string, autoReconnect = false) => {
-        console.log(`initialize ${uri} `);
+        this.writeLog(`initialize ${uri} `);
 
         this.autoReconnect = autoReconnect;
 
@@ -17,7 +23,7 @@ export class WebSocketManager {
 
         this.socket.onopen = () => {
             this.state = "connected";
-            console.log('socket server connected');
+            this.writeLog('socket server connected');
             this.fireEvent("onopen");
         };
 
@@ -37,7 +43,7 @@ export class WebSocketManager {
                 }, 1000);
             } else {
                 this.state = "disconnected";
-                console.log('socket server disconnected');
+                this.writeLog('socket server disconnected');
                 this.fireEvent("onclose");
             }
         };
@@ -78,7 +84,7 @@ export class WebSocketManager {
 
     // Send a message to the signaling server
     send(data: any) {
-        console.log("send", data);
+        this.writeLog("send", data);
         try {
             if (this.socket.readyState === WebSocket.OPEN) {
                 this.socket.send(data);

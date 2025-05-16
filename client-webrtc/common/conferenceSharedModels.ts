@@ -20,12 +20,12 @@ export enum CallMessageType {
     conferenceClosed = "conferenceClosed",
     closeConference = "closeConference", // the participant closes the conference, and the confernece room is terminated on the server
     getContacts = "getContacts",
-    needOffer = "needOffer",
 
     reconnect = "reconnect",
     reconnectResult = "reconnectResult",
     participantReconnected = "participantReconnected",
 
+    rtc_needOffer = "rtc_needOffer",
     rtc_offer = "rtc_offer",
     rtc_answer = "rtc_answer",
     rtc_ice = "rtc_ice",
@@ -59,35 +59,36 @@ export interface ConferenceObj {
 }
 
 export class ConferenceConfig {
-    dateStart = new Date();
+    dateStart? = new Date();
     dateEnd?: Date = null;
-    maxParticipants: number = 2;
-    allowConferenceVideo = true;
-    allowConferenceAudio = true;
+    maxParticipants?: number = 2;
+    allowConferenceVideo? = true;
+    allowConferenceAudio? = true;
 
-    allowParticipantVideo = true;
-    allowParticpantAudio = true;
+    allowParticipantVideo? = true;
+    allowParticpantAudio? = true;
 
-    inviteOnly = false; //anyone can join or by invite only
-    type: ConferenceType = ConferenceType.p2p; //p2p is using p2p webrtc calls, room is using sfu conferencing
+    inviteOnly? = false; //anyone can join or by invite only
+    type?: ConferenceType = ConferenceType.p2p; //p2p is using p2p webrtc calls, room is using sfu conferencing
 
     /**
      * room will terminate when there are not participants for this duration
      */
-    timeOutNoParticipantsSecs = 30000;
+    timeOutNoParticipantsSecs? = 30000;
     /**
      * maxDuration for the room
      */
-    timeOutMaxDurationSecs = 3600000;
+    timeOutMaxDurationSecs? = 3600000;
 
     /**
      username of the leader, if no match then all are participants
       */
-    leaderUserName = "";
+    leaderUserName? = "";
     /**
      * if the leader exits close the room
      */
-    closeConferenceOnLeaderExit = false;
+    closeConferenceOnLeaderExit? = false;
+    expiresIn? = 0;
 
 }
 
@@ -169,8 +170,8 @@ export class RegisterResultMsg {
 export class NewConferenceMsg {
     type = CallMessageType.newConference;
     data = {
-        conferenceRoomId: "",
-        config: new ConferenceConfig()
+        conferenceTitle: "",
+        conferenceConfig: new ConferenceConfig()
     }
 }
 
@@ -201,30 +202,33 @@ export class GetContactsMsg {
 export class InviteMsg {
     type = CallMessageType.invite;
     data: {
-        participantId: string,
-        displayName: string,
-        conferenceRoomId: string,
-        newConfConfig?: ConferenceConfig,
-        conferenceToken: string,
+        participantId?: string,
+        displayName?: string,
+        conferenceRoomId?: string,
+        conferenceConfig?: ConferenceConfig,
+        conferenceToken?: string,
+        conferenceTitle?: string,
+        roomId?: string,
+        roomToken?: string
     } = {
-            participantId: "",
-            displayName: "",
-            conferenceRoomId: "",
-            conferenceToken: "",
+            conferenceConfig: new ConferenceConfig()
         }
 }
 
 export class InviteResultMsg {
     type = CallMessageType.inviteResult;
     data: {
-        conferenceRoomId?: string,
-        conferenceToken?: string,
-        roomToken?: string,
-        roomId?: string,
         participantId?: string,
-        conferenceType?: ConferenceType
+        displayName?: string,
+        conferenceRoomId?: string,
+        conferenceConfig?: ConferenceConfig,
+        conferenceToken?: string,
+        conferenceTitle?: string,
+        roomId?: string,
+        roomToken?: string,
         error?: string
     } = {
+            conferenceConfig: new ConferenceConfig()
         }
 }
 
@@ -264,8 +268,8 @@ export class JoinResultMsg {
         }
 }
 
-export class NeedOfferMsg {
-    type = CallMessageType.needOffer;
+export class RTCNeedOfferMsg {
+    type = CallMessageType.rtc_needOffer;
     data: {
         participantId: string;
         displayName: string

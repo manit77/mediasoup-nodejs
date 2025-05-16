@@ -121,6 +121,7 @@ export class RoomNewMsg {
     private type = payloadTypeClient.roomNew;
     data?: {
         peerId?: string,
+        roomId? : string,
         roomToken? : string,
         maxPeers? : number
     } = {}

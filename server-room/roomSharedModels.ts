@@ -11,6 +11,7 @@ export enum payloadTypeClient {
     connectConsumerTransport = "connectConsumerTransport",
     
     roomNewToken = "roomNewToken",
+    roomNewTokenResult = "roomNewTokenResult",
     roomNew = "roomNew",    
     roomJoin = "roomJoin",
     roomLeave = "roomLeave",
@@ -121,13 +122,14 @@ export class RoomNewMsg {
     private type = payloadTypeClient.roomNew;
     data?: {
         peerId?: string,
+        roomId? : string,
         roomToken? : string,
         maxPeers? : number
     } = {}
 }
 
 export class RoomNewTokenMsg {
-    private type = payloadTypeClient.roomNew;
+    private type = payloadTypeClient.roomNewToken;
     data?: {
         peerId?: string,    
         maxPeers? : number    
@@ -135,7 +137,7 @@ export class RoomNewTokenMsg {
 }
 
 export class RoomNewTokenResultMsg {
-    private type = payloadTypeClient.roomNew;
+    private type = payloadTypeClient.roomNewTokenResult;
     data?: {
         roomId?: string,
         roomToken?: string,

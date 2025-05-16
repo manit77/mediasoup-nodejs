@@ -1,6 +1,7 @@
 import axios from "axios";
 import { RoomNewTokenMsg, RoomNewTokenResultMsg, RoomTerminateMsg } from "../../server-room/roomSharedModels";
 import https from "https"
+import { RoomNewMsg } from "../../client-room/roomSharedModels";
 
 export class RoomsAPI {
 
@@ -21,6 +22,15 @@ export class RoomsAPI {
         let msgIn = new RoomNewTokenMsg();
         msgIn.data.maxPeers = maxPeers;
         return await this.post("/newRoomToken", msgIn) as RoomNewTokenResultMsg;
+    }
+
+    async newRoom(roomId: string, roomToken: string, maxPeers: number) {
+        let msgIn = new RoomNewMsg();
+        msgIn.data.maxPeers = maxPeers;
+        msgIn.data.roomToken = roomToken;
+        msgIn.data.roomId = roomId;
+        
+        return await this.post("/newRoom", msgIn) as RoomNewTokenResultMsg;
     }
 
     async terminateRoom(roomId: string) {

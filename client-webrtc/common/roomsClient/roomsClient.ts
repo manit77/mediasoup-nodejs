@@ -43,8 +43,8 @@ export class RoomsClient {
 
   };
 
-  writeLog = async (log: string) => {
-    console.log("RoomsClient", log);
+  writeLog = async (...params) => {
+    console.log("RoomsClient", ...params);
   }
 
   initMediaSoupDevice = () => {
@@ -63,9 +63,10 @@ export class RoomsClient {
     }
   };
 
-  onMsgIn = async (msgIn: any) => {
+  onSocketEvent = async (event: any) => {
 
-    console.log("-- onmessage", msgIn);
+    let msgIn = JSON.parse(event.data);
+    this.writeLog("-- onmessage", msgIn);
 
     try {
       switch (msgIn.type) {
@@ -104,16 +105,15 @@ export class RoomsClient {
   };
 
   connect = async (wsURI: string = "") => {
-
     if (wsURI) {
       this.config.wsURI = wsURI;
     }
 
-    if (["connecting", "connected"].includes(this.ws.state)) {
+    if (this.ws && ["connecting", "connected"].includes(this.ws.state)) {
       this.writeLog("socket already " + this.ws.state)
       return;
     }
-    // In a real implementation, actually connect to WebSocket
+
     this.writeLog("connect " + this.config.wsURI);
     this.ws = new WebSocketManager();
 
@@ -128,7 +128,7 @@ export class RoomsClient {
     };
 
     this.ws.addEventHandler("onopen", onOpen);
-    this.ws.addEventHandler("onmessage", this.onMsgIn);
+    this.ws.addEventHandler("onmessage", this.onSocketEvent);
     this.ws.addEventHandler("onclose", onClose);
     this.ws.addEventHandler("onerror", onClose);
 
@@ -136,36 +136,35 @@ export class RoomsClient {
 
   };
 
-  setLocalstream(stream: MediaStream) {
-    this.localPeer.stream = stream;
-  }
-
   /**
-   * resolves when the socket is connected
-   * @param wsURI 
-   * @returns 
-   */
+ * resolves when the socket is connected
+ * @param wsURI 
+ * @returns 
+ */
   connectAsync(wsURI: string): Promise<void> {
+    this.writeLog(`connectAsync ${wsURI}`);
+
     return new Promise<void>((resolve, reject) => {
 
       if (wsURI) {
         this.config.wsURI = wsURI;
       }
 
-      if (["connecting", "connected"].includes(this.ws.state)) {
-        this.writeLog("socket already " + this.ws.state);
+      if (this.ws && ["connecting", "connected"].includes(this.ws.state)) {
+        this.writeLog("socket already created. current state: " + this.ws.state);
         resolve();
         return;
       }
-      // In a real implementation, actually connect to WebSocket
-      this.writeLog("connect " + this.config.wsURI);
+
+
+      this.ws = new WebSocketManager();
+      this.writeLog("connectAsync " + this.config.wsURI + " state:" + this.ws.state);
 
       const onOpen = async () => {
         this.isConnected = true;
         this.writeLog("websocket onOpen " + this.config.wsURI);
         resolve();
       };
-      this.ws.addEventHandler("onmessage", this.onMsgIn);
 
       const onClose = async () => {
         this.writeLog("websocket onClose");
@@ -173,9 +172,8 @@ export class RoomsClient {
         resolve();
       };
 
-
       this.ws.addEventHandler("onopen", onOpen);
-      this.ws.addEventHandler("onmessage", this.onMsgIn);
+      this.ws.addEventHandler("onmessage", this.onSocketEvent);
       this.ws.addEventHandler("onclose", onClose);
       this.ws.addEventHandler("onerror", onClose);
 
@@ -184,12 +182,19 @@ export class RoomsClient {
     })
   }
 
+  setLocalstream(stream: MediaStream) {
+    this.writeLog("setLocalstream");
+    this.localPeer.stream = stream;
+  }
+
   disconnect = () => {
+    this.writeLog("disconnect");
     this.ws.disconnect();
   };
 
   send = async (msg: any) => {
-    this.ws.send(msg);
+    this.writeLog("send", msg.type);
+    this.ws.send(JSON.stringify(msg));
   };
 
   toggleAudio = () => {
@@ -253,7 +258,7 @@ export class RoomsClient {
       trackingId: this.trackingId
     }
 
-    this.ws.send(msg);
+    this.send(msg);
   }
 
   onRegisterResult = async (msgIn: RegisterResultMsg) => {
@@ -270,24 +275,28 @@ export class RoomsClient {
   };
 
   createProducerTransport = () => {
-    console.log("-- createProducerTransport");
+    this.writeLog("-- createProducerTransport");
     let msg = new CreateProducerTransportMsg();
-    this.ws.send(msg);
+    this.send(msg);
   }
 
   createConsumerTransport = () => {
-    console.log("-- createConsumerTransport");
+    this.writeLog("-- createConsumerTransport");
     let msg = new CreateConsumerTransportMsg();
-    this.ws.send(msg);
+    this.send(msg);
   }
 
   waitForTransportConnected(transport: Transport): Promise<void> {
+    this.writeLog("-- waitForTransportConnected created")
     return new Promise((resolve, reject) => {
       if (transport.connectionState === 'connected') {
         resolve();
         return;
       }
       const onStateChange = (state: string) => {
+
+        this.writeLog("connectionstatechange transport: " + state);
+
         if (state === 'connected') {
           resolve();
           transport.off('connectionstatechange', onStateChange);
@@ -296,22 +305,28 @@ export class RoomsClient {
           transport.off('connectionstatechange', onStateChange);
         }
       };
+
       transport.on('connectionstatechange', onStateChange);
     });
   }
 
   roomJoin = (roomid: string, roomToken: string) => {
+    this.writeLog(`roomJoin ${roomid} ${roomToken}`)
     let msg = new RoomJoinMsg();
     msg.data = {
       roomId: roomid,
       roomToken: roomToken
     };
-    this.ws.send(msg);
+    this.send(msg);
   }
 
   private onRoomJoinResult = async (msgIn: RoomJoinResultMsg) => {
 
-    console.log("-- onRoomJoinResult");
+    this.writeLog("-- onRoomJoinResult");
+    if(msgIn.data.error){
+      this.writeLog(msgIn.data.error);
+      return;
+    }
 
     if (msgIn.data!.roomId) {
       this.localRoomId = msgIn.data!.roomId;
@@ -320,17 +335,18 @@ export class RoomsClient {
     } else {
       this.localRoomId = "";
       this.isRoomConnected = false;
+      return;
     }
 
     if (!this.localPeer.stream) {
-      console.log("-- get user media, one does not exist");
+      this.writeLog("-- get user media, one does not exist");
       this.localPeer.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     }
 
     //publish local stream
     await this.produceLocalStream();
 
-    console.log("-- onRoomJoinResult peers :" + msgIn.data?.peers.length);
+    this.writeLog("-- onRoomJoinResult peers :" + msgIn.data?.peers.length);
 
     //connect to existing peers  
     if (msgIn.data && msgIn.data.peers) {
@@ -347,11 +363,11 @@ export class RoomsClient {
 
         this.addPeer(newpeer);
 
-        console.log(peer.peerId);
-        console.log("-- onRoomJoinResult producers :" + peer.producers?.length);
+        this.writeLog(peer.peerId);
+        this.writeLog("-- onRoomJoinResult producers :" + peer.producers?.length);
         if (peer.producers) {
           for (let producer of peer.producers) {
-            console.log("-- onRoomJoinResult producer " + producer.kind, producer.producerId);
+            this.writeLog("-- onRoomJoinResult producer " + producer.kind, producer.producerId);
             this.consumeProducer(peer.peerId, producer.producerId);
           }
         }
@@ -375,7 +391,7 @@ export class RoomsClient {
     this.isRoomConnected = false
     this.localPeer.peerId = "";
 
-    this.ws.send(msg);
+    this.send(msg);
 
   }
 
@@ -384,7 +400,7 @@ export class RoomsClient {
   }
 
   onConsumerTransportCreated = async (msgIn: ConsumerTransportCreatedMsg) => {
-    console.log("-- onConsumerTransportCreated");
+    this.writeLog("-- onConsumerTransportCreated");
 
     this.recvTransportRef = this.device.createRecvTransport({
       id: msgIn.data!.transportId,
@@ -400,7 +416,7 @@ export class RoomsClient {
       msg.data = {
         dtlsParameters: dtlsParameters
       }
-      this.ws.send(msg);
+      this.send(msg);
       callback();
     });
 
@@ -411,7 +427,7 @@ export class RoomsClient {
   }
 
   onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
-    console.log("-- onProducerTransportCreated");
+    this.writeLog("-- onProducerTransportCreated");
 
     //the server has created a transport
     //create a client transport to connect to the server transport
@@ -425,14 +441,14 @@ export class RoomsClient {
     });
 
     this.sendTransportRef.on("connect", ({ dtlsParameters }, callback) => {
-      console.log("-- sendTransport connect");
+      this.writeLog("-- sendTransport connect");
       //fires when the transport connects to the mediasoup server
 
       let msg = new ConnectProducerTransportMsg();
       msg.data = {
         dtlsParameters: dtlsParameters
       };
-      this.ws.send(msg);
+      this.send(msg);
 
       callback();
 
@@ -440,7 +456,7 @@ export class RoomsClient {
 
     this.sendTransportRef.on('produce', ({ kind, rtpParameters }, callback) => {
 
-      console.log("-- sendTransport produce");
+      this.writeLog("-- sendTransport produce");
 
       //fires when we call produce with local tracks
       let msg = new ProduceMsg();
@@ -448,7 +464,7 @@ export class RoomsClient {
         kind: kind,
         rtpParameters: rtpParameters
       }
-      this.ws.send(msg);
+      this.send(msg);
       //what is the id value???
       callback({ id: 'placeholder' });
     });
@@ -499,13 +515,13 @@ export class RoomsClient {
       this.writeLog("not local stream");
     }
     for (const track of this.localPeer.stream.getTracks()) {
-      console.log("sendTransport produce ");
+      this.writeLog("sendTransport produce ");
       await this.sendTransportRef.produce({ track });
     }
   }
 
   consumeProducer = async (remotePeerId: string, producerId: string) => {
-    console.log("consumeProducer :" + remotePeerId, producerId);
+    this.writeLog("consumeProducer :" + remotePeerId, producerId);
     if (remotePeerId === this.localPeer.peerId) {
       console.error("you can't consume yourself.");
     }
@@ -516,7 +532,7 @@ export class RoomsClient {
       producerId: producerId,
       rtpCapabilities: this.device.rtpCapabilities
     }
-    this.ws.send(msg);
+    this.send(msg);
   }
 
   onConsumed = async (msgIn: ConsumedMsg) => {

@@ -14,6 +14,26 @@ class ConferenceApp {
     get isInCall() {
         return this.confMgr.isInConference();
     }
+    //  <div class="modal" id="confModal">
+    //     <div class="modal-content">
+    //         <div class="modal-header" id="confModalHeader">New Conference</div>
+    //         <div class="modal-body">
+    //             Title: <input id="confConfRoomTitle" type="text"><br>
+    //             Date Start: <input id="confDateStartText" type="date"><br>
+    //             Date End: <input id="confDateEndText" type="date"><br>
+    //             Max Participants: <input id="confDateEndText" type="number" value="2"><br>
+    //             Allow Conference Video: <input type="checkbox"> <br>
+    //             Allow Conference Audio : <input type="checkbox"> <br>
+    //             Allow Participant Video: <input type="checkbox"> <br>
+    //             Allow Particpant Audio: <input type="checkbox"> <br>
+    //             Invite Only: <input type="checkbox"> <br>
+    //         </div>
+    //         <div class="modal-footer">
+    //             <button class="modal-close-btn" id="confModalOkBtn">OK</button>
+    //             <button class="modal-close-btn" id="confModalCancelBtn">Cancel</button>
+    //         </div>
+    //     </div>
+    // </div>
     constructor() {
         this.confMgr = new conferenceCallManager_1.ConferenceCallManager();
         this.initElements();
@@ -75,6 +95,9 @@ class ConferenceApp {
     init() {
         return __awaiter(this, void 0, void 0, function* () {
             let uri = `${window.location.protocol == "https:" ? "wss" : "ws"}://${window.location.hostname}:${window.location.port}`;
+            //client is responsible for getting the local stream
+            //client is responsible for connecting
+            this.confMgr.getUserMedia();
             this.confMgr.connect(true, uri);
         });
     }
@@ -98,9 +121,9 @@ class ConferenceApp {
         this.modalBody = document.getElementById('modalBody');
         this.modalConfirmBtn = document.getElementById('modalConfirmBtn');
         this.modalCancelBtn = document.getElementById('modalCancelBtn');
-        this.modalNewConference = document.getElementById('confModal');
-        this.modalNewConferenceOkButtton = document.getElementById('confModalCloseBtn');
-        this.modalNewConferenceCloseButtton = document.getElementById('confModalCancelBtn');
+        this.confModal = document.getElementById('confModal');
+        this.confModalOkBtn = document.getElementById('confModalOkBtn');
+        this.confModalCancelBtn = document.getElementById('confModalCancelBtn');
         this.modalJoinConference = document.getElementById('confJoinModal');
         this.modalJoinConferenceCancelButton = document.getElementById('confJoinModalCancelButton');
         this.newConferenceButton = document.getElementById('newConferenceButton');
@@ -115,10 +138,12 @@ class ConferenceApp {
         this.hangupBtn.addEventListener('click', () => this.hangupBtn_Click());
         //modal controls
         this.modalCancelBtn.addEventListener('click', () => this.hideModal());
-        this.newConferenceButton.addEventListener("click", () => this.showNewConference());
+        this.newConferenceButton.addEventListener("click", () => this.confModalShow());
         this.joinConferenceButton.addEventListener("click", () => this.showJoinConference());
-        this.modalNewConferenceOkButtton.addEventListener("click", () => this.hideNewConference());
-        this.modalNewConferenceCloseButtton.addEventListener("click", () => this.hideNewConference());
+        this.confModalOkBtn.addEventListener("click", () => {
+            this.confModalHide();
+        });
+        this.confModalCancelBtn.addEventListener("click", () => this.confModalHide());
         this.modalJoinConferenceCancelButton.addEventListener("click", () => this.hideJoinConference());
     }
     initLocalMedia() {
@@ -167,13 +192,13 @@ class ConferenceApp {
     hideModal() {
         this.messageModal.style.display = 'none';
     }
-    showNewConference() {
+    confModalShow() {
         console.log("showNewConference");
-        this.modalNewConference.style.display = "flex";
+        this.confModal.style.display = "flex";
     }
-    hideNewConference() {
+    confModalHide() {
         console.log("hideNewConference");
-        this.modalNewConference.style.display = "none";
+        this.confModal.style.display = "none";
     }
     showJoinConference() {
         console.log("showJoinConference");
@@ -240,7 +265,7 @@ class ConferenceApp {
         console.log("handleInviteReceived");
         this.showModal('Incoming Call', `Incoming call from ${msg.data.displayName}. Accept?`, (accepted) => {
             if (accepted) {
-                this.confMgr.join(msg.data.conferenceRoomId);
+                this.confMgr.acceptInvite(msg);
             }
             else {
                 this.confMgr.reject(msg.data.participantId, msg.data.conferenceRoomId);

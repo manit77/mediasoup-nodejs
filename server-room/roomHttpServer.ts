@@ -1,11 +1,8 @@
 import express from 'express';
 import { WebSocket, WebSocketServer } from 'ws';
-import {
-    payloadTypeClient,
-    RegisterMsg,
-    RoomJoinMsg,
-    RoomLeaveMsg,
-    RoomNewMsg,
+import {    
+    RegisterMsg,  
+    RoomNewMsg,  
     RoomNewTokenMsg,
     RoomTerminateMsg,
     TerminatePeerMsg
@@ -28,14 +25,26 @@ export class RoomHTTPServer {
         });
         
         app.post("/newRoomToken", async (req, res) => {
+            console.log("/newRoomToken")
             //conferencing server requests an authtoken to be created, doesnt create an actual room
             //returns the auth token
             //returns the signaling info
             let msgIn = req.body as RoomNewTokenMsg;
             res.send(this.newRoomToken(msgIn));
-        });     
+        });
+
+        app.post("/newRoom", async (req, res) => {
+            console.log("/newRoom")
+            //conferencing server requests an authtoken to be created, doesnt create an actual room
+            //returns the auth token
+            //returns the signaling info
+            let msgIn = req.body as RoomNewMsg;
+            res.send(this.newRoom(msgIn));
+        });
+
 
         app.post("/terminateRoom", async (req, res) => {
+            console.log("/terminateRoom")
             //conferencing server requests to destroy a room
             let msgIn = req.body as RoomTerminateMsg;
             res.send(this.terminateRoom(msgIn));
@@ -53,6 +62,10 @@ export class RoomHTTPServer {
 
     newRoomToken = (msg: RoomNewTokenMsg) => {
         return this.roomServer.onRoomNewToken(msg.data.peerId, msg);
+    }
+
+    newRoom = (msg: RoomNewMsg) => {
+        return this.roomServer.onRoomNew(msg.data.peerId, msg);
     }
 
     terminateRoom = (msg: RoomTerminateMsg) => {
