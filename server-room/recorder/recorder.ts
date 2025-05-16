@@ -3,7 +3,7 @@ import fs from 'fs';
 import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
 import { getFreeUDPPort } from "../utils/utils";
-import { Peer } from '../peer/peer';
+import { Peer } from '../roomServer/peer';
 
 ffmpeg.setFfmpegPath('./bin/ffmpeg');
 

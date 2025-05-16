@@ -61,11 +61,11 @@ export class RoomHTTPServer {
     }
 
     newRoomToken = (msg: RoomNewTokenMsg) => {
-        return this.roomServer.onRoomNewToken("", msg);
+        return this.roomServer.roomNewToken(msg);
     }
 
     newRoom = (msg: RoomNewMsg) => {
-        return this.roomServer.onRoomNew(msg.data.peerId, msg);
+        return this.roomServer.roomNew(msg);
     }
 
     terminateRoom = (msg: RoomTerminateMsg) => {

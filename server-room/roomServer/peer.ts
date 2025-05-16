@@ -1,5 +1,5 @@
 import * as mediasoup from 'mediasoup';
-import { Room } from '../room/room';
+import { Room } from './room';
 
 export class Peer {
 
@@ -23,7 +23,7 @@ export class Peer {
     recordings?: Map<string, any> = new Map();
     room?: Room;
 
-    restartInactivity() {
+    restartInactiveTimer() {
 
         if (this.timerIdInactivity) {
             clearTimeout(this.timerIdInactivity);

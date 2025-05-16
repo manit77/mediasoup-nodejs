@@ -1,6 +1,6 @@
 import * as mediasoup from 'mediasoup';
 import { WebSocket } from 'ws';
-import { Peer } from '../peer/peer';
+import { Peer } from './peer';
 
 export class Room {
     id: string;

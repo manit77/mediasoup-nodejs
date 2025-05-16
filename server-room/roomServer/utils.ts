@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import * as jwt from '../utils/jwtUtil';
-import { Room } from "../room/room";
+import { Room } from "./room";
 import { RoomTokenPayload } from "../models/tokenPayloads";
 
 export function GetRoomId() {
