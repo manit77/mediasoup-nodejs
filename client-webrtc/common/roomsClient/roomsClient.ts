@@ -14,8 +14,7 @@ export class RoomsClient {
   ws: WebSocketManager;
 
   localRoomId: string = "";
-  localPeer: Peer = { peerId: "", trackingId: "", displayName: "", hasAudio: false, hasVideo: false, stream: null };
-  trackingId: string = "";
+  localPeer: Peer = new Peer();
   isConnected = false;
   isRoomConnected = false;
 
@@ -98,6 +97,10 @@ export class RoomsClient {
         case payloadTypeServer.consumed:
           this.onConsumed(msgIn);
           break;
+        case payloadTypeServer.roomTerminate:
+          this.onRoomTerminate(msgIn);
+          break;
+
       }
     } catch (err) {
       console.error(err);
@@ -194,7 +197,7 @@ export class RoomsClient {
   };
 
   send = async (msg: any) => {
-    this.writeLog("send", msg.type);
+    this.writeLog("send", msg.type, msg);
     this.ws.send(JSON.stringify(msg));
   };
 
@@ -216,7 +219,7 @@ export class RoomsClient {
       return;
     }
 
-    if(peer.peerId === this.localPeer.peerId) {
+    if (peer.peerId === this.localPeer.peerId) {
       this.writeLog(`cannot add yourself as a peerid: ${this.localPeer.peerId}`);
       return;
     }
@@ -271,15 +274,21 @@ export class RoomsClient {
   };
 
   register = (trackingId: string, displayName: string) => {
-    this.writeLog("-- register");
-    this.trackingId = trackingId;
+    this.writeLog(`-- register `);
+
+    if (this.localPeer.peerId) {
+      this.writeLog(`-- register, already registered. ${this.localPeer.peerId}`);
+      return;
+    }
+
+    this.localPeer.trackingId = trackingId;
     this.localPeer.displayName = displayName;
 
     let msg = new RegisterMsg();
     msg.data = {
       authToken: "",  //need authtoken from server
       displayName: this.localPeer.displayName,
-      trackingId: this.trackingId
+      trackingId: this.localPeer.trackingId
     }
 
     this.send(msg);
@@ -294,9 +303,16 @@ export class RoomsClient {
     if (!this.device.loaded) {
       this.writeLog("loading device with rtpCapabilities");
       await this.device.load({ routerRtpCapabilities: msgIn.data!.rtpCapabilities });
+    }
+
+    if (!this.sendTransportRef) {
       this.createProducerTransport();
+    }
+
+    if (!this.recvTransportRef) {
       this.createConsumerTransport();
     }
+
 
   };
 
@@ -369,6 +385,8 @@ export class RoomsClient {
       this.localPeer.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     }
 
+    this.localPeer.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+
     //publish local stream
     await this.produceLocalStream();
 
@@ -378,14 +396,10 @@ export class RoomsClient {
     if (msgIn.data && msgIn.data.peers) {
       for (let peer of msgIn.data.peers) {
 
-        let newpeer: Peer = {
-          peerId: peer.peerId,
-          trackingId: peer.trackingId,
-          displayName: "",
-          hasAudio: false,
-          hasVideo: false,
-          stream: null
-        };
+        let newpeer: Peer = new Peer();
+
+        newpeer.peerId = peer.peerId,
+          newpeer.trackingId = peer.trackingId;
 
         this.addPeer(newpeer);
 
@@ -413,16 +427,35 @@ export class RoomsClient {
       roomId: this.localRoomId,
       roomToken: ""
     };
-
-    this.isRoomConnected = false
-    this.localPeer.peerId = "";
-
     this.send(msg);
-
+    this.disposeRoom();
   }
 
   isInRoom = () => {
     return !!this.isRoomConnected;
+  }
+
+  disposeRoom() {
+
+    this.writeLog("disposeRoom()");
+
+    this.isRoomConnected = false
+
+    this.localPeer.consumers.forEach(c => c.close());
+    this.localPeer.producers.forEach(c => c.close());
+    this.recvTransportRef?.close();
+    this.sendTransportRef?.close();
+
+    this.recvTransportRef = null;
+    this.sendTransportRef = null;
+    this.peers = [];
+    this.localRoomId = "";
+    this.localPeer = new Peer();    
+    this.isConnected = false;
+    this.isRoomConnected = false;
+    this.ws.disconnect();
+    this.writeLog("disposeRoom() - complete");
+
   }
 
   onConsumerTransportCreated = async (msgIn: ConsumerTransportCreatedMsg) => {
@@ -505,14 +538,9 @@ export class RoomsClient {
     this.writeLog("onRoomNewPeer " + msgIn.data?.peerId + " producers: " + msgIn.data?.producers?.length);
     this.writeLog(`new PeeerJoined ${msgIn.data?.peerId} ${msgIn.data.trackingId} `);
 
-    let newPeer: Peer = {
-      peerId: msgIn.data.peerId,
-      trackingId: msgIn.data.trackingId,
-      displayName: "",
-      hasAudio: false,
-      hasVideo: false,
-      stream: null
-    };
+    let newPeer = new Peer();
+    newPeer.peerId = msgIn.data.peerId;
+    newPeer.trackingId = msgIn.data.trackingId;
 
     this.addPeer(newPeer);
     if (msgIn.data?.producers) {
@@ -528,6 +556,11 @@ export class RoomsClient {
     this.removePeer(msgIn.data.peerId);
     this.removeRemoteStream(msgIn.data.peerId);
 
+  }
+
+  onRoomTerminate = async (msgIn: RoomPeerLeftMsg) => {
+    this.writeLog("onRoomTerminate:" + msgIn.data.roomId);
+    this.disposeRoom();
   }
 
   onRoomNewProducer = async (msgIn: RoomNewProducerMsg) => {

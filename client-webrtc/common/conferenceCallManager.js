@@ -233,7 +233,7 @@ class ConferenceCallManager {
                     return;
                 }
                 else {
-                    this.roomsClient.setLocalstream(this.localStream);
+                    //this.roomsClient.setLocalstream(this.localStream);
                     this.roomsClient.roomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
                 }
                 //the roomsClient will produce the local stream when roomJoin is successful
@@ -324,7 +324,9 @@ class ConferenceCallManager {
             leaveMsg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
             leaveMsg.data.participantId = this.participantId;
             this.sendToServer(leaveMsg);
-            this.conferenceRoom.conferenceRoomId = "";
+            if (this.conferenceRoom.config.type == conferenceSharedModels_1.ConferenceType.rooms) {
+                this.roomsClient.roomLeave();
+            }
         }
         else {
             this.writeLog("not in conerence");
@@ -513,6 +515,7 @@ class ConferenceCallManager {
     }
     roomsCreateTransports() {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
             this.writeLog("roomsCreateTransports");
             this.roomsClient.onRoomNewPeerEvent = (peer) => {
                 //map the participantid to the peerid
@@ -527,28 +530,39 @@ class ConferenceCallManager {
             yield this.roomsClient.connectAsync(this.config.room_wsURI);
             //wait for transport to be created, and connected        
             let isTransportsConnected = { recv: false, send: false };
-            let transportConnectedResolve;
-            let transportConnectedReject;
-            let transportsConnected = () => {
-                this.writeLog("await transportsConnected created");
-                return new Promise((resolve, reject) => {
-                    transportConnectedResolve = resolve;
-                    transportConnectedReject = reject;
-                    setTimeout(() => {
-                        transportConnectedReject("transports timedOut");
-                    }, 5000);
+            isTransportsConnected.recv = this.roomsClient.recvTransportRef && this.roomsClient.recvTransportRef.connectionState == "connected";
+            isTransportsConnected.send = this.roomsClient.sendTransportRef && this.roomsClient.sendTransportRef.connectionState == "connected";
+            this.writeLog(`recvTransportRef.connectionState=${(_a = this.roomsClient.recvTransportRef) === null || _a === void 0 ? void 0 : _a.connectionState}`);
+            this.writeLog(`sendTransportRef.connectionState=${(_b = this.roomsClient.sendTransportRef) === null || _b === void 0 ? void 0 : _b.connectionState}`);
+            if (isTransportsConnected.recv && isTransportsConnected.send) {
+                this.writeLog(`isTransportsConnected`);
+                this.roomsClient.register(this.participantId, "");
+            }
+            else {
+                this.writeLog(`register and create transports`);
+                let transportConnectedResolve;
+                let transportConnectedReject;
+                let transportsConnected = () => {
+                    this.writeLog("await transportsConnected created");
+                    return new Promise((resolve, reject) => {
+                        transportConnectedResolve = resolve;
+                        transportConnectedReject = reject;
+                        setTimeout(() => {
+                            transportConnectedReject("transports timedOut");
+                        }, 5000);
+                    });
+                };
+                this.roomsClient.onTransportsReady = (transport) => __awaiter(this, void 0, void 0, function* () {
+                    this.writeLog("onTransportsReady direction:" + transport.direction);
+                    if (transport.direction == "send") {
+                        isTransportsConnected.send = true;
+                        transportConnectedResolve();
+                    }
                 });
-            };
-            this.roomsClient.onTransportsReady = (transport) => __awaiter(this, void 0, void 0, function* () {
-                this.writeLog("onTransportsReady direction:" + transport.direction);
-                if (transport.direction == "send") {
-                    isTransportsConnected.send = true;
-                    transportConnectedResolve();
-                }
-            });
-            //register will create the transports, after a successful registration
-            this.roomsClient.register(this.participantId, "");
-            yield transportsConnected();
+                //register will create the transports, after a successful registration
+                this.roomsClient.register(this.participantId, "");
+                yield transportsConnected();
+            }
             this.writeLog("transported created received.");
         });
     }

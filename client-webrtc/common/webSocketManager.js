@@ -18,7 +18,7 @@ class WebSocketManager {
         this.autoReconnect = false;
         // Initialize WebSocket connection
         this.connect = (uri_1, ...args_1) => __awaiter(this, [uri_1, ...args_1], void 0, function* (uri, autoReconnect = false) {
-            this.writeLog(`initialize ${uri} `);
+            this.writeLog(`connect ${uri} `);
             this.autoReconnect = autoReconnect;
             this.socket = new WebSocket(`${uri}`);
             this.state = "connecting";
@@ -33,11 +33,13 @@ class WebSocketManager {
                 this.fireEvent("onerror");
             };
             this.socket.onclose = () => {
-                if (autoReconnect) {
+                this.writeLog("onclose");
+                if (this.autoReconnect) {
+                    this.writeLog("reconnecautoReconnectting");
                     this.state = "reconnecting";
                     this.fireEvent("onclose");
                     setTimeout(() => {
-                        this.connect(uri, autoReconnect);
+                        this.connect(uri, this.autoReconnect);
                     }, 1000);
                 }
                 else {
@@ -94,12 +96,14 @@ class WebSocketManager {
     }
     // Close the connection
     disconnect() {
+        this.writeLog("disconnect");
         this.autoReconnect = false;
         this.callbacks.clear();
         this.state = "";
         if (this.socket) {
             this.socket.close();
             this.socket = null;
+            this.writeLog("socketed closed.");
         }
     }
 }

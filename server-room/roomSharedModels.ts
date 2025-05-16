@@ -39,6 +39,7 @@ export enum payloadTypeServer {
     roomNewPeer = "roomNewPeer",
     roomNewProducer = "roomNewProducer",
     roomPeerLeft = "roomPeerLeft",
+    roomTerminate = "roomTerminate",
 
 }
 

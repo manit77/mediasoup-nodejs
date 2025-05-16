@@ -39,6 +39,7 @@ export enum payloadTypeServer {
     roomNewPeer = "roomNewPeer",
     roomNewProducer = "roomNewProducer",
     roomPeerLeft = "roomPeerLeft",
+    roomTerminate = "roomTerminate",
 
 }
 
@@ -122,6 +123,7 @@ export class RoomNewMsg {
     private type = payloadTypeClient.roomNew;
     data?: {
         peerId?: string,
+        roomId? : string,
         roomToken? : string,
         maxPeers? : number
     } = {}

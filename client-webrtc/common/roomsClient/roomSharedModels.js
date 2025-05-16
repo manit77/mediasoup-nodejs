@@ -36,6 +36,7 @@ var payloadTypeServer;
     payloadTypeServer["roomNewPeer"] = "roomNewPeer";
     payloadTypeServer["roomNewProducer"] = "roomNewProducer";
     payloadTypeServer["roomPeerLeft"] = "roomPeerLeft";
+    payloadTypeServer["roomTerminate"] = "roomTerminate";
 })(payloadTypeServer || (exports.payloadTypeServer = payloadTypeServer = {}));
 class RegisterMsg {
     constructor() {

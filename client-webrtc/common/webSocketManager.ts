@@ -14,7 +14,7 @@ export class WebSocketManager {
 
     // Initialize WebSocket connection
     connect = async (uri: string, autoReconnect = false) => {
-        this.writeLog(`initialize ${uri} `);
+        this.writeLog(`connect ${uri} `);
 
         this.autoReconnect = autoReconnect;
 
@@ -34,12 +34,15 @@ export class WebSocketManager {
         };
 
         this.socket.onclose = () => {
+            this.writeLog("onclose");
 
-            if (autoReconnect) {
+            if (this.autoReconnect) {
+                this.writeLog("reconnecautoReconnectting");
+
                 this.state = "reconnecting";
                 this.fireEvent("onclose");
                 setTimeout(() => {
-                    this.connect(uri, autoReconnect);
+                    this.connect(uri, this.autoReconnect);
                 }, 1000);
             } else {
                 this.state = "disconnected";
@@ -98,12 +101,14 @@ export class WebSocketManager {
 
     // Close the connection
     disconnect() {
+        this.writeLog("disconnect");
         this.autoReconnect = false;
         this.callbacks.clear();
-        this.state = "";
-        if (this.socket) {
+        this.state = "";        
+        if (this.socket) {            
             this.socket.close();
             this.socket = null;
+            this.writeLog("socketed closed.");
         }
     }
 

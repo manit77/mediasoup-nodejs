@@ -143,7 +143,7 @@
           this.autoReconnect = false;
           // Initialize WebSocket connection
           this.connect = async (uri, autoReconnect = false) => {
-            this.writeLog(`initialize ${uri} `);
+            this.writeLog(`connect ${uri} `);
             this.autoReconnect = autoReconnect;
             this.socket = new WebSocket(`${uri}`);
             this.state = "connecting";
@@ -158,11 +158,13 @@
               this.fireEvent("onerror");
             };
             this.socket.onclose = () => {
-              if (autoReconnect) {
+              this.writeLog("onclose");
+              if (this.autoReconnect) {
+                this.writeLog("reconnecautoReconnectting");
                 this.state = "reconnecting";
                 this.fireEvent("onclose");
                 setTimeout(() => {
-                  this.connect(uri, autoReconnect);
+                  this.connect(uri, this.autoReconnect);
                 }, 1e3);
               } else {
                 this.state = "disconnected";
@@ -214,12 +216,14 @@
         }
         // Close the connection
         disconnect() {
+          this.writeLog("disconnect");
           this.autoReconnect = false;
           this.callbacks.clear();
           this.state = "";
           if (this.socket) {
             this.socket.close();
             this.socket = null;
+            this.writeLog("socketed closed.");
           }
         }
       };
@@ -17863,6 +17867,25 @@
     }
   });
 
+  // common/roomsClient/peer.ts
+  var Peer;
+  var init_peer = __esm({
+    "common/roomsClient/peer.ts"() {
+      Peer = class {
+        constructor() {
+          this.peerId = "";
+          this.trackingId = "";
+          this.displayName = "";
+          this.hasVideo = true;
+          this.hasAudio = true;
+          this.stream = null;
+          this.consumers = [];
+          this.producers = [];
+        }
+      };
+    }
+  });
+
   // common/roomsClient/roomsClient.ts
   var mediasoupClient, RoomsClient;
   var init_roomsClient = __esm({
@@ -17870,11 +17893,11 @@
       init_webSocketManager();
       mediasoupClient = __toESM(require_lib5());
       init_roomSharedModels();
+      init_peer();
       RoomsClient = class {
         constructor() {
           this.localRoomId = "";
-          this.localPeer = { peerId: "", trackingId: "", displayName: "", hasAudio: false, hasVideo: false, stream: null };
-          this.trackingId = "";
+          this.localPeer = new Peer();
           this.isConnected = false;
           this.isRoomConnected = false;
           this.peers = [];
@@ -17931,6 +17954,9 @@
                 case "consumed" /* consumed */:
                   this.onConsumed(msgIn);
                   break;
+                case "roomTerminate" /* roomTerminate */:
+                  this.onRoomTerminate(msgIn);
+                  break;
               }
             } catch (err) {
               console.error(err);
@@ -17965,7 +17991,7 @@
             this.ws.disconnect();
           };
           this.send = async (msg) => {
-            this.writeLog("send", msg.type);
+            this.writeLog("send", msg.type, msg);
             this.ws.send(JSON.stringify(msg));
           };
           this.toggleAudio = () => {
@@ -17982,7 +18008,7 @@
               this.writeLog("peer already exists");
               return;
             }
-            if (peer.peerId == this.localPeer.peerId) {
+            if (peer.peerId === this.localPeer.peerId) {
               this.writeLog(`cannot add yourself as a peerid: ${this.localPeer.peerId}`);
               return;
             }
@@ -18024,15 +18050,19 @@
             }
           };
           this.register = (trackingId, displayName) => {
-            this.writeLog("-- register");
-            this.trackingId = trackingId;
+            this.writeLog(`-- register `);
+            if (this.localPeer.peerId) {
+              this.writeLog(`-- register, already registered. ${this.localPeer.peerId}`);
+              return;
+            }
+            this.localPeer.trackingId = trackingId;
             this.localPeer.displayName = displayName;
             let msg = new RegisterMsg2();
             msg.data = {
               authToken: "",
               //need authtoken from server
               displayName: this.localPeer.displayName,
-              trackingId: this.trackingId
+              trackingId: this.localPeer.trackingId
             };
             this.send(msg);
           };
@@ -18042,7 +18072,11 @@
             if (!this.device.loaded) {
               this.writeLog("loading device with rtpCapabilities");
               await this.device.load({ routerRtpCapabilities: msgIn.data.rtpCapabilities });
+            }
+            if (!this.sendTransportRef) {
               this.createProducerTransport();
+            }
+            if (!this.recvTransportRef) {
               this.createConsumerTransport();
             }
           };
@@ -18084,18 +18118,13 @@
               this.writeLog("-- get user media, one does not exist");
               this.localPeer.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             }
+            this.localPeer.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             await this.produceLocalStream();
             this.writeLog(`-- onRoomJoinResult() peers : ${msgIn.data?.peers.length}`);
             if (msgIn.data && msgIn.data.peers) {
               for (let peer of msgIn.data.peers) {
-                let newpeer = {
-                  peerId: peer.peerId,
-                  trackingId: peer.trackingId,
-                  displayName: "",
-                  hasAudio: false,
-                  hasVideo: false,
-                  stream: null
-                };
+                let newpeer = new Peer();
+                newpeer.peerId = peer.peerId, newpeer.trackingId = peer.trackingId;
                 this.addPeer(newpeer);
                 this.writeLog(peer.peerId);
                 this.writeLog("-- onRoomJoinResult producers :" + peer.producers?.length);
@@ -18117,9 +18146,8 @@
               roomId: this.localRoomId,
               roomToken: ""
             };
-            this.isRoomConnected = false;
-            this.localPeer.peerId = "";
             this.send(msg);
+            this.disposeRoom();
           };
           this.isInRoom = () => {
             return !!this.isRoomConnected;
@@ -18182,14 +18210,9 @@
           this.onRoomNewPeer = (msgIn) => {
             this.writeLog("onRoomNewPeer " + msgIn.data?.peerId + " producers: " + msgIn.data?.producers?.length);
             this.writeLog(`new PeeerJoined ${msgIn.data?.peerId} ${msgIn.data.trackingId} `);
-            let newPeer = {
-              peerId: msgIn.data.peerId,
-              trackingId: msgIn.data.trackingId,
-              displayName: "",
-              hasAudio: false,
-              hasVideo: false,
-              stream: null
-            };
+            let newPeer = new Peer();
+            newPeer.peerId = msgIn.data.peerId;
+            newPeer.trackingId = msgIn.data.trackingId;
             this.addPeer(newPeer);
             if (msgIn.data?.producers) {
               for (let producer of msgIn.data.producers) {
@@ -18201,6 +18224,10 @@
             this.writeLog("peer left the room, peerid:" + msgIn.data?.peerId);
             this.removePeer(msgIn.data.peerId);
             this.removeRemoteStream(msgIn.data.peerId);
+          };
+          this.onRoomTerminate = async (msgIn) => {
+            this.writeLog("onRoomTerminate:" + msgIn.data.roomId);
+            this.disposeRoom();
           };
           this.onRoomNewProducer = async (msgIn) => {
             this.writeLog("onRoomNewProducer: " + msgIn.data?.kind);
@@ -18307,6 +18334,23 @@
             };
             transport.on("connectionstatechange", onStateChange);
           });
+        }
+        disposeRoom() {
+          this.writeLog("disposeRoom()");
+          this.isRoomConnected = false;
+          this.localPeer.consumers.forEach((c) => c.close());
+          this.localPeer.producers.forEach((c) => c.close());
+          this.recvTransportRef?.close();
+          this.sendTransportRef?.close();
+          this.recvTransportRef = null;
+          this.sendTransportRef = null;
+          this.peers = [];
+          this.localRoomId = "";
+          this.localPeer = new Peer();
+          this.isConnected = false;
+          this.isRoomConnected = false;
+          this.ws.disconnect();
+          this.writeLog("disposeRoom() - complete");
         }
       };
     }
@@ -18523,7 +18567,6 @@
               this.writeLog("localStream is required.");
               return;
             } else {
-              this.roomsClient.setLocalstream(this.localStream);
               this.roomsClient.roomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
             }
           } else {
@@ -18606,7 +18649,9 @@
             leaveMsg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
             leaveMsg.data.participantId = this.participantId;
             this.sendToServer(leaveMsg);
-            this.conferenceRoom.conferenceRoomId = "";
+            if (this.conferenceRoom.config.type == "rooms" /* rooms */) {
+              this.roomsClient.roomLeave();
+            }
           } else {
             this.writeLog("not in conerence");
           }
@@ -18778,27 +18823,37 @@
           this.roomsClient.initMediaSoupDevice();
           await this.roomsClient.connectAsync(this.config.room_wsURI);
           let isTransportsConnected = { recv: false, send: false };
-          let transportConnectedResolve;
-          let transportConnectedReject;
-          let transportsConnected = () => {
-            this.writeLog("await transportsConnected created");
-            return new Promise((resolve, reject) => {
-              transportConnectedResolve = resolve;
-              transportConnectedReject = reject;
-              setTimeout(() => {
-                transportConnectedReject("transports timedOut");
-              }, 5e3);
-            });
-          };
-          this.roomsClient.onTransportsReady = async (transport) => {
-            this.writeLog("onTransportsReady direction:" + transport.direction);
-            if (transport.direction == "send") {
-              isTransportsConnected.send = true;
-              transportConnectedResolve();
-            }
-          };
-          this.roomsClient.register(this.participantId, "");
-          await transportsConnected();
+          isTransportsConnected.recv = this.roomsClient.recvTransportRef && this.roomsClient.recvTransportRef.connectionState == "connected";
+          isTransportsConnected.send = this.roomsClient.sendTransportRef && this.roomsClient.sendTransportRef.connectionState == "connected";
+          this.writeLog(`recvTransportRef.connectionState=${this.roomsClient.recvTransportRef?.connectionState}`);
+          this.writeLog(`sendTransportRef.connectionState=${this.roomsClient.sendTransportRef?.connectionState}`);
+          if (isTransportsConnected.recv && isTransportsConnected.send) {
+            this.writeLog(`isTransportsConnected`);
+            this.roomsClient.register(this.participantId, "");
+          } else {
+            this.writeLog(`register and create transports`);
+            let transportConnectedResolve;
+            let transportConnectedReject;
+            let transportsConnected = () => {
+              this.writeLog("await transportsConnected created");
+              return new Promise((resolve, reject) => {
+                transportConnectedResolve = resolve;
+                transportConnectedReject = reject;
+                setTimeout(() => {
+                  transportConnectedReject("transports timedOut");
+                }, 5e3);
+              });
+            };
+            this.roomsClient.onTransportsReady = async (transport) => {
+              this.writeLog("onTransportsReady direction:" + transport.direction);
+              if (transport.direction == "send") {
+                isTransportsConnected.send = true;
+                transportConnectedResolve();
+              }
+            };
+            this.roomsClient.register(this.participantId, "");
+            await transportsConnected();
+          }
           this.writeLog("transported created received.");
         }
       };

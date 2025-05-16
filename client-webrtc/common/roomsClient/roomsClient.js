@@ -46,11 +46,11 @@ exports.RoomsClient = void 0;
 const webSocketManager_1 = require("../webSocketManager");
 const mediasoupClient = __importStar(require("mediasoup-client"));
 const roomSharedModels_1 = require("./roomSharedModels");
+const peer_1 = require("./peer");
 class RoomsClient {
     constructor() {
         this.localRoomId = "";
-        this.localPeer = { peerId: "", trackingId: "", displayName: "", hasAudio: false, hasVideo: false, stream: null };
-        this.trackingId = "";
+        this.localPeer = new peer_1.Peer();
         this.isConnected = false;
         this.isRoomConnected = false;
         this.peers = [];
@@ -109,6 +109,9 @@ class RoomsClient {
                     case roomSharedModels_1.payloadTypeServer.consumed:
                         this.onConsumed(msgIn);
                         break;
+                    case roomSharedModels_1.payloadTypeServer.roomTerminate:
+                        this.onRoomTerminate(msgIn);
+                        break;
                 }
             }
             catch (err) {
@@ -144,7 +147,7 @@ class RoomsClient {
             this.ws.disconnect();
         };
         this.send = (msg) => __awaiter(this, void 0, void 0, function* () {
-            this.writeLog("send", msg.type);
+            this.writeLog("send", msg.type, msg);
             this.ws.send(JSON.stringify(msg));
         });
         this.toggleAudio = () => {
@@ -161,7 +164,7 @@ class RoomsClient {
                 this.writeLog("peer already exists");
                 return;
             }
-            if (peer.peerId == this.localPeer.peerId) {
+            if (peer.peerId === this.localPeer.peerId) {
                 this.writeLog(`cannot add yourself as a peerid: ${this.localPeer.peerId}`);
                 return;
             }
@@ -204,14 +207,18 @@ class RoomsClient {
             }
         };
         this.register = (trackingId, displayName) => {
-            this.writeLog("-- register");
-            this.trackingId = trackingId;
+            this.writeLog(`-- register `);
+            if (this.localPeer.peerId) {
+                this.writeLog(`-- register, already registered. ${this.localPeer.peerId}`);
+                return;
+            }
+            this.localPeer.trackingId = trackingId;
             this.localPeer.displayName = displayName;
             let msg = new roomSharedModels_1.RegisterMsg();
             msg.data = {
                 authToken: "", //need authtoken from server
                 displayName: this.localPeer.displayName,
-                trackingId: this.trackingId
+                trackingId: this.localPeer.trackingId
             };
             this.send(msg);
         };
@@ -222,7 +229,11 @@ class RoomsClient {
             if (!this.device.loaded) {
                 this.writeLog("loading device with rtpCapabilities");
                 yield this.device.load({ routerRtpCapabilities: msgIn.data.rtpCapabilities });
+            }
+            if (!this.sendTransportRef) {
                 this.createProducerTransport();
+            }
+            if (!this.recvTransportRef) {
                 this.createConsumerTransport();
             }
         });
@@ -266,20 +277,16 @@ class RoomsClient {
                 this.writeLog("-- get user media, one does not exist");
                 this.localPeer.stream = yield navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             }
+            this.localPeer.stream = yield navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             //publish local stream
             yield this.produceLocalStream();
             this.writeLog(`-- onRoomJoinResult() peers : ${(_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.peers.length}`);
             //connect to existing peers  
             if (msgIn.data && msgIn.data.peers) {
                 for (let peer of msgIn.data.peers) {
-                    let newpeer = {
-                        peerId: peer.peerId,
-                        trackingId: peer.trackingId,
-                        displayName: "",
-                        hasAudio: false,
-                        hasVideo: false,
-                        stream: null
-                    };
+                    let newpeer = new peer_1.Peer();
+                    newpeer.peerId = peer.peerId,
+                        newpeer.trackingId = peer.trackingId;
                     this.addPeer(newpeer);
                     this.writeLog(peer.peerId);
                     this.writeLog("-- onRoomJoinResult producers :" + ((_b = peer.producers) === null || _b === void 0 ? void 0 : _b.length));
@@ -301,9 +308,8 @@ class RoomsClient {
                 roomId: this.localRoomId,
                 roomToken: ""
             };
-            this.isRoomConnected = false;
-            this.localPeer.peerId = "";
             this.send(msg);
+            this.disposeRoom();
         });
         this.isInRoom = () => {
             return !!this.isRoomConnected;
@@ -372,14 +378,9 @@ class RoomsClient {
             var _a, _b, _c, _d, _e;
             this.writeLog("onRoomNewPeer " + ((_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.peerId) + " producers: " + ((_c = (_b = msgIn.data) === null || _b === void 0 ? void 0 : _b.producers) === null || _c === void 0 ? void 0 : _c.length));
             this.writeLog(`new PeeerJoined ${(_d = msgIn.data) === null || _d === void 0 ? void 0 : _d.peerId} ${msgIn.data.trackingId} `);
-            let newPeer = {
-                peerId: msgIn.data.peerId,
-                trackingId: msgIn.data.trackingId,
-                displayName: "",
-                hasAudio: false,
-                hasVideo: false,
-                stream: null
-            };
+            let newPeer = new peer_1.Peer();
+            newPeer.peerId = msgIn.data.peerId;
+            newPeer.trackingId = msgIn.data.trackingId;
             this.addPeer(newPeer);
             if ((_e = msgIn.data) === null || _e === void 0 ? void 0 : _e.producers) {
                 for (let producer of msgIn.data.producers) {
@@ -392,6 +393,10 @@ class RoomsClient {
             this.writeLog("peer left the room, peerid:" + ((_a = msgIn.data) === null || _a === void 0 ? void 0 : _a.peerId));
             this.removePeer(msgIn.data.peerId);
             this.removeRemoteStream(msgIn.data.peerId);
+        });
+        this.onRoomTerminate = (msgIn) => __awaiter(this, void 0, void 0, function* () {
+            this.writeLog("onRoomTerminate:" + msgIn.data.roomId);
+            this.disposeRoom();
         });
         this.onRoomNewProducer = (msgIn) => __awaiter(this, void 0, void 0, function* () {
             var _a, _b, _c;
@@ -505,6 +510,24 @@ class RoomsClient {
             };
             transport.on('connectionstatechange', onStateChange);
         });
+    }
+    disposeRoom() {
+        var _a, _b;
+        this.writeLog("disposeRoom()");
+        this.isRoomConnected = false;
+        this.localPeer.consumers.forEach(c => c.close());
+        this.localPeer.producers.forEach(c => c.close());
+        (_a = this.recvTransportRef) === null || _a === void 0 ? void 0 : _a.close();
+        (_b = this.sendTransportRef) === null || _b === void 0 ? void 0 : _b.close();
+        this.recvTransportRef = null;
+        this.sendTransportRef = null;
+        this.peers = [];
+        this.localRoomId = "";
+        this.localPeer = new peer_1.Peer();
+        this.isConnected = false;
+        this.isRoomConnected = false;
+        this.ws.disconnect();
+        this.writeLog("disposeRoom() - complete");
     }
 }
 exports.RoomsClient = RoomsClient;

@@ -157,6 +157,7 @@ export class RoomServer {
     }
 
     onTerminatePeer(msg: TerminatePeerMsg) {
+        console.log(`onTerminatePeer() ${msg.data.peerId}`);
         const peer = this.peers.get(msg.data.peerId);
         if (peer) {
 
@@ -177,7 +178,9 @@ export class RoomServer {
             //delete from peers
             this.peers.delete(peer.id);
 
-            console.log(`Peer ${peer.id} disconnected and resources cleaned up. peers: ` + this.peers.size + " rooms:" + this.rooms.size);
+            console.log(`Peer ${peer.id} disconnected and resources cleaned up. peers: `);
+            this.printStats();
+
             return true;
         }
         return false;
@@ -484,9 +487,10 @@ export class RoomServer {
     onRoomTerminate(msg: RoomTerminateMsg) {
         const room = this.rooms.get(msg.data.roomId);
         if (room) {
-
+                        
             let msg = new RoomTerminateMsg();
             msg.data.roomId = room.id;
+            this.broadCastAll(room, msg);
 
             for (let [id, peer] of room.peers) {
                 //close producers, consumers
@@ -497,18 +501,21 @@ export class RoomServer {
                 peer.producerTransport?.close();
                 peer.consumerTransport?.close();
 
-                peer.room = null;
+                peer.producerTransport = null;
+                peer.consumerTransport = null;
 
-                this.peers.delete(peer.id);
+                peer.room = null;
                 this.rooms.delete(room.id);
 
                 //alert all peers the room is terminated                
                 this.send(peer.id, msg);
-
-                console.log(`Peer ${peer.id} disconnected and resources cleaned up. peers: ` + this.peers.size + " rooms:" + this.rooms.size);
             }
 
+            this.printStats();
+
             return true;
+        } else {
+            console.log("room not found: " + msg.data.roomId)
         }
         return false;
     }
@@ -787,6 +794,12 @@ export class RoomServer {
 
     printStats() {
         console.log(`### rooms: ${this.rooms.size}, peers: ${this.peers.size} ###`);
+        for (let [roomid, room] of this.rooms) {
+            console.log(`##### roomid: ${roomid}, peers: ${room.peers.size}`);
+            room.peers.forEach(p => {
+                console.log(`##### roomid: ${roomid}, peerid: ${p.id}}`);
+            });
+        }
     }
 
 }
