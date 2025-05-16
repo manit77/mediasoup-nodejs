@@ -145,7 +145,7 @@ export class RoomsClient {
  * @param wsURI 
  * @returns 
  */
-  connectAsync(wsURI: string): Promise<void> {
+  waitForConnect(wsURI: string): Promise<void> {
     this.writeLog(`connectAsync ${wsURI}`);
 
     return new Promise<void>((resolve, reject) => {
@@ -184,6 +184,80 @@ export class RoomsClient {
       this.ws.connect(this.config.wsURI, true);
 
     })
+  }
+
+  waitForRegister(trackingId: string, displayName: string): Promise<void> {
+
+    return new Promise<void>((resolve, reject) => {
+
+      this.register(trackingId, displayName);
+
+      let timerid = setTimeout(() => reject("failed to register"), 5000);
+
+      const onmessage = (event: any) => {
+        let msgIn = JSON.parse(event.data);
+        this.writeLog("-- onmessage", msgIn);
+        if (msgIn.type == payloadTypeServer.registerResult) {        
+          clearTimeout(timerid);
+          this.ws.removeEventHandler("onmessage", onmessage);
+          resolve();
+        }
+      }
+
+      this.ws.addEventHandler("onmessage", onmessage);
+
+      this.ws.connect(this.config.wsURI, true);
+
+    });
+  }
+
+  waitForRoomJoin(roomid: string, roomToken: string): Promise<void> {
+   
+    return new Promise<void>((resolve, reject) => {
+
+       this.roomJoin(roomid, roomToken);
+       
+      let timerid = setTimeout(() => reject("failed to join room"), 5000);
+
+      const onmessage = (event: any) => {
+        let msgIn = JSON.parse(event.data);
+        this.writeLog("-- onmessage", msgIn);
+        if (msgIn.type == payloadTypeServer.roomJoinResult) {         
+          clearTimeout(timerid);
+          this.ws.removeEventHandler("onmessage", onmessage);
+          resolve();
+        }
+      }
+
+      this.ws.addEventHandler("onmessage", onmessage);
+
+      this.ws.connect(this.config.wsURI, true);
+
+    });
+  }
+
+  waitForTransportConnected(transport: Transport): Promise<void> {
+    this.writeLog("-- waitForTransportConnected created")
+    return new Promise((resolve, reject) => {
+      if (transport.connectionState === 'connected') {
+        resolve();
+        return;
+      }
+      const onStateChange = (state: string) => {
+
+        this.writeLog("connectionstatechange transport: " + state);
+
+        if (state === 'connected') {
+          resolve();
+          transport.off('connectionstatechange', onStateChange);
+        } else if (state === 'failed' || state === 'closed') {
+          reject(new Error(`Transport failed to connect: ${state}`));
+          transport.off('connectionstatechange', onStateChange);
+        }
+      };
+
+      transport.on('connectionstatechange', onStateChange);
+    });
   }
 
   setLocalstream(stream: MediaStream) {
@@ -298,6 +372,12 @@ export class RoomsClient {
 
     this.writeLog(`-- onRegisterResult() peerId: ${msgIn.data?.peerId} ${msgIn.data.trackingId}`);
 
+    if (msgIn.data.error) {
+      this.writeLog(`register failed ${msgIn.data.error}`);
+      this.localPeer.peerId = "";
+      return;
+    }
+
     this.localPeer.peerId = msgIn.data!.peerId;
 
     if (!this.device.loaded) {
@@ -313,7 +393,6 @@ export class RoomsClient {
       this.createConsumerTransport();
     }
 
-
   };
 
   createProducerTransport = () => {
@@ -328,29 +407,7 @@ export class RoomsClient {
     this.send(msg);
   }
 
-  waitForTransportConnected(transport: Transport): Promise<void> {
-    this.writeLog("-- waitForTransportConnected created")
-    return new Promise((resolve, reject) => {
-      if (transport.connectionState === 'connected') {
-        resolve();
-        return;
-      }
-      const onStateChange = (state: string) => {
 
-        this.writeLog("connectionstatechange transport: " + state);
-
-        if (state === 'connected') {
-          resolve();
-          transport.off('connectionstatechange', onStateChange);
-        } else if (state === 'failed' || state === 'closed') {
-          reject(new Error(`Transport failed to connect: ${state}`));
-          transport.off('connectionstatechange', onStateChange);
-        }
-      };
-
-      transport.on('connectionstatechange', onStateChange);
-    });
-  }
 
   roomJoin = (roomid: string, roomToken: string) => {
     this.writeLog(`roomJoin ${roomid} ${roomToken}`)
@@ -450,7 +507,7 @@ export class RoomsClient {
     this.sendTransportRef = null;
     this.peers = [];
     this.localRoomId = "";
-    this.localPeer = new Peer();    
+    this.localPeer = new Peer();
     this.isConnected = false;
     this.isRoomConnected = false;
     this.ws.disconnect();

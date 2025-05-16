@@ -3,8 +3,8 @@ import { WebSocket, WebSocketServer } from 'ws';
 import {
     payloadTypeClient,
     TerminatePeerMsg
-} from './roomSharedModels';
-import { RoomServer } from './roomServer';
+} from '../models/roomSharedModels';
+import { RoomServer } from '../roomServer/roomServer';
 
 const DSTR = "RoomSocketServer";
 
@@ -41,7 +41,6 @@ export class RoomSocketServer {
                     console.log(DSTR, "msgIn, ", message.toString());
                     const msgIn = JSON.parse(message.toString());
                     
-
                     if (msgIn.type == payloadTypeClient.register) {
                         //we need to tie the peerid to the socket
                         let registerResult = this.roomServer.onRegister("", msgIn);

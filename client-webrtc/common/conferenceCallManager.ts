@@ -250,8 +250,12 @@ export class ConferenceCallManager {
         this.sendToServer(msg);
     }
 
+    /**
+     * send an invite to a contact that is onlin
+     * @param contact 
+     */
     invite(contact: Contact) {
-        this.writeLog("invite");
+        this.writeLog("invite()");
         const callMsg = new InviteMsg();
         callMsg.data.participantId = contact.participantId;
 
@@ -263,10 +267,15 @@ export class ConferenceCallManager {
         this.sendToServer(callMsg);
     }
 
+    /*
+    receive an invite result 
+    */
     private async onInviteResult(message: InviteResultMsg) {
-        this.writeLog("onInviteResult");
+        this.writeLog("onInviteResult()");
         if (message.data.conferenceRoomId) {
-
+            
+            this.writeLog(`onInviteResult() - received a new conferenceRoomId ${message.data.conferenceRoomId}`);
+            
             this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
             this.conferenceRoom.config.type = message.data.conferenceConfig.type;
             this.conferenceRoom.conferenceToken = message.data.conferenceToken;
@@ -281,16 +290,14 @@ export class ConferenceCallManager {
             joinMsg.data.roomToken = this.conferenceRoom.roomToken;
             this.sendToServer(joinMsg);
 
-
         }
         this.onEvent(EventTypes.inviteResult, message);
     }
 
     private async onJoinResult(message: JoinResultMsg) {
         this.writeLog("onJoinResult()");
-
-
         if (message.data.error) {
+            this.onEvent(EventTypes.joinResult, message);
             this.writeLog("onJoinResult error: ", message.data.error);
             return;
         }
@@ -304,16 +311,16 @@ export class ConferenceCallManager {
         if (this.conferenceRoom.config.type == ConferenceType.rooms) {
             this.writeLog("conferenceType: rooms");
 
-            await this.roomsCreateTransports();
+            await this.rooms_waitForConnection();
 
-            if (!this.localStream) {
-                this.writeLog("localStream is required.");
-                return;
+            await this.roomsClient.waitForRoomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
+            if (this.roomsClient.isConnected) {
+                this.writeLog("room connected");
             } else {
-                //this.roomsClient.setLocalstream(this.localStream);
-                this.roomsClient.roomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
+                this.writeLog("onJoinResult error: ", "failed to join room");
+                return;
             }
-            //the roomsClient will produce the local stream when roomJoin is successful
+
         } else {
             this.writeLog("conferenceType: p2p");
         }
@@ -321,6 +328,7 @@ export class ConferenceCallManager {
         this.writeLog('joined conference room:', this.conferenceRoom.conferenceRoomId);
         this.writeLog('participants:', message.data.participants.length);
 
+        //send joinResult before sending participant events
         this.onEvent(EventTypes.joinResult, message);
 
         for (let p of message.data.participants) {
@@ -382,7 +390,7 @@ export class ConferenceCallManager {
         msg.data.toParticipantId = participantId;
         this.sendToServer(msg);
 
-        this.conferenceRoom.conferenceRoomId = "";
+        this.conferenceRoom.conferenceRoomId = "";        
     }
 
     toggleVideo() {
@@ -414,10 +422,10 @@ export class ConferenceCallManager {
             leaveMsg.data.participantId = this.participantId;
             this.sendToServer(leaveMsg);
 
-            if(this.conferenceRoom.config.type == ConferenceType.rooms) {
+            if (this.conferenceRoom.config.type == ConferenceType.rooms) {
                 this.roomsClient.roomLeave();
             }
-            
+
         } else {
             this.writeLog("not in conerence");
         }
@@ -627,7 +635,7 @@ export class ConferenceCallManager {
         }
     }
 
-    private async roomsCreateTransports() {
+    private async rooms_waitForConnection() {
         this.writeLog("roomsCreateTransports");
 
         this.roomsClient.onRoomNewPeerEvent = (peer: Peer) => {
@@ -642,7 +650,7 @@ export class ConferenceCallManager {
         this.roomsClient.initMediaSoupDevice();
 
         //connect and wait for a connection
-        await this.roomsClient.connectAsync(this.config.room_wsURI);
+        await this.roomsClient.waitForConnect(this.config.room_wsURI);
 
         //wait for transport to be created, and connected        
         let isTransportsConnected = { recv: false, send: false };
@@ -654,9 +662,9 @@ export class ConferenceCallManager {
         this.writeLog(`sendTransportRef.connectionState=${this.roomsClient.sendTransportRef?.connectionState}`);
 
         if (isTransportsConnected.recv && isTransportsConnected.send) {
-            
+
             this.writeLog(`isTransportsConnected`);
-            this.roomsClient.register(this.participantId, "");
+            await this.roomsClient.waitForRegister(this.participantId, "");
 
         } else {
 
@@ -688,7 +696,7 @@ export class ConferenceCallManager {
             };
 
             //register will create the transports, after a successful registration
-            this.roomsClient.register(this.participantId, "");
+            await this.roomsClient.waitForRegister(this.participantId, "");
 
             await transportsConnected();
         }

@@ -207,8 +207,8 @@ export class ConferenceServer {
 
         if (confRoom.confType == ConferenceType.rooms) {
             //create a new room token in our Rooms Server, room is not created but a token is
-            let tokenResult = await this.roomsAPI.newRoomToken(this.config.maxPeersRoom);
-            if (tokenResult.data.error || !tokenResult.data.roomToken) {
+            let tokenResult = await this.roomsAPI.newRoomToken();
+            if (!tokenResult || tokenResult?.data?.error) {
                 console.error("failed to create new room token in rooms");
                 return null;
             }

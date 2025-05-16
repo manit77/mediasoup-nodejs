@@ -1,5 +1,5 @@
 import axios from "axios";
-import { RoomNewTokenMsg, RoomNewTokenResultMsg, RoomTerminateMsg } from "../../server-room/roomSharedModels";
+import { RoomNewTokenMsg, RoomNewTokenResultMsg, RoomServerAPIRoutes, RoomTerminateMsg } from "../../server-room/models/roomSharedModels";
 import https from "https"
 import { RoomNewMsg } from "../../client-room/roomSharedModels";
 
@@ -18,25 +18,23 @@ export class RoomsAPI {
         }
     }
 
-    async newRoomToken(maxPeers: number) {
+    async newRoomToken() {
         let msgIn = new RoomNewTokenMsg();
-        msgIn.data.maxPeers = maxPeers;
-        return await this.post("/newRoomToken", msgIn) as RoomNewTokenResultMsg;
+        return await this.post(RoomServerAPIRoutes.newRoomToken, msgIn) as RoomNewTokenResultMsg;
     }
 
     async newRoom(roomId: string, roomToken: string, maxPeers: number) {
         let msgIn = new RoomNewMsg();
         msgIn.data.maxPeers = maxPeers;
         msgIn.data.roomToken = roomToken;
-        msgIn.data.roomId = roomId;
-        
-        return await this.post("/newRoom", msgIn) as RoomNewTokenResultMsg;
+        msgIn.data.roomId = roomId;        
+        return await this.post(RoomServerAPIRoutes.newRoom, msgIn) as RoomNewTokenResultMsg;
     }
 
     async terminateRoom(roomId: string) {
         let msgIn = new RoomTerminateMsg();
         msgIn.data.roomId = roomId;
-        return await this.post("/terminateRoom", msgIn);
+        return await this.post(RoomServerAPIRoutes.terminateRoom, msgIn);
     }
 
     private async post(path: string, dataObj: any): Promise<any> {

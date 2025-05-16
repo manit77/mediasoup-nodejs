@@ -1,9 +1,9 @@
-import { Peer } from "./room";
 import * as mediasoup from 'mediasoup';
 import fs from 'fs';
 import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
-import { getFreeUDPPort } from "./utils";
+import { getFreeUDPPort } from "../utils/utils";
+import { Peer } from '../peer/peer';
 
 ffmpeg.setFfmpegPath('./bin/ffmpeg');
 

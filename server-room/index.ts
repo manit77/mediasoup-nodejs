@@ -1,20 +1,10 @@
 import express from 'express';
 import https from 'https';
-import { WebSocket, WebSocketServer } from 'ws';
-import * as mediasoup from 'mediasoup';
 import fs from 'fs';
 import cors from 'cors';
-import ffmpeg from 'fluent-ffmpeg';
-import path from 'path';
-
-import { Peer, Room } from './room';
-import { ConsumedMsg, ConsumeMsg, ConsumerTransportCreatedMsg, payloadTypeClient, payloadTypeServer, ProducedMsg, ProducerTransportCreatedMsg, RegisterResultMsg, RoomJoinResultMsg, RoomNewPeerMsg, RoomNewProducerMsg } from './roomSharedModels';
-import { randomUUID } from 'crypto';
-import { stopRecording } from './recorder';
-import { RoomServer } from './roomServer';
-import { RoomSocketServer } from './roomSocketServer';
-import { RoomHTTPServer } from './roomHttpServer';
-
+import { RoomServer } from './roomServer/roomServer';
+import { RoomSocketServer } from './servers/roomSocketServer';
+import { RoomHTTPServer } from './servers/roomHttpServer';
 
 let config = {
   serverPort: 3000
@@ -33,8 +23,8 @@ app.use(cors());
 app.use(express.static('client-room'));
 app.use(express.json({ limit: '1mb' }));
 
-
 server.listen(config.serverPort, async () => {
+  
   console.log(`Server running at https://0.0.0.0:${config.serverPort}`);
 
   //manager for media soup room server

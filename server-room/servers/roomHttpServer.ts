@@ -4,11 +4,11 @@ import {
     RegisterMsg,  
     RoomNewMsg,  
     RoomNewTokenMsg,
+    RoomServerAPIRoutes,
     RoomTerminateMsg,
     TerminatePeerMsg
-} from './roomSharedModels';
-import { RoomServer } from './roomServer';
-import { JoinMsg } from '../client-webrtc/common/conferenceSharedModels';
+} from '../models/roomSharedModels';
+import { RoomServer } from '../roomServer/roomServer';
 
 const DSTR = "RoomHTTPServer";
 
@@ -24,8 +24,8 @@ export class RoomHTTPServer {
             res.send("RoomHTTPServer");
         });
         
-        app.post("/newRoomToken", async (req, res) => {
-            console.log("/newRoomToken")
+        app.post(RoomServerAPIRoutes.newRoomToken, async (req, res) => {
+            console.log(RoomServerAPIRoutes.newRoomToken);
             //conferencing server requests an authtoken to be created, doesnt create an actual room
             //returns the auth token
             //returns the signaling info
@@ -33,8 +33,8 @@ export class RoomHTTPServer {
             res.send(this.newRoomToken(msgIn));
         });
 
-        app.post("/newRoom", async (req, res) => {
-            console.log("/newRoom")
+        app.post(RoomServerAPIRoutes.newRoom, async (req, res) => {
+            console.log(RoomServerAPIRoutes.newRoom);
             //conferencing server requests an authtoken to be created, doesnt create an actual room
             //returns the auth token
             //returns the signaling info
@@ -43,8 +43,8 @@ export class RoomHTTPServer {
         });
 
 
-        app.post("/terminateRoom", async (req, res) => {
-            console.log("/terminateRoom")
+        app.post(RoomServerAPIRoutes.terminateRoom, async (req, res) => {
+            console.log(RoomServerAPIRoutes.terminateRoom);
             //conferencing server requests to destroy a room
             let msgIn = req.body as RoomTerminateMsg;
             res.send(this.terminateRoom(msgIn));
@@ -61,7 +61,7 @@ export class RoomHTTPServer {
     }
 
     newRoomToken = (msg: RoomNewTokenMsg) => {
-        return this.roomServer.onRoomNewToken(msg.data.peerId, msg);
+        return this.roomServer.onRoomNewToken("", msg);
     }
 
     newRoom = (msg: RoomNewMsg) => {

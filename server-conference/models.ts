@@ -55,7 +55,7 @@ export class ConferenceRoom {
     timerIdMaxDuration?: NodeJS.Timeout = null;
 
     //executes when room is created and no participants has joined
-    timerIdNoParticipantsSecs?: NodeJS.Timeout = null;
+    timerIdNoParticipants?: NodeJS.Timeout = null;
 
     startTimer(): boolean {
 
@@ -63,14 +63,14 @@ export class ConferenceRoom {
             this.timerIdMaxDuration = setTimeout(async () => {
                 console.log("timeOutMaxDurationSecs timed out");
                 this.close();
-            }, this.config.timeOutMaxDurationSecs);
+            }, this.config.timeOutMaxDurationSecs * 1000);
         }
 
         if (this.config.timeOutNoParticipantsSecs > 0) {
-            this.timerIdNoParticipantsSecs = setTimeout(async () => {
+            this.timerIdNoParticipants = setTimeout(async () => {
                 console.log("timerIdNoParticipantsSecs timed out");
                 this.close();
-            }, this.config.timeOutNoParticipantsSecs);
+            }, this.config.timeOutNoParticipantsSecs * 1000);
         }
 
         return true;
@@ -115,8 +115,8 @@ export class ConferenceRoom {
         console.log("conf participants total: " + this.participants.length);
 
         //if a participants is added clear timerIdNoParticipantsSecs 
-        if (this.timerIdNoParticipantsSecs) {
-            clearTimeout(this.timerIdNoParticipantsSecs);
+        if (this.timerIdNoParticipants) {
+            clearTimeout(this.timerIdNoParticipants);
         }
 
         return true;

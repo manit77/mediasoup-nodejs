@@ -9,17 +9,16 @@ export enum payloadTypeClient {
     createConsumerTransport = "createConsumerTransport",
     connectProducerTransport = "connectProducerTransport",
     connectConsumerTransport = "connectConsumerTransport",
-    
+
     roomNewToken = "roomNewToken",
     roomNewTokenResult = "roomNewTokenResult",
-    roomNew = "roomNew",    
+    roomNew = "roomNew",
     roomJoin = "roomJoin",
     roomLeave = "roomLeave",
     roomTerminate = "roomTerminate",
 
     produce = "produce",
     consume = "consume",
-
 }
 
 /**
@@ -45,7 +44,7 @@ export enum payloadTypeServer {
 
 export class RegisterMsg {
     private type = payloadTypeClient.register;
-    data: {        
+    data: {
         authToken?: string,
         displayName?: string,
         trackingId?: string
@@ -123,17 +122,15 @@ export class RoomNewMsg {
     private type = payloadTypeClient.roomNew;
     data?: {
         peerId?: string,
-        roomId? : string,
-        roomToken? : string,
-        maxPeers? : number
+        roomId?: string,
+        roomToken?: string,
+        maxPeers?: number
     } = {}
 }
 
 export class RoomNewTokenMsg {
     private type = payloadTypeClient.roomNewToken;
     data?: {
-        peerId?: string,    
-        maxPeers? : number    
     } = {}
 }
 
@@ -142,7 +139,7 @@ export class RoomNewTokenResultMsg {
     data?: {
         roomId?: string,
         roomToken?: string,
-        error?: string      
+        error?: string
     } = {}
 }
 
@@ -184,7 +181,7 @@ export class RoomJoinResultMsg {
         error?: string,
         peers?: {
             peerId: string,
-            trackingId: string,            
+            trackingId: string,
             producers?: { producerId: string, kind: "audio" | "video" }[]
         }[]
     } = { peers: [] };
@@ -262,4 +259,11 @@ export class ConsumedMsg {
         kind?: "audio" | "video",
         rtpParameters?: any,
     } = {};
+}
+
+
+export enum RoomServerAPIRoutes {
+    newRoomToken = "/newRoomToken",
+    newRoom = "/newRoom",
+    terminateRoom = "/terminateRoom"
 }
