@@ -77,15 +77,26 @@ export class ConferenceCallManager {
     constructor() {
 
         this.rtcClient = new WebRTCClient(this.rtc_onIceCandidate);
+
         this.roomsClient = new RoomsClient();
         this.roomsClient.initMediaSoupDevice();
-
-
+        this.roomsClient.onPeerNewTrack = this.room_onPeerNewTrack;
     }
 
     writeLog(...params: any) {
         console.log(this.DSTR, ...params);
     }
+
+    room_onPeerNewTrack = (peer: Peer, track: MediaStreamTrack) => {
+        this.writeLog("room_onPeerNewStream");
+        let partcipant = this.getParticipant(peer.trackingId);
+        if (partcipant) {
+            partcipant.mediaStream.addTrack(track);
+        } else {
+            this.writeLog("room_onPeerNewStream -  participant not found.");
+        }
+
+    };
 
     rtc_onIceCandidate = (participantId: string, candidate: RTCIceCandidate) => {
         this.writeLog("rtc_onIceCandidate");
@@ -262,10 +273,6 @@ export class ConferenceCallManager {
             this.conferenceRoom.roomToken = message.data.roomToken;
             this.conferenceRoom.roomId = message.data.roomId;
 
-            if (this.conferenceRoom.config.type == ConferenceType.rooms) {
-                await this.roomsCreateTransports();
-            }
-
             //join the conference room
             const joinMsg = new JoinMsg();
             joinMsg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
@@ -280,9 +287,8 @@ export class ConferenceCallManager {
     }
 
     private async onJoinResult(message: JoinResultMsg) {
-        this.writeLog("onJoinResult");
+        this.writeLog("onJoinResult()");
 
-        this.onEvent(EventTypes.joinResult, message);
 
         if (message.data.error) {
             this.writeLog("onJoinResult error: ", message.data.error);
@@ -293,10 +299,13 @@ export class ConferenceCallManager {
         this.conferenceRoom.conferenceToken = message.data.conferenceToken;
         this.conferenceRoom.roomId = message.data.roomId;
         this.conferenceRoom.roomToken = message.data.roomToken;
+        this.conferenceRoom.config = message.data.conferenceConfig;
 
         if (this.conferenceRoom.config.type == ConferenceType.rooms) {
-            //join the room
-            await this.roomsClient.connectAsync(this.config.room_wsURI);
+            this.writeLog("conferenceType: rooms");
+
+            await this.roomsCreateTransports();
+
             if (!this.localStream) {
                 this.writeLog("localStream is required.");
                 return;
@@ -305,26 +314,35 @@ export class ConferenceCallManager {
                 this.roomsClient.roomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
             }
             //the roomsClient will produce the local stream when roomJoin is successful
+        } else {
+            this.writeLog("conferenceType: p2p");
         }
 
         this.writeLog('joined conference room:', this.conferenceRoom.conferenceRoomId);
         this.writeLog('participants:', message.data.participants.length);
 
+        this.onEvent(EventTypes.joinResult, message);
+
         for (let p of message.data.participants) {
             this.writeLog('createPeerConnection for existing:', p.participantId);
+            let participant: Participant = {
+                participantId: p.participantId,
+                displayName: p.displayName,
+                peerConnection: null,
+                mediaStream: new MediaStream()
+            };
+
             if (this.conferenceRoom.config.type == ConferenceType.rooms) {
-                //the rooms client will create the producer for each client                
+                //the rooms client will create the producer for each client
 
             } else {
                 let connInfo = this.rtcClient.createPeerConnection(p.participantId);
-                //create a new participant
-                this.conferenceRoom.participants.set(p.participantId, {
-                    participantId: p.participantId,
-                    displayName: p.displayName,
-                    peerConnection: connInfo.pc,
-                    mediaStream: connInfo.stream
-                });
+                participant.peerConnection = connInfo.pc;
+                participant.mediaStream = connInfo.stream;
             }
+
+            this.conferenceRoom.participants.set(p.participantId, participant);
+            this.writeLog("participant added " + p.participantId);
 
             //this will create video elements in the UI
             let msg = new NewParticipantMsg();
@@ -338,7 +356,7 @@ export class ConferenceCallManager {
     }
 
     async onInviteReceived(message: InviteMsg) {
-        this.writeLog("onInviteReceived");
+        this.writeLog("onInviteReceived()");
         if (message.data.conferenceConfig.type == ConferenceType.rooms) {
             this.conferenceRoom.roomId = message.data.roomId;
             this.conferenceRoom.roomToken = message.data.roomToken;
@@ -347,7 +365,7 @@ export class ConferenceCallManager {
     }
 
     acceptInvite(message: InviteMsg) {
-        this.writeLog("join");
+        this.writeLog("acceptInvite()");
         const joinMsg = new JoinMsg();
         joinMsg.data.conferenceRoomId = message.data.conferenceRoomId;
         joinMsg.data.conferenceToken = message.data.conferenceToken;
@@ -357,7 +375,7 @@ export class ConferenceCallManager {
     }
 
     reject(participantId: string, conferenceRoomId: string) {
-        this.writeLog("reject");
+        this.writeLog("reject()");
         let msg = new RejectMsg();
         msg.data.conferenceRoomId = conferenceRoomId;
         msg.data.fromParticipantId = this.participantId;
@@ -472,7 +490,7 @@ export class ConferenceCallManager {
             participantId: message.data.participantId,
             displayName: message.data.participantId,
             peerConnection: null,
-            mediaStream: null
+            mediaStream: new MediaStream()
         };
 
         this.conferenceRoom.participants.set(message.data.participantId, partcipant);
@@ -519,10 +537,17 @@ export class ConferenceCallManager {
         this.conferenceRoom.conferenceRoomId = "";
         // Close all peer connections
         this.conferenceRoom.participants.forEach((p) => {
-            p.peerConnection?.close();
-            for (let t of p.mediaStream.getTracks()) {
-                t.stop();
+
+            if (p.peerConnection) {
+                p.peerConnection?.close();
             }
+
+            if (p.mediaStream) {
+                for (let t of p.mediaStream.getTracks()) {
+                    t.stop();
+                }
+            }
+
         });
 
         this.conferenceRoom.participants.clear();

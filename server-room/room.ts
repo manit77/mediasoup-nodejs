@@ -7,12 +7,12 @@ export class Room {
     roomToken: string = "";
     maxPeers = 2;
 
-    constructor() {        
+    constructor() {
     }
 
     addPeer(peer: Peer, roomToken: string): boolean {
-        
-        if(this.roomToken && this.roomToken !== roomToken){
+
+        if (this.roomToken && this.roomToken !== roomToken) {
             console.error("token provided does not match room token");
             console.error(this.roomToken);
             console.error(roomToken);
@@ -32,19 +32,24 @@ export class Room {
     removePeer(peerId: string): void {
         console.log("removePeer ", peerId);
         let peer = this.peers.get(peerId);
-        if(peer) {
-            peer.room = null;            
+        if (peer) {
+            peer.room = null;
             this.peers.delete(peerId);
         }
+    }
+
+    otherPeers(peerId: string) {
+        return [...this.peers].filter(([id,]) => id !== peerId);
     }
 
 }
 
 export class Peer {
-    public id: string;   
-    public trackingid: string; 
+    public id: string;
+    public trackingid: string;
+    public displayName: string;
 
-    constructor() {        
+    constructor() {
     }
 
     producerTransport?: mediasoup.types.WebRtcTransport;

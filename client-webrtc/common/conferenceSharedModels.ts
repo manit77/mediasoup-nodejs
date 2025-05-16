@@ -261,7 +261,8 @@ export class JoinResultMsg {
         conferenceToken?: string;
         roomId?: string;
         roomToken?: string;
-        participants: IParticipant[],
+        participants?: IParticipant[],
+        conferenceConfig?: ConferenceConfig,
         error?: string
     } = {
             participants: []

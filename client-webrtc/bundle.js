@@ -17976,30 +17976,46 @@
             this.videoEnabled = !this.videoEnabled;
             this.writeLog(`Camera ${!this.videoEnabled ? "enabled" : "disabled"}`);
           };
-          this.addPeer = (newPeer) => {
-            this.peers.push(newPeer);
+          this.addPeer = (peer) => {
+            this.writeLog(`addPeer() ${peer.peerId} ${peer.trackingId}`);
+            if (this.peers.find((p) => p.peerId === peer.peerId)) {
+              this.writeLog("peer already exists");
+              return;
+            }
+            if (peer.peerId == this.localPeer.peerId) {
+              this.writeLog(`cannot add yourself as a peerid: ${this.localPeer.peerId}`);
+              return;
+            }
+            this.peers.push(peer);
           };
           this.removePeer = (peerId) => {
+            this.writeLog(`removePeer() ${peerId}`);
             let idx = this.peers.findIndex((p) => p.peerId == peerId);
             if (idx > -1) {
               this.peers.splice(idx, 1);
             }
           };
           this.addRemoteTrack = (peerId, track) => {
+            this.writeLog("addRemoteTrack()");
             let peer = this.peers.find((p) => p.peerId === peerId);
             if (!peer) {
-              this.writeLog("peer not found.");
+              this.writeLog(`addRemoteTrack() - peer not found, peerId: ${peerId}`);
               return;
             }
-            if (!peer.stream) {
-              peer.stream = new MediaStream();
+            if (this.onPeerNewTrack) {
+              this.onPeerNewTrack(peer, track);
+            } else {
+              if (!peer.stream) {
+                peer.stream = new MediaStream();
+              }
+              peer.stream.addTrack(track);
             }
-            peer.stream.addTrack(track);
           };
           this.removeRemoteStream = (peerId) => {
+            this.writeLog("removeRemoteStream()");
             let peer = this.peers.find((p) => p.peerId === peerId);
             if (!peer) {
-              this.writeLog("peer not found.");
+              this.writeLog("removeRemoteStream() - peer not found.");
               return;
             }
             if (peer.stream) {
@@ -18021,11 +18037,14 @@
             this.send(msg);
           };
           this.onRegisterResult = async (msgIn) => {
-            this.writeLog("-- onRegisterResult");
+            this.writeLog(`-- onRegisterResult() peerId: ${msgIn.data?.peerId} ${msgIn.data.trackingId}`);
             this.localPeer.peerId = msgIn.data.peerId;
-            await this.device.load({ routerRtpCapabilities: msgIn.data.rtpCapabilities });
-            this.createProducerTransport();
-            this.createConsumerTransport();
+            if (!this.device.loaded) {
+              this.writeLog("loading device with rtpCapabilities");
+              await this.device.load({ routerRtpCapabilities: msgIn.data.rtpCapabilities });
+              this.createProducerTransport();
+              this.createConsumerTransport();
+            }
           };
           this.createProducerTransport = () => {
             this.writeLog("-- createProducerTransport");
@@ -18047,7 +18066,7 @@
             this.send(msg);
           };
           this.onRoomJoinResult = async (msgIn) => {
-            this.writeLog("-- onRoomJoinResult");
+            this.writeLog("-- onRoomJoinResult()");
             if (msgIn.data.error) {
               this.writeLog(msgIn.data.error);
               return;
@@ -18066,7 +18085,7 @@
               this.localPeer.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             }
             await this.produceLocalStream();
-            this.writeLog("-- onRoomJoinResult peers :" + msgIn.data?.peers.length);
+            this.writeLog(`-- onRoomJoinResult() peers : ${msgIn.data?.peers.length}`);
             if (msgIn.data && msgIn.data.peers) {
               for (let peer of msgIn.data.peers) {
                 let newpeer = {
@@ -18198,9 +18217,9 @@
             }
           };
           this.consumeProducer = async (remotePeerId, producerId) => {
-            this.writeLog("consumeProducer :" + remotePeerId, producerId);
+            this.writeLog("consumeProducer() :" + remotePeerId, producerId);
             if (remotePeerId === this.localPeer.peerId) {
-              console.error("you can't consume yourself.");
+              console.error("consumeProducer() - you can't consume yourself.");
             }
             let msg = new ConsumeMsg();
             msg.data = {
@@ -18211,6 +18230,7 @@
             this.send(msg);
           };
           this.onConsumed = async (msgIn) => {
+            this.writeLog("onConsumed() " + msgIn.data?.kind);
             const consumer = await this.recvTransportRef.consume({
               id: msgIn.data.consumerId,
               producerId: msgIn.data.producerId,
@@ -18320,6 +18340,15 @@
             conf_wsURI: "wss://localhost:3001",
             room_wsURI: "wss://localhost:3000"
           };
+          this.room_onPeerNewTrack = (peer, track) => {
+            this.writeLog("room_onPeerNewStream");
+            let partcipant = this.getParticipant(peer.trackingId);
+            if (partcipant) {
+              partcipant.mediaStream.addTrack(track);
+            } else {
+              this.writeLog("room_onPeerNewStream -  participant not found.");
+            }
+          };
           this.rtc_onIceCandidate = (participantId, candidate) => {
             this.writeLog("rtc_onIceCandidate");
             if (candidate) {
@@ -18337,6 +18366,7 @@
           this.rtcClient = new WebRTCClient(this.rtc_onIceCandidate);
           this.roomsClient = new RoomsClient();
           this.roomsClient.initMediaSoupDevice();
+          this.roomsClient.onPeerNewTrack = this.room_onPeerNewTrack;
         }
         writeLog(...params) {
           console.log(this.DSTR, ...params);
@@ -18466,9 +18496,6 @@
             this.conferenceRoom.conferenceToken = message.data.conferenceToken;
             this.conferenceRoom.roomToken = message.data.roomToken;
             this.conferenceRoom.roomId = message.data.roomId;
-            if (this.conferenceRoom.config.type == "rooms" /* rooms */) {
-              await this.roomsCreateTransports();
-            }
             const joinMsg = new JoinMsg();
             joinMsg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
             joinMsg.data.conferenceToken = this.conferenceRoom.conferenceToken;
@@ -18479,8 +18506,7 @@
           this.onEvent("inviteResult" /* inviteResult */, message);
         }
         async onJoinResult(message) {
-          this.writeLog("onJoinResult");
-          this.onEvent("joinResult" /* joinResult */, message);
+          this.writeLog("onJoinResult()");
           if (message.data.error) {
             this.writeLog("onJoinResult error: ", message.data.error);
             return;
@@ -18489,8 +18515,10 @@
           this.conferenceRoom.conferenceToken = message.data.conferenceToken;
           this.conferenceRoom.roomId = message.data.roomId;
           this.conferenceRoom.roomToken = message.data.roomToken;
+          this.conferenceRoom.config = message.data.conferenceConfig;
           if (this.conferenceRoom.config.type == "rooms" /* rooms */) {
-            await this.roomsClient.connectAsync(this.config.room_wsURI);
+            this.writeLog("conferenceType: rooms");
+            await this.roomsCreateTransports();
             if (!this.localStream) {
               this.writeLog("localStream is required.");
               return;
@@ -18498,21 +18526,28 @@
               this.roomsClient.setLocalstream(this.localStream);
               this.roomsClient.roomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
             }
+          } else {
+            this.writeLog("conferenceType: p2p");
           }
           this.writeLog("joined conference room:", this.conferenceRoom.conferenceRoomId);
           this.writeLog("participants:", message.data.participants.length);
+          this.onEvent("joinResult" /* joinResult */, message);
           for (let p of message.data.participants) {
             this.writeLog("createPeerConnection for existing:", p.participantId);
+            let participant = {
+              participantId: p.participantId,
+              displayName: p.displayName,
+              peerConnection: null,
+              mediaStream: new MediaStream()
+            };
             if (this.conferenceRoom.config.type == "rooms" /* rooms */) {
             } else {
               let connInfo = this.rtcClient.createPeerConnection(p.participantId);
-              this.conferenceRoom.participants.set(p.participantId, {
-                participantId: p.participantId,
-                displayName: p.displayName,
-                peerConnection: connInfo.pc,
-                mediaStream: connInfo.stream
-              });
+              participant.peerConnection = connInfo.pc;
+              participant.mediaStream = connInfo.stream;
             }
+            this.conferenceRoom.participants.set(p.participantId, participant);
+            this.writeLog("participant added " + p.participantId);
             let msg = new NewParticipantMsg();
             msg.data.participantId = p.participantId;
             msg.data.displayName = p.displayName;
@@ -18521,7 +18556,7 @@
           }
         }
         async onInviteReceived(message) {
-          this.writeLog("onInviteReceived");
+          this.writeLog("onInviteReceived()");
           if (message.data.conferenceConfig.type == "rooms" /* rooms */) {
             this.conferenceRoom.roomId = message.data.roomId;
             this.conferenceRoom.roomToken = message.data.roomToken;
@@ -18529,7 +18564,7 @@
           this.onEvent("inviteReceived" /* inviteReceived */, message);
         }
         acceptInvite(message) {
-          this.writeLog("join");
+          this.writeLog("acceptInvite()");
           const joinMsg = new JoinMsg();
           joinMsg.data.conferenceRoomId = message.data.conferenceRoomId;
           joinMsg.data.conferenceToken = message.data.conferenceToken;
@@ -18538,7 +18573,7 @@
           this.sendToServer(joinMsg);
         }
         reject(participantId, conferenceRoomId) {
-          this.writeLog("reject");
+          this.writeLog("reject()");
           let msg = new RejectMsg();
           msg.data.conferenceRoomId = conferenceRoomId;
           msg.data.fromParticipantId = this.participantId;
@@ -18629,7 +18664,7 @@
             participantId: message.data.participantId,
             displayName: message.data.participantId,
             peerConnection: null,
-            mediaStream: null
+            mediaStream: new MediaStream()
           };
           this.conferenceRoom.participants.set(message.data.participantId, partcipant);
           if (this.conferenceRoom.config.type == "rooms" /* rooms */) {
@@ -18664,9 +18699,13 @@
         resetCallState() {
           this.conferenceRoom.conferenceRoomId = "";
           this.conferenceRoom.participants.forEach((p) => {
-            p.peerConnection?.close();
-            for (let t of p.mediaStream.getTracks()) {
-              t.stop();
+            if (p.peerConnection) {
+              p.peerConnection?.close();
+            }
+            if (p.mediaStream) {
+              for (let t of p.mediaStream.getTracks()) {
+                t.stop();
+              }
             }
           });
           this.conferenceRoom.participants.clear();
@@ -19030,13 +19069,13 @@
           this.updateUIForCall();
         }
         async handleJoinResult(msg) {
-          console.log("handleJoinResult");
+          console.log("handleJoinResult()");
           if (msg.data.error) {
             this.showModal("Join Error", `Join error: ${msg.data.error}`);
             return;
           }
           this.confMgr.conferenceRoom.conferenceRoomId = msg.data.conferenceRoomId;
-          console.log("joined conference room:", this.confMgr.conferenceRoom.conferenceRoomId);
+          console.log("handleJoinResult() - joined conference room:", this.confMgr.conferenceRoom.conferenceRoomId);
           this.updateUIForCall();
         }
         async handleNewParticipant(msg) {
@@ -19068,12 +19107,16 @@
           this.hangupBtn.disabled = !this.isInCall;
         }
         createVideoElement(remotePeerId, displayName) {
-          console.log("createVideoElement");
+          console.log("createVideoElement() ", remotePeerId);
           if (!remotePeerId) {
             console.error("remotePeerId is required.");
             return;
           }
           let participant = this.confMgr.getParticipant(remotePeerId);
+          if (!participant) {
+            console.error("participant not found.", remotePeerId);
+            return;
+          }
           const remoteVideoWrapper = document.createElement("div");
           remoteVideoWrapper.className = "video-wrapper remote-video-wrapper";
           const remoteVideo = document.createElement("video");
@@ -19081,7 +19124,9 @@
           remoteVideo.className = "remote-video";
           remoteVideo.autoplay = true;
           remoteVideo.playsInline = true;
-          remoteVideo.srcObject = participant.mediaStream;
+          if (participant.mediaStream) {
+            remoteVideo.srcObject = participant.mediaStream;
+          }
           const participantName = document.createElement("div");
           participantName.className = "participant-name";
           participantName.textContent = `Participant ${displayName}`;

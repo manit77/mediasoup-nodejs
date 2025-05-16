@@ -32,6 +32,7 @@ export class RoomsClient {
 
   onTransportsReady: (transport: mediasoupClient.types.Transport) => void;
   onRoomNewPeerEvent: (peer: Peer) => void;
+  onPeerNewTrack: (peer: Peer, track: MediaStreamTrack) => void;
 
   async init(uri: string) {
 
@@ -207,11 +208,26 @@ export class RoomsClient {
     this.writeLog(`Camera ${!this.videoEnabled ? 'enabled' : 'disabled'}`);
   };
 
-  addPeer = (newPeer: Peer) => {
-    this.peers.push(newPeer);
+  addPeer = (peer: Peer) => {
+    this.writeLog(`addPeer() ${peer.peerId} ${peer.trackingId}`);
+
+    if (this.peers.find(p => p.peerId === peer.peerId)) {
+      this.writeLog("peer already exists");
+      return;
+    }
+
+    if(peer.peerId === this.localPeer.peerId) {
+      this.writeLog(`cannot add yourself as a peerid: ${this.localPeer.peerId}`);
+      return;
+    }
+
+    this.peers.push(peer);
+
   };
 
   removePeer = (peerId: string) => {
+    this.writeLog(`removePeer() ${peerId}`);
+
     let idx = this.peers.findIndex(p => p.peerId == peerId);
     if (idx > -1) {
       this.peers.splice(idx, 1);
@@ -219,23 +235,31 @@ export class RoomsClient {
   };
 
   addRemoteTrack = (peerId: string, track: MediaStreamTrack) => {
+    this.writeLog("addRemoteTrack()");
 
     let peer = this.peers.find(p => p.peerId === peerId);
     if (!peer) {
-      this.writeLog("peer not found.");
+      this.writeLog(`addRemoteTrack() - peer not found, peerId: ${peerId}`);
       return;
     }
-    if (!peer.stream) {
-      peer.stream = new MediaStream();
+
+    if (this.onPeerNewTrack) {
+      this.onPeerNewTrack(peer, track);
+    } else {
+      if (!peer.stream) {
+        peer.stream = new MediaStream();
+      }
+      peer.stream.addTrack(track);
     }
-    peer.stream.addTrack(track);
+
   };
 
   removeRemoteStream = (peerId: string) => {
+    this.writeLog("removeRemoteStream()");
 
     let peer = this.peers.find(p => p.peerId === peerId);
     if (!peer) {
-      this.writeLog("peer not found.");
+      this.writeLog("removeRemoteStream() - peer not found.");
       return;
     }
 
@@ -263,14 +287,16 @@ export class RoomsClient {
 
   onRegisterResult = async (msgIn: RegisterResultMsg) => {
 
-    this.writeLog("-- onRegisterResult");
+    this.writeLog(`-- onRegisterResult() peerId: ${msgIn.data?.peerId} ${msgIn.data.trackingId}`);
 
     this.localPeer.peerId = msgIn.data!.peerId;
 
-    await this.device.load({ routerRtpCapabilities: msgIn.data!.rtpCapabilities });
-
-    this.createProducerTransport();
-    this.createConsumerTransport();
+    if (!this.device.loaded) {
+      this.writeLog("loading device with rtpCapabilities");
+      await this.device.load({ routerRtpCapabilities: msgIn.data!.rtpCapabilities });
+      this.createProducerTransport();
+      this.createConsumerTransport();
+    }
 
   };
 
@@ -322,8 +348,8 @@ export class RoomsClient {
 
   private onRoomJoinResult = async (msgIn: RoomJoinResultMsg) => {
 
-    this.writeLog("-- onRoomJoinResult");
-    if(msgIn.data.error){
+    this.writeLog("-- onRoomJoinResult()");
+    if (msgIn.data.error) {
       this.writeLog(msgIn.data.error);
       return;
     }
@@ -346,7 +372,7 @@ export class RoomsClient {
     //publish local stream
     await this.produceLocalStream();
 
-    this.writeLog("-- onRoomJoinResult peers :" + msgIn.data?.peers.length);
+    this.writeLog(`-- onRoomJoinResult() peers : ${msgIn.data?.peers.length}`);
 
     //connect to existing peers  
     if (msgIn.data && msgIn.data.peers) {
@@ -521,9 +547,9 @@ export class RoomsClient {
   }
 
   consumeProducer = async (remotePeerId: string, producerId: string) => {
-    this.writeLog("consumeProducer :" + remotePeerId, producerId);
+    this.writeLog("consumeProducer() :" + remotePeerId, producerId);
     if (remotePeerId === this.localPeer.peerId) {
-      console.error("you can't consume yourself.");
+      console.error("consumeProducer() - you can't consume yourself.");
     }
 
     let msg = new ConsumeMsg();
@@ -536,7 +562,7 @@ export class RoomsClient {
   }
 
   onConsumed = async (msgIn: ConsumedMsg) => {
-
+    this.writeLog("onConsumed() " + msgIn.data?.kind);
     const consumer = await this.recvTransportRef.consume({
       id: msgIn.data!.consumerId,
       producerId: msgIn.data!.producerId,

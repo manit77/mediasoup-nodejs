@@ -740,6 +740,8 @@ export class ConferenceServer {
 
     async onJoin(ws: WebSocket, msgIn: JoinMsg) {
 
+        console.log("onJoin()");
+
         let participant = this.participants.get(ws);
         let conferenceRoom = this.conferences.get(msgIn.data.conferenceRoomId);
 
@@ -757,6 +759,8 @@ export class ConferenceServer {
         //send back all participants to the user
         if (conferenceRoom.addParticipant(participant)) {
 
+            console.log("addParticipant: " + participant.participantId);
+             
             let newParticipantMsg = new NewParticipantMsg();
             newParticipantMsg.data.conferenceRoomId = conferenceRoom.conferenceRoomId;
             newParticipantMsg.data.participantId = participant.participantId;
@@ -770,6 +774,7 @@ export class ConferenceServer {
             joinResultMsg.data.conferenceToken = conferenceRoom.conferenceToken;
             joinResultMsg.data.roomId = conferenceRoom.roomId;
             joinResultMsg.data.roomToken = conferenceRoom.roomToken;
+            joinResultMsg.data.conferenceConfig = conferenceRoom.config;
 
             for (let p of otherParticipants) {
                 joinResultMsg.data.participants.push({

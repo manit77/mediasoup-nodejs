@@ -60,7 +60,9 @@ export class RoomSocketServer {
                         if (peerid) {
                             this.roomServer.inMessage(peerid, msgIn)
                         } else {
-                            console.log(DSTR, "peer not found by socket");
+                            console.log(DSTR, `${msgIn.type} peer not found by socket`);
+                            console.log(DSTR, this.peers);
+
                         }
                     }
                 } catch (err) {

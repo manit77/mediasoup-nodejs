@@ -377,14 +377,14 @@ class ConferenceApp {
     }
 
     private async handleJoinResult(msg: JoinResultMsg) {
-        console.log("handleJoinResult");
+        console.log("handleJoinResult()");
         if (msg.data.error) {
             this.showModal('Join Error', `Join error: ${msg.data.error}`);
             return;
         }
 
         this.confMgr.conferenceRoom.conferenceRoomId = msg.data.conferenceRoomId;
-        console.log('joined conference room:', this.confMgr.conferenceRoom.conferenceRoomId);
+        console.log('handleJoinResult() - joined conference room:', this.confMgr.conferenceRoom.conferenceRoomId);
         this.updateUIForCall();
 
     }
@@ -428,7 +428,7 @@ class ConferenceApp {
     }
 
     private createVideoElement(remotePeerId: string, displayName: string): HTMLVideoElement {
-        console.log("createVideoElement");
+        console.log("createVideoElement() ", remotePeerId);
 
         if (!remotePeerId) {
             console.error("remotePeerId is required.");
@@ -436,6 +436,10 @@ class ConferenceApp {
         }
 
         let participant = this.confMgr.getParticipant(remotePeerId);
+        if(!participant) {
+            console.error("participant not found.", remotePeerId);
+            return;
+        }
 
         const remoteVideoWrapper = document.createElement('div');
         remoteVideoWrapper.className = 'video-wrapper remote-video-wrapper';
@@ -445,8 +449,9 @@ class ConferenceApp {
         remoteVideo.className = 'remote-video';
         remoteVideo.autoplay = true;
         remoteVideo.playsInline = true;
-        remoteVideo.srcObject = participant.mediaStream;
-
+        if(participant.mediaStream) {
+            remoteVideo.srcObject = participant.mediaStream;
+        }
         const participantName = document.createElement('div');
         participantName.className = 'participant-name';
         participantName.textContent = `Participant ${displayName}`;
