@@ -87,13 +87,22 @@ export class Room {
      * removes all peers and fires the onClose()
      */
     close() {
-        console.log("close()");
+        console.log("room - close()");
+        
+        if (this.timerIdNoParticipants) {
+            clearTimeout(this.timerIdNoParticipants);
+        }
+
+        if(this.timerIdMaxRoomDuration){
+            clearTimeout(this.timerIdMaxRoomDuration);
+        }
         if (this.onClose) {
             this.onClose(this);
         }
 
-        this.peers.forEach(p => p.room = null);
+        this.peers.forEach(p => p.close());
         this.peers.clear();
+        
     }
 
 }

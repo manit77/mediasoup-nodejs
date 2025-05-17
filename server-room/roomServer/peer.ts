@@ -1,5 +1,6 @@
 import * as mediasoup from 'mediasoup';
 import { Room } from './room';
+import { clearTimeout } from 'timers';
 
 export class Peer {
 
@@ -12,7 +13,7 @@ export class Peer {
     timerIdInactivity: NodeJS.Timeout;
 
     onPeerInactive: (peer: Peer) => void;
-    
+
     constructor() {
 
     }
@@ -30,11 +31,36 @@ export class Peer {
             clearTimeout(this.timerIdInactivity);
         }
 
-        setTimeout(() => {
+        this.timerIdInactivity = setTimeout(() => {
             if (this.onPeerInactive) {
                 this.onPeerInactive(this);
             }
         }, this.timeOutInactivitySecs);
+
+    }
+
+
+    close() {
+        console.log(`close() - peer ${this.id}`);
+
+        this.producerTransport?.close();
+        this.consumerTransport?.close();
+
+        this.producers.forEach(p => {
+            p.close();
+        });
+
+        this.consumers.forEach(c => {
+            c.close();
+        })
+
+        this.producers = [];
+        this.consumers = [];
+        this.producerTransport = null;
+        this.consumerTransport = null;
+        if (this.timerIdInactivity) {            
+            clearTimeout(this.timerIdInactivity);
+        }
 
     }
 

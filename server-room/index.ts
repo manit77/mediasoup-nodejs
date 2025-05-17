@@ -2,14 +2,16 @@ import express from 'express';
 import https from 'https';
 import fs from 'fs';
 import cors from 'cors';
-import { RoomServer } from './roomServer/roomServer';
+import { RoomServer, RoomServerConfig } from './roomServer/roomServer';
 import { RoomSocketServer } from './servers/roomSocketServer';
 import { RoomHTTPServer } from './servers/roomHttpServer';
+import { getENV } from './utils/env';
 
-let config = {
-  serverPort: 3000
+let config: RoomServerConfig = getENV() as any;
+
+for (let key in config) {
+  console.log(`${key} : ${config[key]}`);
 }
-
 const app = express()
 app.use(cors());
 
@@ -23,14 +25,16 @@ app.use(cors());
 app.use(express.static('client-room'));
 app.use(express.json({ limit: '1mb' }));
 
-server.listen(config.serverPort, async () => {
-  
-  console.log(`Server running at https://0.0.0.0:${config.serverPort}`);
+server.listen(config.room_server_port, async () => {
+
+  console.log(`Server running at https://0.0.0.0:${config.room_server_port}`);
 
   //manager for media soup room server
-  let roomServer = new RoomServer();
-  let socketServer = new RoomSocketServer(server, roomServer);  
-  let httpServer = new RoomHTTPServer(app, roomServer);
+  let roomServer = new RoomServer(config);
+  roomServer.initMediaSoup().then(() => {
+    let socketServer = new RoomSocketServer(server, roomServer);
+    let httpServer = new RoomHTTPServer(app, roomServer);
+  });
 
 });
 

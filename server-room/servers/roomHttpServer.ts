@@ -53,7 +53,7 @@ export class RoomHTTPServer {
         app.post(RoomServerAPIRoutes.newAuthUserToken, adminTokenCheck as any, async (req, res) => {
             console.log(RoomServerAPIRoutes.newAuthUserToken);
             let msgIn = req.body as AuthUserNewTokenMsg;
-            msgIn.data.authToken = req["rooms_authtoken"];
+            msgIn.data.accessToken = req["rooms_authtoken"];
             res.send(this.newAuthUserToken(msgIn));
         });
 

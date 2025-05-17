@@ -146,9 +146,9 @@ export class RoomNewMsg {
 export class AuthUserNewTokenMsg {
     private type = payloadTypeClient.authUserNewToken;
     data: {
-        authToken: string,
-        expiresInMin: 60
-    }
+        accessToken?: string,
+        expiresInMin?: number
+    } = {}
 }
 
 export class AuthUserNewTokenResultMsg {

@@ -18,50 +18,70 @@ import * as roomUtils from "./utils";
 import { AuthUserRoles } from '../models/tokenPayloads';
 
 type outMessage = (peerId: string, msg: any) => void;
+export interface RoomServerConfig {
+    room_server_ip: string,
+    room_server_port: number,
+    room_recordingsDir: string,
+    room_secretKey: string,
+    room_newRoomTokenExpiresInMinutes: number,
+    room_maxRoomDurationMinutes: number,
+    room_timeOutNoParticipantsSecs: number,
+    room_peer_timeOutInactivitySecs: number
+}
 
 export class RoomServer {
 
-    private worker: mediasoup.types.Worker;
-    private router: mediasoup.types.Router;
+    private worker?: mediasoup.types.Worker;
+    private router?: mediasoup.types.Router;
 
     private peers = new Map<string, Peer>();
     private rooms = new Map<string, Room>();
 
     private outMsgListeners: outMessage[] = [];
+    private config: RoomServerConfig;
 
-    config = {
-        recordingsDir: "recordings",
-        secretKey: "IFXBhILlrwNGpOLK8XDvvgqrInnU3eZ1", //override with your secret key from a secure location
-        room_default_newRoomTokenExpiresInMinutes: 30, //room token expiration from date created
-        room_default_maxRoomDurationMinutes: 30, // room max duration, starts when the room is created
-        room_default_timeOutNoParticipantsSecs: 5 * 60, //when no participants in the room, timer starts and will close the room
-        peer_default_timeOutInactivitySecs : 60
 
+    constructor(c: RoomServerConfig) {
+        this.config = c;
     }
 
-    constructor() {
+    async dispose(): Promise<void> {
+        // Wait for initialization to complete to ensure worker and router are set
 
-        this.config.recordingsDir = path.join(process.cwd(), this.config.recordingsDir);
+        this.rooms.forEach(r => {
+            r.close();
+        });
 
-        if (!fs.existsSync(this.config.recordingsDir)) {
-            fs.mkdirSync(this.config.recordingsDir);
+        this.peers.forEach(p => {
+            p.close();
+        });
+
+
+        // Close router first (synchronous)
+        if (this.router) {
+            try {
+                this.router.close();
+                console.log('Router closed');
+            } catch (error) {
+                console.error('Error closing router:', error);
+            }
+            this.router = undefined;
         }
 
-        this.initMediaSoup();
-    }
-
-    addEventListner(event: outMessage) {
-        this.outMsgListeners.push(event);
-    }
-
-    removeEventListner(event: outMessage) {
-        let idx = this.outMsgListeners.findIndex((f) => f === event);
-        if (idx > -1) {
-            this.outMsgListeners.splice(idx, 1);
+        // Close worker (synchronous)
+        if (this.worker) {
+            try {
+                this.worker.close();
+                console.log('Worker closed');
+            } catch (error) {
+                console.error('Error closing worker:', error);
+            }
+            this.worker = undefined;
         }
+
     }
 
-    private async initMediaSoup() {
+    async initMediaSoup() {
         console.log(`initMediaSoup`);
 
         this.worker = await mediasoup.createWorker();
@@ -81,6 +101,18 @@ export class RoomServer {
             ],
         });
     }
+
+    addEventListner(event: outMessage) {
+        this.outMsgListeners.push(event);
+    }
+
+    removeEventListner(event: outMessage) {
+        let idx = this.outMsgListeners.findIndex((f) => f === event);
+        if (idx > -1) {
+            this.outMsgListeners.splice(idx, 1);
+        }
+    }
+
 
     async inMessage(peerId: string, msgIn: any): Promise<any> {
 
@@ -258,12 +290,12 @@ export class RoomServer {
             return null;
         }
 
-        if(!roomToken){
+        if (!roomToken) {
             console.error("roomToken is required.");
             return null;
         }
 
-        let payload = roomUtils.validateRoomToken(this.config.secretKey, roomToken);
+        let payload = roomUtils.validateRoomToken(this.config.room_secretKey, roomToken);
         if (!payload) {
             console.error("invalid token while creating room.");
             return null;
@@ -279,6 +311,14 @@ export class RoomServer {
         this.printStats();
 
         return room;
+    }
+
+    getRoom(roomId: string): Room {
+        return this.rooms.get(roomId);
+    }
+
+     getPeer(peerId: string): Peer {
+        return this.peers.get(peerId);
     }
 
     private addPeerGlobal(peer: Peer) {
@@ -335,13 +375,13 @@ export class RoomServer {
     onRegister(peerId: string, msgIn: RegisterMsg) {
         console.log(`onRegister ${msgIn.data.displayName} `);
 
-        if(!msgIn.data.authToken) {            
+        if (!msgIn.data.authToken) {
             console.error("no authToken");
             return;
         }
 
-        let authTokenPayload = roomUtils.validateAuthUserToken(this.config.secretKey, msgIn.data.authToken);
-        if(!authTokenPayload) {
+        let authTokenPayload = roomUtils.validateAuthUserToken(this.config.room_secretKey, msgIn.data.authToken);
+        if (!authTokenPayload) {
             console.error("invalid user token");
             return;
         }
@@ -351,7 +391,13 @@ export class RoomServer {
         if (!peer) {
             peer = this.createPeer(msgIn.data.trackingId, msgIn.data.authToken);
             console.log("new peer created " + peer.id);
-        }        
+        }
+        if (!this.router || !this.router.rtpCapabilities) {
+            console.error("mediasoup is not initialized.");
+            let msgError = new RegisterResultMsg();
+            msgError.data.error = "system erorr.";
+            return msgError;
+        }
 
         let msg = new RegisterResultMsg();
         msg.data = {
@@ -500,11 +546,34 @@ export class RoomServer {
     roomNewToken(msgIn: RoomNewTokenMsg): RoomNewTokenResultMsg {
         console.log("roomNewToken");
 
+         //this requires admin access
+        if(!msgIn.data.authToken) {
+            console.error("authToken required.");
+            let msgError = new RoomNewTokenResultMsg();
+            msgError.data.error = "authToken required.";
+            return msgError;
+        }
+
+        let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, msgIn.data.authToken);
+        if(!payload){
+            console.error("invalid authToken.");
+            let msgError = new RoomNewTokenResultMsg();
+            msgError.data.error = "invalid authToken.";
+            return msgError;
+        }
+
+        if(payload.role != AuthUserRoles.admin){
+             console.error("authToken rejected.");
+            let msgError = new RoomNewTokenResultMsg();
+            msgError.data.error = "authToken rejected.";
+            return msgError;
+        }
+
         let msg = new RoomNewTokenResultMsg();
-        let [payload, roomToken] = roomUtils.createRoomToken(this.config.secretKey, "", msgIn.data.expiresInMin);
+        let [payloadRoom, roomToken] = roomUtils.createRoomToken(this.config.room_secretKey, "", msgIn.data.expiresInMin);
 
         if (roomToken) {
-            msg.data.roomId = payload.roomId;
+            msg.data.roomId = payloadRoom.roomId;
             msg.data.roomToken = roomToken;
         } else {
             msg.data.error = "failed to get token";
@@ -514,10 +583,33 @@ export class RoomServer {
     }
 
     onAuthUserNewToken(msgIn: AuthUserNewTokenMsg): AuthUserNewTokenResultMsg {
-        console.log("roomNewToken");
+        console.log("onAuthUserNewToken");
+
+        //this requires admin access
+        if(!msgIn.data.accessToken) {
+            console.error("authToken required.");
+            let msgError = new AuthUserNewTokenResultMsg();
+            msgError.data.error = "authToken required.";
+            return msgError;
+        }
+
+        let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, msgIn.data.accessToken);
+        if(!payload){
+            console.error("invalid authToken.");
+            let msgError = new AuthUserNewTokenResultMsg();
+            msgError.data.error = "invalid authToken.";
+            return msgError;
+        }
+
+        if(payload.role != AuthUserRoles.admin){
+             console.error("authToken rejected.");
+            let msgError = new AuthUserNewTokenResultMsg();
+            msgError.data.error = "authToken rejected.";
+            return msgError;
+        }
 
         let msg = new AuthUserNewTokenResultMsg();
-        let authToken = roomUtils.createAuthUserToken(this.config.secretKey, AuthUserRoles.user, msgIn.data.expiresInMin);
+        let authToken = roomUtils.createAuthUserToken(this.config.room_secretKey, AuthUserRoles.user, msgIn.data.expiresInMin);
 
         if (authToken) {
             msg.data.authToken = authToken;

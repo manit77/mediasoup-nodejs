@@ -1,5 +1,6 @@
 export enum AuthUserRoles {
-    admin, user
+    admin = "admin"
+    , user = "user"
 }
 
 export interface AuthUserTokenPayload {

@@ -6,6 +6,16 @@ import { ConferenceRoom, IConfPayload, Participant } from './models';
 import { RoomsAPI } from './roomsAPI/roomsAPI';
 import { jwtSign } from './jwtUtil';
 
+export interface ConferenceServerConfig {
+    conf_server_port: number,
+    conf_reconnection_timeout: number,
+    conf_secret_key: string,
+    conf_max_peers_per_conf: number,
+    conf_token_expires_min: number
+    room_access_token : string,
+    room_api_url: string
+}
+
 export class ConferenceServer {
 
     webSocketServer: WebSocketServer;
@@ -15,24 +25,17 @@ export class ConferenceServer {
     disconnectedParticipants = new Map<string, { participant: Participant, timeout: NodeJS.Timeout, conferenceRoomId: string }>();
 
     roomsAPI: RoomsAPI;
+    config : ConferenceServerConfig;
 
-    config = {
-        serverPort: 3001,
-        // Reconnection timeout in milliseconds (default 30 seconds)
-        reconnectionTimeout: 30000,
-        secretKey: "IFXBhILlrwNGpOLK8XDvvgqrInnU3eZ1", //override with your secret key from a secure location
-        roomsAPIURI: "https://localhost:3000",
-        maxPeersRoom: 99,
-        newConfTokenExpiresInMinutes: 0 //zero is never
-    }
 
-    constructor(private httpServer: https.Server) {
-        this.roomsAPI = new RoomsAPI(this.config.roomsAPIURI);
+    constructor(c: ConferenceServerConfig, private httpServer: https.Server) {
+        this.roomsAPI = new RoomsAPI(this.config.room_api_url);
+        this.config = c;
     }
 
     async start() {
-        this.httpServer.listen(this.config.serverPort, async () => {
-            console.log(`Server running at https://0.0.0.0:${this.config.serverPort}`);
+        this.httpServer.listen(this.config.conf_server_port, async () => {
+            console.log(`Server running at https://0.0.0.0:${this.config.conf_server_port}`);
             this.initWebSocket();
         });
     }
@@ -259,10 +262,10 @@ export class ConferenceServer {
         };
 
         if (expiresIn > 0) {
-            payload.expiresIn = Math.floor(Date.now() / 1000) + (this.config.newConfTokenExpiresInMinutes * 60);
+            payload.expiresIn = Math.floor(Date.now() / 1000) + (this.config.conf_token_expires_min * 60);
         }
 
-        return [payload, jwtSign(this.config.secretKey, payload)]
+        return [payload, jwtSign(this.config.conf_secret_key, payload)]
     }
 
     /**
@@ -292,7 +295,7 @@ export class ConferenceServer {
         const timeout = setTimeout(() => {
             console.log(`Reconnection timeout for participant ${participant.participantId}.`);
             this.finalizeConfDisconnection(participant.participantId);
-        }, this.config.reconnectionTimeout);
+        }, this.config.conf_reconnection_timeout);
 
         // Store the disconnected participant with its timeout and conference info
         this.disconnectedParticipants.set(participant.participantId, {
