@@ -1,8 +1,12 @@
 import jwt from "jsonwebtoken";
 
-export function jwtSign(secret: string, obj: any) {
+export function jwtSign(secret: string, obj: any, expiresInMin?: number) {
     try {
-        return jwt.sign(obj, secret);
+        if (expiresInMin && expiresInMin > 0) {
+            return jwt.sign(obj, secret, { expiresIn: `${expiresInMin}m` });
+        } else {
+            return jwt.sign(obj, secret);
+        }
     } catch (err) {
         console.error(err);
     }

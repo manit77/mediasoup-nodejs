@@ -6,6 +6,7 @@ export class Peer {
     public id: string;
     public trackingid: string;
     public displayName: string;
+    public authToken: string;
 
     timeOutInactivitySecs = 3600; //if not activity for 60 minutes terminate the peer
     timerIdInactivity: NodeJS.Timeout;

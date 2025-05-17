@@ -2,6 +2,9 @@ import https from 'https';
 import { WebSocket, WebSocketServer } from 'ws';
 import {
     payloadTypeClient,
+    payloadTypeServer,
+    RegisterMsg,
+    RegisterResultMsg,
     TerminatePeerMsg
 } from '../models/roomSharedModels';
 import { RoomServer } from '../roomServer/roomServer';
@@ -17,7 +20,14 @@ export class RoomSocketServer {
         roomServer.addEventListner((peerId: string, msg: any) => {
             let socket = this.peers.get(peerId);
             if (socket) {
+
+                if (msg.type == payloadTypeClient.terminatePeer) {
+                    console.log("socket closed");
+                    socket.close();
+                    return;
+                } 
                 this.send(socket, msg);
+
             } else {
                 console.log(DSTR, "peer not found for message: " + msg.type);
             }
@@ -37,14 +47,16 @@ export class RoomSocketServer {
 
             ws.on('message', async (message) => {
                 try {
-                    
+
                     console.log(DSTR, "msgIn, ", message.toString());
                     const msgIn = JSON.parse(message.toString());
-                    
+
                     if (msgIn.type == payloadTypeClient.register) {
                         //we need to tie the peerid to the socket
                         let registerResult = this.roomServer.onRegister("", msgIn);
                         if (registerResult.data.peerId) {
+                            //store the authtoken in the socket
+                            ws["room_authtoken"] = (msgIn as RegisterMsg)?.data?.authToken;
                             this.peers.set(registerResult.data.peerId, ws);
                             this.send(ws, registerResult);
                             console.error(DSTR, "socket registered:" + registerResult.data.peerId);
@@ -52,16 +64,15 @@ export class RoomSocketServer {
                         } else {
                             console.error(DSTR, "register failed, no peerid for socket.");
                         }
-
                     } else {
-
                         let peerid = this.findPeerBySocket(ws);
                         if (peerid) {
-                            this.roomServer.inMessage(peerid, msgIn)
+                            //inject the authtoken from the socket
+                            msgIn.data.authToken = ws["room_authtoken"];
+                            this.roomServer.inMessage(peerid, msgIn);
                         } else {
                             console.log(DSTR, `${msgIn.type} peer not found by socket`);
                             console.log(DSTR, this.peers);
-
                         }
                     }
                 } catch (err) {
@@ -75,9 +86,8 @@ export class RoomSocketServer {
                 //when the socket closes terminate the peers transports 
                 let peerid = this.findPeerBySocket(ws);
                 if (peerid) {
-                    let msg = new TerminatePeerMsg()
+                    let msg = new TerminatePeerMsg();
                     msg.data.peerId = peerid;
-
                     this.roomServer.onTerminatePeer(msg);
                 }
             });

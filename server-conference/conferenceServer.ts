@@ -213,15 +213,16 @@ export class ConferenceServer {
                 return null;
             }
 
-            console.log("tokenResult", tokenResult);            
+            console.log("tokenResult", tokenResult);
+
             //create the room
             let roomResult = await this.roomsAPI.newRoom(tokenResult.data.roomId, tokenResult.data.roomToken, confRoom.config.maxParticipants);
-            if(!roomResult) {
+            if (!roomResult) {
                 console.log("roomResult", roomResult);
 
             }
 
-            
+
             confRoom.roomToken = tokenResult.data.roomToken;
             confRoom.roomId = tokenResult.data.roomId;
         }
@@ -636,36 +637,64 @@ export class ConferenceServer {
             return;
         }
 
+        let roomAuthUserTokens: string[] = [];
+        let roomToken: string = "";
         let confRoom: ConferenceRoom = caller.conferenceRoom;
 
         if (!confRoom) {
             //create the room and join
             let config = msgIn.data.conferenceConfig;
             confRoom = await this.newConferenceRoom(msgIn.data.conferenceTitle, msgIn.data.conferenceRoomId, caller, config);
+        }
 
+        if (confRoom) {
 
-            if (confRoom) {
+        } else {
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.error = "error creating conference.";
+            this.send(caller.socket, errorMsg);
+            return;
+        }
 
-                this.conferences.set(confRoom.conferenceRoomId, confRoom);
-                console.log("added new conference room");
+        if (confRoom.confType == ConferenceType.rooms) {
+            this.conferences.set(confRoom.conferenceRoomId, confRoom);
+            console.log("added new conference room");
 
-                // if (!confRoom.addParticipant(caller)) {
-                //     let errorMsg = new InviteResultMsg();
-                //     errorMsg.data.error = "failed to add you to the conference.";
-                //     this.send(caller.socket, errorMsg);
-                //     return;
-                // }
-
-                console.log(`caller added to room: ${caller.participantId}`);
-
-            } else {
+            let roomTokenResult = await this.roomsAPI.newRoomToken();
+            if (!roomTokenResult || roomTokenResult?.data?.error) {
+                console.error("failed to create new authUser token in rooms");
                 let errorMsg = new InviteResultMsg();
-                errorMsg.data.error = "error creating conference.";
+                errorMsg.data.error = "error creating conference for room.";
                 this.send(caller.socket, errorMsg);
-                return;
+                return null;
+            }
+            roomToken = roomTokenResult.data.roomToken;
+            console.log("roomToken", roomToken);
+
+            let authUserTokenResult = await this.roomsAPI.newAuthUserToken();
+            if (!authUserTokenResult || authUserTokenResult?.data?.error) {
+                console.error("failed to create new authUser token in rooms");
+                let errorMsg = new InviteResultMsg();
+                errorMsg.data.error = "error creating conference for user.";
+                this.send(caller.socket, errorMsg);
+                return null;
             }
 
-        }     
+            roomAuthUserTokens.push(authUserTokenResult.data.authToken);
+
+            authUserTokenResult = await this.roomsAPI.newAuthUserToken();
+            if (!authUserTokenResult || authUserTokenResult?.data?.error) {
+                console.error("failed to create new authUser token in rooms");
+                let errorMsg = new InviteResultMsg();
+                errorMsg.data.error = "error creating conference for user.";
+                this.send(caller.socket, errorMsg);
+                return null;
+            }
+
+            roomAuthUserTokens.push(authUserTokenResult.data.authToken);
+            console.log("roomAuthUserToken", roomAuthUserTokens[1]);
+        }
+
 
         let receiver = this.getParticipant(msgIn.data.participantId);
         if (!receiver) {
@@ -700,11 +729,12 @@ export class ConferenceServer {
 
         inviteResultMsg.data.roomId = confRoom.roomId;
         inviteResultMsg.data.roomToken = confRoom.roomToken;
-
+        inviteResultMsg.data.roomAuthUserToken = roomAuthUserTokens[0]; //send the first user token
 
         this.send(ws, inviteResultMsg);
 
         //forward the call to the receiver
+
         let msg = new InviteMsg();
         msg.data.participantId = caller.participantId;
         msg.data.displayName = caller.displayName;
@@ -715,6 +745,7 @@ export class ConferenceServer {
 
         msg.data.roomId = confRoom.roomId;
         msg.data.roomToken = confRoom.roomToken;
+        msg.data.roomAuthUserToken = roomAuthUserTokens[1]; //send the second user token
 
         this.send(receiver.socket, msg);
 
@@ -760,7 +791,7 @@ export class ConferenceServer {
         if (conferenceRoom.addParticipant(participant)) {
 
             console.log("addParticipant: " + participant.participantId);
-             
+
             let newParticipantMsg = new NewParticipantMsg();
             newParticipantMsg.data.conferenceRoomId = conferenceRoom.conferenceRoomId;
             newParticipantMsg.data.participantId = participant.participantId;

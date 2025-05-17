@@ -1,9 +1,15 @@
-export interface RoomTokenPayload {    
-    roomId?: string;
-    expiresIn: number; // or exp: number, depending on your JWT library
+export enum AuthUserRoles {
+    admin, user
 }
 
-export interface peerTokenPayload {
+export interface AuthUserTokenPayload {
+    role: AuthUserRoles
+}
+
+export interface RoomTokenPayload {    
+    roomId?: string;
+}
+
+export interface PeerTokenPayload {
     peerId?: string;    
-    expiresIn: number;
 }

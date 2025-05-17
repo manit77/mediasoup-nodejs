@@ -1,21 +1,19 @@
 import * as mediasoup from 'mediasoup';
 import { WebSocket } from 'ws';
 import { Peer } from './peer';
+import { RoomConfig } from '../models/roomSharedModels';
 
 export class Room {
     id: string;
     peers: Map<string, Peer> = new Map();
     roomToken: string = "";
-    maxPeers = 2;
+
 
     onClose: (room: Room) => void;
 
-    // Timers
-    timeOutMaxCallDurationSecs = 3600; //one hour
-    timerIdMaxCallDuration?: NodeJS.Timeout = null;
+    config = new RoomConfig();
 
-    //executes when room is created and no participants has joined
-    timeOutNoParticipantsSecs = 15 * 60; //15 minutes
+    timerIdMaxRoomDuration?: NodeJS.Timeout = null;
     timerIdNoParticipants?: NodeJS.Timeout = null;
 
     constructor() {
@@ -25,26 +23,24 @@ export class Room {
     startTimers() {
         console.log("startTimer()");
 
-        if (this.timeOutMaxCallDurationSecs > 0) {
-            this.timerIdMaxCallDuration = setTimeout(async () => {
+        if (this.config.maxRoomDurationMinutes > 0) {
+            this.timerIdMaxRoomDuration = setTimeout(async () => {
                 console.log("timeOutMaxDurationSecs timed out");
                 this.close();
-            }, this.timeOutMaxCallDurationSecs * 1000);
+            }, this.config.maxRoomDurationMinutes * 1000);
         }
 
         this.startTimerNoParticipants();
-
     }
 
     private startTimerNoParticipants() {
         console.log("startTimer()");
-        if (this.peers.size == 0 && this.timeOutNoParticipantsSecs > 0) {
+        if (this.peers.size == 0 && this.config.timeOutNoParticipantsSecs > 0) {
             this.timerIdNoParticipants = setTimeout(async () => {
                 console.log("timerIdNoParticipantsSecs timed out");
                 this.close();
-            }, this.timeOutNoParticipantsSecs * 1000);
+            }, this.config.timeOutNoParticipantsSecs * 1000);
         }
-
     }
 
     addPeer(peer: Peer, roomToken: string): boolean {
@@ -78,13 +74,18 @@ export class Room {
             this.peers.delete(peerId);
         }
 
-        this.startTimerNoParticipants();
+        if (this.peers.size == 0) {
+            this.startTimerNoParticipants();
+        }
     }
 
     otherPeers(peerId: string) {
         return [...this.peers].filter(([id,]) => id !== peerId);
     }
 
+    /**
+     * removes all peers and fires the onClose()
+     */
     close() {
         console.log("close()");
         if (this.onClose) {

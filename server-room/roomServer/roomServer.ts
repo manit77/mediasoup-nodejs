@@ -1,36 +1,42 @@
 import * as mediasoup from 'mediasoup';
 import fs from 'fs';
 import path from 'path';
-
 import { Room } from './room';
 import {
+    AuthUserNewTokenMsg,
+    AuthUserNewTokenResultMsg,
     ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg
     , ConsumerTransportCreatedMsg, CreateProducerTransportMsg, payloadTypeClient
     , ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg, RegisterMsg
-    , RegisterResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
+    , RegisterResultMsg, RoomConfig, RoomJoinMsg, RoomJoinResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
     , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
     RoomTerminateMsg,
     TerminatePeerMsg
 } from '../models/roomSharedModels';
 import { Peer } from './peer';
 import * as roomUtils from "./utils";
+import { AuthUserRoles } from '../models/tokenPayloads';
 
 type outMessage = (peerId: string, msg: any) => void;
 
 export class RoomServer {
 
-    worker: mediasoup.types.Worker;
-    router: mediasoup.types.Router;
+    private worker: mediasoup.types.Worker;
+    private router: mediasoup.types.Router;
 
-    peers = new Map<string, Peer>();
-    rooms = new Map<string, Room>();
+    private peers = new Map<string, Peer>();
+    private rooms = new Map<string, Room>();
 
-    outMsgListeners: outMessage[] = [];
+    private outMsgListeners: outMessage[] = [];
 
     config = {
         recordingsDir: "recordings",
         secretKey: "IFXBhILlrwNGpOLK8XDvvgqrInnU3eZ1", //override with your secret key from a secure location
-        newRoomTokenExpiresInMinutes: 30
+        room_default_newRoomTokenExpiresInMinutes: 30, //room token expiration from date created
+        room_default_maxRoomDurationMinutes: 30, // room max duration, starts when the room is created
+        room_default_timeOutNoParticipantsSecs: 5 * 60, //when no participants in the room, timer starts and will close the room
+        peer_default_timeOutInactivitySecs : 60
+
     }
 
     constructor() {
@@ -56,6 +62,8 @@ export class RoomServer {
     }
 
     private async initMediaSoup() {
+        console.log(`initMediaSoup`);
+
         this.worker = await mediasoup.createWorker();
         this.router = await this.worker.createRouter({
             mediaCodecs: [
@@ -76,7 +84,7 @@ export class RoomServer {
 
     async inMessage(peerId: string, msgIn: any): Promise<any> {
 
-        console.log(`peerId: ${peerId} msgIn:`, msgIn);
+        console.log(`inMessage - type: ${msgIn.type}, peerId: ${peerId}`);
 
         if (!msgIn.type) {
             console.error("message has no type");
@@ -144,38 +152,47 @@ export class RoomServer {
                 this.onConsume(peerId, msgIn);
                 break;
         }
-
         return "";
-
     }
 
     onTerminatePeer(msg: TerminatePeerMsg) {
         console.log(`onTerminatePeer() ${msg.data.peerId}`);
         const peer = this.peers.get(msg.data.peerId);
         if (peer) {
-
-            //close producers, consumers
-            peer.producers?.forEach((producer) => producer.close());
-            peer.consumers?.forEach((consumer) => consumer.close());
-
-            //close transports
-            peer.producerTransport?.close();
-            peer.consumerTransport?.close();
-
-            if (peer.room) {
-                this.onRoomLeave(peer.id)
-            }
-
-            peer.room = null;
-            //delete from peers
-            this.removePeerGlobal(peer);
-
-            console.log(`Peer ${peer.id} disconnected and resources cleaned up. peers: `);
-            this.printStats();
-
+            this.terminatePeer(peer);
+            this.send(peer.id, msg);
             return true;
         }
         return false;
+    }
+
+    terminatePeer(peer: Peer) {
+        console.log("terminatePeer()");
+
+        if (!peer) {
+            console.error("peer is required.");
+            return;
+        }
+
+        //close producers, consumers
+        peer.producers?.forEach((producer) => producer.close());
+        peer.consumers?.forEach((consumer) => consumer.close());
+
+        //close transports
+        peer.producerTransport?.close();
+        peer.consumerTransport?.close();
+        peer.producerTransport = null;
+        peer.consumerTransport = null;
+
+        if (peer.room) {
+            peer.room.removePeer(peer.id);
+        }
+
+        //delete from peers
+        this.removePeerGlobal(peer);
+
+        console.log(`Peer terminate ${peer.id}.`);
+        this.printStats();
     }
 
     /**
@@ -183,6 +200,7 @@ export class RoomServer {
      * @returns
      */
     private async createTransport() {
+        console.log("createTransport()");
         try {
             return await this.router.createWebRtcTransport({
                 listenIps: [{ ip: '127.0.0.1', announcedIp: undefined }],
@@ -202,26 +220,34 @@ export class RoomServer {
      * @param trackingId custom id from a client
      * @returns 
      */
-    private createPeer(trackingId: string) {
+    private createPeer(trackingId: string, authToken: string) {
+        console.log("createPeer()");
         let peer = new Peer();
         peer.id = roomUtils.GetPeerId();
         peer.trackingid = trackingId;
+        peer.authToken = authToken;
+
         this.addPeerGlobal(peer);
         peer.restartInactiveTimer();
+
+        peer.onPeerInactive = (peer: Peer) => {
+            if (peer.room) {
+                console.log("peer was inactive, remove from room.");
+                peer.room.removePeer(peer.id);
+                peer.restartInactiveTimer();
+                return;
+            } else {
+                console.log("peer was inactive, terminate the peer.");
+                this.terminatePeer(peer);
+            }
+        };
 
         return peer;
     }
 
-    /**
-     * create a new room
-     * @param peerId which peerid created the room
-     * @param roomId can be assiged or genereated
-     * @param maxPeers 
-     * @returns 
-     */
-    private createRoom(roomId: string, roomToken: string, maxPeers: number): Room {
+    private createRoom(roomId: string, roomToken: string, config: RoomConfig): Room {
 
-        console.log(`createRoom roomId:${roomId} roomToken: ${roomToken} maxPeers: ${maxPeers}`);
+        console.log(`createRoom roomId:${roomId} roomToken: ${roomToken}`);
 
         if (!roomId) {
             roomId = roomUtils.GetRoomId();
@@ -229,6 +255,11 @@ export class RoomServer {
 
         if (this.rooms.has(roomId)) {
             console.error("room already exists");
+            return null;
+        }
+
+        if(!roomToken){
+            console.error("roomToken is required.");
             return null;
         }
 
@@ -241,7 +272,7 @@ export class RoomServer {
         let room = new Room();
         room.id = roomId;
         room.roomToken = roomToken;
-        room.maxPeers;
+        room.config = config;
 
         this.addRoomGlobal(room);
 
@@ -259,13 +290,13 @@ export class RoomServer {
         console.log(`addRoomGlobal ${room.id}`);
 
         room.onClose = (room) => {
-            this.removeRoomGlobal(room);
+            console.log("onClose()");
+            this.roomTerminate(room);
         };
 
         this.rooms.set(room.id, room);
 
         room.startTimers();
-
     }
 
     private removePeerGlobal(peer: Peer) {
@@ -304,12 +335,23 @@ export class RoomServer {
     onRegister(peerId: string, msgIn: RegisterMsg) {
         console.log(`onRegister ${msgIn.data.displayName} `);
 
+        if(!msgIn.data.authToken) {            
+            console.error("no authToken");
+            return;
+        }
+
+        let authTokenPayload = roomUtils.validateAuthUserToken(this.config.secretKey, msgIn.data.authToken);
+        if(!authTokenPayload) {
+            console.error("invalid user token");
+            return;
+        }
+
         //get or set peer
         let peer = this.peers.get(peerId);
         if (!peer) {
-            peer = this.createPeer(msgIn.data.trackingId);
+            peer = this.createPeer(msgIn.data.trackingId, msgIn.data.authToken);
             console.log("new peer created " + peer.id);
-        }
+        }        
 
         let msg = new RegisterResultMsg();
         msg.data = {
@@ -459,7 +501,7 @@ export class RoomServer {
         console.log("roomNewToken");
 
         let msg = new RoomNewTokenResultMsg();
-        let [payload, roomToken] = roomUtils.createRoomToken(this.config.secretKey, "");
+        let [payload, roomToken] = roomUtils.createRoomToken(this.config.secretKey, "", msgIn.data.expiresInMin);
 
         if (roomToken) {
             msg.data.roomId = payload.roomId;
@@ -470,6 +512,22 @@ export class RoomServer {
 
         return msg;
     }
+
+    onAuthUserNewToken(msgIn: AuthUserNewTokenMsg): AuthUserNewTokenResultMsg {
+        console.log("roomNewToken");
+
+        let msg = new AuthUserNewTokenResultMsg();
+        let authToken = roomUtils.createAuthUserToken(this.config.secretKey, AuthUserRoles.user, msgIn.data.expiresInMin);
+
+        if (authToken) {
+            msg.data.authToken = authToken;
+        } else {
+            msg.data.error = "failed to get token";
+        }
+
+        return msg;
+    }
+
 
     /**
      * app requests to create a new room, room will be added to the rooms map
@@ -490,22 +548,22 @@ export class RoomServer {
 
         peer.restartInactiveTimer();
 
-        let roomNewResultMsg = this.roomNew(msgIn);
+        let roomNewResultMsg = this.onRoomNewNoPeer(msgIn);
         this.send(peerId, roomNewResultMsg);
 
         return roomNewResultMsg;
     }
 
-    roomNew(msgIn: RoomNewMsg) {
-        console.log("onRoomNew");
-               
+    onRoomNewNoPeer(msgIn: RoomNewMsg) {
+        console.log("onRoomNewNoPeer");
+
         if (!msgIn.data.roomToken) {
             let errorMsg = new RoomNewResultMsg();
             errorMsg.data.error = "room token is required.";
             return errorMsg;
         }
 
-        let room = this.createRoom(msgIn.data.roomId, msgIn.data.roomToken, msgIn.data.maxPeers);
+        let room = this.createRoom(msgIn.data.roomId, msgIn.data.roomToken, msgIn.data.roomConfig);
         if (!room) {
             let errorMsg = new RoomNewResultMsg();
             errorMsg.data.error = "error creating room.";
@@ -515,9 +573,35 @@ export class RoomServer {
         let roomNewResultMsg = new RoomNewResultMsg();
         roomNewResultMsg.data.roomId = room.id;
         roomNewResultMsg.data.roomToken = room.roomToken;
-      
+
 
         return roomNewResultMsg;
+    }
+
+    roomTerminate(room: Room) {
+        console.log("roomTerminate()");
+
+        if (!room) {
+            console.error("room is required.");
+            return;
+        }
+
+        for (let [id, peer] of room.peers) {
+            //close producers, consumers
+            peer.producers?.forEach((producer) => producer.close());
+            peer.consumers?.forEach((consumer) => consumer.close());
+
+            //close transports
+            peer.producerTransport?.close();
+            peer.consumerTransport?.close();
+
+            peer.producerTransport = null;
+            peer.consumerTransport = null;
+
+            this.removeRoomGlobal(room);
+        }
+
+        room.peers.clear();
     }
 
     onRoomTerminate(msg: RoomTerminateMsg) {
@@ -528,24 +612,7 @@ export class RoomServer {
             msg.data.roomId = room.id;
             this.broadCastAll(room, msg);
 
-            for (let [id, peer] of room.peers) {
-                //close producers, consumers
-                peer.producers?.forEach((producer) => producer.close());
-                peer.consumers?.forEach((consumer) => consumer.close());
-
-                //close transports
-                peer.producerTransport?.close();
-                peer.consumerTransport?.close();
-
-                peer.producerTransport = null;
-                peer.consumerTransport = null;
-
-                peer.room = null;
-                this.removeRoomGlobal(room);
-
-                //alert all peers the room is terminated                
-                this.send(peer.id, msg);
-            }
+            this.roomTerminate(room);
 
             this.printStats();
 
@@ -662,7 +729,8 @@ export class RoomServer {
         }
 
         let room = peer.room;
-        peer.room.removePeer(peer.id);
+
+        this.terminatePeer(peer);
 
         //broadcast to all peers that the peer has left the room
         let msg = new RoomPeerLeftMsg();
@@ -673,20 +741,13 @@ export class RoomServer {
         }
         this.broadCastAll(room, msg);
 
-        //stop the producers and consumer channels
-        peer.producers.map(producer => producer.close());
-        peer.producers = [];
-
-        peer.consumers.map(consumer => consumer.close());
-        peer.consumers = [];
-
         this.printStats();
 
         return true;
 
     }
 
-    async onProduce(peerId: string, msgIn: ProduceMsg) {
+    private async onProduce(peerId: string, msgIn: ProduceMsg) {
         console.log("onProduce");
 
         //client is requesting to produce/send audio or video
@@ -740,7 +801,7 @@ export class RoomServer {
         return true;
     }
 
-    async onConsume(peerId: string, msgIn: ConsumeMsg) {
+    private async onConsume(peerId: string, msgIn: ConsumeMsg) {
         console.log("onConsume");
         //client is requesting to consume a producer
 

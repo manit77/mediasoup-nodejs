@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import * as jwt from '../utils/jwtUtil';
 import { Room } from "./room";
-import { RoomTokenPayload } from "../models/tokenPayloads";
+import { AuthUserRoles, AuthUserTokenPayload, RoomTokenPayload } from "../models/tokenPayloads";
 
 export function GetRoomId() {
     return "room-" + randomUUID().toString();
@@ -33,15 +33,35 @@ export function validateRoomToken(secretKey: string, token: string): RoomTokenPa
             return null;
         }
 
-        if (!payload.expiresIn) {
-            console.error("invalid payload: expiresIn field not found");
+        // Token is valid
+        return payload;
+    } catch (error) {
+        // Handle JWT verification errors (e.g., invalid signature, malformed token)
+        console.error(error);
+    }
+
+    return null;
+}
+
+export function validateAuthUserToken(secretKey: string, token: string): AuthUserTokenPayload {
+    try {
+
+        if (!secretKey) {
+            console.error("no secret key.");
             return null;
         }
 
-        // Check expiration (if expiresIn or exp is used)
-        const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
-        if (payload.expiresIn && payload.expiresIn < currentTime) {
-            console.error(`token is expired`);
+        if (!token) {
+            console.error("no token.");
+            return null;
+        }
+
+        // Verify and decode the token
+        const payload = jwt.jwtVerify(secretKey, token) as AuthUserTokenPayload;
+
+        // Check if roomId exists in the payload
+        if (!payload.role) {
+            console.error("invalid payload: role not found");
             return null;
         }
 
@@ -77,12 +97,22 @@ export function validateRoomTokenAgainstRoom(secretKey: string, token: string, r
   * @param roomId 
   * @returns 
   */
-export function createRoomToken(secretKey: string, roomId: string, expiresInMinutes: number = 60): [RoomTokenPayload, string] {
-    console.log("createRoomToken() " + roomId);    
-    
+export function createRoomToken(secretKey: string, roomId: string, expiresInMinutes: number): [RoomTokenPayload, string] {
+    console.log("createRoomToken() " + roomId);
+
     let payload: RoomTokenPayload = {
-        roomId: !roomId ? GetRoomId() : roomId,
-        expiresIn: Math.floor(Date.now() / 1000) + (expiresInMinutes * 60),
+        roomId: !roomId ? GetRoomId() : roomId
     };
-    return [payload, jwt.jwtSign(secretKey, payload)]
+    return [payload, jwt.jwtSign(secretKey, payload, expiresInMinutes)]
+}
+
+
+export function createAuthUserToken(secretKey: string, role: AuthUserRoles, expiresInMinutes: number): string {
+    console.log("createRoomToken() ");
+
+    let payload: AuthUserTokenPayload = {
+        role: role
+    };
+
+    return jwt.jwtSign(secretKey, payload, expiresInMinutes)
 }

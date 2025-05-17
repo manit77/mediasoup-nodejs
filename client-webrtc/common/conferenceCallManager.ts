@@ -311,7 +311,13 @@ export class ConferenceCallManager {
         if (this.conferenceRoom.config.type == ConferenceType.rooms) {
             this.writeLog("conferenceType: rooms");
 
-            await this.rooms_waitForConnection();
+            let roomURI = message.data.roomURI;
+            if(!roomURI){
+                roomURI = this.config.room_wsURI;
+            }
+            //get the URL from the server you could do a round robin for load balancing
+
+            await this.rooms_waitForConnection(roomURI);
 
             await this.roomsClient.waitForRoomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
             if (this.roomsClient.isConnected) {
@@ -635,7 +641,7 @@ export class ConferenceCallManager {
         }
     }
 
-    private async rooms_waitForConnection() {
+    private async rooms_waitForConnection(roomURI: string) {
         this.writeLog("roomsCreateTransports");
 
         this.roomsClient.onRoomNewPeerEvent = (peer: Peer) => {
@@ -650,7 +656,7 @@ export class ConferenceCallManager {
         this.roomsClient.initMediaSoupDevice();
 
         //connect and wait for a connection
-        await this.roomsClient.waitForConnect(this.config.room_wsURI);
+        await this.roomsClient.waitForConnect(roomURI);
 
         //wait for transport to be created, and connected        
         let isTransportsConnected = { recv: false, send: false };

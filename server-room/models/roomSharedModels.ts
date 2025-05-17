@@ -10,6 +10,9 @@ export enum payloadTypeClient {
     connectProducerTransport = "connectProducerTransport",
     connectConsumerTransport = "connectConsumerTransport",
 
+    authUserNewToken = "authUserNewToken",
+    authUserNewTokenResult = "authUserNewTokenResult",
+
     roomNewToken = "roomNewToken",
     roomNewTokenResult = "roomNewTokenResult",
     roomNew = "roomNew",
@@ -53,7 +56,7 @@ export class RegisterMsg {
 
 export class RegisterResultMsg {
     private type = payloadTypeServer.registerResult;
-    data?: {
+    data?: {        
         peerId?: string,
         trackingId?: string,
         displayName?: string,
@@ -65,19 +68,22 @@ export class RegisterResultMsg {
 export class TerminatePeerMsg {
     private type = payloadTypeClient.terminatePeer;
     data: {
-        peerId?: string,
-        authToken?: string
+        peerId?: string,        
         displayName?: string;
     } = {};
 }
 
 export class CreateProducerTransportMsg {
     private type = payloadTypeClient.createProducerTransport;
+    data : {
+         authToken?: string
+    } = { }
 }
 
 export class ProducerTransportCreatedMsg {
     private type = payloadTypeServer.producerTransportCreated;
     data?: {
+        authToken?: string,
         transportId?: string,
         iceParameters?: any,
         iceServers?: any,
@@ -90,17 +96,22 @@ export class ProducerTransportCreatedMsg {
 export class ConnectProducerTransportMsg {
     private type = payloadTypeClient.connectProducerTransport;
     data: {
+        authToken?: string,
         dtlsParameters?: any
     } = {}
 }
 
 export class CreateConsumerTransportMsg {
     private type = payloadTypeClient.createConsumerTransport;
+    data: {
+        authToken?: string
+    } = {}
 }
 
 export class ConsumerTransportCreatedMsg {
     private type = payloadTypeServer.consumerTransportCreated;
     data?: {
+        authToken?: string,
         transportId?: string,
         iceParameters?: any,
         iceServers?: any,
@@ -113,6 +124,7 @@ export class ConsumerTransportCreatedMsg {
 export class ConnectConsumerTransportMsg {
     private type = payloadTypeClient.connectConsumerTransport;
     data?: {
+        authToken?: string,
         dtlsParameters?: any
     } = {};
 }
@@ -121,24 +133,46 @@ export class ConnectConsumerTransportMsg {
 export class RoomNewMsg {
     private type = payloadTypeClient.roomNew;
     data?: {
+        authToken?: string,
         peerId?: string,
         roomId?: string,
         roomToken?: string,
-        maxPeers?: number
-    } = {}
+        roomConfig?: RoomConfig;
+    } = {
+            roomConfig: new RoomConfig()
+        }
+}
+
+export class AuthUserNewTokenMsg {
+    private type = payloadTypeClient.authUserNewToken;
+    data: {
+        authToken: string,
+        expiresInMin: 60
+    }
+}
+
+export class AuthUserNewTokenResultMsg {
+    private type = payloadTypeClient.authUserNewTokenResult;
+    data: {       
+        authToken?: string,
+        error?: string
+    } = {        
+    }
 }
 
 export class RoomNewTokenMsg {
     private type = payloadTypeClient.roomNewToken;
     data?: {
-    } = {}
+        authToken?: string,
+        expiresInMin?: number   
+    } = { }
 }
 
 export class RoomNewTokenResultMsg {
     private type = payloadTypeClient.roomNewTokenResult;
-    data?: {
+    data?: {       
         roomId?: string,
-        roomToken?: string,
+        roomToken?: string        
         error?: string
     } = {}
 }
@@ -156,6 +190,7 @@ export class RoomNewResultMsg {
 export class RoomJoinMsg {
     private type = payloadTypeClient.roomJoin;
     data?: {
+        authToken?: string,
         peerId?: string,
         trackingId?: string,
         roomId?: string,
@@ -167,6 +202,7 @@ export class RoomJoinMsg {
 export class RoomLeaveMsg {
     private type = payloadTypeClient.roomLeave;
     data?: {
+        authToken?: string,
         peerId?: string,
         roomId?: string,
         roomToken?: string
@@ -209,6 +245,7 @@ export class RoomPeerLeftMsg {
 export class RoomNewProducerMsg {
     private type = payloadTypeServer.roomNewProducer;
     data?: {
+        authToken?: string,
         peerId?: string,
         trackingId?: string,
         producerId?: string,
@@ -219,6 +256,7 @@ export class RoomNewProducerMsg {
 export class RoomTerminateMsg {
     private type = payloadTypeClient.roomTerminate;
     data?: {
+        authToken?: string,
         peerId?: string,
         roomId?: string,
         roomToken?: string
@@ -228,6 +266,7 @@ export class RoomTerminateMsg {
 export class ProduceMsg {
     private type = payloadTypeClient.produce;
     data?: {
+        authToken?: string,
         kind?: "audio" | "video",
         rtpParameters?: any
     } = {};
@@ -243,6 +282,7 @@ export class ProducedMsg {
 export class ConsumeMsg {
     type = payloadTypeClient.consume;
     data?: {
+        authToken?: string,
         remotePeerId?: string,
         producerId?: string,
         rtpCapabilities?: any
@@ -263,7 +303,15 @@ export class ConsumedMsg {
 
 
 export enum RoomServerAPIRoutes {
+    newAuthUserToken = "/newAuthUserToken",
     newRoomToken = "/newRoomToken",
     newRoom = "/newRoom",
     terminateRoom = "/terminateRoom"
+}
+
+export class RoomConfig {
+    maxPeers = 2;
+    newRoomTokenExpiresInMinutes = 30; //room token expiration from date created
+    maxRoomDurationMinutes = 30; // room max duration, starts when the room is created
+    timeOutNoParticipantsSecs = 5 * 60; //when no participants in the room, timer starts and will close the room 
 }

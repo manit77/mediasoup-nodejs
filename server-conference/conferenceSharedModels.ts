@@ -210,6 +210,7 @@ export class InviteMsg {
         conferenceTitle?: string,
         roomId?: string,
         roomToken?: string
+        roomAuthUserToken?: string
     } = {
             conferenceConfig: new ConferenceConfig()
         }
@@ -226,6 +227,7 @@ export class InviteResultMsg {
         conferenceTitle?: string,
         roomId?: string,
         roomToken?: string,
+        roomAuthUserToken?: string
         error?: string
     } = {
             conferenceConfig: new ConferenceConfig()
@@ -261,6 +263,7 @@ export class JoinResultMsg {
         conferenceToken?: string;
         roomId?: string;
         roomToken?: string;
+        roomURI? : string,
         participants: IParticipant[],
         conferenceConfig?: ConferenceConfig,
         error?: string

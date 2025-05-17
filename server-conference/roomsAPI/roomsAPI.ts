@@ -1,5 +1,5 @@
 import axios from "axios";
-import { RoomNewTokenMsg, RoomNewTokenResultMsg, RoomServerAPIRoutes, RoomTerminateMsg } from "../../server-room/models/roomSharedModels";
+import { AuthUserNewTokenMsg, AuthUserNewTokenResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomServerAPIRoutes, RoomTerminateMsg } from "../../server-room/models/roomSharedModels";
 import https from "https"
 import { RoomNewMsg } from "../../client-room/roomSharedModels";
 
@@ -23,11 +23,16 @@ export class RoomsAPI {
         return await this.post(RoomServerAPIRoutes.newRoomToken, msgIn) as RoomNewTokenResultMsg;
     }
 
+    async newAuthUserToken() {
+        let msgIn = new AuthUserNewTokenMsg();
+        return await this.post(RoomServerAPIRoutes.newAuthUserToken, msgIn) as AuthUserNewTokenResultMsg;
+    }
+
     async newRoom(roomId: string, roomToken: string, maxPeers: number) {
         let msgIn = new RoomNewMsg();
         msgIn.data.maxPeers = maxPeers;
         msgIn.data.roomToken = roomToken;
-        msgIn.data.roomId = roomId;        
+        msgIn.data.roomId = roomId;
         return await this.post(RoomServerAPIRoutes.newRoom, msgIn) as RoomNewTokenResultMsg;
     }
 
@@ -40,13 +45,13 @@ export class RoomsAPI {
     private async post(path: string, dataObj: any): Promise<any> {
         const url = `${this.config.apiURI}${path}`;
         console.log(`POST: ${url}`);
-    
+
         const agent = new https.Agent({ rejectUnauthorized: false }); // Use only in development
         const options = {
             headers: { 'Content-Type': 'application/json' },
             httpsAgent: agent,
         };
-    
+
         try {
             console.log(`POST: ${url}, Data:`, dataObj);
             const result = await axios.post(url, dataObj, options); // Pass dataObj directly
