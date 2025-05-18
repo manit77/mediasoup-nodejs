@@ -8,15 +8,34 @@ export class Room {
     peers: Map<string, Peer> = new Map();
     roomToken: string = "";
 
-
-    onClose: (room: Room) => void;
-
     config = new RoomConfig();
 
     timerIdMaxRoomDuration?: NodeJS.Timeout = null;
     timerIdNoParticipants?: NodeJS.Timeout = null;
 
-    constructor() {
+    router?: mediasoup.types.Router;
+    worker?: mediasoup.types.Worker;
+
+    constructor(worker: mediasoup.types.Worker) {
+
+        this.worker = worker;
+        this.worker.createRouter({
+            mediaCodecs: [
+                {
+                    kind: 'audio',
+                    mimeType: 'audio/opus',
+                    clockRate: 48000,
+                    channels: 2,
+                },
+                {
+                    kind: 'video',
+                    mimeType: 'video/VP8',
+                    clockRate: 90000,
+                },
+            ],
+        }).then((r) => {
+            this.router = r;
+        });
 
     }
 
@@ -63,7 +82,6 @@ export class Room {
         }
 
         return true;
-
     }
 
     removePeer(peerId: string): void {
@@ -88,21 +106,24 @@ export class Room {
      */
     close() {
         console.log("room - close()");
-        
+
         if (this.timerIdNoParticipants) {
             clearTimeout(this.timerIdNoParticipants);
         }
 
-        if(this.timerIdMaxRoomDuration){
+        if (this.timerIdMaxRoomDuration) {
             clearTimeout(this.timerIdMaxRoomDuration);
-        }
-        if (this.onClose) {
-            this.onClose(this);
-        }
+        }       
 
-        this.peers.forEach(p => p.close());
+        this.peers.forEach(p => {
+            p.close();
+            p.room = null;
+        });
+
         this.peers.clear();
-        
+
+        this.router?.close();
+        this.router = null;
     }
 
 }

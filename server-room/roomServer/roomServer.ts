@@ -1,6 +1,7 @@
 import * as mediasoup from 'mediasoup';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { Room } from './room';
 import {
     AuthUserNewTokenMsg,
@@ -26,13 +27,15 @@ export interface RoomServerConfig {
     room_newRoomTokenExpiresInMinutes: number,
     room_maxRoomDurationMinutes: number,
     room_timeOutNoParticipantsSecs: number,
-    room_peer_timeOutInactivitySecs: number
+    room_peer_timeOutInactivitySecs: number,
+    cert_file_path: string,
+    cert_key_path: string
 }
 
 export class RoomServer {
 
-    private worker?: mediasoup.types.Worker;
-    private router?: mediasoup.types.Router;
+    nextWorkerIdx = 0;
+    private workers: mediasoup.types.Worker[] = [];
 
     private peers = new Map<string, Peer>();
     private rooms = new Map<string, Room>();
@@ -56,50 +59,58 @@ export class RoomServer {
             p.close();
         });
 
-
-        // Close router first (synchronous)
-        if (this.router) {
-            try {
-                this.router.close();
-                console.log('Router closed');
-            } catch (error) {
-                console.error('Error closing router:', error);
-            }
-            this.router = undefined;
-        }
-
         // Close worker (synchronous)
-        if (this.worker) {
+        for (let i = 0; i < this.workers.length; ++i) {
+            let worker = this.workers[0];
             try {
-                this.worker.close();
+                worker.close();
                 console.log('Worker closed');
             } catch (error) {
                 console.error('Error closing worker:', error);
             }
-            this.worker = undefined;
         }
 
     }
 
     async initMediaSoup() {
-        console.log(`initMediaSoup`);
+        console.log(`initMediaSoup()`);
+        console.log(`cpu count: ${os.cpus().length}`);
 
-        this.worker = await mediasoup.createWorker();
-        this.router = await this.worker.createRouter({
-            mediaCodecs: [
+        for (let i = 0; i < os.cpus().length; ++i) {
+            const worker = await mediasoup.createWorker(
                 {
-                    kind: 'audio',
-                    mimeType: 'audio/opus',
-                    clockRate: 48000,
-                    channels: 2,
-                },
-                {
-                    kind: 'video',
-                    mimeType: 'video/VP8',
-                    clockRate: 90000,
-                },
-            ],
-        });
+                    dtlsCertificateFile: this.config.cert_file_path,
+                    dtlsPrivateKeyFile: this.config.cert_key_path
+                });
+
+            worker.on('died', () => {
+                console.error(
+                    'Worker died, exiting  in 2 seconds... [pid:%d]', worker.pid);
+
+                setTimeout(() => process.exit(1), 2000);
+            });
+
+            this.workers.push(worker);
+
+            // Log worker 
+            setInterval(async () => {
+                const usage = await worker.getResourceUsage();
+
+                console.info('Worker resource usage [pid:%d]: %o', worker.pid, usage);
+
+                const dump = await worker.dump();
+
+                console.info('Worker dump [pid:%d]: %o', worker.pid, dump);
+            }, 120000);
+        }
+    }
+
+    getNextWorker() {
+        const worker = this.workers[this.nextWorkerIdx];
+        if (++this.nextWorkerIdx === this.workers.length) {
+            this.nextWorkerIdx = 0;
+        }
+        return worker;
     }
 
     addEventListner(event: outMessage) {
@@ -112,7 +123,6 @@ export class RoomServer {
             this.outMsgListeners.splice(idx, 1);
         }
     }
-
 
     async inMessage(peerId: string, msgIn: any): Promise<any> {
 
@@ -206,45 +216,13 @@ export class RoomServer {
             return;
         }
 
-        //close producers, consumers
-        peer.producers?.forEach((producer) => producer.close());
-        peer.consumers?.forEach((consumer) => consumer.close());
-
-        //close transports
-        peer.producerTransport?.close();
-        peer.consumerTransport?.close();
-        peer.producerTransport = null;
-        peer.consumerTransport = null;
-
-        if (peer.room) {
-            peer.room.removePeer(peer.id);
-        }
+        peer.close();
 
         //delete from peers
         this.removePeerGlobal(peer);
 
         console.log(`Peer terminate ${peer.id}.`);
         this.printStats();
-    }
-
-    /**
-     * creates a transport for the peer, can be a consumer or producer
-     * @returns
-     */
-    private async createTransport() {
-        console.log("createTransport()");
-        try {
-            return await this.router.createWebRtcTransport({
-                listenIps: [{ ip: '127.0.0.1', announcedIp: undefined }],
-                enableUdp: true,
-                enableTcp: true,
-                preferUdp: true,
-            });
-        } catch (err) {
-            console.error("unable to generate transport.");
-            console.error(err);
-        }
-        return null;
     }
 
     /**
@@ -301,7 +279,7 @@ export class RoomServer {
             return null;
         }
 
-        let room = new Room();
+        let room = new Room(this.getNextWorker());
         room.id = roomId;
         room.roomToken = roomToken;
         room.config = config;
@@ -317,7 +295,7 @@ export class RoomServer {
         return this.rooms.get(roomId);
     }
 
-     getPeer(peerId: string): Peer {
+    getPeer(peerId: string): Peer {
         return this.peers.get(peerId);
     }
 
@@ -328,14 +306,7 @@ export class RoomServer {
 
     private addRoomGlobal(room: Room) {
         console.log(`addRoomGlobal ${room.id}`);
-
-        room.onClose = (room) => {
-            console.log("onClose()");
-            this.roomTerminate(room);
-        };
-
         this.rooms.set(room.id, room);
-
         room.startTimers();
     }
 
@@ -392,19 +363,12 @@ export class RoomServer {
             peer = this.createPeer(msgIn.data.trackingId, msgIn.data.authToken);
             console.log("new peer created " + peer.id);
         }
-        if (!this.router || !this.router.rtpCapabilities) {
-            console.error("mediasoup is not initialized.");
-            let msgError = new RegisterResultMsg();
-            msgError.data.error = "system erorr.";
-            return msgError;
-        }
-
+        
         let msg = new RegisterResultMsg();
         msg.data = {
             displayName: "",
             peerId: peer.id,
-            trackingId: peer.trackingid,
-            rtpCapabilities: this.router.rtpCapabilities
+            trackingId: peer.trackingid          
         };
 
         this.send(peer.id, msg);
@@ -420,9 +384,15 @@ export class RoomServer {
             return;
         }
 
+        if(!peer.room) { 
+            console.error("peer is not in a room");
+            return;
+        }
+
+
         peer.restartInactiveTimer();
 
-        const transport = await this.createTransport();
+        const transport = await roomUtils.createTransport(peer.room.router);
         peer!.producerTransport = transport;
 
         let producerTransportCreated = new ProducerTransportCreatedMsg();
@@ -451,10 +421,15 @@ export class RoomServer {
             return;
         }
 
+        if(!peer.room) { 
+            console.error("peer is not in a room");
+            return;
+        }
+
         peer.restartInactiveTimer();
 
         //create a consumer transport
-        const consumerTransport = await this.createTransport();
+        const consumerTransport = await roomUtils.createTransport(peer.room.router);
         peer.consumerTransport = consumerTransport;
 
         let consumerTransportCreated = new ConsumerTransportCreatedMsg();
@@ -546,8 +521,8 @@ export class RoomServer {
     roomNewToken(msgIn: RoomNewTokenMsg): RoomNewTokenResultMsg {
         console.log("roomNewToken");
 
-         //this requires admin access
-        if(!msgIn.data.authToken) {
+        //this requires admin access
+        if (!msgIn.data.authToken) {
             console.error("authToken required.");
             let msgError = new RoomNewTokenResultMsg();
             msgError.data.error = "authToken required.";
@@ -555,15 +530,15 @@ export class RoomServer {
         }
 
         let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, msgIn.data.authToken);
-        if(!payload){
+        if (!payload) {
             console.error("invalid authToken.");
             let msgError = new RoomNewTokenResultMsg();
             msgError.data.error = "invalid authToken.";
             return msgError;
         }
 
-        if(payload.role != AuthUserRoles.admin){
-             console.error("authToken rejected.");
+        if (payload.role != AuthUserRoles.admin) {
+            console.error("authToken rejected.");
             let msgError = new RoomNewTokenResultMsg();
             msgError.data.error = "authToken rejected.";
             return msgError;
@@ -586,7 +561,7 @@ export class RoomServer {
         console.log("onAuthUserNewToken");
 
         //this requires admin access
-        if(!msgIn.data.accessToken) {
+        if (!msgIn.data.accessToken) {
             console.error("authToken required.");
             let msgError = new AuthUserNewTokenResultMsg();
             msgError.data.error = "authToken required.";
@@ -594,15 +569,15 @@ export class RoomServer {
         }
 
         let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, msgIn.data.accessToken);
-        if(!payload){
+        if (!payload) {
             console.error("invalid authToken.");
             let msgError = new AuthUserNewTokenResultMsg();
             msgError.data.error = "invalid authToken.";
             return msgError;
         }
 
-        if(payload.role != AuthUserRoles.admin){
-             console.error("authToken rejected.");
+        if (payload.role != AuthUserRoles.admin) {
+            console.error("authToken rejected.");
             let msgError = new AuthUserNewTokenResultMsg();
             msgError.data.error = "authToken rejected.";
             return msgError;
@@ -678,22 +653,8 @@ export class RoomServer {
             return;
         }
 
-        for (let [id, peer] of room.peers) {
-            //close producers, consumers
-            peer.producers?.forEach((producer) => producer.close());
-            peer.consumers?.forEach((consumer) => consumer.close());
-
-            //close transports
-            peer.producerTransport?.close();
-            peer.consumerTransport?.close();
-
-            peer.producerTransport = null;
-            peer.consumerTransport = null;
-
-            this.removeRoomGlobal(room);
-        }
-
-        room.peers.clear();
+       room.close();
+       this.removeRoomGlobal(room);
     }
 
     onRoomTerminate(msg: RoomTerminateMsg) {

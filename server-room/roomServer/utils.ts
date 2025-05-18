@@ -1,7 +1,9 @@
+import * as mediasoup from 'mediasoup';
 import { randomUUID } from "crypto";
 import * as jwt from '../utils/jwtUtil';
 import { Room } from "./room";
 import { AuthUserRoles, AuthUserTokenPayload, RoomTokenPayload } from "../models/tokenPayloads";
+
 
 export function GetRoomId() {
     return "room-" + randomUUID().toString();
@@ -115,4 +117,24 @@ export function createAuthUserToken(secretKey: string, role: AuthUserRoles, expi
     };
 
     return jwt.jwtSign(secretKey, payload, expiresInMinutes)
+}
+
+/**
+ * creates a transport for the peer, can be a consumer or producer
+ * @returns
+ */
+export async function createTransport(router: mediasoup.types.Router) {
+    console.log("createTransport()");
+    try {
+        return await this.router.createWebRtcTransport({
+            listenIps: [{ ip: '127.0.0.1', announcedIp: undefined }],
+            enableUdp: true,
+            enableTcp: true,
+            preferUdp: true,
+        });
+    } catch (err) {
+        console.error("unable to generate transport.");
+        console.error(err);
+    }
+    return null;
 }

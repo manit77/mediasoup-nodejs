@@ -42,6 +42,7 @@ export class Peer {
 
     close() {
         console.log(`close() - peer ${this.id}`);
+        
 
         this.producerTransport?.close();
         this.consumerTransport?.close();
@@ -60,6 +61,10 @@ export class Peer {
         this.consumerTransport = null;
         if (this.timerIdInactivity) {            
             clearTimeout(this.timerIdInactivity);
+        }
+
+        if (this.room) {
+            this.room.removePeer(this.id);
         }
 
     }

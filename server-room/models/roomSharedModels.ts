@@ -59,8 +59,7 @@ export class RegisterResultMsg {
     data?: {        
         peerId?: string,
         trackingId?: string,
-        displayName?: string,
-        rtpCapabilities?: any,
+        displayName?: string,       
         error?: string
     } = {};
 }
@@ -218,6 +217,7 @@ export class RoomJoinResultMsg {
         peers?: {
             peerId: string,
             trackingId: string,
+            rtpCapabilities?: any,
             producers?: { producerId: string, kind: "audio" | "video" }[]
         }[]
     } = { peers: [] };
