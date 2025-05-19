@@ -1,6 +1,4 @@
 import * as mediasoup from 'mediasoup';
-import fs from 'fs';
-import path from 'path';
 import os from 'os';
 import { Room } from './room';
 import {
@@ -8,15 +6,15 @@ import {
     AuthUserNewTokenResultMsg,
     ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg
     , ConsumerTransportCreatedMsg, CreateProducerTransportMsg, payloadTypeClient
-    , ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg, RegisterMsg
-    , RegisterResultMsg, RoomConfig, RoomJoinMsg, RoomJoinResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
+    , ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg
+    , RegisterPeerMsg, RegisterPeerResultMsg, RoomConfig, RoomJoinMsg, RoomJoinResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
     , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
     RoomTerminateMsg,
     TerminatePeerMsg
 } from '../models/roomSharedModels';
 import { Peer } from './peer';
 import * as roomUtils from "./utils";
-import { AuthUserRoles } from '../models/tokenPayloads';
+import { AuthUserRoles, AuthUserTokenPayload } from '../models/tokenPayloads';
 
 type outMessage = (peerId: string, msg: any) => void;
 export interface RoomServerConfig {
@@ -42,14 +40,16 @@ export class RoomServer {
 
     private outMsgListeners: outMessage[] = [];
     private config: RoomServerConfig;
-
+    private timerIdResourceInterval: any;
 
     constructor(c: RoomServerConfig) {
         this.config = c;
     }
 
-    async dispose(): Promise<void> {
+    dispose() {
         // Wait for initialization to complete to ensure worker and router are set
+
+        clearInterval(this.timerIdResourceInterval);
 
         this.rooms.forEach(r => {
             r.close();
@@ -59,12 +59,12 @@ export class RoomServer {
             p.close();
         });
 
-        // Close worker (synchronous)
+        // Close worker
         for (let i = 0; i < this.workers.length; ++i) {
-            let worker = this.workers[0];
+            let worker = this.workers[i];
             try {
                 worker.close();
-                console.log('Worker closed');
+                console.log(`Worker closed ${worker.pid}`);
             } catch (error) {
                 console.error('Error closing worker:', error);
             }
@@ -92,16 +92,16 @@ export class RoomServer {
 
             this.workers.push(worker);
 
-            // Log worker 
-            setInterval(async () => {
-                const usage = await worker.getResourceUsage();
+            // this causes an issue with terminating the worker
+            // this.timerIdResourceInterval = setInterval(async () => {
+            //     const usage = await worker.getResourceUsage();
 
-                console.info('Worker resource usage [pid:%d]: %o', worker.pid, usage);
+            //     console.info('Worker resource usage [pid:%d]: %o', worker.pid, usage);
 
-                const dump = await worker.dump();
+            //     const dump = await worker.dump();
 
-                console.info('Worker dump [pid:%d]: %o', worker.pid, dump);
-            }, 120000);
+            //     console.info('Worker dump [pid:%d]: %o', worker.pid, dump);
+            // }, 30000);
         }
     }
 
@@ -133,8 +133,8 @@ export class RoomServer {
         }
 
         //we need the peerid back to the listner
-        if (msgIn.type == payloadTypeClient.register) {
-            return this.onRegister(peerId, msgIn);
+        if (msgIn.type == payloadTypeClient.registerPeer) {
+            return this.onRegisterPeer(msgIn);
         }
 
         switch (msgIn.type) {
@@ -230,12 +230,21 @@ export class RoomServer {
      * @param trackingId custom id from a client
      * @returns 
      */
-    private createPeer(trackingId: string, authToken: string) {
+    private createPeer(authToken: string, displayName: string): Peer {
         console.log("createPeer()");
+
+        let payload : AuthUserTokenPayload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
+
+        if(!payload) {
+            console.error("failed to validate validateAuthUserToken.")
+            return null;
+        }
+        
         let peer = new Peer();
         peer.id = roomUtils.GetPeerId();
-        peer.trackingid = trackingId;
         peer.authToken = authToken;
+        peer.displayName = displayName;
+        peer.trackingid = payload.trackingId;
 
         this.addPeerGlobal(peer);
         peer.restartInactiveTimer();
@@ -255,9 +264,9 @@ export class RoomServer {
         return peer;
     }
 
-    private createRoom(roomId: string, roomToken: string, config: RoomConfig): Room {
+    async createRoom(roomId: string, roomToken: string, config: RoomConfig): Promise<Room> {
 
-        console.log(`createRoom roomId:${roomId} roomToken: ${roomToken}`);
+        console.log(`createRoom() - roomId:${roomId} roomToken: ${roomToken}`);
 
         if (!roomId) {
             roomId = roomUtils.GetRoomId();
@@ -279,7 +288,30 @@ export class RoomServer {
             return null;
         }
 
-        let room = new Room(this.getNextWorker());
+        if (roomId != payload.roomId) {
+            console.error("invalid roomId.");
+            return null;
+        }
+
+        let worker = this.getNextWorker();
+
+        let router = await worker.createRouter({
+            mediaCodecs: [
+                {
+                    kind: 'audio',
+                    mimeType: 'audio/opus',
+                    clockRate: 48000,
+                    channels: 2,
+                },
+                {
+                    kind: 'video',
+                    mimeType: 'video/VP8',
+                    clockRate: 90000,
+                },
+            ],
+        });
+
+        let room = new Room(router);
         room.id = roomId;
         room.roomToken = roomToken;
         room.config = config;
@@ -300,28 +332,28 @@ export class RoomServer {
     }
 
     private addPeerGlobal(peer: Peer) {
-        console.log(`addPeerGlobal ${peer.id}`);
+        console.log(`addPeerGlobal() ${peer.id}`);
         this.peers.set(peer.id, peer);
     }
 
     private addRoomGlobal(room: Room) {
-        console.log(`addRoomGlobal ${room.id}`);
+        console.log(`addRoomGlobal() ${room.id}`);
         this.rooms.set(room.id, room);
         room.startTimers();
     }
 
     private removePeerGlobal(peer: Peer) {
-        console.log(`removePeerGlobal ${peer.id}`);
+        console.log(`removePeerGlobal() ${peer.id}`);
         this.peers.delete(peer.id);
     }
 
-    private removeRoomGlobal(room: Room) {
-        console.log(`removeRoomGlobal ${room.id}`);
+    removeRoomGlobal(room: Room) {
+        console.log(`removeRoomGlobal() ${room.id}`);
         this.rooms.delete(room.id);
     }
 
     private async send(peerId: string, msg: any) {
-        console.log('send ', msg.type);
+        console.log('send() ', msg.type);
         this.outMsgListeners.forEach(event => {
             event(peerId, msg);
         });
@@ -343,34 +375,24 @@ export class RoomServer {
         }
     }
 
-    onRegister(peerId: string, msgIn: RegisterMsg) {
-        console.log(`onRegister ${msgIn.data.displayName} `);
+    async onRegisterPeer(msgIn: RegisterPeerMsg) {
+        console.log(`onRegister() - ${msgIn.data.displayName}`);
 
-        if (!msgIn.data.authToken) {
-            console.error("no authToken");
-            return;
-        }
-
-        let authTokenPayload = roomUtils.validateAuthUserToken(this.config.room_secretKey, msgIn.data.authToken);
-        if (!authTokenPayload) {
-            console.error("invalid user token");
-            return;
-        }
-
-        //get or set peer
-        let peer = this.peers.get(peerId);
+        let peer = this.createPeer(msgIn.data.authToken, msgIn.data.displayName);
         if (!peer) {
-            peer = this.createPeer(msgIn.data.trackingId, msgIn.data.authToken);
-            console.log("new peer created " + peer.id);
+            let erroMsg = new RegisterPeerResultMsg();
+            erroMsg.data = {
+                error: "unable to create peer."
+            };
         }
-        
-        let msg = new RegisterResultMsg();
+
+        let msg = new RegisterPeerResultMsg();
         msg.data = {
-            displayName: "",
             peerId: peer.id,
-            trackingId: peer.trackingid          
+            displayName: msgIn.data.displayName
         };
 
+        //we have to send this back to the listner without a peerId
         this.send(peer.id, msg);
 
         return msg;
@@ -384,7 +406,7 @@ export class RoomServer {
             return;
         }
 
-        if(!peer.room) { 
+        if (!peer.room) {
             console.error("peer is not in a room");
             return;
         }
@@ -421,7 +443,7 @@ export class RoomServer {
             return;
         }
 
-        if(!peer.room) { 
+        if (!peer.room) {
             console.error("peer is not in a room");
             return;
         }
@@ -498,7 +520,7 @@ export class RoomServer {
      * creates a new token, and a roomid for the room
      * the roomid will used later as the room's id
      */
-    onRoomNewToken(peerId: string, msgIn: RoomNewTokenMsg): RoomNewTokenResultMsg {
+    async onRoomNewToken(peerId: string, msgIn: RoomNewTokenMsg): Promise<RoomNewTokenResultMsg> {
         console.log("onRoomNewToken");
 
         let peer = this.peers.get(peerId);
@@ -518,34 +540,11 @@ export class RoomServer {
         return msg;
     }
 
-    roomNewToken(msgIn: RoomNewTokenMsg): RoomNewTokenResultMsg {
+    async roomNewToken(msgIn: RoomNewTokenMsg): Promise<RoomNewTokenResultMsg> {
         console.log("roomNewToken");
 
-        //this requires admin access
-        if (!msgIn.data.authToken) {
-            console.error("authToken required.");
-            let msgError = new RoomNewTokenResultMsg();
-            msgError.data.error = "authToken required.";
-            return msgError;
-        }
-
-        let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, msgIn.data.authToken);
-        if (!payload) {
-            console.error("invalid authToken.");
-            let msgError = new RoomNewTokenResultMsg();
-            msgError.data.error = "invalid authToken.";
-            return msgError;
-        }
-
-        if (payload.role != AuthUserRoles.admin) {
-            console.error("authToken rejected.");
-            let msgError = new RoomNewTokenResultMsg();
-            msgError.data.error = "authToken rejected.";
-            return msgError;
-        }
-
         let msg = new RoomNewTokenResultMsg();
-        let [payloadRoom, roomToken] = roomUtils.createRoomToken(this.config.room_secretKey, "", msgIn.data.expiresInMin);
+        let [payloadRoom, roomToken] = roomUtils.generateRoomToken(this.config.room_secretKey, "", msgIn.data.expiresInMin, msgIn.data.trackingId);
 
         if (roomToken) {
             msg.data.roomId = payloadRoom.roomId;
@@ -557,34 +556,11 @@ export class RoomServer {
         return msg;
     }
 
-    onAuthUserNewToken(msgIn: AuthUserNewTokenMsg): AuthUserNewTokenResultMsg {
+    async onAuthUserNewToken(msgIn: AuthUserNewTokenMsg): Promise<AuthUserNewTokenResultMsg> {
         console.log("onAuthUserNewToken");
 
-        //this requires admin access
-        if (!msgIn.data.accessToken) {
-            console.error("authToken required.");
-            let msgError = new AuthUserNewTokenResultMsg();
-            msgError.data.error = "authToken required.";
-            return msgError;
-        }
-
-        let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, msgIn.data.accessToken);
-        if (!payload) {
-            console.error("invalid authToken.");
-            let msgError = new AuthUserNewTokenResultMsg();
-            msgError.data.error = "invalid authToken.";
-            return msgError;
-        }
-
-        if (payload.role != AuthUserRoles.admin) {
-            console.error("authToken rejected.");
-            let msgError = new AuthUserNewTokenResultMsg();
-            msgError.data.error = "authToken rejected.";
-            return msgError;
-        }
-
         let msg = new AuthUserNewTokenResultMsg();
-        let authToken = roomUtils.createAuthUserToken(this.config.room_secretKey, AuthUserRoles.user, msgIn.data.expiresInMin);
+        let authToken = roomUtils.generateAuthUserToken(this.config.room_secretKey, AuthUserRoles.user, msgIn.data.expiresInMin, msgIn.data.trackingId);
 
         if (authToken) {
             msg.data.authToken = authToken;
@@ -597,12 +573,13 @@ export class RoomServer {
 
 
     /**
-     * app requests to create a new room, room will be added to the rooms map
-     * @param peerId 
+     * client requests to create a room
+     * room will be added to the rooms map
+     * @param peerId required
      * @param msgIn 
      * @returns 
      */
-    onRoomNew(peerId: string, msgIn: RoomNewMsg) {
+    async onRoomNew(peerId: string, msgIn: RoomNewMsg) {
         console.log("onRoomNew");
 
         let peer = this.peers.get(peerId);
@@ -621,7 +598,12 @@ export class RoomServer {
         return roomNewResultMsg;
     }
 
-    onRoomNewNoPeer(msgIn: RoomNewMsg) {
+    /**
+     * app requests a room to be created, a peerId is not required
+     * @param msgIn 
+     * @returns 
+     */
+    async onRoomNewNoPeer(msgIn: RoomNewMsg) {
         console.log("onRoomNewNoPeer");
 
         if (!msgIn.data.roomToken) {
@@ -630,7 +612,7 @@ export class RoomServer {
             return errorMsg;
         }
 
-        let room = this.createRoom(msgIn.data.roomId, msgIn.data.roomToken, msgIn.data.roomConfig);
+        let room = await this.createRoom(msgIn.data.roomId, msgIn.data.roomToken, msgIn.data.roomConfig);
         if (!room) {
             let errorMsg = new RoomNewResultMsg();
             errorMsg.data.error = "error creating room.";
@@ -640,7 +622,6 @@ export class RoomServer {
         let roomNewResultMsg = new RoomNewResultMsg();
         roomNewResultMsg.data.roomId = room.id;
         roomNewResultMsg.data.roomToken = room.roomToken;
-
 
         return roomNewResultMsg;
     }
@@ -653,8 +634,8 @@ export class RoomServer {
             return;
         }
 
-       room.close();
-       this.removeRoomGlobal(room);
+        room.close();
+        this.removeRoomGlobal(room);
     }
 
     onRoomTerminate(msg: RoomTerminateMsg) {
@@ -682,7 +663,7 @@ export class RoomServer {
      * @param msgIn 
      * @returns 
      */
-    onRoomJoin(peerId: string, msgIn: RoomJoinMsg) {
+    async onRoomJoin(peerId: string, msgIn: RoomJoinMsg) {
 
         console.log("onRoomJoin()");
 

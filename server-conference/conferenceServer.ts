@@ -222,9 +222,7 @@ export class ConferenceServer {
             let roomResult = await this.roomsAPI.newRoom(tokenResult.data.roomId, tokenResult.data.roomToken, confRoom.config.maxParticipants);
             if (!roomResult) {
                 console.log("roomResult", roomResult);
-
             }
-
 
             confRoom.roomToken = tokenResult.data.roomToken;
             confRoom.roomId = tokenResult.data.roomId;

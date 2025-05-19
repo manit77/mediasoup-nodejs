@@ -14,29 +14,9 @@ export class Room {
     timerIdNoParticipants?: NodeJS.Timeout = null;
 
     router?: mediasoup.types.Router;
-    worker?: mediasoup.types.Worker;
 
-    constructor(worker: mediasoup.types.Worker) {
-
-        this.worker = worker;
-        this.worker.createRouter({
-            mediaCodecs: [
-                {
-                    kind: 'audio',
-                    mimeType: 'audio/opus',
-                    clockRate: 48000,
-                    channels: 2,
-                },
-                {
-                    kind: 'video',
-                    mimeType: 'video/VP8',
-                    clockRate: 90000,
-                },
-            ],
-        }).then((r) => {
-            this.router = r;
-        });
-
+    constructor(r: mediasoup.types.Router) {
+        this.router = r;
     }
 
     startTimers() {
@@ -53,7 +33,7 @@ export class Room {
     }
 
     private startTimerNoParticipants() {
-        console.log("startTimer()");
+        console.log("startTimerNoParticipants()");
         if (this.peers.size == 0 && this.config.timeOutNoParticipantsSecs > 0) {
             this.timerIdNoParticipants = setTimeout(async () => {
                 console.log("timerIdNoParticipantsSecs timed out");
@@ -113,7 +93,7 @@ export class Room {
 
         if (this.timerIdMaxRoomDuration) {
             clearTimeout(this.timerIdMaxRoomDuration);
-        }       
+        }
 
         this.peers.forEach(p => {
             p.close();

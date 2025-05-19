@@ -2,7 +2,7 @@
  * server receives these payload types
  */
 export enum payloadTypeClient {
-    register = "register",
+    registerPeer = "registerPeer",
     terminatePeer = "terminatePeer",
 
     createProducerTransport = "createProducerTransport",
@@ -35,6 +35,7 @@ export enum payloadTypeServer {
     consumerTransportCreated = "consumerTransportCreated",
     produced = "produced",
     consumed = "consumed",
+    unauthorized = "",
 
     roomNewResult = "roomNewResult",
     roomJoinResult = "roomJoinResult",
@@ -45,21 +46,19 @@ export enum payloadTypeServer {
 
 }
 
-export class RegisterMsg {
-    private type = payloadTypeClient.register;
+export class RegisterPeerMsg {
+    private type = payloadTypeClient.registerPeer;
     data: {
         authToken?: string,
         displayName?: string,
-        trackingId?: string
     } = {}
 }
 
-export class RegisterResultMsg {
+export class RegisterPeerResultMsg {
     private type = payloadTypeServer.registerResult;
-    data?: {        
+    data?: {
         peerId?: string,
-        trackingId?: string,
-        displayName?: string,       
+        displayName?: string,
         error?: string
     } = {};
 }
@@ -67,16 +66,16 @@ export class RegisterResultMsg {
 export class TerminatePeerMsg {
     private type = payloadTypeClient.terminatePeer;
     data: {
-        peerId?: string,        
+        peerId?: string,
         displayName?: string;
     } = {};
 }
 
 export class CreateProducerTransportMsg {
     private type = payloadTypeClient.createProducerTransport;
-    data : {
-         authToken?: string
-    } = { }
+    data: {
+        authToken?: string
+    } = {}
 }
 
 export class ProducerTransportCreatedMsg {
@@ -145,33 +144,38 @@ export class RoomNewMsg {
 export class AuthUserNewTokenMsg {
     private type = payloadTypeClient.authUserNewToken;
     data: {
-        accessToken?: string,
-        expiresInMin?: number
+        authToken?: string,
+        expiresInMin?: number,
+        trackingId?: string,
     } = {}
 }
 
 export class AuthUserNewTokenResultMsg {
     private type = payloadTypeClient.authUserNewTokenResult;
-    data: {       
+    data: {
         authToken?: string,
         error?: string
-    } = {        
-    }
+    } = {
+        }
 }
 
 export class RoomNewTokenMsg {
     private type = payloadTypeClient.roomNewToken;
     data?: {
         authToken?: string,
-        expiresInMin?: number   
-    } = { }
+        expiresInMin?: number,
+        /**
+         * your app's trackingid to track the room
+         */
+        trackingId?: string,
+    } = {}
 }
 
 export class RoomNewTokenResultMsg {
     private type = payloadTypeClient.roomNewTokenResult;
-    data?: {       
+    data?: {
         roomId?: string,
-        roomToken?: string        
+        roomToken?: string
         error?: string
     } = {}
 }
@@ -191,7 +195,6 @@ export class RoomJoinMsg {
     data?: {
         authToken?: string,
         peerId?: string,
-        trackingId?: string,
         roomId?: string,
         roomToken?: string,
         maxPeers?: number
@@ -298,6 +301,13 @@ export class ConsumedMsg {
         producerId?: string,
         kind?: "audio" | "video",
         rtpParameters?: any,
+    } = {};
+}
+
+export class UnauthorizedMsg {
+    type = payloadTypeServer.unauthorized;
+    data?: {
+        error?: string
     } = {};
 }
 

@@ -44,6 +44,10 @@ export class Peer {
         console.log(`close() - peer ${this.id}`);
         
 
+        if (this.timerIdInactivity) {            
+            clearTimeout(this.timerIdInactivity);
+        }
+        
         this.producerTransport?.close();
         this.consumerTransport?.close();
 
@@ -59,9 +63,7 @@ export class Peer {
         this.consumers = [];
         this.producerTransport = null;
         this.consumerTransport = null;
-        if (this.timerIdInactivity) {            
-            clearTimeout(this.timerIdInactivity);
-        }
+        
 
         if (this.room) {
             this.room.removePeer(this.id);
