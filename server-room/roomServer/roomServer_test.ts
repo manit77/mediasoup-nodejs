@@ -168,7 +168,7 @@ describe("roomServerTests", () => {
         msg.data.expiresInMin = expiresInMin;
         msg.data.trackingId = trackingId;
 
-        return await roomServer.onAuthUserNewToken(msg);
+        return await roomServer.onAuthUserNewTokenMsg(msg);
     }
 
     async function onRegisterPeer(authToken: string, displayName: string) {
@@ -184,7 +184,7 @@ describe("roomServerTests", () => {
 
         let msgNewRoomToken = new RoomNewTokenMsg();
         msgNewRoomToken.data.trackingId = trackingId;
-        return await roomServer.roomNewToken(msgNewRoomToken);
+        return await roomServer.onRoomNewTokenMsg(msgNewRoomToken);
 
     }
 

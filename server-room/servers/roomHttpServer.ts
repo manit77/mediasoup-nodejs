@@ -90,7 +90,7 @@ export class RoomHTTPServer {
             let msgIn = req.body as AuthUserNewTokenMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
-            let resultMsg = await this.roomServer.onAuthUserNewToken(msgIn)
+            let resultMsg = await this.roomServer.onAuthUserNewTokenMsg(msgIn)
             res.send(resultMsg);
 
         });
@@ -100,7 +100,7 @@ export class RoomHTTPServer {
             let msgIn = req.body as RoomNewTokenMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
-            let resultMsg = await this.roomServer.roomNewToken(msgIn);
+            let resultMsg = await this.roomServer.onRoomNewTokenMsg(msgIn);
             res.send(resultMsg);
         });
 
@@ -110,7 +110,7 @@ export class RoomHTTPServer {
             msgIn.data.authToken = req.rooms_authtoken;
 
             //creates a room without a peerId
-            let resultMsg = await this.roomServer.onRoomNewNoPeer(msgIn);
+            let resultMsg = await this.roomServer.onRoomNewMsg(msgIn);
             res.send(resultMsg);
         });
 
@@ -119,7 +119,7 @@ export class RoomHTTPServer {
             let msgIn = req.body as RoomTerminateMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
-            let resultMsg = this.roomServer.onRoomTerminate(msgIn);
+            let resultMsg = this.roomServer.onRoomTerminateMsg(msgIn);
             res.send(resultMsg);
         });
     }

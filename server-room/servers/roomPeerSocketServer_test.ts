@@ -3,17 +3,19 @@ import { Server as MockWebSocketServer, WebSocket as MockWebSocket } from 'mock-
 import { RoomServer, RoomServerConfig } from '../roomServer/roomServer';
 import { defaultPeerSocketServerSecurityMap, RoomPeerSocketSecurityMap, RoomPeerSocketServer } from './roomPeerSocketServer';
 import { getENV } from '../utils/env';
-import { AuthUserNewTokenMsg, payloadTypeClient, payloadTypeServer, RegisterPeerMsg, RegisterPeerResultMsg } from '../models/roomSharedModels';
+import { AuthUserNewTokenMsg, payloadTypeClient, payloadTypeServer, RegisterPeerMsg, RegisterPeerResultMsg, RoomConfig, RoomJoinMsg, RoomLeaveMsg, RoomNewMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, TerminatePeerMsg } from '../models/roomSharedModels';
 import sinon from 'sinon';
 import { MockWorker } from '../test/mediasoupMock';
+import { Room } from '../roomServer/room';
+import { Peer } from '../roomServer/peer';
 
 // Mock mediasoup module
 jest.mock('mediasoup', () => ({
-    createWorker: jest.fn().mockImplementation(() => {
-        console.log("mock createWorker");
-        return Promise.resolve(new MockWorker());
-    }),
-    version: '3.x.x',
+  createWorker: jest.fn().mockImplementation(() => {
+    console.log("mock createWorker");
+    return Promise.resolve(new MockWorker());
+  }),
+  version: '3.x.x',
 }));
 
 describe('RoomPeerSocketServer', () => {
@@ -54,42 +56,118 @@ describe('RoomPeerSocketServer', () => {
     roomServer.dispose();
   });
 
-  test('should receive and process register message', (done) => {
-    // Spy on the onMessage method to verify it's called
-    const onMessageSpy = sinon.spy(peerSocketServer, 'onMessage');
+  test('register', (done) => {
+
+    let authToken = "";
+    let peerId = "";
+    let trackingId = "peer1";
+    let roomId = "";
+    let roomToken = "";
+    let room: Room;
+    let peer: Peer;
 
     // Create a mock client
     const mockWS = new MockWebSocket('ws://localhost:8080');
-    
+
     mockWS.addEventListener('open', async () => {
       console.log('mockWS open');
       expect(mockWS.readyState).toBe(MockWebSocket.OPEN);
 
       // Get auth token
-      const authUserNewTokenMsg = new AuthUserNewTokenMsg();
-      const authUserNewTokenResult = await roomServer.onAuthUserNewToken(authUserNewTokenMsg);
+      const authUserNewTokenMsg = new AuthUserNewTokenMsg();      
+      authUserNewTokenMsg.data.expiresInMin = 5;      
+      const authUserNewTokenResult = await roomServer.onAuthUserNewTokenMsg(authUserNewTokenMsg);
+      console.log(authUserNewTokenResult.data.expiresIn);
 
+      authToken = authUserNewTokenResult.data.authToken;
       // Create and send register message
       const registerMsg = new RegisterPeerMsg();
-      registerMsg.data.authToken = authUserNewTokenResult.data.authToken;
+      registerMsg.data.authToken = authToken;
 
       // Send the message as a string
       mockWS.send(JSON.stringify(registerMsg));
-     
+
     });
 
-    mockWS.addEventListener("message", (event : any)=>{        
-        let msgIn = JSON.parse(event.data);
-        switch (msgIn.type){
-            case payloadTypeServer.registerResult : {
-                let registerPeerResultMsg = msgIn as RegisterPeerResultMsg;
-                console.log(`registerResult peerId: ${registerPeerResultMsg.data.peerId} `)
-                break;
-            }
+    mockWS.addEventListener("message", (event: any) => {
+      let msgIn = JSON.parse(event.data);
+      switch (msgIn.type) {
+        case payloadTypeServer.registerPeerResult: {
 
-        }        
-        mockWS.close();
-        done();
+          let registerPeerResultMsg = msgIn as RegisterPeerResultMsg;
+          console.log(`registerResult peerId: ${registerPeerResultMsg.data.peerId} `);
+          peerId = registerPeerResultMsg.data.peerId;
+
+          //create new room token
+          let roomNewTokenMsg = new RoomNewTokenMsg();
+          roomNewTokenMsg.data.authToken = authToken;
+          roomNewTokenMsg.data.trackingId = trackingId;
+
+          mockWS.send(JSON.stringify(roomNewTokenMsg));
+
+          break;
+        }
+        case payloadTypeServer.roomNewTokenResult: {
+
+
+          let msg = msgIn as RoomNewTokenResultMsg;
+          roomId = msg.data.roomId;
+          roomToken = msg.data.roomToken;
+
+          console.log(`roomNewTokenResult ${roomId} ${roomToken} `);
+
+          //create a room
+          let roomNewMsg = new RoomNewMsg();
+          roomNewMsg.data.peerId = peerId;
+          roomNewMsg.data.roomConfig = new RoomConfig();
+          roomNewMsg.data.roomId = roomId;
+          roomNewMsg.data.roomToken = roomToken;
+
+          mockWS.send(JSON.stringify(roomNewMsg));
+
+          break;
+
+        }
+        case payloadTypeServer.roomNewResult: {
+          console.log("new room created");
+
+          room = roomServer.getRoom(roomId);
+          expect(room).toBeTruthy();
+
+          //join room
+          let roomJoinMsg = new RoomJoinMsg();
+          roomJoinMsg.data.peerId = peerId;
+          roomJoinMsg.data.roomId = roomId;
+          roomJoinMsg.data.roomToken = roomToken;
+
+          mockWS.send(JSON.stringify(roomJoinMsg));
+
+          break;
+        }
+        case payloadTypeServer.roomJoinResult: {
+
+          console.log("joined room");
+          expect(room.getPeerCount()).toBeGreaterThan(0);
+
+          peer = room.getPeer(peerId);
+          expect(peer).toBeTruthy();
+
+          //leave room
+          let roomLeaveMsg = new RoomLeaveMsg();
+          roomLeaveMsg.data.peerId = peerId;
+          roomLeaveMsg.data.roomId = roomId;
+          roomLeaveMsg.data.roomToken = roomToken;
+
+          mockWS.send(JSON.stringify(roomLeaveMsg));
+        
+
+          break;
+        }
+        case payloadTypeServer.roomLeaveResult: {
+          mockWS.close();
+          done();
+        }
+      }
 
     });
 

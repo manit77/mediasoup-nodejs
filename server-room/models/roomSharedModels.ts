@@ -2,6 +2,8 @@
  * server receives these payload types
  */
 export enum payloadTypeClient {
+    authUserNewToken = "authUserNewToken",
+
     registerPeer = "registerPeer",
     terminatePeer = "terminatePeer",
 
@@ -10,8 +12,6 @@ export enum payloadTypeClient {
     connectProducerTransport = "connectProducerTransport",
     connectConsumerTransport = "connectConsumerTransport",
 
-    authUserNewToken = "authUserNewToken",
-    authUserNewTokenResult = "authUserNewTokenResult",
 
     roomNewToken = "roomNewToken",
     roomNewTokenResult = "roomNewTokenResult",
@@ -30,7 +30,8 @@ export enum payloadTypeClient {
  */
 export enum payloadTypeServer {
 
-    registerResult = "registerResult",
+    authUserNewTokenResult = "authUserNewTokenResult",
+    registerPeerResult = "registerPeerResult",
 
     producerTransportCreated = "producerTransportCreated",
     consumerTransportCreated = "consumerTransportCreated",
@@ -39,11 +40,15 @@ export enum payloadTypeServer {
     unauthorized = "",
 
     roomNewResult = "roomNewResult",
+    roomNewTokenResult = "roomNewTokenResult",
     roomJoinResult = "roomJoinResult",
+    roomLeaveResult = "roomLeaveResult",
     roomNewPeer = "roomNewPeer",
     roomNewProducer = "roomNewProducer",
     roomPeerLeft = "roomPeerLeft",
     roomTerminate = "roomTerminate",
+
+    peerTerminated = "peerTerminated"
 
 }
 
@@ -56,7 +61,7 @@ export class RegisterPeerMsg {
 }
 
 export class RegisterPeerResultMsg {
-    private type = payloadTypeServer.registerResult;
+    private type = payloadTypeServer.registerPeerResult;
     data?: {
         peerId?: string,
         displayName?: string,
@@ -67,8 +72,16 @@ export class RegisterPeerResultMsg {
 export class TerminatePeerMsg {
     private type = payloadTypeClient.terminatePeer;
     data: {
+        authToken?: string,
         peerId?: string,
-        displayName?: string;
+    } = {};
+}
+
+export class PeerTerminatedMsg {
+    private type = payloadTypeServer.peerTerminated;
+    data: {
+        peerId?: string,
+        error?: string
     } = {};
 }
 
@@ -152,9 +165,10 @@ export class AuthUserNewTokenMsg {
 }
 
 export class AuthUserNewTokenResultMsg {
-    private type = payloadTypeClient.authUserNewTokenResult;
+    private type = payloadTypeServer.authUserNewTokenResult;
     data: {
         authToken?: string,
+        expiresIn?: number
         error?: string
     } = {
         }
@@ -198,7 +212,6 @@ export class RoomJoinMsg {
         peerId?: string,
         roomId?: string,
         roomToken?: string,
-        maxPeers?: number
     } = {}
 }
 
@@ -209,6 +222,14 @@ export class RoomLeaveMsg {
         peerId?: string,
         roomId?: string,
         roomToken?: string
+    } = {}
+}
+
+export class RoomLeaveResult {
+    private type = payloadTypeServer.roomLeaveResult;
+    data?: {
+        roomId?: string,
+        error?: string
     } = {}
 }
 

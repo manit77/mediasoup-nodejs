@@ -30,6 +30,8 @@ defaultPeerSocketServerSecurityMap[payloadTypeClient.roomLeave] = [AuthUserRoles
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomNew] = [AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomNewToken] = [AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomTerminate] = [AuthUserRoles.user];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.terminatePeer] = [AuthUserRoles.user];
+
 
 export class RoomPeerSocketServer {
 
@@ -145,7 +147,7 @@ export class RoomPeerSocketServer {
         if (peerid) {
             let msg = new TerminatePeerMsg();
             msg.data.peerId = peerid;
-            this.roomServer.onTerminatePeer(msg);
+            this.roomServer.onTerminatePeer(peerid, msg);
         }
     }
 

@@ -100,7 +100,6 @@ export class RoomsClient {
         case payloadTypeServer.roomTerminate:
           this.onRoomTerminate(msgIn);
           break;
-
       }
     } catch (err) {
       console.error(err);
