@@ -1,0 +1,21 @@
+{
+  "name": "client-webrtc",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && node esbuild.config.mjs"
+  },
+  "dependencies": {
+    "@rooms/rooms-models": "1.0.0",
+    "@rooms/rooms-client": "1.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.4",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.0.0"
+  }
+}

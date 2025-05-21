@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "strict": false,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@conf-client/*": ["packages/client-libs/conf-client/src/*"],
+      "@rooms-client/*": ["packages/client-libs/rooms-client/src/*"],
+      "@websocket-client/*": ["packages/client-libs/websocket-client/src/*"],
+      "@webrtc-client/*": ["packages/client-libs/webrtc-client/src/*"],
+      "@conf-models/*": ["packages/shared-models/conf-models/src/*"],
+      "@rooms-models/*": ["packages/shared-models/rooms-models/src/*"]
+    }
+  }
+}
