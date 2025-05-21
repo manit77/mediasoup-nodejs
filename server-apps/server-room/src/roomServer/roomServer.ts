@@ -7,7 +7,7 @@ import {
     ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg
     , ConsumerTransportCreatedMsg, CreateProducerTransportMsg, payloadTypeClient
     , PeerTerminatedMsg, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg
-    , RegisterPeerMsg, RegisterPeerResultMsg, RoomConfig, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveResult, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
+    , RegisterPeerMsg, RegisterPeerResultMsg, RoomConfig, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResult, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
     , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
     RoomTerminateMsg,
     RoomTerminateResultMsg,
@@ -140,7 +140,7 @@ export class RoomServer {
         if (msgIn.type == payloadTypeClient.registerPeer) {
             return this.onRegisterPeer(msgIn);
         }
-      
+
         switch (msgIn.type) {
             case payloadTypeClient.terminatePeer: {
                 this.onTerminatePeer(peerId, msgIn);
@@ -184,7 +184,7 @@ export class RoomServer {
             }
 
             case payloadTypeClient.roomLeave: {
-                this.onRoomLeave(peerId);
+                this.onRoomLeave(peerId, msgIn);
                 break;
             }
 
@@ -406,7 +406,7 @@ export class RoomServer {
         }
     }
 
-    async broadCastAll(room: Room, msg: any) {
+    broadCastAll(room: Room, msg: any) {
         console.log("broadCastAll()");
         for (let peer of room.getPeers()) {
             this.send(peer.id, msg);
@@ -814,7 +814,7 @@ export class RoomServer {
 
     }
 
-    onRoomLeave(peerId: string) {
+    onRoomLeave(peerId: string, msgIn: RoomLeaveMsg) {
         console.log("onRoomLeave");
 
         let peer = this.peers.get(peerId);
@@ -830,11 +830,8 @@ export class RoomServer {
 
         let room = peer.room;
 
-        let roomLeaveResult = new RoomLeaveResult();
-        roomLeaveResult.data.roomId = room.id;
-        this.send(peer.id, roomLeaveResult);
 
-         this.closePeer(peer);
+        this.closePeer(peer);
 
 
         //broadcast to all peers that the peer has left the room
@@ -845,6 +842,11 @@ export class RoomServer {
             roomId: room.id
         }
         this.broadCastAll(room, msg);
+
+
+        let roomLeaveResult = new RoomLeaveResult();
+        roomLeaveResult.data.roomId = room.id;
+        this.send(peer.id, roomLeaveResult);
 
         this.printStats();
 

@@ -1,11 +1,12 @@
 {
   "name": "@rooms/server",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "start-room": "ts-node server-room/index.ts",
     "start-conf": "ts-node server-conference/index.ts",
-    "test": "jest",
+    "test": "node --experimental-vm-modules ../../node_modules/.bin/jest",
     "test-room": "jest --detectOpenHandles server-room/**/*/*_test.ts --runInBand"
   },
   "dependencies": {

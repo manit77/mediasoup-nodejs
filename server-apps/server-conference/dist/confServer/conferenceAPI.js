@@ -1,5 +1,7 @@
 const DSTR = "ConferenceAPI";
 export class ConferenceAPI {
+    app;
+    confUtils;
     constructor(app, confUtils) {
         this.app = app;
         this.confUtils = confUtils;

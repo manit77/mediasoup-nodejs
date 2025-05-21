@@ -7,11 +7,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "build": "tsc && node esbuild.config.mjs"
-  },
-  "dependencies": {
-    "@rooms/rooms-models": "1.0.0",
-    "@rooms/rooms-client": "1.0.0"
+    "build": "tsc && node esbuild.config.mjs && cp src/index.html dist/",
+    "start": "serve dist --ssl-cert ../../certs/localhost-fullchain.pem --ssl-key ../../certs/localhost-key.pem -p 443"
   },
   "devDependencies": {
     "esbuild": "^0.25.4",

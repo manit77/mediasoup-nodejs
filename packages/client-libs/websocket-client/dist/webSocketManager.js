@@ -1,50 +1,49 @@
 export class WebSocketManager {
-    constructor() {
-        this.logPre = "WebSocketManager";
-        this.socket = null;
-        this.callbacks = new Map();
-        this.autoReconnect = false;
-        // Initialize WebSocket connection
-        this.connect = async (uri, autoReconnect = false) => {
-            this.writeLog(`connect ${uri} `);
-            this.autoReconnect = autoReconnect;
-            this.socket = new WebSocket(`${uri}`);
-            this.state = "connecting";
-            this.socket.onopen = () => {
-                this.state = "connected";
-                this.writeLog('socket server connected');
-                this.fireEvent("onopen");
-            };
-            this.socket.onerror = (error) => {
-                this.state = "disconnected";
-                console.error('socket server error:', error);
-                this.fireEvent("onerror");
-            };
-            this.socket.onclose = () => {
-                this.writeLog("onclose");
-                if (this.autoReconnect) {
-                    this.writeLog("reconnecautoReconnectting");
-                    this.state = "reconnecting";
-                    this.fireEvent("onclose");
-                    setTimeout(() => {
-                        this.connect(uri, this.autoReconnect);
-                    }, 1000);
-                }
-                else {
-                    this.state = "disconnected";
-                    this.writeLog('socket server disconnected');
-                    this.fireEvent("onclose");
-                }
-            };
-            // Handle incoming messages
-            this.socket.onmessage = (event) => {
-                this.fireEvent("onmessage", event);
-            };
-        };
-    }
+    logPre = "WebSocketManager";
+    socket = null;
+    callbacks = new Map();
+    state;
+    autoReconnect = false;
     writeLog(...params) {
         console.log(this.logPre, ...params);
     }
+    // Initialize WebSocket connection
+    connect = async (uri, autoReconnect = false) => {
+        this.writeLog(`connect ${uri} `);
+        this.autoReconnect = autoReconnect;
+        this.socket = new WebSocket(`${uri}`);
+        this.state = "connecting";
+        this.socket.onopen = () => {
+            this.state = "connected";
+            this.writeLog('socket server connected');
+            this.fireEvent("onopen");
+        };
+        this.socket.onerror = (error) => {
+            this.state = "disconnected";
+            console.error('socket server error:', error);
+            this.fireEvent("onerror");
+        };
+        this.socket.onclose = () => {
+            this.writeLog("onclose");
+            if (this.autoReconnect) {
+                this.writeLog("reconnecautoReconnectting");
+                this.state = "reconnecting";
+                this.fireEvent("onclose");
+                setTimeout(() => {
+                    this.connect(uri, this.autoReconnect);
+                }, 1000);
+            }
+            else {
+                this.state = "disconnected";
+                this.writeLog('socket server disconnected');
+                this.fireEvent("onclose");
+            }
+        };
+        // Handle incoming messages
+        this.socket.onmessage = (event) => {
+            this.fireEvent("onmessage", event);
+        };
+    };
     fireEvent(type, data) {
         // Trigger registered callbacks for onmessage
         if (this.callbacks.has(type)) {

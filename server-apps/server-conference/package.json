@@ -1,6 +1,7 @@
 {
   "name": "server-conference",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "start-room": "ts-node server-room/index.ts",

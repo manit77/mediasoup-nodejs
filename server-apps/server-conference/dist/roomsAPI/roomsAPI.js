@@ -2,13 +2,13 @@ import axios from "axios";
 import { RoomNewMsg, AuthUserNewTokenMsg, RoomNewTokenMsg, RoomServerAPIRoutes, RoomTerminateMsg } from "@rooms/rooms-models";
 import https from "https";
 export class RoomsAPI {
+    /**
+     * rooms socket server
+     */
+    config = {
+        apiURI: "https://localhost:3000"
+    };
     constructor(uri) {
-        /**
-         * rooms socket server
-         */
-        this.config = {
-            apiURI: "https://localhost:3000"
-        };
         if (uri) {
             this.config.apiURI = uri;
         }

@@ -43,187 +43,127 @@ export var payloadTypeServer;
     payloadTypeServer["peerTerminated"] = "peerTerminated";
 })(payloadTypeServer || (payloadTypeServer = {}));
 export class RegisterPeerMsg {
-    constructor() {
-        this.type = payloadTypeClient.registerPeer;
-        this.data = {};
-    }
+    type = payloadTypeClient.registerPeer;
+    data = {};
 }
 export class RegisterPeerResultMsg {
-    constructor() {
-        this.type = payloadTypeServer.registerPeerResult;
-        this.data = {};
-    }
+    type = payloadTypeServer.registerPeerResult;
+    data = {};
 }
 export class TerminatePeerMsg {
-    constructor() {
-        this.type = payloadTypeClient.terminatePeer;
-        this.data = {};
-    }
+    type = payloadTypeClient.terminatePeer;
+    data = {};
 }
 export class PeerTerminatedMsg {
-    constructor() {
-        this.type = payloadTypeServer.peerTerminated;
-        this.data = {};
-    }
+    type = payloadTypeServer.peerTerminated;
+    data = {};
 }
 export class CreateProducerTransportMsg {
-    constructor() {
-        this.type = payloadTypeClient.createProducerTransport;
-        this.data = {};
-    }
+    type = payloadTypeClient.createProducerTransport;
+    data = {};
 }
 export class ProducerTransportCreatedMsg {
-    constructor() {
-        this.type = payloadTypeServer.producerTransportCreated;
-        this.data = {};
-    }
+    type = payloadTypeServer.producerTransportCreated;
+    data = {};
 }
 export class ConnectProducerTransportMsg {
-    constructor() {
-        this.type = payloadTypeClient.connectProducerTransport;
-        this.data = {};
-    }
+    type = payloadTypeClient.connectProducerTransport;
+    data = {};
 }
 export class CreateConsumerTransportMsg {
-    constructor() {
-        this.type = payloadTypeClient.createConsumerTransport;
-        this.data = {};
-    }
+    type = payloadTypeClient.createConsumerTransport;
+    data = {};
 }
 export class ConsumerTransportCreatedMsg {
-    constructor() {
-        this.type = payloadTypeServer.consumerTransportCreated;
-        this.data = {};
-    }
+    type = payloadTypeServer.consumerTransportCreated;
+    data = {};
 }
 export class ConnectConsumerTransportMsg {
-    constructor() {
-        this.type = payloadTypeClient.connectConsumerTransport;
-        this.data = {};
-    }
+    type = payloadTypeClient.connectConsumerTransport;
+    data = {};
 }
 //creates a new room token
 export class RoomNewMsg {
-    constructor() {
-        this.type = payloadTypeClient.roomNew;
-        this.data = {
-            roomConfig: new RoomConfig()
-        };
-    }
+    type = payloadTypeClient.roomNew;
+    data = {
+        roomConfig: new RoomConfig()
+    };
 }
 export class AuthUserNewTokenMsg {
-    constructor() {
-        this.type = payloadTypeClient.authUserNewToken;
-        this.data = {};
-    }
+    type = payloadTypeClient.authUserNewToken;
+    data = {};
 }
 export class AuthUserNewTokenResultMsg {
-    constructor() {
-        this.type = payloadTypeServer.authUserNewTokenResult;
-        this.data = {};
-    }
+    type = payloadTypeServer.authUserNewTokenResult;
+    data = {};
 }
 export class RoomNewTokenMsg {
-    constructor() {
-        this.type = payloadTypeClient.roomNewToken;
-        this.data = {};
-    }
+    type = payloadTypeClient.roomNewToken;
+    data = {};
 }
 export class RoomNewTokenResultMsg {
-    constructor() {
-        this.type = payloadTypeClient.roomNewTokenResult;
-        this.data = {};
-    }
+    type = payloadTypeClient.roomNewTokenResult;
+    data = {};
 }
 export class RoomNewResultMsg {
-    constructor() {
-        this.type = payloadTypeServer.roomNewResult;
-        this.data = {};
-    }
+    type = payloadTypeServer.roomNewResult;
+    data = {};
 }
 export class RoomJoinMsg {
-    constructor() {
-        this.type = payloadTypeClient.roomJoin;
-        this.data = {};
-    }
+    type = payloadTypeClient.roomJoin;
+    data = {};
 }
 export class RoomLeaveMsg {
-    constructor() {
-        this.type = payloadTypeClient.roomLeave;
-        this.data = {};
-    }
+    type = payloadTypeClient.roomLeave;
+    data = {};
 }
 export class RoomLeaveResult {
-    constructor() {
-        this.type = payloadTypeServer.roomLeaveResult;
-        this.data = {};
-    }
+    type = payloadTypeServer.roomLeaveResult;
+    data = {};
 }
 export class RoomJoinResultMsg {
-    constructor() {
-        this.type = payloadTypeServer.roomJoinResult;
-        this.data = { peers: [] };
-    }
+    type = payloadTypeServer.roomJoinResult;
+    data = { peers: [] };
 }
 export class RoomNewPeerMsg {
-    constructor() {
-        this.type = payloadTypeServer.roomNewPeer;
-        this.data = {};
-    }
+    type = payloadTypeServer.roomNewPeer;
+    data = {};
 }
 export class RoomPeerLeftMsg {
-    constructor() {
-        this.type = payloadTypeServer.roomPeerLeft;
-        this.data = {};
-    }
+    type = payloadTypeServer.roomPeerLeft;
+    data = {};
 }
 export class RoomNewProducerMsg {
-    constructor() {
-        this.type = payloadTypeServer.roomNewProducer;
-        this.data = {};
-    }
+    type = payloadTypeServer.roomNewProducer;
+    data = {};
 }
 export class RoomTerminateMsg {
-    constructor() {
-        this.type = payloadTypeClient.roomTerminate;
-        this.data = {};
-    }
+    type = payloadTypeClient.roomTerminate;
+    data = {};
 }
 export class RoomTerminateResultMsg {
-    constructor() {
-        this.type = payloadTypeClient.roomTerminateResult;
-        this.data = {};
-    }
+    type = payloadTypeClient.roomTerminateResult;
+    data = {};
 }
 export class ProduceMsg {
-    constructor() {
-        this.type = payloadTypeClient.produce;
-        this.data = {};
-    }
+    type = payloadTypeClient.produce;
+    data = {};
 }
 export class ProducedMsg {
-    constructor() {
-        this.type = payloadTypeServer.produced;
-        this.data = {};
-    }
+    type = payloadTypeServer.produced;
+    data = {};
 }
 export class ConsumeMsg {
-    constructor() {
-        this.type = payloadTypeClient.consume;
-        this.data = {};
-    }
+    type = payloadTypeClient.consume;
+    data = {};
 }
 export class ConsumedMsg {
-    constructor() {
-        this.type = payloadTypeServer.consumed;
-        this.data = {};
-    }
+    type = payloadTypeServer.consumed;
+    data = {};
 }
 export class UnauthorizedMsg {
-    constructor() {
-        this.type = payloadTypeServer.unauthorized;
-        this.data = {};
-    }
+    type = payloadTypeServer.unauthorized;
+    data = {};
 }
 export var RoomServerAPIRoutes;
 (function (RoomServerAPIRoutes) {
@@ -233,10 +173,8 @@ export var RoomServerAPIRoutes;
     RoomServerAPIRoutes["terminateRoom"] = "/terminateRoom";
 })(RoomServerAPIRoutes || (RoomServerAPIRoutes = {}));
 export class RoomConfig {
-    constructor() {
-        this.maxPeers = 2;
-        this.newRoomTokenExpiresInMinutes = 30; //room token expiration from date created
-        this.maxRoomDurationMinutes = 30; // room max duration, starts when the room is created
-        this.timeOutNoParticipantsSecs = 5 * 60; //when no participants in the room, timer starts and will close the room 
-    }
+    maxPeers = 2;
+    newRoomTokenExpiresInMinutes = 30; //room token expiration from date created
+    maxRoomDurationMinutes = 30; // room max duration, starts when the room is created
+    timeOutNoParticipantsSecs = 5 * 60; //when no participants in the room, timer starts and will close the room 
 }

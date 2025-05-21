@@ -1,11 +1,14 @@
 import { RoomConfig } from "@rooms/rooms-models";
 export class Room {
+    id;
+    peers = new Map();
+    roomToken = "";
+    config = new RoomConfig();
+    timerIdMaxRoomDuration = null;
+    timerIdNoParticipants = null;
+    router;
+    onClose;
     constructor(r) {
-        this.peers = new Map();
-        this.roomToken = "";
-        this.config = new RoomConfig();
-        this.timerIdMaxRoomDuration = null;
-        this.timerIdNoParticipants = null;
         this.router = r;
     }
     startTimers() {

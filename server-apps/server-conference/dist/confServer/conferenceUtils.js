@@ -1,11 +1,9 @@
 import * as jwt from '../utils/jwtUtil';
 export class ConferenceUtils {
-    constructor() {
-        this.config = {
-            secretKey: "IFXBhILlrwNGpOLK8XDvvgqrInnU3eZ1", //override with your secret key from a secure location
-            authTokenExpiresInMinutes: 60 * 24 * 1 //0 for never expires
-        };
-    }
+    config = {
+        secretKey: "IFXBhILlrwNGpOLK8XDvvgqrInnU3eZ1", //override with your secret key from a secure location
+        authTokenExpiresInMinutes: 60 * 24 * 1 //0 for never expires
+    };
     login(msgIn) {
         let userName = msgIn.data.username;
         let password = msgIn.data.password;

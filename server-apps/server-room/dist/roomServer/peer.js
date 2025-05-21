@@ -1,11 +1,20 @@
 import { clearTimeout } from 'timers';
 export class Peer {
+    id;
+    trackingid;
+    displayName;
+    authToken;
+    timeOutInactivitySecs = 3600; //if not activity for 60 minutes terminate the peer
+    timerIdInactivity;
+    onInactive;
     constructor() {
-        this.timeOutInactivitySecs = 3600; //if not activity for 60 minutes terminate the peer
-        this.producers = [];
-        this.consumers = [];
-        this.recordings = new Map();
     }
+    producerTransport;
+    consumerTransport;
+    producers = [];
+    consumers = [];
+    recordings = new Map();
+    room;
     restartInactiveTimer() {
         console.log(`restartInactiveTimer ${this.id}`);
         if (this.timerIdInactivity) {

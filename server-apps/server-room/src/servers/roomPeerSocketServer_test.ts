@@ -10,6 +10,7 @@ import { MockWorker } from '../test/mediasoupMock';
 import { Room } from '../roomServer/room';
 import { Peer } from '../roomServer/peer';
 import { checkKeysExist } from '../utils/utils';
+import { jest } from '@jest/globals';
 
 // Mock mediasoup module
 jest.mock('mediasoup', () => ({
@@ -47,9 +48,6 @@ describe('RoomPeerSocketServer', () => {
   });
 
   afterAll(() => {
-    // Ensure everything is cleaned up
-    mockWSServer.stop();
-    roomServer.dispose();
 
     let arr = [payloadTypeServer.registerPeerResult,
     payloadTypeServer.roomNewTokenResult,
@@ -172,13 +170,17 @@ describe('RoomPeerSocketServer', () => {
           roomLeaveMsg.data.roomToken = roomToken;
 
           mockWS.send(JSON.stringify(roomLeaveMsg));
+          console.log("left room");
 
 
           break;
         }
         case payloadTypeServer.roomLeaveResult: {
+
           testResults[payloadTypeServer.roomLeaveResult] = true;
           mockWS.close();
+          mockWSServer.stop();
+          roomServer.dispose();
           done();
         }
       }

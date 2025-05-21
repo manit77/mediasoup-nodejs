@@ -5,12 +5,16 @@ import { ConferenceRoom, Participant } from '../models/models';
 import { RoomsAPI } from '../roomsAPI/roomsAPI';
 import { jwtSign } from '../utils/jwtUtil';
 export class ConferenceServer {
+    httpServer;
+    webSocketServer;
+    participants = new Map();
+    conferences = new Map();
+    // Track disconnected participants for reconnection (timeout in milliseconds)
+    disconnectedParticipants = new Map();
+    roomsAPI;
+    config;
     constructor(c, httpServer) {
         this.httpServer = httpServer;
-        this.participants = new Map();
-        this.conferences = new Map();
-        // Track disconnected participants for reconnection (timeout in milliseconds)
-        this.disconnectedParticipants = new Map();
         this.roomsAPI = new RoomsAPI(this.config.room_api_url);
         this.config = c;
     }

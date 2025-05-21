@@ -5,6 +5,7 @@ import { defaultHTTPServerSecurityMap, RoomHTTPServer } from "./roomHttpServer";
 import express from 'express';
 import supertest from "supertest";
 import * as roomUtils from "../roomServer/utils";
+import { jest } from '@jest/globals';
 let timeout = 90000;
 describe("roomServerTests", () => {
     let app;
@@ -80,6 +81,10 @@ describe("roomServerTests", () => {
         console.log(resultMsg.data.error);
         expect(resultMsg.data.roomId).toBeTruthy();
         expect(resultMsg.data.roomToken).toBeTruthy();
+        let room = roomServer.getRoom(resultMsg.data.roomId);
+        expect(room).toBeTruthy();
+        room.close();
+        expect(roomServer.getRoomCount()).toBe(0);
     });
     test('terminateRoom', async () => {
         let [payload, roomToken] = roomUtils.generateRoomToken(config.room_secretKey, "", 1, "room1");

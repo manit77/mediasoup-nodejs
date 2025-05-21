@@ -1,3 +1,5 @@
+import { jest } from '@jest/globals';
+
 global.console = {
   ...console,
   log: jest.fn((...params) => {
@@ -7,6 +9,6 @@ global.console = {
       str += p + " ";
     }
     process.stdout.write(`${str}\n`);
-    
+
   }),
 };

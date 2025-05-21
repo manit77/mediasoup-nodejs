@@ -2,11 +2,8 @@
 import { EventEmitter } from 'events';
 // Minimal mock for mediasoup.types.Worker
 export class MockWorker extends EventEmitter {
-    constructor() {
-        super(...arguments);
-        this.pid = Math.floor(Math.random() * 10000); // Fake PID
-        this.closed = false;
-    }
+    pid = Math.floor(Math.random() * 10000); // Fake PID
+    closed = false;
     async createRouter(options) {
         // Mock router if needed
         return {

@@ -1,22 +1,17 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
-const { pathsToModuleNameMapper } = require('ts-jest')
-const { compilerOptions } = require('./tsconfig')
-
-//console.log("compilerOptions.paths", compilerOptions.paths);
-
-module.exports = {
+export default {
   roots: ['<rootDir>'],
   modulePaths: ['<rootDir>'],
-  preset: 'ts-jest',
+  preset: 'ts-jest/presets/js-with-ts-esm', // ESM preset for TypeScript
   testEnvironment: 'node',
+  extensionsToTreatAsEsm: ['.ts'], // Remove .js, keep .ts
   transform: {
-    '^.+\\.tsx?$': 'ts-jest',
+    '^.+\\.tsx?$': ['ts-jest', { useESM: true }], // ESM for TypeScript
   },
   testMatch: ['**/*/*_test.ts'],
-  setupFilesAfterEnv: ["./jest.custom.config.js"],
-  // moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths),
-  // moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/' }),
-  testPathIgnorePatterns: ["/build/"],
-  maxWorkers: 1
+  setupFilesAfterEnv: ['<rootDir>/jest.custom.config.js'],
+  testPathIgnorePatterns: ['/build/'],
+  maxWorkers: 1,
+  // moduleNameMapper: {
+  //   '^rooms-models$': '<rootDir>/../rooms-models', // Map to rooms-models
+  // },
 };
-

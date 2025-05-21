@@ -30,7 +30,7 @@ export function validateRoomToken(secretKey: string, token: string): RoomTokenPa
         const payload = jwt.jwtVerify(secretKey, token) as RoomTokenPayload;
 
         // Check if roomId exists in the payload
-        if (!payload.roomId) {
+        if (!payload || !payload.roomId) {
             console.error("invalid payload: roomId field not found");
             return null;
         }

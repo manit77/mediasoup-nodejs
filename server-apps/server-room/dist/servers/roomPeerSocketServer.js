@@ -17,11 +17,15 @@ defaultPeerSocketServerSecurityMap[payloadTypeClient.roomNewToken] = [AuthUserRo
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomTerminate] = [AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.terminatePeer] = [AuthUserRoles.user];
 export class RoomPeerSocketServer {
+    config;
+    securityMap;
+    roomServer;
+    webSocketServer;
+    peers = new Map();
     constructor(config, securityMap, roomServer) {
         this.config = config;
         this.securityMap = securityMap;
         this.roomServer = roomServer;
-        this.peers = new Map();
         roomServer.addEventListner((peerId, msg) => {
             let socket = this.peers.get(peerId);
             if (socket) {

@@ -6,12 +6,14 @@ import { Peer } from './peer';
 import * as roomUtils from "./utils";
 import { AuthUserRoles } from '../models/tokenPayloads';
 export class RoomServer {
+    nextWorkerIdx = 0;
+    workers = [];
+    peers = new Map();
+    rooms = new Map();
+    outMsgListeners = [];
+    config;
+    timerIdResourceInterval;
     constructor(c) {
-        this.nextWorkerIdx = 0;
-        this.workers = [];
-        this.peers = new Map();
-        this.rooms = new Map();
-        this.outMsgListeners = [];
         this.config = c;
     }
     dispose() {
@@ -121,7 +123,7 @@ export class RoomServer {
                 break;
             }
             case payloadTypeClient.roomLeave: {
-                this.onRoomLeave(peerId);
+                this.onRoomLeave(peerId, msgIn);
                 break;
             }
             case payloadTypeClient.roomTerminate: {
@@ -301,7 +303,7 @@ export class RoomServer {
             }
         }
     }
-    async broadCastAll(room, msg) {
+    broadCastAll(room, msg) {
         console.log("broadCastAll()");
         for (let peer of room.getPeers()) {
             this.send(peer.id, msg);
@@ -618,7 +620,7 @@ export class RoomServer {
         this.printStats();
         return joinRoomResult;
     }
-    onRoomLeave(peerId) {
+    onRoomLeave(peerId, msgIn) {
         console.log("onRoomLeave");
         let peer = this.peers.get(peerId);
         if (!peer) {
@@ -630,9 +632,6 @@ export class RoomServer {
             return;
         }
         let room = peer.room;
-        let roomLeaveResult = new RoomLeaveResult();
-        roomLeaveResult.data.roomId = room.id;
-        this.send(peer.id, roomLeaveResult);
         this.closePeer(peer);
         //broadcast to all peers that the peer has left the room
         let msg = new RoomPeerLeftMsg();
@@ -642,6 +641,9 @@ export class RoomServer {
             roomId: room.id
         };
         this.broadCastAll(room, msg);
+        let roomLeaveResult = new RoomLeaveResult();
+        roomLeaveResult.data.roomId = room.id;
+        this.send(peer.id, roomLeaveResult);
         this.printStats();
         return true;
     }

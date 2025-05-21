@@ -5,6 +5,7 @@ import { getENV } from '../utils/env';
 import { AuthUserNewTokenMsg, payloadTypeServer, RegisterPeerMsg, RoomConfig, RoomJoinMsg, RoomLeaveMsg, RoomNewMsg, RoomNewTokenMsg } from "@rooms/rooms-models";
 import { MockWorker } from '../test/mediasoupMock';
 import { checkKeysExist } from '../utils/utils';
+import { jest } from '@jest/globals';
 // Mock mediasoup module
 jest.mock('mediasoup', () => ({
     createWorker: jest.fn().mockImplementation(() => {
@@ -33,9 +34,6 @@ describe('RoomPeerSocketServer', () => {
         await peerSocketServer.initWebSocket(mockWSServer);
     });
     afterAll(() => {
-        // Ensure everything is cleaned up
-        mockWSServer.stop();
-        roomServer.dispose();
         let arr = [payloadTypeServer.registerPeerResult,
             payloadTypeServer.roomNewTokenResult,
             payloadTypeServer.roomNewResult,
@@ -124,11 +122,14 @@ describe('RoomPeerSocketServer', () => {
                     roomLeaveMsg.data.roomId = roomId;
                     roomLeaveMsg.data.roomToken = roomToken;
                     mockWS.send(JSON.stringify(roomLeaveMsg));
+                    console.log("left room");
                     break;
                 }
                 case payloadTypeServer.roomLeaveResult: {
                     testResults[payloadTypeServer.roomLeaveResult] = true;
                     mockWS.close();
+                    mockWSServer.stop();
+                    roomServer.dispose();
                     done();
                 }
             }

@@ -1,6 +1,8 @@
-import { AuthUserNewTokenMsg, AuthUserNewTokenResultMsg, RegisterPeerMsg, RoomConfig
+import {
+    AuthUserNewTokenMsg, AuthUserNewTokenResultMsg, RegisterPeerMsg, RoomConfig
     , RoomJoinMsg, RoomNewMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomServerAPIRoutes
-    , RoomTerminateMsg, RoomTerminateResultMsg } from "@rooms/rooms-models";
+    , RoomTerminateMsg, RoomTerminateResultMsg
+} from "@rooms/rooms-models";
 import { getENV } from "../utils/env";
 import { Peer } from "../roomServer/peer";
 import { Room } from "../roomServer/room";
@@ -10,7 +12,7 @@ import { defaultHTTPServerSecurityMap, RoomHTTPServer } from "./roomHttpServer";
 import express, { NextFunction, Request, Response } from 'express';
 import supertest from "supertest";
 import * as roomUtils from "../roomServer/utils";
-
+import { jest } from '@jest/globals';
 
 let timeout = 90000;
 
@@ -121,6 +123,12 @@ describe("roomServerTests", () => {
         console.log(resultMsg.data.error);
         expect(resultMsg.data.roomId).toBeTruthy();
         expect(resultMsg.data.roomToken).toBeTruthy();
+
+        let room = roomServer.getRoom(resultMsg.data.roomId);
+        expect(room).toBeTruthy();
+        room.close();
+
+        expect(roomServer.getRoomCount()).toBe(0);
 
     });
 

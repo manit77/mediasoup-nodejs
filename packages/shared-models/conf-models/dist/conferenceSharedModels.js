@@ -30,210 +30,168 @@ export var CallMessageType;
     CallMessageType["rtc_ice"] = "rtc_ice";
 })(CallMessageType || (CallMessageType = {}));
 export class ConferenceConfig {
-    constructor() {
-        this.dateStart = new Date();
-        this.dateEnd = undefined;
-        this.maxParticipants = 2;
-        this.allowConferenceVideo = true;
-        this.allowConferenceAudio = true;
-        this.allowParticipantVideo = true;
-        this.allowParticpantAudio = true;
-        this.inviteOnly = false; //anyone can join or by invite only
-        this.type = ConferenceType.p2p; //p2p is using p2p webrtc calls, room is using sfu conferencing
-        /**
-         * room will terminate when there are not participants for this duration
-         */
-        this.timeOutNoParticipantsSecs = 30000;
-        /**
-         * maxDuration for the room
-         */
-        this.timeOutMaxDurationSecs = 3600000;
-        /**
-         username of the leader, if no match then all are participants
-          */
-        this.leaderUserName = "";
-        /**
-         * if the leader exits close the room
-         */
-        this.closeConferenceOnLeaderExit = false;
-        this.expiresIn = 0;
-    }
+    dateStart = new Date();
+    dateEnd = undefined;
+    maxParticipants = 2;
+    allowConferenceVideo = true;
+    allowConferenceAudio = true;
+    allowParticipantVideo = true;
+    allowParticpantAudio = true;
+    inviteOnly = false; //anyone can join or by invite only
+    type = ConferenceType.p2p; //p2p is using p2p webrtc calls, room is using sfu conferencing
+    /**
+     * room will terminate when there are not participants for this duration
+     */
+    timeOutNoParticipantsSecs = 30000;
+    /**
+     * maxDuration for the room
+     */
+    timeOutMaxDurationSecs = 3600000;
+    /**
+     username of the leader, if no match then all are participants
+      */
+    leaderUserName = "";
+    /**
+     * if the leader exits close the room
+     */
+    closeConferenceOnLeaderExit = false;
+    expiresIn = 0;
 }
 // Message sent by client to attempt reconnection
 export class ReconnectMsg {
-    constructor() {
-        this.type = CallMessageType.reconnect;
-        this.data = {
-            participantId: ""
-        };
-    }
+    type = CallMessageType.reconnect;
+    data = {
+        participantId: ""
+    };
 }
 // Server response to reconnection attempt
 export class ReconnectResultMsg {
-    constructor() {
-        this.type = CallMessageType.reconnectResult;
-        this.data = {
-            conferenceRoomId: "",
-            participants: []
-        };
-    }
+    type = CallMessageType.reconnectResult;
+    data = {
+        conferenceRoomId: "",
+        participants: []
+    };
 }
 // Broadcast to other participants when someone reconnects
 export class ParticipantReconnectedMsg {
-    constructor() {
-        this.type = CallMessageType.participantReconnected;
-        this.data = {
-            participantId: "",
-            conferenceRoomId: ""
-        };
-    }
+    type = CallMessageType.participantReconnected;
+    data = {
+        participantId: "",
+        conferenceRoomId: ""
+    };
 }
 export class RegisterMsg {
-    constructor() {
-        this.type = CallMessageType.register;
-        this.data = {
-            userName: "",
-            authToken: "",
-            participantId: ""
-        };
-    }
+    type = CallMessageType.register;
+    data = {
+        userName: "",
+        authToken: "",
+        participantId: ""
+    };
 }
 export class RegisterResultMsg {
-    constructor() {
-        this.type = CallMessageType.registerResult;
-        this.data = {
-            userName: "",
-            authToken: "",
-            participantId: "",
-            conferenceRoomId: ""
-        };
-    }
+    type = CallMessageType.registerResult;
+    data = {
+        userName: "",
+        authToken: "",
+        participantId: "",
+        conferenceRoomId: ""
+    };
 }
 export class NewConferenceMsg {
-    constructor() {
-        this.type = CallMessageType.newConference;
-        this.data = {
-            conferenceTitle: "",
-            conferenceConfig: new ConferenceConfig()
-        };
-    }
+    type = CallMessageType.newConference;
+    data = {
+        conferenceTitle: "",
+        conferenceConfig: new ConferenceConfig()
+    };
 }
 export class NewConferenceResultMsg {
-    constructor() {
-        this.type = CallMessageType.newConferenceResult;
-        this.data = {
-            conferenceRoomId: "",
-            conferenceToken: "",
-            roomId: "",
-            roomToken: "",
-            error: ""
-        };
-    }
+    type = CallMessageType.newConferenceResult;
+    data = {
+        conferenceRoomId: "",
+        conferenceToken: "",
+        roomId: "",
+        roomToken: "",
+        error: ""
+    };
 }
 export class ConferenceLeaveMsg {
-    constructor() {
-        this.type = CallMessageType.participantLeft;
-        this.data = {
-            conferenceRoomId: "",
-            participantId: ""
-        };
-    }
+    type = CallMessageType.participantLeft;
+    data = {
+        conferenceRoomId: "",
+        participantId: ""
+    };
 }
 export class GetContactsMsg {
-    constructor() {
-        this.type = CallMessageType.getContacts;
-        this.data = [];
-    }
+    type = CallMessageType.getContacts;
+    data = [];
 }
 export class InviteMsg {
-    constructor() {
-        this.type = CallMessageType.invite;
-        this.data = {
-            conferenceConfig: new ConferenceConfig()
-        };
-    }
+    type = CallMessageType.invite;
+    data = {
+        conferenceConfig: new ConferenceConfig()
+    };
 }
 export class InviteResultMsg {
-    constructor() {
-        this.type = CallMessageType.inviteResult;
-        this.data = {
-            conferenceConfig: new ConferenceConfig()
-        };
-    }
+    type = CallMessageType.inviteResult;
+    data = {
+        conferenceConfig: new ConferenceConfig()
+    };
 }
 export class RejectMsg {
-    constructor() {
-        this.type = CallMessageType.reject;
-        this.data = {};
-    }
+    type = CallMessageType.reject;
+    data = {};
 }
 export class JoinMsg {
-    constructor() {
-        this.type = CallMessageType.join;
-        this.data = {};
-    }
+    type = CallMessageType.join;
+    data = {};
 }
 export class JoinResultMsg {
-    constructor() {
-        this.type = CallMessageType.joinResult;
-        this.data = {
-            participants: []
-        };
-    }
+    type = CallMessageType.joinResult;
+    data = {
+        participants: []
+    };
 }
 export class RTCNeedOfferMsg {
-    constructor() {
-        this.type = CallMessageType.rtc_needOffer;
-        this.data = {
-            participantId: "",
-            displayName: "",
-            conferenceRoomId: ""
-        };
-    }
+    type = CallMessageType.rtc_needOffer;
+    data = {
+        participantId: "",
+        displayName: "",
+        conferenceRoomId: ""
+    };
 }
 export class LeaveMsg {
-    constructor() {
-        this.type = CallMessageType.leave;
-        this.data = {
-            conferenceRoomId: "",
-            participantId: ""
-        };
-    }
+    type = CallMessageType.leave;
+    data = {
+        conferenceRoomId: "",
+        participantId: ""
+    };
 }
 export class NewParticipantMsg {
-    constructor() {
-        this.type = CallMessageType.newParticipant;
-        this.data = {
-            conferenceRoomId: "",
-            participantId: "",
-            displayName: ""
-        };
-    }
+    type = CallMessageType.newParticipant;
+    data = {
+        conferenceRoomId: "",
+        participantId: "",
+        displayName: ""
+    };
 }
 // Add the temporary flag to the ParticipantLeftMsg
 // This lets clients know if a participant just dropped or intentionally left
 export class ParticipantLeftMsg {
-    constructor() {
-        this.type = CallMessageType.participantLeft;
-        this.data = {
-            participantId: "",
-            conferenceRoomId: ""
-        };
-    }
+    type = CallMessageType.participantLeft;
+    data = {
+        participantId: "",
+        conferenceRoomId: ""
+    };
 }
 export class ConferenceClosedMsg {
-    constructor() {
-        this.type = CallMessageType.conferenceClosed;
-        this.data = {
-            conferenceRoomId: ""
-        };
-    }
+    type = CallMessageType.conferenceClosed;
+    data = {
+        conferenceRoomId: ""
+    };
 }
 export class CloseConference {
-    constructor() {
-        this.type = CallMessageType.conferenceClosed;
-        this.data = {
-            conferenceRoomId: ""
-        };
-    }
+    type = CallMessageType.conferenceClosed;
+    data = {
+        conferenceRoomId: ""
+    };
 }

@@ -11,42 +11,47 @@ defaultHTTPServerSecurityMap[RoomServerAPIRoutes.terminateRoom] = [AuthUserRoles
  * these are admin functions of the room server
  */
 export class RoomHTTPServer {
+    config;
+    securityMap;
+    roomServer;
+    //application server <----> room server
+    webSocketServer;
+    peers = new Map();
     constructor(config, securityMap, roomServer) {
         this.config = config;
         this.securityMap = securityMap;
         this.roomServer = roomServer;
-        this.peers = new Map();
-        this.tokenCheck = (req, res, next) => {
-            console.log(`tokenCheck: ${req.path}`);
-            const authHeader = req.headers['authorization'];
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                return res.status(401).json({ error: 'Missing or invalid Authorization header' });
-            }
-            const authtoken = authHeader.split(' ')[1];
-            try {
-                //store the auth token in the request obj
-                req.rooms_authtoken = authtoken;
-                //this requires admin access
-                if (!authtoken) {
-                    console.error("authToken required.");
-                    return res.status(401).json({ error: 'Missing or invalid authToken' });
-                }
-                let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authtoken);
-                if (!payload) {
-                    console.error("invalid authToken.");
-                    return res.status(401).json({ error: 'invalid authToken.' });
-                }
-                let secMap = this.securityMap[req.path];
-                if (!secMap || secMap != payload.role) {
-                    return res.status(401).json({ error: 'unauthorized.' });
-                }
-                next();
-            }
-            catch (error) {
-                return res.status(401).json({ error: 'Invalid or expired token' });
-            }
-        };
     }
+    tokenCheck = (req, res, next) => {
+        console.log(`tokenCheck: ${req.path}`);
+        const authHeader = req.headers['authorization'];
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+        }
+        const authtoken = authHeader.split(' ')[1];
+        try {
+            //store the auth token in the request obj
+            req.rooms_authtoken = authtoken;
+            //this requires admin access
+            if (!authtoken) {
+                console.error("authToken required.");
+                return res.status(401).json({ error: 'Missing or invalid authToken' });
+            }
+            let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authtoken);
+            if (!payload) {
+                console.error("invalid authToken.");
+                return res.status(401).json({ error: 'invalid authToken.' });
+            }
+            let secMap = this.securityMap[req.path];
+            if (!secMap || secMap != payload.role) {
+                return res.status(401).json({ error: 'unauthorized.' });
+            }
+            next();
+        }
+        catch (error) {
+            return res.status(401).json({ error: 'Invalid or expired token' });
+        }
+    };
     initHTTPServer(app) {
         app.get("/hello", (req, res) => {
             res.send("RoomHTTPServer");

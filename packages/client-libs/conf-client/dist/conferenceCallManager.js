@@ -17,50 +17,29 @@ export var EventTypes;
     EventTypes["confClosed"] = "confClosed";
 })(EventTypes || (EventTypes = {}));
 export class ConferenceCallManager {
+    DSTR = "ConferenceCallManager";
+    socket;
+    localStream = null;
+    participantId = '';
+    conferenceRoom = {
+        conferenceRoomId: "",
+        participants: new Map(),
+        config: new ConferenceConfig(),
+        conferenceToken: "",
+        conferenceTitle: "",
+        roomToken: "",
+        roomId: ""
+    };
+    contacts = [];
+    rtcClient;
+    roomsClient;
+    isConnected = false;
+    config = {
+        conf_wsURI: 'wss://localhost:3001',
+        room_wsURI: 'wss://localhost:3000',
+    };
+    onEvent;
     constructor() {
-        this.DSTR = "ConferenceCallManager";
-        this.localStream = null;
-        this.participantId = '';
-        this.conferenceRoom = {
-            conferenceRoomId: "",
-            participants: new Map(),
-            config: new ConferenceConfig(),
-            conferenceToken: "",
-            conferenceTitle: "",
-            roomToken: "",
-            roomId: ""
-        };
-        this.contacts = [];
-        this.isConnected = false;
-        this.config = {
-            conf_wsURI: 'wss://localhost:3001',
-            room_wsURI: 'wss://localhost:3000',
-        };
-        this.room_onPeerNewTrack = (peer, track) => {
-            this.writeLog("room_onPeerNewStream");
-            let partcipant = this.getParticipant(peer.trackingId);
-            if (partcipant) {
-                partcipant.mediaStream.addTrack(track);
-            }
-            else {
-                this.writeLog("room_onPeerNewStream -  participant not found.");
-            }
-        };
-        this.rtc_onIceCandidate = (participantId, candidate) => {
-            this.writeLog("rtc_onIceCandidate");
-            //send ice candidate to server
-            if (candidate) {
-                const iceMsg = {
-                    type: CallMessageType.rtc_ice,
-                    data: {
-                        toParticipantId: participantId,
-                        fromParticipantId: this.participantId,
-                        candidate: candidate
-                    }
-                };
-                this.sendToServer(iceMsg);
-            }
-        };
         this.rtcClient = new WebRTCClient(this.rtc_onIceCandidate);
         this.roomsClient = new RoomsClient();
         this.roomsClient.initMediaSoupDevice();
@@ -69,6 +48,31 @@ export class ConferenceCallManager {
     writeLog(...params) {
         console.log(this.DSTR, ...params);
     }
+    room_onPeerNewTrack = (peer, track) => {
+        this.writeLog("room_onPeerNewStream");
+        let partcipant = this.getParticipant(peer.trackingId);
+        if (partcipant) {
+            partcipant.mediaStream.addTrack(track);
+        }
+        else {
+            this.writeLog("room_onPeerNewStream -  participant not found.");
+        }
+    };
+    rtc_onIceCandidate = (participantId, candidate) => {
+        this.writeLog("rtc_onIceCandidate");
+        //send ice candidate to server
+        if (candidate) {
+            const iceMsg = {
+                type: CallMessageType.rtc_ice,
+                data: {
+                    toParticipantId: participantId,
+                    fromParticipantId: this.participantId,
+                    candidate: candidate
+                }
+            };
+            this.sendToServer(iceMsg);
+        }
+    };
     connect(autoReconnect, conf_wsURIOverride = "", room_wsURIOverride = "") {
         this.writeLog("connect");
         if (conf_wsURIOverride) {

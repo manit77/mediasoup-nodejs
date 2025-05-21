@@ -1,10 +1,11 @@
 export class WebRTCClient {
+    onIceCandidate;
+    DSTR = "WebRTCClient";
+    localStream = null;
+    peerConnections = new Map();
     //private onNewConnection: (conn: ConnectionInfo)=> void,
     constructor(onIceCandidate) {
         this.onIceCandidate = onIceCandidate;
-        this.DSTR = "WebRTCClient";
-        this.localStream = null;
-        this.peerConnections = new Map();
     }
     async initLocalMedia() {
         this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
