@@ -5,7 +5,7 @@ import { RoomConfig } from '../models/roomSharedModels';
 
 export class Room {
     id: string;
-    peers: Map<string, Peer> = new Map();
+    private peers: Map<string, Peer> = new Map();
     roomToken: string = "";
 
     config = new RoomConfig();
@@ -14,6 +14,7 @@ export class Room {
     timerIdNoParticipants?: NodeJS.Timeout = null;
 
     router?: mediasoup.types.Router;
+    onClose: (room: Room) => void;
 
     constructor(r: mediasoup.types.Router) {
         this.router = r;
@@ -77,6 +78,18 @@ export class Room {
         }
     }
 
+    getPeers(): Peer[] {
+        return [...this.peers.values()];
+    }
+
+    getPeer(peerId: string) {
+        return this.peers.get(peerId);
+    }
+
+    getPeerCount() {
+        return this.peers.size;
+    }
+
     otherPeers(peerId: string) {
         return [...this.peers].filter(([id,]) => id !== peerId);
     }
@@ -87,6 +100,13 @@ export class Room {
     close() {
         console.log("room - close()");
 
+        this.peers.forEach(p => {
+            p.close();
+            p.room = null;
+        });
+
+        this.peers.clear();
+
         if (this.timerIdNoParticipants) {
             clearTimeout(this.timerIdNoParticipants);
         }
@@ -95,15 +115,12 @@ export class Room {
             clearTimeout(this.timerIdMaxRoomDuration);
         }
 
-        this.peers.forEach(p => {
-            p.close();
-            p.room = null;
-        });
-
-        this.peers.clear();
-
         this.router?.close();
         this.router = null;
+
+        if (this.onClose) {
+            this.onClose(this);
+        }
     }
 
 }

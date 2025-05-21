@@ -74,3 +74,4 @@ package-lock.json
 
 recordings/
 bin/
+client-conference/

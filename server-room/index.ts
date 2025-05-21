@@ -6,6 +6,7 @@ import { RoomServer, RoomServerConfig } from './roomServer/roomServer';
 import { defaultPeerSocketServerSecurityMap, RoomPeerSocketServer } from './servers/roomPeerSocketServer';
 import { defaultHTTPServerSecurityMap, RoomHTTPServer } from './servers/roomHttpServer';
 import { getENV } from './utils/env';
+import { WebSocketServer } from 'ws';
 
 let config: RoomServerConfig = getENV() as any;
 
@@ -32,13 +33,14 @@ server.listen(config.room_server_port, async () => {
   //manager for media soup room server
   let roomServer = new RoomServer(config);
   roomServer.initMediaSoup().then(() => {
-    
 
     let socketServerSecurityMap = defaultPeerSocketServerSecurityMap; //override with your security map
-    let socketServer = new RoomPeerSocketServer(config, socketServerSecurityMap, server, roomServer);
+    let socketServer = new RoomPeerSocketServer(config, socketServerSecurityMap, roomServer);
+    socketServer.initWebSocket(new WebSocketServer({ server: server }));
 
     let httpServerSecurityMap = defaultHTTPServerSecurityMap; //override with your security map
-    let httpServer = new RoomHTTPServer(config, httpServerSecurityMap, app, roomServer);
+    let httpServer = new RoomHTTPServer(config, httpServerSecurityMap, roomServer);
+    httpServer.initHTTPServer(app);
 
   });
 

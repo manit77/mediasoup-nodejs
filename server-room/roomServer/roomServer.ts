@@ -10,6 +10,7 @@ import {
     , RegisterPeerMsg, RegisterPeerResultMsg, RoomConfig, RoomJoinMsg, RoomJoinResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
     , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
     RoomTerminateMsg,
+    RoomTerminateResultMsg,
     TerminatePeerMsg
 } from '../models/roomSharedModels';
 import { Peer } from './peer';
@@ -54,10 +55,12 @@ export class RoomServer {
         this.rooms.forEach(r => {
             r.close();
         });
+        this.rooms.clear();
 
         this.peers.forEach(p => {
             p.close();
         });
+        this.peers.clear();
 
         // Close worker
         for (let i = 0; i < this.workers.length; ++i) {
@@ -233,13 +236,13 @@ export class RoomServer {
     private createPeer(authToken: string, displayName: string): Peer {
         console.log("createPeer()");
 
-        let payload : AuthUserTokenPayload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
+        let payload: AuthUserTokenPayload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
 
-        if(!payload) {
+        if (!payload) {
             console.error("failed to validate validateAuthUserToken.")
             return null;
         }
-        
+
         let peer = new Peer();
         peer.id = roomUtils.GetPeerId();
         peer.authToken = authToken;
@@ -249,7 +252,7 @@ export class RoomServer {
         this.addPeerGlobal(peer);
         peer.restartInactiveTimer();
 
-        peer.onPeerInactive = (peer: Peer) => {
+        peer.onInactive = (peer: Peer) => {
             if (peer.room) {
                 console.log("peer was inactive, remove from room.");
                 peer.room.removePeer(peer.id);
@@ -316,6 +319,10 @@ export class RoomServer {
         room.roomToken = roomToken;
         room.config = config;
 
+        room.onClose = (r: Room) => {
+            this.removeRoomGlobal(r);
+        };
+
         this.addRoomGlobal(room);
 
         this.printStats();
@@ -329,6 +336,14 @@ export class RoomServer {
 
     getPeer(peerId: string): Peer {
         return this.peers.get(peerId);
+    }
+
+    getRoomCount() {
+        return this.rooms.size;
+    }
+
+    getPeerCount() {
+        return this.peers.size;
     }
 
     private addPeerGlobal(peer: Peer) {
@@ -361,7 +376,7 @@ export class RoomServer {
 
     async broadCastExcept(room: Room, except: Peer, msg: any) {
         console.log("broadCastExcept()", except.id);
-        for (let peer of room.peers.values()) {
+        for (let peer of room.getPeers()) {
             if (except != peer) {
                 this.send(peer.id, msg);
             }
@@ -370,7 +385,7 @@ export class RoomServer {
 
     async broadCastAll(room: Room, msg: any) {
         console.log("broadCastAll()");
-        for (let peer of room.peers.values()) {
+        for (let peer of room.getPeers()) {
             this.send(peer.id, msg);
         }
     }
@@ -635,10 +650,11 @@ export class RoomServer {
         }
 
         room.close();
-        this.removeRoomGlobal(room);
     }
 
     onRoomTerminate(msg: RoomTerminateMsg) {
+        console.log(`onRoomTerminate() - ${msg.data.roomId}`);
+
         const room = this.rooms.get(msg.data.roomId);
         if (room) {
 
@@ -650,11 +666,19 @@ export class RoomServer {
 
             this.printStats();
 
-            return true;
+            let msgResult = new RoomTerminateResultMsg();
+            msgResult.data.roomId = room.id;
+
+            return msgResult;
         } else {
             console.log("room not found: " + msg.data.roomId)
         }
-        return false;
+
+        let msgError = new RoomTerminateResultMsg();
+        msgError.data.roomId = room.id;
+        msgError.data.error = "unable to terminate room.";
+
+        return msgError;
     }
 
     /**
@@ -710,7 +734,7 @@ export class RoomServer {
             return msgError;
         }
 
-        if (!room.peers.has(peer.id)) {
+        if (!room.getPeer(peer.id)) {
             console.log("peer not added to room");
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "peer not added to room";
@@ -876,7 +900,7 @@ export class RoomServer {
 
         //we need remote peerid, producer, and the client's rtpCapabilities      
         //find the remote peer and producer & in the room
-        let remotePeer = peer.room.peers.get(consumeMsg.data!.remotePeerId);
+        let remotePeer = peer.room.getPeer(consumeMsg.data!.remotePeerId);
         if (!remotePeer) {
             console.error("remote peer not found.");
             return;
@@ -915,8 +939,8 @@ export class RoomServer {
     printStats() {
         console.log(`### rooms: ${this.rooms.size}, peers: ${this.peers.size} ###`);
         for (let [roomid, room] of this.rooms) {
-            console.log(`##### roomid: ${roomid}, peers: ${room.peers.size}`);
-            room.peers.forEach(p => {
+            console.log(`##### roomid: ${roomid}, peers: ${room.getPeerCount()}`);
+            room.getPeers().forEach(p => {
                 console.log(`##### roomid: ${roomid}, peerid: ${p.id}}`);
             });
         }

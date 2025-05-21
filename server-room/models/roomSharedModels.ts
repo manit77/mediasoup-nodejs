@@ -19,6 +19,7 @@ export enum payloadTypeClient {
     roomJoin = "roomJoin",
     roomLeave = "roomLeave",
     roomTerminate = "roomTerminate",
+    roomTerminateResult = "roomTerminateResult",
 
     produce = "produce",
     consume = "consume",
@@ -263,6 +264,14 @@ export class RoomTerminateMsg {
         peerId?: string,
         roomId?: string,
         roomToken?: string
+    } = {}
+}
+
+export class RoomTerminateResultMsg {
+    private type = payloadTypeClient.roomTerminateResult;
+    data?: {
+        roomId?: string,
+        error?: string
     } = {}
 }
 

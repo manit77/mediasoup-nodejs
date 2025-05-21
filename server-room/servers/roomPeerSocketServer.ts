@@ -13,11 +13,11 @@ import { AuthUserRoles } from '../models/tokenPayloads';
 
 const DSTR = "RoomSocketServer";
 
-export type RoomHTTPServerSecurityMap = {
+export type RoomPeerSocketSecurityMap = {
     [key in payloadTypeClient | payloadTypeServer]: AuthUserRoles[];
 };
 
-export let defaultPeerSocketServerSecurityMap: RoomHTTPServerSecurityMap;
+export let defaultPeerSocketServerSecurityMap: RoomPeerSocketSecurityMap = {} as any;
 defaultPeerSocketServerSecurityMap[payloadTypeClient.registerPeer] = [];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.connectConsumerTransport] = [AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.connectProducerTransport] = [AuthUserRoles.user];
@@ -36,14 +36,14 @@ export class RoomPeerSocketServer {
     webSocketServer: WebSocketServer;
     peers = new Map<string, WebSocket>();
 
-    constructor(private config: RoomServerConfig, private securityMap: RoomHTTPServerSecurityMap, private httpServer: https.Server, private roomServer: RoomServer) {
+    constructor(private config: RoomServerConfig, private securityMap: RoomPeerSocketSecurityMap, private roomServer: RoomServer) {
         roomServer.addEventListner((peerId: string, msg: any) => {
             let socket = this.peers.get(peerId);
             if (socket) {
-
                 if (msg.type == payloadTypeClient.terminatePeer) {
                     console.log("socket closed");
                     socket.close();
+                    this.peers.delete(peerId);
                     return;
                 }
                 this.send(socket, msg);
@@ -53,94 +53,100 @@ export class RoomPeerSocketServer {
             }
         });
 
-        this.initWebSocket();
     }
 
-    private async initWebSocket() {
+    async initWebSocket(socketServer: WebSocketServer) {
 
         console.log(DSTR, "initWebSocket");
-
-        this.webSocketServer = new WebSocketServer({ server: this.httpServer });
+        this.webSocketServer = socketServer;
+       
         this.webSocketServer.on('connection', (ws) => {
-
-            console.log(DSTR, "socket connected peers: " + this.peers.size);
+            
+            console.log(DSTR, "socket connected peers: " + this.peers.size);            
 
             ws.on('message', async (message) => {
-                try {
-
-                    console.log(DSTR, "msgIn, ", message.toString());
-                    const msgIn = JSON.parse(message.toString());
-
-                    if (msgIn.type == payloadTypeClient.registerPeer) {
-                        //we need to tie the peerid to the socket
-                        //the client should already have an authtoken
-                        let registerResult = await this.roomServer.onRegisterPeer(msgIn);
-                        if (registerResult.data.peerId) {
-                            //store the authtoken in the socket
-                            ws["room_authtoken"] = (msgIn as RegisterPeerMsg)?.data?.authToken;
-                            //add the peer to peers
-                            this.peers.set(registerResult.data.peerId, ws);
-                            this.send(ws, registerResult);
-                            console.log(DSTR, "socket registered:" + registerResult.data.peerId);
-                        } else {
-                            console.error(DSTR, "register failed, no peerid for socket.");
-                        }
-                    } else {
-                        let peerid = this.findPeerBySocket(ws);
-                        if (peerid) {
-                            //inject the authtoken from the socket
-                            let authToken = ws["room_authtoken"];
-
-                            //validate the autoken
-                            if (!authToken) {
-                                console.error("no authToken");
-                                let errMsg = new UnauthorizedMsg();
-                                errMsg.data.error = "authToken required.";
-                                return errMsg;
-                            }
-
-                            let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
-                            if (!payload) {
-                                console.error("invalid authToken.");
-                                let errMsg = new UnauthorizedMsg();
-                                errMsg.data.error = "invalid authToken.";
-                                return errMsg;
-                            }
-
-                            //check the security map
-                            let secMap = this.securityMap[msgIn.type];
-                            if (!secMap || secMap != payload.role) {
-                                console.error("unauthorized");
-                                let errMsg = new UnauthorizedMsg();
-                                errMsg.data.error = "unauthorized access.";
-                                return errMsg;
-                            }
-
-                            msgIn.data.authToken = authToken;
-                            this.roomServer.inMessage(peerid, msgIn);
-
-                        } else {
-                            console.log(DSTR, `${msgIn.type} peer not found by socket`);
-                            console.log(DSTR, this.peers);
-                        }
-                    }
-                } catch (err) {
-                    console.error(err);
-                    console.log(message);
-                }
-
+                this.onMessage(ws, message);
             });
 
             ws.on('close', () => {
-                //when the socket closes terminate the peers transports 
-                let peerid = this.findPeerBySocket(ws);
-                if (peerid) {
-                    let msg = new TerminatePeerMsg();
-                    msg.data.peerId = peerid;
-                    this.roomServer.onTerminatePeer(msg);
-                }
+                this.onClose(ws);
             });
         });
+    }
+
+    async onMessage(ws: WebSocket, message: any) {
+        try {
+
+            console.log(DSTR, "msgIn, ", message.toString());
+            const msgIn = JSON.parse(message.toString());
+
+            if (msgIn.type == payloadTypeClient.registerPeer) {
+                //we need to tie the peerid to the socket
+                //the client should already have an authtoken
+                let registerResult = await this.roomServer.onRegisterPeer(msgIn);
+                if (registerResult.data.peerId) {
+                    //store the authtoken in the socket
+                    ws["room_authtoken"] = (msgIn as RegisterPeerMsg)?.data?.authToken;
+                    //add the peer to peers
+                    this.peers.set(registerResult.data.peerId, ws);
+                    this.send(ws, registerResult);
+                    console.log(DSTR, "socket registered:" + registerResult.data.peerId);
+                } else {
+                    console.error(DSTR, "register failed, no peerid for socket.");
+                }
+            } else {
+                let peerid = this.findPeerBySocket(ws);
+                if (peerid) {
+                    //inject the authtoken from the socket
+                    let authToken = ws["room_authtoken"];
+
+                    //validate the autoken
+                    if (!authToken) {
+                        console.error("no authToken");
+                        let errMsg = new UnauthorizedMsg();
+                        errMsg.data.error = "authToken required.";
+                        return errMsg;
+                    }
+
+                    let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
+                    if (!payload) {
+                        console.error("invalid authToken.");
+                        let errMsg = new UnauthorizedMsg();
+                        errMsg.data.error = "invalid authToken.";
+                        return errMsg;
+                    }
+
+                    //check the security map
+                    let secMap = this.securityMap[msgIn.type];
+                    if (!secMap || secMap != payload.role) {
+                        console.error("unauthorized");
+                        let errMsg = new UnauthorizedMsg();
+                        errMsg.data.error = "unauthorized access.";
+                        return errMsg;
+                    }
+
+                    msgIn.data.authToken = authToken;
+                    this.roomServer.inMessage(peerid, msgIn);
+
+                } else {
+                    console.log(DSTR, `${msgIn.type} peer not found by socket`);
+                    console.log(DSTR, this.peers);
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            console.log(message);
+        }
+    }
+
+    async onClose(ws: WebSocket) {
+        //when the socket closes terminate the peers transports 
+        let peerid = this.findPeerBySocket(ws);
+        if (peerid) {
+            let msg = new TerminatePeerMsg();
+            msg.data.peerId = peerid;
+            this.roomServer.onTerminatePeer(msg);
+        }
     }
 
     private findPeerBySocket(socket: WebSocket): string {
