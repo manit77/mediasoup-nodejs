@@ -1,4 +1,4 @@
-import { clearTimeout } from 'timers';
+import { setTimeout } from 'node:timers';
 export class Peer {
     id;
     trackingid;

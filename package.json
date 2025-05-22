@@ -9,7 +9,9 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces",
-    "start-room": "ts-node --project server-apps/server-room/src/index.ts "
+    "start-room": "ts-node --project server-apps/server-room/src/index.ts ",
+    "delete-dist": "find . -type d -name \"dist\" -exec rm -rf {} +",
+    "delete-tsbuildinfo": "find . -type f -name \"tsconfig.tsbuildinfo\" -delete "
   },
   "devDependencies": {
     "ts-node": "^10.9.2"

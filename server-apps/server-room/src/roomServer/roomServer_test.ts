@@ -7,6 +7,7 @@ import { Peer } from "./peer.js";
 import { Room } from "./room.js";
 import { RoomServer, RoomServerConfig } from "./roomServer.js";
 import { generateRoomToken } from "./utils.js";
+import { describe, it, expect } from 'vitest';
 
 let timeout = 90000;
 
@@ -32,7 +33,7 @@ describe("roomServerTests", () => {
 
     }, timeout);
 
-    test("createRoom", async () => {
+    it("createRoom", async () => {
 
         //send invalid token, this should not generate a room
         let room = await roomServer.createRoom("", "a", new RoomConfig());
@@ -52,7 +53,7 @@ describe("roomServerTests", () => {
 
     });
 
-    test("registerPeer,", async () => {
+    it("registerPeer,", async () => {
 
         //get the access token for calling the api        
         let userTrackingId = "1"; //app's unique Id
@@ -118,7 +119,7 @@ describe("roomServerTests", () => {
 
     }, timeout);
 
-    test("multplePeers", async () => {
+    it("multplePeers", async () => {
 
         let localPeers: { peerId: string, authToken: string }[] = [];
         let localRoom = {

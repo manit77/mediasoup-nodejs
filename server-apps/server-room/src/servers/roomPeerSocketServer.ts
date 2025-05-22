@@ -10,6 +10,7 @@ import {
 import { RoomServer, RoomServerConfig } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
 import { AuthUserRoles } from '../models/tokenPayloads.js';
+import { setTimeout, setInterval } from 'node:timers';
 
 const DSTR = "RoomSocketServer";
 
@@ -119,8 +120,8 @@ export class RoomPeerSocketServer {
                     }
 
                     //check the security map
-                    let secMap = this.securityMap[msgIn.type];
-                    if (!secMap || secMap != payload.role) {
+                    let secMap = this.securityMap[msgIn.type];                  
+                    if (!secMap || (secMap.length > 0 && !secMap.includes(payload.role))) {
                         console.error("unauthorized");
                         let errMsg = new UnauthorizedMsg();
                         errMsg.data.error = "unauthorized access.";

@@ -2,6 +2,8 @@ import * as mediasoup from 'mediasoup';
 import { WebSocket } from 'ws';
 import { Peer } from './peer.js';
 import { RoomConfig } from "@rooms/rooms-models";
+import { setTimeout, setInterval } from 'node:timers';
+
 
 export class Room {
     id: string;

@@ -2,6 +2,7 @@ import { AuthUserNewTokenMsg, RegisterPeerMsg, RoomConfig, RoomJoinMsg, RoomNewM
 import { getENV } from "../utils/env.js";
 import { RoomServer } from "./roomServer.js";
 import { generateRoomToken } from "./utils.js";
+import { describe, it, expect } from 'vitest';
 let timeout = 90000;
 describe("roomServerTests", () => {
     let roomServer;
@@ -18,7 +19,7 @@ describe("roomServerTests", () => {
         expect(roomServer.getPeerCount()).toBe(0);
         expect(roomServer.getRoomCount()).toBe(0);
     }, timeout);
-    test("createRoom", async () => {
+    it("createRoom", async () => {
         //send invalid token, this should not generate a room
         let room = await roomServer.createRoom("", "a", new RoomConfig());
         expect(room).toBeFalsy();
@@ -32,7 +33,7 @@ describe("roomServerTests", () => {
         expect(room).toBeTruthy();
         room.close();
     });
-    test("registerPeer,", async () => {
+    it("registerPeer,", async () => {
         //get the access token for calling the api        
         let userTrackingId = "1"; //app's unique Id
         let authToken = "";
@@ -79,7 +80,7 @@ describe("roomServerTests", () => {
         //close the room
         room.close();
     }, timeout);
-    test("multplePeers", async () => {
+    it("multplePeers", async () => {
         let localPeers = [];
         let localRoom = {
             roomId: "",

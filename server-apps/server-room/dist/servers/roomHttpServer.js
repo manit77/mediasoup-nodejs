@@ -43,7 +43,7 @@ export class RoomHTTPServer {
                 return res.status(401).json({ error: 'invalid authToken.' });
             }
             let secMap = this.securityMap[req.path];
-            if (!secMap || secMap != payload.role) {
+            if (!secMap || (secMap.length > 0 && !secMap.includes(payload.role))) {
                 return res.status(401).json({ error: 'unauthorized.' });
             }
             next();

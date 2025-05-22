@@ -76,3 +76,4 @@ recordings/
 bin/
 client-apps/client-conference-app/
 dist/
+*.tsbuildinfo

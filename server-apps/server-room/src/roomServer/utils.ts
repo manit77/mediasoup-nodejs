@@ -4,7 +4,6 @@ import * as jwt from '../utils/jwtUtil.js';
 import { Room } from "./room.js";
 import { AuthUserRoles, AuthUserTokenPayload, RoomTokenPayload } from "../models/tokenPayloads.js";
 
-
 export function GetRoomId() {
     return "room-" + randomUUID().toString();
 }

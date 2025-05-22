@@ -5,6 +5,7 @@ import { AuthUserNewTokenResultMsg, ConsumedMsg, ConsumerTransportCreatedMsg, pa
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
 import { AuthUserRoles } from '../models/tokenPayloads.js';
+import { setTimeout } from 'node:timers';
 export class RoomServer {
     nextWorkerIdx = 0;
     workers = [];

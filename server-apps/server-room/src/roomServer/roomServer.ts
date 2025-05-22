@@ -16,6 +16,7 @@ import {
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
 import { AuthUserRoles, AuthUserTokenPayload } from '../models/tokenPayloads.js';
+import { setTimeout, setInterval } from 'node:timers';
 
 type outMessage = (peerId: string, msg: any) => void;
 export interface RoomServerConfig {

@@ -96,7 +96,7 @@ export class RoomPeerSocketServer {
                     }
                     //check the security map
                     let secMap = this.securityMap[msgIn.type];
-                    if (!secMap || secMap != payload.role) {
+                    if (!secMap || (secMap.length > 0 && !secMap.includes(payload.role))) {
                         console.error("unauthorized");
                         let errMsg = new UnauthorizedMsg();
                         errMsg.data.error = "unauthorized access.";
