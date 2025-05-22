@@ -1,5 +1,5 @@
-import { AuthUserTokenPayload, AuthUserRoles } from "../models/tokenPayloads";
-import { jwtSign } from "./jwtUtil";
+import { AuthUserTokenPayload, AuthUserRoles } from "../models/tokenPayloads.js";
+import { jwtSign } from "./jwtUtil.js";
 
 
 let payload: AuthUserTokenPayload = {

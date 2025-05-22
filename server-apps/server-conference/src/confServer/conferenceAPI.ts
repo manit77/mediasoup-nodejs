@@ -1,8 +1,8 @@
 import express from 'express';
-import { LoginMsg, LoginResultMsg } from '../models/conferenceSharedModels';
-import * as jwt from '../utils/jwtUtil';
-import { IAuthPayload } from '../models/models';
-import { ConferenceUtils } from './conferenceUtils';
+import { LoginMsg, LoginResultMsg } from '../models/conferenceSharedModels.js';
+import * as jwt from '../utils/jwtUtil.js';
+import { IAuthPayload } from '../models/models.js';
+import { ConferenceUtils } from './conferenceUtils.js';
 
 
 const DSTR = "ConferenceAPI";

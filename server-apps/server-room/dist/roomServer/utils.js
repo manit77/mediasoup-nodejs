@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import * as jwt from '../utils/jwtUtil';
+import * as jwt from '../utils/jwtUtil.js';
 export function GetRoomId() {
     return "room-" + randomUUID().toString();
 }

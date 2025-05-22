@@ -1,4 +1,4 @@
-import { ConferenceConfig } from "./conferenceSharedModels";
+import { ConferenceConfig } from "./conferenceSharedModels.js";
 /**
  * active participant, the user has already authenticated
  */

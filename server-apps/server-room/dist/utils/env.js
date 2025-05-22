@@ -1,5 +1,5 @@
 import { join, dirname } from 'path';
-import * as util from './utils';
+import * as util from './utils.js';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

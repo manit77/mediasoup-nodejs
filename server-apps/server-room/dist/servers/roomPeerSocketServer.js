@@ -1,6 +1,6 @@
 import { payloadTypeClient, TerminatePeerMsg, UnauthorizedMsg } from "@rooms/rooms-models";
-import * as roomUtils from "../roomServer/utils";
-import { AuthUserRoles } from '../models/tokenPayloads';
+import * as roomUtils from "../roomServer/utils.js";
+import { AuthUserRoles } from '../models/tokenPayloads.js';
 const DSTR = "RoomSocketServer";
 export let defaultPeerSocketServerSecurityMap = {};
 defaultPeerSocketServerSecurityMap[payloadTypeClient.registerPeer] = [];

@@ -1,10 +1,10 @@
 import * as mediasoup from 'mediasoup';
 import os from 'os';
-import { Room } from './room';
+import { Room } from './room.js';
 import { AuthUserNewTokenResultMsg, ConsumedMsg, ConsumerTransportCreatedMsg, payloadTypeClient, PeerTerminatedMsg, ProducedMsg, ProducerTransportCreatedMsg, RegisterPeerResultMsg, RoomJoinResultMsg, RoomLeaveResult, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg, RoomTerminateMsg, RoomTerminateResultMsg } from "@rooms/rooms-models";
-import { Peer } from './peer';
-import * as roomUtils from "./utils";
-import { AuthUserRoles } from '../models/tokenPayloads';
+import { Peer } from './peer.js';
+import * as roomUtils from "./utils.js";
+import { AuthUserRoles } from '../models/tokenPayloads.js';
 export class RoomServer {
     nextWorkerIdx = 0;
     workers = [];

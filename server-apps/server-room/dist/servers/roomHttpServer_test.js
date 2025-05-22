@@ -1,10 +1,10 @@
 import { AuthUserNewTokenMsg, RoomConfig, RoomNewMsg, RoomNewTokenMsg, RoomServerAPIRoutes, RoomTerminateMsg } from "@rooms/rooms-models";
-import { getENV } from "../utils/env";
-import { RoomServer } from "../roomServer/roomServer";
-import { defaultHTTPServerSecurityMap, RoomHTTPServer } from "./roomHttpServer";
+import { getENV } from "../utils/env.js";
+import { RoomServer } from "../roomServer/roomServer.js";
+import { defaultHTTPServerSecurityMap, RoomHTTPServer } from "./roomHttpServer.js";
 import express from 'express';
 import supertest from "supertest";
-import * as roomUtils from "../roomServer/utils";
+import * as roomUtils from "../roomServer/utils.js";
 import { jest } from '@jest/globals';
 let timeout = 90000;
 describe("roomServerTests", () => {

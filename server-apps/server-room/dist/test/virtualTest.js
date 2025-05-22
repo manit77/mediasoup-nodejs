@@ -61,3 +61,4 @@ let testScenariosRoom4 = [
 let roomsScenarios = [testScenariosRoom1, testScenariosRoom2, testScenariosRoom3, testScenariosRoom4];
 for (let roomS of roomsScenarios) {
 }
+export {};

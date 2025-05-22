@@ -1,1 +1,1 @@
-export * from "./roomsSharedModels";
+export * from "./roomsSharedModels.js";

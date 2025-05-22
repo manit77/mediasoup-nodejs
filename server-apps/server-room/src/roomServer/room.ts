@@ -1,6 +1,6 @@
 import * as mediasoup from 'mediasoup';
 import { WebSocket } from 'ws';
-import { Peer } from './peer';
+import { Peer } from './peer.js';
 import { RoomConfig } from "@rooms/rooms-models";
 
 export class Room {

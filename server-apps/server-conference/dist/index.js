@@ -2,7 +2,7 @@ import express from 'express';
 import https from 'https';
 import fs from 'fs';
 import cors from 'cors';
-import { ConferenceServer } from './confServer/conferenceServer';
+import { ConferenceServer } from './confServer/conferenceServer.js';
 let config = {
     conf_server_port: 3001,
     conf_reconnection_timeout: 30000,

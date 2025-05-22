@@ -1,9 +1,9 @@
 import { WebSocketServer } from 'ws';
 import { randomUUID } from 'crypto';
-import { CallMessageType, ConferenceClosedMsg, ConferenceLeaveMsg, GetContactsMsg, InviteMsg, InviteResultMsg, JoinResultMsg, RTCNeedOfferMsg, NewConferenceResultMsg, NewParticipantMsg, ParticipantLeftMsg, RegisterResultMsg, ReconnectResultMsg, ParticipantReconnectedMsg, ConferenceConfig, ConferenceType } from '../models/conferenceSharedModels';
-import { ConferenceRoom, Participant } from '../models/models';
-import { RoomsAPI } from '../roomsAPI/roomsAPI';
-import { jwtSign } from '../utils/jwtUtil';
+import { CallMessageType, ConferenceClosedMsg, ConferenceLeaveMsg, GetContactsMsg, InviteMsg, InviteResultMsg, JoinResultMsg, RTCNeedOfferMsg, NewConferenceResultMsg, NewParticipantMsg, ParticipantLeftMsg, RegisterResultMsg, ReconnectResultMsg, ParticipantReconnectedMsg, ConferenceConfig, ConferenceType } from '../models/conferenceSharedModels.js';
+import { ConferenceRoom, Participant } from '../models/models.js';
+import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
+import { jwtSign } from '../utils/jwtUtil.js';
 export class ConferenceServer {
     httpServer;
     webSocketServer;

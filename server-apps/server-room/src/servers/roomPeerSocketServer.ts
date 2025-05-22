@@ -7,9 +7,9 @@ import {
     TerminatePeerMsg,
     UnauthorizedMsg
 } from "@rooms/rooms-models";
-import { RoomServer, RoomServerConfig } from '../roomServer/roomServer';
-import * as roomUtils from "../roomServer/utils";
-import { AuthUserRoles } from '../models/tokenPayloads';
+import { RoomServer, RoomServerConfig } from '../roomServer/roomServer.js';
+import * as roomUtils from "../roomServer/utils.js";
+import { AuthUserRoles } from '../models/tokenPayloads.js';
 
 const DSTR = "RoomSocketServer";
 

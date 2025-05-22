@@ -1,6 +1,6 @@
 import { RoomServerAPIRoutes, } from "@rooms/rooms-models";
-import { AuthUserRoles } from '../models/tokenPayloads';
-import * as roomUtils from "../roomServer/utils";
+import { AuthUserRoles } from '../models/tokenPayloads.js';
+import * as roomUtils from "../roomServer/utils.js";
 const DSTR = "RoomHTTPServer";
 export let defaultHTTPServerSecurityMap = {};
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newAuthUserToken] = [AuthUserRoles.admin];

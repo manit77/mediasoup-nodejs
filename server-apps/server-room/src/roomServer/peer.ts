@@ -1,5 +1,5 @@
 import * as mediasoup from 'mediasoup';
-import { Room } from './room';
+import { Room } from './room.js';
 import { clearTimeout } from 'timers';
 
 export class Peer {

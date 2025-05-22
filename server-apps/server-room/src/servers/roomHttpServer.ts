@@ -2,16 +2,14 @@ import express, { NextFunction, Request, Response } from 'express';
 import { WebSocket, WebSocketServer } from 'ws';
 import {
     AuthUserNewTokenMsg,
-    AuthUserNewTokenResultMsg,
     RoomNewMsg,
     RoomNewTokenMsg,
     RoomServerAPIRoutes,
     RoomTerminateMsg,
 } from "@rooms/rooms-models";
-import { RoomServer, RoomServerConfig } from '../roomServer/roomServer';
-import { AuthUserRoles, AuthUserTokenPayload } from '../models/tokenPayloads';
-import { jwtVerify } from '../utils/jwtUtil';
-import * as roomUtils from "../roomServer/utils";
+import { RoomServer, RoomServerConfig } from '../roomServer/roomServer.js';
+import { AuthUserRoles } from '../models/tokenPayloads.js';
+import * as roomUtils from "../roomServer/utils.js";
 
 const DSTR = "RoomHTTPServer";
 

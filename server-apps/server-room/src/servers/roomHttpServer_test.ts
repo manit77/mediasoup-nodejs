@@ -3,15 +3,15 @@ import {
     , RoomJoinMsg, RoomNewMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomServerAPIRoutes
     , RoomTerminateMsg, RoomTerminateResultMsg
 } from "@rooms/rooms-models";
-import { getENV } from "../utils/env";
-import { Peer } from "../roomServer/peer";
-import { Room } from "../roomServer/room";
-import { RoomServer, RoomServerConfig } from "../roomServer/roomServer";
-import { generateRoomToken } from "../roomServer/utils";
-import { defaultHTTPServerSecurityMap, RoomHTTPServer } from "./roomHttpServer";
+import { getENV } from "../utils/env.js";
+import { Peer } from "../roomServer/peer.js";
+import { Room } from "../roomServer/room.js";
+import { RoomServer, RoomServerConfig } from "../roomServer/roomServer.js";
+import { generateRoomToken } from "../roomServer/utils.js";
+import { defaultHTTPServerSecurityMap, RoomHTTPServer } from "./roomHttpServer.js";
 import express, { NextFunction, Request, Response } from 'express';
 import supertest from "supertest";
-import * as roomUtils from "../roomServer/utils";
+import * as roomUtils from "../roomServer/utils.js";
 import { jest } from '@jest/globals';
 
 let timeout = 90000;

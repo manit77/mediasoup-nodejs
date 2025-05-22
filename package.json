@@ -1,5 +1,7 @@
 {
+  "name": "mediasoup-demo",
   "private": true,
+  "type": "module",
   "workspaces": [
     "server-apps/*",
     "packages/shared-models/*",
@@ -7,6 +9,9 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces",
-    "start": "npm run start --workspaces"
+    "start-room": "ts-node --project server-apps/server-room/src/index.ts "
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
   }
 }

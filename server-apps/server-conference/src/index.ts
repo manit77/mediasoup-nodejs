@@ -2,7 +2,7 @@ import express from 'express';
 import https from 'https';
 import fs from 'fs';
 import cors from 'cors';
-import { ConferenceServer, ConferenceServerConfig } from './confServer/conferenceServer';
+import { ConferenceServer, ConferenceServerConfig } from './confServer/conferenceServer.js';
 
 let config: ConferenceServerConfig = {
     conf_server_port: 3001,

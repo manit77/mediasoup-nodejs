@@ -1,1 +1,1 @@
-export * from "./webRTCClient";
+export * from "./webRTCClient.js";

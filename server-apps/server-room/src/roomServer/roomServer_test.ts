@@ -2,11 +2,11 @@ import {
     AuthUserNewTokenMsg, RegisterPeerMsg, RoomConfig, RoomJoinMsg
     , RoomNewMsg, RoomNewTokenMsg
 } from "@rooms/rooms-models";
-import { getENV } from "../utils/env";
-import { Peer } from "./peer";
-import { Room } from "./room";
-import { RoomServer, RoomServerConfig } from "./roomServer";
-import { generateRoomToken } from "./utils";
+import { getENV } from "../utils/env.js";
+import { Peer } from "./peer.js";
+import { Room } from "./room.js";
+import { RoomServer, RoomServerConfig } from "./roomServer.js";
+import { generateRoomToken } from "./utils.js";
 
 let timeout = 90000;
 

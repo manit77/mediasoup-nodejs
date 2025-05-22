@@ -1,6 +1,6 @@
-import { IAuthPayload } from "../models/models";
-import { LoginMsg, LoginResultMsg } from "../models/conferenceSharedModels";
-import * as jwt from '../utils/jwtUtil';
+import { IAuthPayload } from "../models/models.js";
+import { LoginMsg, LoginResultMsg } from "../models/conferenceSharedModels.js";
+import * as jwt from '../utils/jwtUtil.js';
 
 export class ConferenceUtils {
 

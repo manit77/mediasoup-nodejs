@@ -4,7 +4,7 @@ import {
     , LeaveMsg, NewConferenceMsg, NewParticipantMsg, ParticipantLeftMsg, RegisterMsg, RegisterResultMsg, RejectMsg,
     RTCNeedOfferMsg
 } from "@conf/conf-models";
-import { WebSocketManager } from "@rooms/websocket-client";
+import { WebSocketClient } from "@rooms/websocket-client";
 import { WebRTCClient } from "@rooms/webrtc-client";
 import { RoomsClient, Peer } from "@rooms/rooms-client";
 
@@ -49,7 +49,7 @@ type ConferenceEvent = (eventType: EventTypes, payload?: any) => void;
 
 export class ConferenceCallManager {
     private DSTR = "ConferenceCallManager";
-    private socket: WebSocketManager;
+    private socket: WebSocketClient;
     localStream: MediaStream | null = null;
     private participantId: string = '';
     conferenceRoom: Conference = {
@@ -126,7 +126,7 @@ export class ConferenceCallManager {
         }
 
         // Connect to WebSocket server
-        this.socket = new WebSocketManager();
+        this.socket = new WebSocketClient();
 
         this.socket.addEventHandler("onopen", () => {
 

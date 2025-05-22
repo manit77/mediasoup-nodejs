@@ -1,1 +1,1 @@
-export * from "./conferenceSharedModels";
+export * from "./conferenceSharedModels.js";

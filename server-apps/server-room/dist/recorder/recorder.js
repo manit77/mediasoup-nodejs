@@ -1,7 +1,7 @@
 import fs from 'fs';
 import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
-import { getFreeUDPPort } from "../utils/utils";
+import { getFreeUDPPort } from "../utils/utils.js";
 ffmpeg.setFfmpegPath('./bin/ffmpeg');
 export async function startRecordingAudio(recordingsDir, peer, router) {
     const audioProducer = peer.producers?.find((p) => p.kind === 'audio');

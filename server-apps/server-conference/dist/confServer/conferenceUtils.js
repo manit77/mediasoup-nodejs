@@ -1,4 +1,4 @@
-import * as jwt from '../utils/jwtUtil';
+import * as jwt from '../utils/jwtUtil.js';
 export class ConferenceUtils {
     config = {
         secretKey: "IFXBhILlrwNGpOLK8XDvvgqrInnU3eZ1", //override with your secret key from a secure location

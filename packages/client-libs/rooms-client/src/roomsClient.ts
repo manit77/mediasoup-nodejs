@@ -5,8 +5,7 @@ import {
   , payloadTypeServer, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg
   , RegisterPeerMsg, RegisterPeerResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomPeerLeftMsg
 } from "@rooms/rooms-models";
-import { Transport } from "mediasoup-client/lib/Transport";
-import { WebSocketManager } from "@rooms/websocket-client";
+import { WebSocketClient } from "@rooms/websocket-client";
 
 export class Peer {
   peerId: string = "";
@@ -22,7 +21,7 @@ export class Peer {
 
 export class RoomsClient {
 
-  ws: WebSocketManager;
+  ws: WebSocketClient;
 
   localRoomId: string = "";
   localPeer: Peer = new Peer();
@@ -129,7 +128,7 @@ export class RoomsClient {
     }
 
     this.writeLog("connect " + this.config.wsURI);
-    this.ws = new WebSocketManager();
+    this.ws = new WebSocketClient();
 
     const onOpen = async () => {
       this.isConnected = true;
@@ -171,7 +170,7 @@ export class RoomsClient {
       }
 
 
-      this.ws = new WebSocketManager();
+      this.ws = new WebSocketClient();
       this.writeLog("connectAsync " + this.config.wsURI + " state:" + this.ws.state);
 
       const onOpen = async () => {
@@ -246,7 +245,7 @@ export class RoomsClient {
     });
   }
 
-  waitForTransportConnected(transport: Transport): Promise<void> {
+  waitForTransportConnected(transport: mediasoupClient.types.Transport): Promise<void> {
     this.writeLog("-- waitForTransportConnected created")
     return new Promise((resolve, reject) => {
       if (transport.connectionState === 'connected') {

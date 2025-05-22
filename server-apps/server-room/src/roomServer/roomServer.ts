@@ -1,6 +1,6 @@
 import * as mediasoup from 'mediasoup';
 import os from 'os';
-import { Room } from './room';
+import { Room } from './room.js';
 import {
     AuthUserNewTokenMsg,
     AuthUserNewTokenResultMsg,
@@ -13,9 +13,9 @@ import {
     RoomTerminateResultMsg,
     TerminatePeerMsg
 } from "@rooms/rooms-models";
-import { Peer } from './peer';
-import * as roomUtils from "./utils";
-import { AuthUserRoles, AuthUserTokenPayload } from '../models/tokenPayloads';
+import { Peer } from './peer.js';
+import * as roomUtils from "./utils.js";
+import { AuthUserRoles, AuthUserTokenPayload } from '../models/tokenPayloads.js';
 
 type outMessage = (peerId: string, msg: any) => void;
 export interface RoomServerConfig {

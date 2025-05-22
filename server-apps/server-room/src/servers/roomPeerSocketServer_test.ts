@@ -1,15 +1,15 @@
 import { Server as MockWebSocketServer, WebSocket as MockWebSocket } from 'mock-socket';
-import { RoomServer, RoomServerConfig } from '../roomServer/roomServer';
-import { defaultPeerSocketServerSecurityMap, RoomPeerSocketSecurityMap, RoomPeerSocketServer } from './roomPeerSocketServer';
-import { getENV } from '../utils/env';
+import { RoomServer, RoomServerConfig } from '../roomServer/roomServer.js';
+import { defaultPeerSocketServerSecurityMap, RoomPeerSocketSecurityMap, RoomPeerSocketServer } from './roomPeerSocketServer.js';
+import { getENV } from '../utils/env.js';
 import {
   AuthUserNewTokenMsg, payloadTypeServer, RegisterPeerMsg, RegisterPeerResultMsg
   , RoomConfig, RoomJoinMsg, RoomLeaveMsg, RoomNewMsg, RoomNewTokenMsg, RoomNewTokenResultMsg
 } from "@rooms/rooms-models";
-import { MockWorker } from '../test/mediasoupMock';
-import { Room } from '../roomServer/room';
-import { Peer } from '../roomServer/peer';
-import { checkKeysExist } from '../utils/utils';
+import { MockWorker } from '../test/mediasoupMock.js';
+import { Room } from '../roomServer/room.js';
+import { Peer } from '../roomServer/peer.js';
+import { checkKeysExist } from '../utils/utils.js';
 import { jest } from '@jest/globals';
 
 // Mock mediasoup module

@@ -1,10 +1,10 @@
 import https from 'https';
 import { WebSocket, WebSocketServer } from 'ws';
 import { randomUUID } from 'crypto';
-import { CallMessageType, ConferenceClosedMsg, ConferenceLeaveMsg, ConferenceRole, GetContactsMsg, InviteMsg, InviteResultMsg, JoinMsg, JoinResultMsg, LeaveMsg, RTCNeedOfferMsg, NewConferenceMsg, NewConferenceResultMsg, NewParticipantMsg, ParticipantLeftMsg, RegisterMsg, RegisterResultMsg, ReconnectMsg, ReconnectResultMsg, ParticipantReconnectedMsg, RejectMsg, ConferenceConfig, Contact, ConferenceType } from '../models/conferenceSharedModels';
-import { ConferenceRoom, IConfPayload, Participant } from '../models/models';
-import { RoomsAPI } from '../roomsAPI/roomsAPI';
-import { jwtSign } from '../utils/jwtUtil';
+import { CallMessageType, ConferenceClosedMsg, ConferenceLeaveMsg, ConferenceRole, GetContactsMsg, InviteMsg, InviteResultMsg, JoinMsg, JoinResultMsg, LeaveMsg, RTCNeedOfferMsg, NewConferenceMsg, NewConferenceResultMsg, NewParticipantMsg, ParticipantLeftMsg, RegisterMsg, RegisterResultMsg, ReconnectMsg, ReconnectResultMsg, ParticipantReconnectedMsg, RejectMsg, ConferenceConfig, Contact, ConferenceType } from '../models/conferenceSharedModels.js';
+import { ConferenceRoom, IConfPayload, Participant } from '../models/models.js';
+import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
+import { jwtSign } from '../utils/jwtUtil.js';
 
 export interface ConferenceServerConfig {
     conf_server_port: number,

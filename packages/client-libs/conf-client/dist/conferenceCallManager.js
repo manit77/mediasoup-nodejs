@@ -1,5 +1,5 @@
 import { CallMessageType, ConferenceConfig, ConferenceType, GetContactsMsg, InviteMsg, JoinMsg, LeaveMsg, NewConferenceMsg, NewParticipantMsg, RegisterMsg, RejectMsg } from "@conf/conf-models";
-import { WebSocketManager } from "@rooms/websocket-client";
+import { WebSocketClient } from "@rooms/websocket-client";
 import { WebRTCClient } from "@rooms/webrtc-client";
 import { RoomsClient } from "@rooms/rooms-client";
 export var EventTypes;
@@ -82,7 +82,7 @@ export class ConferenceCallManager {
             this.config.room_wsURI = room_wsURIOverride;
         }
         // Connect to WebSocket server
-        this.socket = new WebSocketManager();
+        this.socket = new WebSocketClient();
         this.socket.addEventHandler("onopen", () => {
             this.isConnected = true;
             this.onEvent(EventTypes.connected);

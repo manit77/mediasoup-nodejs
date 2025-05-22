@@ -4,8 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start-room": "ts-node server-room/index.ts",
-    "start-conf": "ts-node server-conference/index.ts",
+    "start": "ts-node --esm src/index.ts",
     "test": "node --experimental-vm-modules ../../node_modules/.bin/jest",
     "test-room": "jest --detectOpenHandles server-room/**/*/*_test.ts --runInBand"
   },
@@ -22,6 +21,7 @@
     "sinon": "^20.0.0"
   },
   "devDependencies": {
+    "@tsconfig/node18": "^18.2.4",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.2",
     "@types/fluent-ffmpeg": "^2.1.27",

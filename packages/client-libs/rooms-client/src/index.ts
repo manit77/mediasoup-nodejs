@@ -1,1 +1,1 @@
-export * from "./roomsClient";
+export * from "./roomsClient.js";

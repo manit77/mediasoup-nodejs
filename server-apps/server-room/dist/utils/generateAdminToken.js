@@ -1,5 +1,5 @@
-import { AuthUserRoles } from "../models/tokenPayloads";
-import { jwtSign } from "./jwtUtil";
+import { AuthUserRoles } from "../models/tokenPayloads.js";
+import { jwtSign } from "./jwtUtil.js";
 let payload = {
     role: AuthUserRoles.admin
 };
