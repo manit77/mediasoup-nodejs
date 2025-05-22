@@ -7,7 +7,7 @@ import { Peer } from "./peer.js";
 import { Room } from "./room.js";
 import { RoomServer, RoomServerConfig } from "./roomServer.js";
 import { generateRoomToken } from "./utils.js";
-import { describe, it, expect } from 'vitest';
+import { describe, it, test, beforeAll, afterAll, expect } from 'vitest';
 
 let timeout = 90000;
 
@@ -27,7 +27,7 @@ describe("roomServerTests", () => {
     afterAll(async () => {
 
         console.log("### afterAll");
-        roomServer.dispose();
+        roomServer.dispose();        
         expect(roomServer.getPeerCount()).toBe(0);
         expect(roomServer.getRoomCount()).toBe(0);
 

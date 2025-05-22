@@ -1,6 +1,6 @@
 import {
-    AuthUserNewTokenMsg, AuthUserNewTokenResultMsg, RegisterPeerMsg, RoomConfig
-    , RoomJoinMsg, RoomNewMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomServerAPIRoutes
+    AuthUserNewTokenMsg, AuthUserNewTokenResultMsg, RoomConfig
+    , RoomNewMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomServerAPIRoutes
     , RoomTerminateMsg, RoomTerminateResultMsg
 } from "@rooms/rooms-models";
 import { getENV } from "../utils/env.js";
@@ -12,7 +12,7 @@ import { defaultHTTPServerSecurityMap, RoomHTTPServer } from "./roomHttpServer.j
 import express, { NextFunction, Request, Response } from 'express';
 import supertest from "supertest";
 import * as roomUtils from "../roomServer/utils.js";
-import { jest } from '@jest/globals';
+import { describe, it, test, expect, beforeAll, afterAll } from 'vitest';
 
 let timeout = 90000;
 
@@ -30,7 +30,6 @@ describe("roomServerTests", () => {
 
         room_access_token = config["room_access_token"];
 
-        jest.clearAllMocks();
         app = express();
         app.use(express.json()); // Enable JSON parsing
 

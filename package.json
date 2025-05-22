@@ -11,7 +11,8 @@
     "build": "npm run build --workspaces",
     "start-room": "ts-node --project server-apps/server-room/src/index.ts ",
     "delete-dist": "find . -type d -name \"dist\" -exec rm -rf {} +",
-    "delete-tsbuildinfo": "find . -type f -name \"tsconfig.tsbuildinfo\" -delete "
+    "delete-tsbuildinfo": "find . -type f -name \"tsconfig.tsbuildinfo\" -delete ",
+    "delete-package-lock": "find . -type f -name \"package-lock.json\" -delete "
   },
   "devDependencies": {
     "ts-node": "^10.9.2"

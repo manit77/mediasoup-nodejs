@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc",
     "start": "ts-node --esm src/index.ts",
-    "test": "vitest run"    
+    "test": "vitest run"
   },
   "dependencies": {
     "@rooms/rooms-models": "1.0.0",

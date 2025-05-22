@@ -2,14 +2,13 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    environment: 'node', // Matches your Jest testEnvironment
-    include: ['**/*/*_test.ts'], // Matches your Jest testMatch
-    globals: true, // Enables Jest-like globals (describe, it, expect)
+    environment: 'node',
+    include: ['**/*/*_test.ts'],
+    globals: true,
     // setupFiles: ['./vitest.setup.ts'], // Optional: For custom setup (e.g., supertest)
     deps: {
       moduleDirectories: ['node_modules', 'packages'], // For monorepo packages
     },
-    // Replicate Jest's --runInBand and --detectOpenHandles
     pool: 'threads',
     poolOptions: {
       threads: {
