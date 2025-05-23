@@ -33,23 +33,23 @@ import * as rooms from "@rooms/rooms-client";
 
         console.log("-- initMediaSoupDevice");
 
+        roomsClient.onRoomJoinedEvent = (roomId: string) => {
+            console.log("* onRoomJoinedEvent");
+            roomsClient.publishLocalStream();
+        };
+
         roomsClient.onRoomPeerJoinedEvent = (roomid: string, peer: rooms.Peer) => {
-            if (peer.stream) {
-                peer.stream.getTracks().forEach((track) => {
-                    addTrackToRemoteVideo(peer.peerId, track);
-                });
-            }
+            console.log("* onRoomPeerJoinedEvent");
+            roomsClient.connectToPeer(peer);
         };
 
         roomsClient.onRoomPeerLeftEvent = (roomid: string, peer: rooms.Peer) => {
-            if (peer.stream) {
-                peer.stream.getTracks().forEach((track) => {
-                    addTrackToRemoteVideo(peer.peerId, track);
-                });
-            }
+            console.log("* onRoomPeerLeftEvent");
+            destroyRemoteVideo(peer.peerId);
         };
 
         roomsClient.onPeerNewTrackEvent = (peer: rooms.Peer, track: MediaStreamTrack) => {
+            console.log("* onRoomPeerLeftEvent");
             addTrackToRemoteVideo(peer.peerId, track);
         };
 
@@ -187,17 +187,6 @@ import * as rooms from "@rooms/rooms-client";
             return;
         }
 
-        let transports = await roomsClient.waitForRoomTransports();
-
-        if (transports.data.error) {
-            console.log("unable to create transports");
-            return;
-        }
-
-        //publish the streams
-        roomsClient.publishLocalStream();
-
-
         console.log("joined room, peer count:" + joinResult.data.peers.length);
         let joinInfo: rooms.JoinInfo = {
             roomId: roomsClient.localRoomId,
@@ -212,33 +201,13 @@ import * as rooms from "@rooms/rooms-client";
 
         let joinInfo: rooms.JoinInfo = JSON.parse(ctlJoinInfo.value);
         let joinResult = await roomsClient.waitForRoomJoin(joinInfo.roomId, joinInfo.roomToken);
-        if (!joinResult.data.error) {
-            console.log("joined existing room");
-        } else {
-            console.log("error, could not join existing room " + joinResult);
-        }
-
-        let transports = await roomsClient.waitForRoomTransports();
-
-        if (transports.data.error) {
-            console.log("unable to create transports");
+        if (joinResult.data.error) {
+            console.log("* error, could not join existing room " + joinResult);
             return;
         }
 
-        //consume transports
-        let existingPeers = (joinResult as RoomJoinResultMsg).data.peers;
-
-        if (existingPeers) {
-            existingPeers.forEach(peer => {
-                peer.producers.forEach(producer => {
-                    roomsClient.consumeProducer(peer.peerId, producer.producerId);
-                });
-            });
-        }
-
-        //publish the streams
-        roomsClient.publishLocalStream();
-        console.log("joined room, peer count:" + joinResult.data.peers.length);
+        console.log("* joined existing room");
+        console.log("* joined room, peer count:" + joinResult.data.peers.length);
 
 
     }
@@ -247,14 +216,6 @@ import * as rooms from "@rooms/rooms-client";
             destroyRemoteVideo(peer.peerId);
         }
         roomsClient.roomLeave();
-    }
-
-    async function onRoomPeerLeft(msgIn: RoomPeerLeftMsg) {
-        writeLog("peer left the room:" + msgIn.data?.peerId);
-        //destroy the video element
-        if (msgIn.data && msgIn.data.peerId) {
-            destroyRemoteVideo(msgIn.data.peerId);
-        }
     }
 
 })();
