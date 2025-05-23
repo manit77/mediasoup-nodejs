@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"name": "server-room",
+			"path": "server-apps/server-room"
+		},
+		{
+			"name": "rooms-models",
+			"path": "packages/shared-models/rooms-models"
+		},
+		{
+			"name": "server-conference",
+			"path": "server-apps/server-conference"
+		},
+		{
+			"name": "conf-models",
+			"path": "packages/shared-models/conf-models"
+		}
+	],
+	"settings": {
+		"editor.formatOnSave": true,
+	}
+}

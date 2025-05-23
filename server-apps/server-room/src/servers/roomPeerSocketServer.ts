@@ -1,6 +1,7 @@
 import https from 'https';
 import { WebSocket, WebSocketServer } from 'ws';
 import {
+    AuthUserNewTokenMsg,
     payloadTypeClient,
     payloadTypeServer,
     RegisterPeerMsg,
@@ -19,7 +20,8 @@ export type RoomPeerSocketSecurityMap = {
 };
 
 export let defaultPeerSocketServerSecurityMap: RoomPeerSocketSecurityMap = {} as any;
-defaultPeerSocketServerSecurityMap[payloadTypeClient.registerPeer] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.authUserNewToken] = [AuthUserRoles.admin, AuthUserRoles.user]; //only valid users can create a new authtoken
+defaultPeerSocketServerSecurityMap[payloadTypeClient.registerPeer] = []; //any one can register
 defaultPeerSocketServerSecurityMap[payloadTypeClient.connectConsumerTransport] = [AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.connectProducerTransport] = [AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.consume] = [AuthUserRoles.user];
@@ -62,13 +64,18 @@ export class RoomPeerSocketServer {
 
         console.log(DSTR, "initWebSocket");
         this.webSocketServer = socketServer;
-       
+
         this.webSocketServer.on('connection', (ws) => {
-            
-            console.log(DSTR, "socket connected peers: " + this.peers.size);            
+
+            console.log(DSTR, "socket connected peers: " + this.peers.size);
 
             ws.on('message', async (message) => {
-                this.onMessage(ws, message);
+                try {
+                    this.onMessage(ws, message);
+                } catch (err) {
+                    console.error("ERROR PROCESSING MSG");
+                    console.error(err);
+                }
             });
 
             ws.on('close', () => {
@@ -83,7 +90,22 @@ export class RoomPeerSocketServer {
             console.log(DSTR, "msgIn, ", message.toString());
             const msgIn = JSON.parse(message.toString());
 
-            if (msgIn.type == payloadTypeClient.registerPeer) {
+            if (msgIn.type == payloadTypeClient.authUserNewToken) {
+                // user is requesting an authtoken we need to verify the service token passed
+
+                let authToken = (msgIn as AuthUserNewTokenMsg).data.authToken;
+
+                let errMsg = this.validateMsgRoute(authToken, msgIn);
+                if (errMsg) {
+                    this.send(ws, errMsg);
+                    return;
+                }
+
+                let resultMsg = await this.roomServer.onAuthUserNewTokenMsg(msgIn);
+                this.send(ws, resultMsg);
+
+
+            } else if (msgIn.type == payloadTypeClient.registerPeer) {
                 //we need to tie the peerid to the socket
                 //the client should already have an authtoken
                 let registerResult = await this.roomServer.onRegisterPeer(msgIn);
@@ -103,34 +125,18 @@ export class RoomPeerSocketServer {
                     //inject the authtoken from the socket
                     let authToken = ws["room_authtoken"];
 
-                    //validate the autoken
-                    if (!authToken) {
-                        console.error("no authToken");
-                        let errMsg = new UnauthorizedMsg();
-                        errMsg.data.error = "authToken required.";
-                        return errMsg;
-                    }
-
-                    let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
-                    if (!payload) {
-                        console.error("invalid authToken.");
-                        let errMsg = new UnauthorizedMsg();
-                        errMsg.data.error = "invalid authToken.";
-                        return errMsg;
-                    }
-
-                    //check the security map
-                    let secMap = this.securityMap[msgIn.type];                  
-                    if (!secMap || (secMap.length > 0 && !secMap.includes(payload.role))) {
-                        console.error("unauthorized");
-                        let errMsg = new UnauthorizedMsg();
-                        errMsg.data.error = "unauthorized access.";
+                    let errMsg = this.validateMsgRoute(authToken, msgIn);
+                    if (errMsg) {
+                        this.send(ws, errMsg);
                         return errMsg;
                     }
 
                     msgIn.data.authToken = authToken;
-                    this.roomServer.inMessage(peerid, msgIn);
-
+                    let resultMsg = await this.roomServer.inMessage(peerid, msgIn);
+                    if (resultMsg) {
+                        this.send(ws, resultMsg);
+                    }
+                    return resultMsg;
                 } else {
                     console.log(DSTR, `${msgIn.type} peer not found by socket`);
                     console.log(DSTR, this.peers);
@@ -163,7 +169,40 @@ export class RoomPeerSocketServer {
 
     private async send(ws: WebSocket, msg: any) {
         console.log(DSTR, 'send ', msg);
-        ws.send(JSON.stringify(msg));
+        if (msg) {
+            ws.send(JSON.stringify(msg));
+        } else {
+            console.error("nothing to send.");
+        }
+    }
+
+    private validateMsgRoute(authToken: string, msgIn: any): UnauthorizedMsg {
+        //validate the autoken
+        if (!authToken) {
+            console.error("no authToken");
+            let errMsg = new UnauthorizedMsg();
+            errMsg.data.error = "authToken required.";
+            return errMsg;
+        }
+
+        let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
+        if (!payload) {
+            console.error("invalid authToken.");
+            let errMsg = new UnauthorizedMsg();
+            errMsg.data.error = "invalid authToken.";
+            return errMsg;
+        }
+
+        //check the security map
+        let secMap = this.securityMap[msgIn.type];
+        if (!secMap || (secMap.length > 0 && !secMap.includes(payload.role))) {
+            console.error("unauthorized");
+            let errMsg = new UnauthorizedMsg();
+            errMsg.data.error = "unauthorized access.";
+            return errMsg;
+        }
+
+        return null;
     }
 
 }

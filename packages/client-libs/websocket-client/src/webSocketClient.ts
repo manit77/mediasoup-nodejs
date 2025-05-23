@@ -74,15 +74,15 @@ export class WebSocketClient {
 
     //remove the event handler
     removeEventHandler(type: eventsTypes, callback: Function) {
-
-        this.callbacks.get(type).push(callback);
-
+        this.writeLog("removeEventHandler" + type);
         let cbarr = this.callbacks.get(type);
-        let idx = cbarr.findIndex(cb => cb === callback);
-        if (idx > -1) {
-            cbarr.splice(idx, 1);
+        if (cbarr) {
+            let idx = cbarr.findIndex(cb => cb === callback);
+            if (idx > -1) {
+                cbarr.splice(idx, 1);
+                this.writeLog("eventHandler removed" + type);
+            }
         }
-
     }
 
     // Send a message to the signaling server
@@ -104,8 +104,8 @@ export class WebSocketClient {
         this.writeLog("disconnect");
         this.autoReconnect = false;
         this.callbacks.clear();
-        this.state = "";        
-        if (this.socket) {            
+        this.state = "";
+        if (this.socket) {
             this.socket.close();
             this.socket = null;
             this.writeLog("socketed closed.");

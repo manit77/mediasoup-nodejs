@@ -19,8 +19,8 @@ import { WebSocketServer } from 'ws';
   app.use(cors());
 
   const certInfo = {
-    key: fs.readFileSync('./certs/server.key'),
-    cert: fs.readFileSync('./certs/server.crt'),
+    key: fs.readFileSync(config.cert_key_path),
+    cert: fs.readFileSync(config.cert_file_path),
   };
 
   const server = https.createServer(certInfo, app);

@@ -1,0 +1,35 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug TS-Node ESM App",
+            "runtimeExecutable": "node", // Use Node.js as the runtime
+            "runtimeArgs": [
+                // Pass the ts-node ESM loader directly to Node.js
+                "--loader",
+                "ts-node/esm",
+                // Uncomment the line below if you encounter issues with relative imports (e.g., 'Cannot find module ../utils/helper')
+                // "--experimental-specifier-resolution=node"
+            ],
+            "args": [
+                // Point to your main TypeScript entry file
+                "${workspaceFolder}/src/index.ts"
+            ],
+            "cwd": "${workspaceFolder}", // Set the working directory to your project root
+            "console": "integratedTerminal", // Show app output in VS Code's terminal
+            "internalConsoleOptions": "neverOpen", // Prevent a separate debug console from opening
+            "sourceMaps": true, // Enable source map support
+            "resolveSourceMapLocations": [
+                // Help the debugger find source maps for your files
+                "${workspaceFolder}/**",
+                "!**/node_modules/**" // Exclude node_modules for faster debugging
+            ],
+            "skipFiles": [
+                "<node_internals>/**", // Skip internal Node.js files
+                "**/node_modules/**" // Skip files in node_modules
+            ]
+        }
+    ]
+}

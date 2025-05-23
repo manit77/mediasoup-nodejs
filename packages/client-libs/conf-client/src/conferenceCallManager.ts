@@ -660,11 +660,11 @@ export class ConferenceCallManager {
         //wait for transport to be created, and connected        
         let isTransportsConnected = { recv: false, send: false };
 
-        isTransportsConnected.recv = this.roomsClient.recvTransportRef && this.roomsClient.recvTransportRef.connectionState == "connected";
-        isTransportsConnected.send = this.roomsClient.sendTransportRef && this.roomsClient.sendTransportRef.connectionState == "connected";
+        isTransportsConnected.recv = this.roomsClient.transportReceive && this.roomsClient.transportReceive.connectionState == "connected";
+        isTransportsConnected.send = this.roomsClient.transportSend && this.roomsClient.transportSend.connectionState == "connected";
 
-        this.writeLog(`recvTransportRef.connectionState=${this.roomsClient.recvTransportRef?.connectionState}`);
-        this.writeLog(`sendTransportRef.connectionState=${this.roomsClient.sendTransportRef?.connectionState}`);
+        this.writeLog(`recvTransportRef.connectionState=${this.roomsClient.transportReceive?.connectionState}`);
+        this.writeLog(`sendTransportRef.connectionState=${this.roomsClient.transportSend?.connectionState}`);
 
         if (isTransportsConnected.recv && isTransportsConnected.send) {
 
@@ -689,9 +689,9 @@ export class ConferenceCallManager {
                 });
             };
 
-            this.roomsClient.onTransportsReady = async (transport) => {
+            this.roomsClient.onTransportsReadyEvent = async (transport) => {
 
-                this.writeLog("onTransportsReady direction:" + transport.direction);
+                this.writeLog("onTransportsReadyEvent direction:" + transport.direction);
 
                 if (transport.direction == "send") {
                     isTransportsConnected.send = true;

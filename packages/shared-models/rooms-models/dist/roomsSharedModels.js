@@ -41,7 +41,27 @@ export var payloadTypeServer;
     payloadTypeServer["roomPeerLeft"] = "roomPeerLeft";
     payloadTypeServer["roomTerminate"] = "roomTerminate";
     payloadTypeServer["peerTerminated"] = "peerTerminated";
+    payloadTypeServer["error"] = "error";
+    payloadTypeServer["ok"] = "ok";
 })(payloadTypeServer || (payloadTypeServer = {}));
+export class ErrorMsg {
+    type = payloadTypeServer.error;
+    data = {
+        error: ""
+    };
+    constructor(error) {
+        this.data.error = error;
+    }
+}
+export class OkMsg {
+    type = payloadTypeServer.ok;
+    data = {
+        payload: ""
+    };
+    constructor(payload) {
+        this.data.payload = payload;
+    }
+}
 export class RegisterPeerMsg {
     type = payloadTypeClient.registerPeer;
     data = {};
@@ -178,3 +198,4 @@ export class RoomConfig {
     maxRoomDurationMinutes = 30; // room max duration, starts when the room is created
     timeOutNoParticipantsSecs = 5 * 60; //when no participants in the room, timer starts and will close the room 
 }
+//# sourceMappingURL=roomsSharedModels.js.map

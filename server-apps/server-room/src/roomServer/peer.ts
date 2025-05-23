@@ -35,7 +35,7 @@ export class Peer {
             if (this.onInactive) {
                 this.onInactive(this);
             }
-        }, this.timeOutInactivitySecs);
+        }, this.timeOutInactivitySecs * 1000);
 
     }
 

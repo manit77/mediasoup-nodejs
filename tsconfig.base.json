@@ -4,6 +4,7 @@
     "target": "ES2024",
     "module": "NodeNext",
     "moduleResolution": "nodenext",
+    "sourceMap": true,
     "esModuleInterop": true,
     "declaration": true,
     "strict": false,
@@ -30,4 +31,3 @@
     }
   }
 }
-

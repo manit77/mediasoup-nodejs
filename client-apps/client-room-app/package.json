@@ -5,11 +5,12 @@
   "license": "ISC",
   "author": "",
   "type": "module",
-  "main": "index.js",
   "scripts": {
-    "build": "tsc && npx esbuild main.ts --bundle --outfile=bundle.js --platform=browser"
+    "build": "tsc && npx esbuild src/main.ts --bundle --outfile=dist/bundle.js --platform=browser && cp src/index.html dist/index.html",
+    "start": "serve dist -l 3001"
   },
   "dependencies": {
+    "@rooms/rooms-client": "1.0.0",
     "@rooms/rooms-models": "1.0.0",
     "mediasoup-client": "^3.10.0"
   },
