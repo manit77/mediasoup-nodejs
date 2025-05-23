@@ -1,5 +1,6 @@
 import {
     payloadTypeServer,
+    RoomJoinResultMsg,
     RoomPeerLeftMsg
 } from "@rooms/rooms-models";
 import * as rooms from "@rooms/rooms-client";
@@ -134,13 +135,7 @@ import * as rooms from "@rooms/rooms-client";
         if (!ctlJoinInfo.value) {
             createJoinNewRoom();
         } else {
-            let joinInfo: rooms.JoinInfo = JSON.parse(ctlJoinInfo.value);
-            let joinResult = await roomsClient.waitForRoomJoin(joinInfo.roomId, joinInfo.roomToken);
-            if (!joinResult.data.error) {
-                console.log("error, could not join existing room");
-            } else {
-                console.log("joined existing room");
-            }
+            joinExistingRoom();
         }
 
     }
@@ -169,7 +164,7 @@ import * as rooms from "@rooms/rooms-client";
     }
 
     async function createJoinNewRoom() {
-        console.log("createJoinNewRoom");
+        console.log("createJoinNewRoom()");
 
         let roomDuration = 5;
         let maxPeers = 3;
@@ -192,9 +187,16 @@ import * as rooms from "@rooms/rooms-client";
             return;
         }
 
+        let transports = await roomsClient.waitForRoomTransports();
 
-        roomsClient.createProducerTransport();
-        roomsClient.createConsumerTransport();
+        if (transports.data.error) {
+            console.log("unable to create transports");
+            return;
+        }
+
+        //publish the streams
+        roomsClient.publishLocalStream();
+
 
         console.log("joined room, peer count:" + joinResult.data.peers.length);
         let joinInfo: rooms.JoinInfo = {
@@ -206,6 +208,40 @@ import * as rooms from "@rooms/rooms-client";
 
     }
 
+    async function joinExistingRoom() {
+
+        let joinInfo: rooms.JoinInfo = JSON.parse(ctlJoinInfo.value);
+        let joinResult = await roomsClient.waitForRoomJoin(joinInfo.roomId, joinInfo.roomToken);
+        if (!joinResult.data.error) {
+            console.log("joined existing room");
+        } else {
+            console.log("error, could not join existing room " + joinResult);
+        }
+
+        let transports = await roomsClient.waitForRoomTransports();
+
+        if (transports.data.error) {
+            console.log("unable to create transports");
+            return;
+        }
+
+        //consume transports
+        let existingPeers = (joinResult as RoomJoinResultMsg).data.peers;
+
+        if (existingPeers) {
+            existingPeers.forEach(peer => {
+                peer.producers.forEach(producer => {
+                    roomsClient.consumeProducer(peer.peerId, producer.producerId);
+                });
+            });
+        }
+
+        //publish the streams
+        roomsClient.publishLocalStream();
+        console.log("joined room, peer count:" + joinResult.data.peers.length);
+
+
+    }
     async function roomLeave() {
         for (let peer of roomsClient.peers) {
             destroyRemoteVideo(peer.peerId);

@@ -360,6 +360,7 @@ export class RoomsClient {
             }
           } catch (err) {
             console.log(err);
+            clearTimeout(timerid);
             resolve(new ErrorMsg("failed to create transport"));
           }
         }
@@ -370,34 +371,47 @@ export class RoomsClient {
     };
 
     let waitResult = await waitFunc();
-    if (waitResult.type == payloadTypeServer.ok) {
-      //wait for the transports to connect
-      let sendConnected = await this.waitForTransportConnected(this.transportSend);
-      let receiveConnected = await this.waitForTransportConnected(this.transportReceive);
+    return waitResult;
 
-      if (sendConnected.type == payloadTypeServer.ok && receiveConnected.type == payloadTypeServer.ok) {
-        return new OkMsg("connected");
-      }
-    }
+    // if (waitResult.type == payloadTypeServer.ok) {
+    //   console.log("transports created.");
 
-    return new ErrorMsg("failed to connect");
+    //   //wait for the transports to connect
+    //   let sendConnected = await this.waitForTransportConnected(this.transportSend);
+    //   let receiveConnected = await this.waitForTransportConnected(this.transportReceive);
+
+    //   if (sendConnected.type == payloadTypeServer.ok && receiveConnected.type == payloadTypeServer.ok) {
+    //     return new OkMsg("connected");
+    //   }
+    // }
+
+    // return new ErrorMsg("failed to connect");
 
   }
 
   waitForTransportConnected = async (transport: mediasoupClient.types.Transport): Promise<IMsg> => {
-    this.writeLog("-- waitForTransportConnected created")
+    this.writeLog("-- waitForTransportConnected created " + transport.direction)
     return new Promise<IMsg>((resolve, reject) => {
+
+      let timeoutId = setTimeout(() => {
+        console.log("waitForTransportConnected timeout " + transport.direction);
+        resolve(new ErrorMsg("tranport timed out"));
+      }, 5000);
+
       try {
         if (transport.connectionState === 'connected') {
+          clearTimeout(timeoutId);
           resolve(new OkMsg("connected"));
           return;
         }
         const onStateChange = (state: string) => {
           this.writeLog("connectionstatechange transport: " + state);
           if (state === 'connected') {
+            clearTimeout(timeoutId);
             resolve(new OkMsg("connected"));
             transport.off('connectionstatechange', onStateChange);
           } else if (state === 'failed' || state === 'closed') {
+            clearTimeout(timeoutId);
             resolve(new ErrorMsg("failed to connect"));
             transport.off('connectionstatechange', onStateChange);
           }
@@ -405,6 +419,7 @@ export class RoomsClient {
         transport.on('connectionstatechange', onStateChange);
       } catch (err: any) {
         console.error(err);
+        clearTimeout(timeoutId);
         resolve(new ErrorMsg("failed to connect"));
       }
     });
@@ -456,6 +471,13 @@ export class RoomsClient {
       this.peers.splice(idx, 1);
     }
   };
+
+  publishLocalStream() {
+    console.log("publishLocalStream()");
+    let tracks = this.localPeer.stream.getTracks();
+    console.log("tracks=" + tracks.length);
+    tracks.forEach(track => this.transportSend.produce({ track: track }));
+  }
 
   addRemoteTrack = (peerId: string, track: MediaStreamTrack) => {
     this.writeLog("addRemoteTrack()");
@@ -790,7 +812,6 @@ export class RoomsClient {
     if (this.onTransportsReadyEvent) {
       this.onTransportsReadyEvent(this.transportReceive);
     }
-
   }
 
   private onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
@@ -888,15 +909,21 @@ export class RoomsClient {
   }
 
   addLocalTrack = async (track: MediaStreamTrack) => {
+    console.log("addLocalTrack() " + track.kind);
     if (!this.localPeer.stream) {
       this.writeLog("no local stream, creating one");
       this.localPeer.stream = new MediaStream();
     }
-    if (!this.localPeer.stream.getTracks().find(t => t == track)) {
+
+    let currentTracks = this.localPeer.stream.getTracks();
+    console.log(`tracks=${currentTracks.length}`);
+
+    if (!currentTracks.find(t => t.id === track.id)) {
       this.localPeer.stream.addTrack(track);
       this.writeLog("track added: " + track.kind);
+      await this.transportSend.produce({ track });
     }
-    await this.transportSend.produce({ track });
+
   };
 
   removeLocalTrack(track: MediaStreamTrack) {

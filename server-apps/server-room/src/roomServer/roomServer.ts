@@ -320,6 +320,8 @@ export class RoomServer {
             ],
         });
 
+        console.log("router created");
+
         let room = new Room(router);
         room.id = roomId;
         room.roomToken = roomToken;

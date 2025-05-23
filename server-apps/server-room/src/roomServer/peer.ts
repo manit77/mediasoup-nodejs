@@ -32,6 +32,7 @@ export class Peer {
         }
 
         this.timerIdInactivity = setTimeout(() => {
+            console.log("peer inactive timer reached.");
             if (this.onInactive) {
                 this.onInactive(this);
             }

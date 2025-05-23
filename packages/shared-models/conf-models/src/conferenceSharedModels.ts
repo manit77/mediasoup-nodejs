@@ -47,7 +47,6 @@ export interface LoginResultMsg {
     }
 }
 
-
 //object mapped from a database object
 export interface ConferenceObj {
     conferenceId: number, //primary key
@@ -263,7 +262,7 @@ export class JoinResultMsg {
         conferenceToken?: string;
         roomId?: string;
         roomToken?: string;
-        roomURI? : string,
+        roomURI?: string,
         participants: IParticipant[],
         conferenceConfig?: ConferenceConfig,
         error?: string

@@ -23,13 +23,13 @@ export class Room {
     }
 
     startTimers() {
-        console.log("startTimer()");
+        console.log("room startTimer()");
 
         if (this.config.maxRoomDurationMinutes > 0) {
             this.timerIdMaxRoomDuration = setTimeout(async () => {
-                console.log("timeOutMaxDurationSecs timed out");
+                console.log("room timeOutMaxDurationSecs timed out");
                 this.close();
-            }, this.config.maxRoomDurationMinutes * 1000);
+            }, this.config.maxRoomDurationMinutes * 60 * 1000);
         }
 
         this.startTimerNoParticipants();

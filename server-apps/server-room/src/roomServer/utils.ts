@@ -126,8 +126,13 @@ export function generateAuthUserToken(secretKey: string, role: AuthUserRoles, ex
  */
 export async function createTransport(router: mediasoup.types.Router) {
     console.log("createTransport()");
+
+    if (!router) {
+        console.error("createTransport() - router is null");
+        return;
+    }
     try {
-        return await this.router.createWebRtcTransport({
+        return await router.createWebRtcTransport({
             listenIps: [{ ip: '127.0.0.1', announcedIp: undefined }],
             enableUdp: true,
             enableTcp: true,
