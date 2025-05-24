@@ -98,23 +98,21 @@ export function validateRoomTokenAgainstRoom(secretKey: string, token: string, r
   * @param roomId 
   * @returns 
   */
-export function generateRoomToken(secretKey: string, roomId: string, expiresInMinutes: number, trackingId: string): [RoomTokenPayload, string] {
+export function generateRoomToken(secretKey: string, roomId: string, expiresInMinutes: number): [RoomTokenPayload, string] {
     console.log("createRoomToken() " + roomId);
 
     let payload: RoomTokenPayload = {
-        roomId: !roomId ? GetRoomId() : roomId,
-        trackingId: trackingId
+        roomId: !roomId ? GetRoomId() : roomId
     };
     return [payload, jwt.jwtSign(secretKey, payload, expiresInMinutes)]
 }
 
 
-export function generateAuthUserToken(secretKey: string, role: AuthUserRoles, expiresInMinutes: number, trackingId: string): string {
+export function generateAuthUserToken(secretKey: string, role: AuthUserRoles, expiresInMinutes: number): string {
     console.log("createRoomToken() ");
 
     let payload: AuthUserTokenPayload = {
-        role: role,
-        trackingId: trackingId
+        role: role
     };
 
     return jwt.jwtSign(secretKey, payload, expiresInMinutes)

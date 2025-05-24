@@ -40,6 +40,7 @@ export class RoomPeerSocketServer {
 
     webSocketServer: WebSocketServer;
     peers = new Map<string, WebSocket>();
+    disconnectedPeers = new Map<string, WebSocket>();
 
     constructor(private config: RoomServerConfig, private securityMap: RoomPeerSocketSecurityMap, private roomServer: RoomServer) {
         roomServer.addEventListner((peerId: string, msg: any) => {
@@ -79,7 +80,7 @@ export class RoomPeerSocketServer {
             });
 
             ws.on('close', () => {
-                this.onClose(ws);
+                this.onWebSocketClosed(ws);
             });
         });
     }
@@ -148,13 +149,16 @@ export class RoomPeerSocketServer {
         }
     }
 
-    async onClose(ws: WebSocket) {
+    async onWebSocketClosed(ws: WebSocket) {
         //when the socket closes terminate the peers transports 
+        console.log(DSTR, "onWebSocketClosed");
         let peerid = this.findPeerBySocket(ws);
         if (peerid) {
             let msg = new TerminatePeerMsg();
             msg.data.peerId = peerid;
             this.roomServer.onTerminatePeer(peerid, msg);
+        } else {
+            console.log(DSTR, `peer not found. ${peerid}`);
         }
     }
 

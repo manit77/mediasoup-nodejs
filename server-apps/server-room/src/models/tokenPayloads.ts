@@ -4,16 +4,13 @@ export enum AuthUserRoles {
 }
 
 export interface AuthUserTokenPayload {
-    role: AuthUserRoles,
-    trackingId?: string
+    role: AuthUserRoles
 }
 
 export interface RoomTokenPayload {
     roomId?: string;
-    trackingId?: string
 }
 
 export interface PeerTokenPayload {
     peerId?: string;
-    trackingId?: string
 }

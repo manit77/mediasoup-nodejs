@@ -68,9 +68,9 @@ export class ConferenceCallManager {
 
 
     config = {
-        conf_wsURI: 'wss://localhost:3001',
-        room_wsURI: 'wss://localhost:3000',
+        conf_wsURI: 'wss://localhost:3001'
     }
+
     onEvent: ConferenceEvent;
 
     constructor() {
@@ -79,7 +79,7 @@ export class ConferenceCallManager {
 
         this.roomsClient = new RoomsClient();
         this.roomsClient.initMediaSoupDevice();
-        this.roomsClient.onPeerNewTrack = this.room_onPeerNewTrack;
+        this.roomsClient.onPeerNewTrackEvent = this.room_onPeerNewTrack;
     }
 
     writeLog(...params: any) {
@@ -113,16 +113,12 @@ export class ConferenceCallManager {
         }
     };
 
-    connect(autoReconnect: boolean, conf_wsURIOverride: string = "", room_wsURIOverride: string = "") {
+    connect(autoReconnect: boolean, conf_wsURIOverride: string = "") {
 
         this.writeLog("connect");
 
         if (conf_wsURIOverride) {
             this.config.conf_wsURI = conf_wsURIOverride;
-        }
-
-        if (room_wsURIOverride) {
-            this.config.room_wsURI = room_wsURIOverride;
         }
 
         // Connect to WebSocket server
@@ -266,6 +262,15 @@ export class ConferenceCallManager {
         this.sendToServer(callMsg);
     }
 
+    join() {
+        let msg = new JoinMsg();
+        msg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
+        msg.data.conferenceToken = this.conferenceRoom.conferenceToken;
+        msg.data.roomId = this.conferenceRoom.roomId;
+        msg.data.roomToken = this.conferenceRoom.roomToken;
+        this.sendToServer(msg);
+    }
+
     /*
     receive an invite result 
     */
@@ -311,9 +316,6 @@ export class ConferenceCallManager {
             this.writeLog("conferenceType: rooms");
 
             let roomURI = message.data.roomURI;
-            if (!roomURI) {
-                roomURI = this.config.room_wsURI;
-            }
             //get the URL from the server you could do a round robin for load balancing
 
             await this.rooms_waitForConnection(roomURI);
@@ -370,6 +372,10 @@ export class ConferenceCallManager {
 
     async onInviteReceived(message: InviteMsg) {
         this.writeLog("onInviteReceived()");
+        this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
+        this.conferenceRoom.conferenceTitle = message.data.conferenceTitle;
+        this.conferenceRoom.conferenceToken = message.data.conferenceToken;
+
         if (message.data.conferenceConfig.type == ConferenceType.rooms) {
             this.conferenceRoom.roomId = message.data.roomId;
             this.conferenceRoom.roomToken = message.data.roomToken;
@@ -641,9 +647,12 @@ export class ConferenceCallManager {
     }
 
     private async rooms_waitForConnection(roomURI: string) {
+
+        //connect to the rooms server in one function given a roomURI
+
         this.writeLog("roomsCreateTransports");
 
-        this.roomsClient.onRoomNewPeerEvent = (peer: Peer) => {
+        this.roomsClient.onRoomPeerJoinedEvent = (roomId: string, peer: Peer) => {
             //map the participantid to the peerid
             let p = this.conferenceRoom.participants.get(peer.trackingId);
             if (p) {

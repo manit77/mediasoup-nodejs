@@ -19,7 +19,6 @@ export enum payloadTypeClient {
     roomJoin = "roomJoin",
     roomLeave = "roomLeave",
     roomTerminate = "roomTerminate",
-    roomTerminateResult = "roomTerminateResult",
 
     produce = "produce",
     consume = "consume",
@@ -47,7 +46,8 @@ export enum payloadTypeServer {
     roomNewPeer = "roomNewPeer",
     roomNewProducer = "roomNewProducer",
     roomPeerLeft = "roomPeerLeft",
-    roomTerminate = "roomTerminate",
+    roomTerminateResult = "roomTerminateResult",
+    roomClosed = "roomClosed",
 
     peerTerminated = "peerTerminated",
     error = "error",
@@ -87,6 +87,10 @@ export class RegisterPeerMsg implements IMsg {
     data: {
         authToken?: string,
         displayName?: string,
+        /**
+         * your app's unique to track the room
+         */
+        trackingId?: string,
     } = {}
 }
 
@@ -190,8 +194,7 @@ export class AuthUserNewTokenMsg implements IMsg {
     type = payloadTypeClient.authUserNewToken;
     data: {
         authToken?: string,
-        expiresInMin?: number,
-        trackingId?: string,
+        expiresInMin?: number
     } = {}
 }
 
@@ -209,11 +212,7 @@ export class RoomNewTokenMsg implements IMsg {
     type = payloadTypeClient.roomNewToken;
     data: {
         authToken?: string,
-        expiresInMin?: number,
-        /**
-         * your app's trackingid to track the room
-         */
-        trackingId?: string,
+        expiresInMin?: number
     } = {}
 }
 
@@ -232,6 +231,10 @@ export class RoomNewResultMsg implements IMsg {
         peerId?: string,
         roomId?: string,
         roomToken?: string,
+        /**
+         * your app's unique to track the room
+         */
+        trackingId?: string,
         error?: string,
     } = {}
 }
@@ -264,6 +267,13 @@ export class RoomLeaveResult implements IMsg {
     } = {}
 }
 
+export class RoomClosedMsg implements IMsg {
+    type = payloadTypeServer.roomClosed;
+    data: {
+        roomId?: string
+    } = {}
+}
+
 export class RoomJoinResultMsg implements IMsg {
     type = payloadTypeServer.roomJoinResult;
     data: {
@@ -272,7 +282,6 @@ export class RoomJoinResultMsg implements IMsg {
         rtpCapabilities?: any,
         peers?: {
             peerId: string,
-            trackingId: string,
             producers?: { producerId: string, kind: "audio" | "video" }[]
         }[],
         error?: string,
@@ -284,7 +293,6 @@ export class RoomNewPeerMsg implements IMsg {
     data: {
         peerId?: string;
         roomId?: string;
-        trackingId?: string,
         displayName?: string;
         producers?: { producerId: string, kind: "audio" | "video" }[]
     } = {};
@@ -294,7 +302,6 @@ export class RoomPeerLeftMsg implements IMsg {
     type = payloadTypeServer.roomPeerLeft;
     data: {
         peerId?: string;
-        trackingId?: string,
         roomId?: string;
     } = {};
 }
@@ -304,7 +311,6 @@ export class RoomNewProducerMsg implements IMsg {
     data: {
         authToken?: string,
         peerId?: string,
-        trackingId?: string,
         producerId?: string,
         kind?: string,
     } = {};
@@ -321,7 +327,7 @@ export class RoomTerminateMsg implements IMsg {
 }
 
 export class RoomTerminateResultMsg implements IMsg {
-    type = payloadTypeClient.roomTerminateResult;
+    type = payloadTypeServer.roomTerminateResult;
     data: {
         roomId?: string,
         error?: string
@@ -358,7 +364,6 @@ export class ConsumedMsg implements IMsg {
     type = payloadTypeServer.consumed;
     data: {
         peerId?: string
-        trackingId?: string,
         consumerId?: string,
         producerId?: string,
         kind?: "audio" | "video",

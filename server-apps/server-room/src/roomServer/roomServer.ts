@@ -7,7 +7,7 @@ import {
     ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg
     , ConsumerTransportCreatedMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient
     , PeerTerminatedMsg, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg
-    , RegisterPeerMsg, RegisterPeerResultMsg, RoomConfig, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResult, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
+    , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResult, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
     , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
     RoomTerminateMsg,
     RoomTerminateResultMsg,
@@ -55,7 +55,7 @@ export class RoomServer {
         clearInterval(this.timerIdResourceInterval);
 
         this.rooms.forEach(r => {
-            r.close();
+            r.close("server dispose()");
         });
         this.rooms.clear();
 
@@ -138,30 +138,23 @@ export class RoomServer {
             return null;
         }
 
+        if (!msgIn.data) {
+            console.error("message has no data");
+            return null;
+        }
+
         switch (msgIn.type) {
-            case payloadTypeClient.registerPeer: {
-                return this.onRegisterPeer(msgIn);
-            }
             case payloadTypeClient.authUserNewToken: {
                 return this.onAuthUserNewTokenMsg(msgIn);
+            }
+            case payloadTypeClient.registerPeer: {
+                return this.onRegisterPeer(msgIn);
             }
             case payloadTypeClient.terminatePeer: {
                 return this.onTerminatePeer(peerId, msgIn);
             }
             case payloadTypeClient.roomNewToken: {
                 return this.onRoomNewToken(peerId, msgIn);
-            }
-            case payloadTypeClient.createProducerTransport: {
-                return this.onCreateProducerTransport(peerId, msgIn);
-            }
-            case payloadTypeClient.createConsumerTransport: {
-                return this.onCreateConsumerTransport(peerId, msgIn);
-            }
-            case payloadTypeClient.connectProducerTransport: {
-                return this.onConnectProducerTransport(peerId, msgIn);
-            }
-            case payloadTypeClient.connectConsumerTransport: {
-                return this.onConnectConsumerTransport(peerId, msgIn);
             }
             case payloadTypeClient.roomNew: {
                 return this.onRoomNew(peerId, msgIn);
@@ -177,6 +170,18 @@ export class RoomServer {
             }
             case payloadTypeClient.roomTerminate: {
                 return this.onRoomTerminate(peerId, msgIn);
+            }
+            case payloadTypeClient.createProducerTransport: {
+                return this.onCreateProducerTransport(peerId, msgIn);
+            }
+            case payloadTypeClient.createConsumerTransport: {
+                return this.onCreateConsumerTransport(peerId, msgIn);
+            }
+            case payloadTypeClient.connectProducerTransport: {
+                return this.onConnectProducerTransport(peerId, msgIn);
+            }
+            case payloadTypeClient.connectConsumerTransport: {
+                return this.onConnectConsumerTransport(peerId, msgIn);
             }
             case payloadTypeClient.produce: {
                 return this.onProduce(peerId, msgIn);
@@ -238,7 +243,7 @@ export class RoomServer {
      * @param trackingId custom id from a client
      * @returns 
      */
-    private createPeer(authToken: string, displayName: string): Peer {
+    private createPeer(authToken: string, trackingId: string, displayName: string): Peer {
         console.log("createPeer()");
 
         let payload: AuthUserTokenPayload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
@@ -252,7 +257,7 @@ export class RoomServer {
         peer.id = roomUtils.GetPeerId();
         peer.authToken = authToken;
         peer.displayName = displayName;
-        peer.trackingid = payload.trackingId;
+        peer.trackingid = trackingId;
         peer.timeOutInactivitySecs
 
         this.addPeerGlobal(peer);
@@ -327,8 +332,29 @@ export class RoomServer {
         room.roomToken = roomToken;
         room.config = config;
 
-        room.onClose = (r: Room) => {
+        room.onClosedEvent = (r, peers) => {
             this.removeRoomGlobal(r);
+
+            //alert all peers that the room is closed
+            let msg = new RoomClosedMsg();
+            msg.data.roomId = r.id;
+            for (let p of peers) {
+                this.send(p.id, msg);
+            }
+        };
+
+        room.onPeerRemovedEvent = (r, peer) => {
+
+            //alert all peers that the room is closed
+            let msg = new RoomPeerLeftMsg();
+            msg.data.roomId = r.id;
+            msg.data.peerId = peer.id;
+
+            let peers = r.getPeers();
+            for (let p of peers) {
+                this.send(p.id, msg);
+            }
+
         };
 
         this.addRoomGlobal(room);
@@ -373,6 +399,7 @@ export class RoomServer {
     removeRoomGlobal(room: Room) {
         console.log(`removeRoomGlobal() ${room.id}`);
         this.rooms.delete(room.id);
+        this.printStats();
     }
 
     private async send(peerId: string, msg: any) {
@@ -401,12 +428,13 @@ export class RoomServer {
     async onRegisterPeer(msgIn: RegisterPeerMsg) {
         console.log(`onRegister() - ${msgIn.data.displayName}`);
 
-        let peer = this.createPeer(msgIn.data.authToken, msgIn.data.displayName);
+        let peer = this.createPeer(msgIn.data.authToken, msgIn.data.trackingId, msgIn.data.displayName);
         if (!peer) {
-            let erroMsg = new RegisterPeerResultMsg();
-            erroMsg.data = {
+            let errMsg = new RegisterPeerResultMsg();
+            errMsg.data = {
                 error: "unable to create peer."
             };
+            return errMsg;
         }
 
         let msg = new RegisterPeerResultMsg();
@@ -414,6 +442,8 @@ export class RoomServer {
             peerId: peer.id,
             displayName: msgIn.data.displayName,
         };
+
+        this.printStats();
 
         return msg;
     }
@@ -433,17 +463,16 @@ export class RoomServer {
 
         peer.restartInactiveTimer();
 
-        const transport = await roomUtils.createTransport(peer.room.router);
-        peer!.producerTransport = transport;
+        await peer!.createProducerTransport()
 
         let producerTransportCreated = new ProducerTransportCreatedMsg();
         producerTransportCreated.data = {
             iceServers: null,
             iceTransportPolicy: null,
-            transportId: transport.id,
-            iceParameters: transport.iceParameters,
-            iceCandidates: transport.iceCandidates,
-            dtlsParameters: transport.dtlsParameters,
+            transportId: peer.producerTransport.id,
+            iceParameters: peer.producerTransport.iceParameters,
+            iceCandidates: peer.producerTransport.iceCandidates,
+            dtlsParameters: peer.producerTransport.dtlsParameters,
         }
 
         return producerTransportCreated;
@@ -468,18 +497,17 @@ export class RoomServer {
 
         peer.restartInactiveTimer();
 
-        //create a consumer transport
-        const consumerTransport = await roomUtils.createTransport(peer.room.router);
-        peer.consumerTransport = consumerTransport;
+
+        await peer.createConsumerTransport()
 
         let consumerTransportCreated = new ConsumerTransportCreatedMsg();
         consumerTransportCreated.data = {
             iceServers: null,
             iceTransportPolicy: null,
-            transportId: consumerTransport.id,
-            iceParameters: consumerTransport.iceParameters,
-            iceCandidates: consumerTransport.iceCandidates,
-            dtlsParameters: consumerTransport.dtlsParameters,
+            transportId: peer.consumerTransport.id,
+            iceParameters: peer.consumerTransport.iceParameters,
+            iceCandidates: peer.consumerTransport.iceCandidates,
+            dtlsParameters: peer.consumerTransport.dtlsParameters,
         }
 
         return consumerTransportCreated;
@@ -555,7 +583,7 @@ export class RoomServer {
         console.log("roomNewToken");
 
         let msg = new RoomNewTokenResultMsg();
-        let [payloadRoom, roomToken] = roomUtils.generateRoomToken(this.config.room_secretKey, "", msgIn.data.expiresInMin, msgIn.data.trackingId);
+        let [payloadRoom, roomToken] = roomUtils.generateRoomToken(this.config.room_secretKey, "", msgIn.data.expiresInMin);
 
         if (roomToken) {
             msg.data.roomId = payloadRoom.roomId;
@@ -571,7 +599,7 @@ export class RoomServer {
         console.log("onAuthUserNewTokenMsg");
 
         let msg = new AuthUserNewTokenResultMsg();
-        let authToken = roomUtils.generateAuthUserToken(this.config.room_secretKey, AuthUserRoles.user, msgIn.data.expiresInMin, msgIn.data.trackingId);
+        let authToken = roomUtils.generateAuthUserToken(this.config.room_secretKey, AuthUserRoles.user, msgIn.data.expiresInMin);
 
         if (authToken) {
             msg.data.authToken = authToken;
@@ -643,7 +671,7 @@ export class RoomServer {
             return;
         }
 
-        room.close();
+        room.close("roomTerminate");
     }
 
     onRoomTerminate(peerId: string, msg: RoomTerminateMsg): RoomTerminateResultMsg {
@@ -756,8 +784,7 @@ export class RoomServer {
         for (let [, otherPeer] of otherPeers) {
             joinRoomResult.data.peers.push({
                 peerId: otherPeer.id,
-                trackingId: otherPeer.trackingid,
-                producers: otherPeer.producers.map(producer => ({ producerId: producer.id, kind: producer.kind }))
+                producers: [...otherPeer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }))
             });
         }
 
@@ -767,8 +794,7 @@ export class RoomServer {
             msg.data.roomId = room.id;
             msg.data.peerId = peer.id;
             msg.data.displayName = peer.displayName;
-            msg.data.trackingId = peer.trackingid;
-            msg.data.producers = peer.producers.map(producer => ({ producerId: producer.id, kind: producer.kind }))
+            msg.data.producers = [...peer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }))
             this.send(otherPeer.id, msg);
         }
 
@@ -800,7 +826,6 @@ export class RoomServer {
         let msg = new RoomPeerLeftMsg();
         msg.data = {
             peerId: peer.id,
-            trackingId: peer.trackingid,
             roomId: room.id
         }
         this.broadCastAll(room, msg);
@@ -842,7 +867,7 @@ export class RoomServer {
         });
 
         //store the producer 
-        peer.producers?.push(producer);
+        peer.addProducer(producer);
 
 
         //alert all peers in the room of new producer
@@ -850,7 +875,6 @@ export class RoomServer {
             let newProducerMsg = new RoomNewProducerMsg();
             newProducerMsg.data = {
                 peerId: peer.id,
-                trackingId: peer.trackingid,
                 producerId: producer.id,
                 kind: producer.kind
             }
@@ -912,7 +936,7 @@ export class RoomServer {
             return new ErrorMsg("remote peer not found.");
         }
 
-        let remoteProducer = remotePeer?.producers.find(p => p.id === consumeMsg.data!.producerId);
+        let remoteProducer = remotePeer?.producers.get(consumeMsg.data!.producerId);
         if (!remoteProducer) {
             console.log("remote producer not found.");
             return new ErrorMsg("remote producer not found.");
@@ -924,13 +948,12 @@ export class RoomServer {
             rtpCapabilities: consumeMsg.data!.rtpCapabilities,
             paused: false,
         });
-        peer.consumers?.push(consumer);
+        peer.addConsumer(consumer);
 
         //send the consumer data back to the client
         let consumed = new ConsumedMsg();
         consumed.data = {
             peerId: remotePeer.id,
-            trackingId: remotePeer.trackingid,
             consumerId: consumer.id,
             producerId: remoteProducer.id,
             kind: consumer.kind,

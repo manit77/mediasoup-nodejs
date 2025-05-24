@@ -16,7 +16,6 @@ export var payloadTypeClient;
     payloadTypeClient["roomJoin"] = "roomJoin";
     payloadTypeClient["roomLeave"] = "roomLeave";
     payloadTypeClient["roomTerminate"] = "roomTerminate";
-    payloadTypeClient["roomTerminateResult"] = "roomTerminateResult";
     payloadTypeClient["produce"] = "produce";
     payloadTypeClient["consume"] = "consume";
 })(payloadTypeClient || (payloadTypeClient = {}));
@@ -39,7 +38,8 @@ export var payloadTypeServer;
     payloadTypeServer["roomNewPeer"] = "roomNewPeer";
     payloadTypeServer["roomNewProducer"] = "roomNewProducer";
     payloadTypeServer["roomPeerLeft"] = "roomPeerLeft";
-    payloadTypeServer["roomTerminate"] = "roomTerminate";
+    payloadTypeServer["roomTerminateResult"] = "roomTerminateResult";
+    payloadTypeServer["roomClosed"] = "roomClosed";
     payloadTypeServer["peerTerminated"] = "peerTerminated";
     payloadTypeServer["error"] = "error";
     payloadTypeServer["ok"] = "ok";
@@ -141,6 +141,10 @@ export class RoomLeaveResult {
     type = payloadTypeServer.roomLeaveResult;
     data = {};
 }
+export class RoomClosedMsg {
+    type = payloadTypeServer.roomClosed;
+    data = {};
+}
 export class RoomJoinResultMsg {
     type = payloadTypeServer.roomJoinResult;
     data = { peers: [] };
@@ -162,7 +166,7 @@ export class RoomTerminateMsg {
     data = {};
 }
 export class RoomTerminateResultMsg {
-    type = payloadTypeClient.roomTerminateResult;
+    type = payloadTypeServer.roomTerminateResult;
     data = {};
 }
 export class ProduceMsg {

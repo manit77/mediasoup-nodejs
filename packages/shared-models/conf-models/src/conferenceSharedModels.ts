@@ -4,25 +4,33 @@ export enum ConferenceType {
 }
 
 export enum CallMessageType {
+
     login = "login",
     register = "register", //register the partcipant
     registerResult = "registerResult", //partcipant recieves a registration result
-    newConference = "newConference",
-    newConferenceResult = "newConferenceResult",
+
+
     invite = "invite", //invite to join room
     inviteResult = "inviteResult", //result of the invite, the other participant could reject it
+
     reject = "reject", //the receiver rejects
     join = "join", //participant requests to join the conference room
     joinResult = "joinResult", //participant receives the joinResult
     leave = "leave", //participant signals to leave the room
+
+    newConference = "newConference",
+    newConferenceResult = "newConferenceResult",
+    closeConference = "closeConference", // the participant closes the conference, and the confernece room is terminated on the server
     newParticipant = "newParticipant", // all participants gets alerted of a new participant in the room
     participantLeft = "participantLeft", // a participants leaves the room
     conferenceClosed = "conferenceClosed",
-    closeConference = "closeConference", // the participant closes the conference, and the confernece room is terminated on the server
+
     getContacts = "getContacts",
+    getContactsResults = "getContactsResults",
 
     reconnect = "reconnect",
     reconnectResult = "reconnectResult",
+
     participantReconnected = "participantReconnected",
 
     rtc_needOffer = "rtc_needOffer",
@@ -46,6 +54,7 @@ export interface LoginResultMsg {
         error?: string
     }
 }
+
 
 //object mapped from a database object
 export interface ConferenceObj {
@@ -193,7 +202,7 @@ export class ConferenceLeaveMsg {
     }
 }
 
-export class GetContactsMsg {
+export class GetContactsResultsMsg {
     type = CallMessageType.getContacts;
     data: Contact[] = [];
 }
@@ -328,4 +337,4 @@ export class CloseConference {
     data = {
         conferenceRoomId: ""
     }
-}
+} 

@@ -8,7 +8,7 @@ import { setTimeout, setInterval } from 'node:timers';
 export class Room {
     id: string;
     private peers: Map<string, Peer> = new Map();
-    roomToken: string = "";
+    roomToken: string;
 
     config = new RoomConfig();
 
@@ -16,32 +16,41 @@ export class Room {
     timerIdNoParticipants?: NodeJS.Timeout = null;
 
     router?: mediasoup.types.Router;
-    onClose: (room: Room) => void;
+    onClosedEvent: (room: Room, peers: Peer[], reason: string) => void;
+    onPeerRemovedEvent: (room: Room, peers: Peer) => void;
 
     constructor(r: mediasoup.types.Router) {
         this.router = r;
     }
 
     startTimers() {
-        console.log("room startTimer()");
+        console.log(`room startTimer() maxRoomDurationMinutes:${this.config.maxRoomDurationMinutes}`);
 
         if (this.config.maxRoomDurationMinutes > 0) {
             this.timerIdMaxRoomDuration = setTimeout(async () => {
                 console.log("room timeOutMaxDurationSecs timed out");
-                this.close();
+                this.close("timeOutMaxDurationSecs");
             }, this.config.maxRoomDurationMinutes * 60 * 1000);
+
+            console.log(`closing room in  ${this.config.maxRoomDurationMinutes} minutes.`);
         }
 
         this.startTimerNoParticipants();
     }
 
     private startTimerNoParticipants() {
-        console.log("startTimerNoParticipants()");
+        console.log(`startTimerNoParticipants() ${this.config.timeOutNoParticipantsSecs}`);
+
         if (this.peers.size == 0 && this.config.timeOutNoParticipantsSecs > 0) {
+
             this.timerIdNoParticipants = setTimeout(async () => {
-                console.log("timerIdNoParticipantsSecs timed out");
-                this.close();
+                if (this.peers.size == 0) {
+                    console.log("timerIdNoParticipantsSecs timed out");
+                    this.close("timerIdNoParticipantsSecs");
+                }
             }, this.config.timeOutNoParticipantsSecs * 1000);
+
+            console.log(`closing room in  ${this.config.timeOutNoParticipantsSecs} seconds if no peers join.`);
         }
     }
 
@@ -78,6 +87,10 @@ export class Room {
         if (this.peers.size == 0) {
             this.startTimerNoParticipants();
         }
+
+        if (this.onPeerRemovedEvent) {
+            this.onPeerRemovedEvent(this, peer);
+        }
     }
 
     getPeers(): Peer[] {
@@ -99,8 +112,9 @@ export class Room {
     /**
      * removes all peers and fires the onClose()
      */
-    close() {
-        console.log("room - close()");
+    close(reason: string) {
+        console.log(`room - close(), reason: ${reason}`);
+        let peersCopy = [...this.peers.values()];
 
         this.peers.forEach(p => {
             p.close();
@@ -120,8 +134,8 @@ export class Room {
         this.router?.close();
         this.router = null;
 
-        if (this.onClose) {
-            this.onClose(this);
+        if (this.onClosedEvent) {
+            this.onClosedEvent(this, peersCopy, reason);
         }
     }
 

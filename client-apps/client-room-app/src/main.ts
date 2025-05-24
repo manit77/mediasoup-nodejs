@@ -8,7 +8,6 @@ import * as rooms from "@rooms/rooms-client";
 
 (async () => {
 
-
     const wsURI = "wss://localhost:3000";
     let ws: WebSocket;
     const ctlVideo: HTMLVideoElement = document.getElementById('ctlVideo') as HTMLVideoElement;
@@ -31,25 +30,32 @@ import * as rooms from "@rooms/rooms-client";
 
     async function initRooms() {
 
-        console.log("-- initMediaSoupDevice");
+        writeLog("-- initMediaSoupDevice");
+
+        roomsClient.onRoomClosedEvent = (roomId: string, peers: rooms.Peer[]) => {
+            writeLog("room closed");
+            peers.forEach((p) => {
+                destroyRemoteVideo(p.peerId);
+            });
+        };
 
         roomsClient.onRoomJoinedEvent = (roomId: string) => {
-            console.log("* onRoomJoinedEvent");
+            writeLog("* onRoomJoinedEvent");
             roomsClient.publishLocalStream();
         };
 
         roomsClient.onRoomPeerJoinedEvent = (roomid: string, peer: rooms.Peer) => {
-            console.log("* onRoomPeerJoinedEvent");
+            writeLog("* onRoomPeerJoinedEvent");
             roomsClient.connectToPeer(peer);
         };
 
         roomsClient.onRoomPeerLeftEvent = (roomid: string, peer: rooms.Peer) => {
-            console.log("* onRoomPeerLeftEvent");
+            writeLog(`* onRoomPeerLeftEvent ${roomid} ${peer.peerId}`);
             destroyRemoteVideo(peer.peerId);
         };
 
         roomsClient.onPeerNewTrackEvent = (peer: rooms.Peer, track: MediaStreamTrack) => {
-            console.log("* onRoomPeerLeftEvent");
+            writeLog("* onPeerNewTrackEvent");
             addTrackToRemoteVideo(peer.peerId, track);
         };
 
@@ -60,26 +66,26 @@ import * as rooms from "@rooms/rooms-client";
 
         let connected = await roomsClient.waitForConnect();
         if (connected.type == payloadTypeServer.error) {
-            console.error("ERROR: failed to connect to rooms server.");
+            writeLog("ERROR: failed to connect to rooms server.");
             return;
         }
 
         let receivedAuthtoken = await roomsClient.waitForGetAuthoken(serviceToken);
 
         if (receivedAuthtoken.type == payloadTypeServer.error) {
-            console.error("ERROR: failed to received authtoken");
+            writeLog("ERROR: failed to received authtoken");
             return;
         }
 
         let registered = await roomsClient.waitForRegister("", ctlDisplayName.value);
         if (registered.type == payloadTypeServer.error) {
-            console.error("failed to register client");
+            writeLog("failed to register client");
             return;
         }
 
         let stream = await roomsClient.getUserMedia();
         if (stream) {
-            console.log("done get local stream");
+            writeLog("* done get local stream");
             ctlVideo.srcObject = stream;
         }
 
@@ -118,16 +124,18 @@ import * as rooms from "@rooms/rooms-client";
     }
 
     function destroyRemoteVideo(peerId: string) {
-        console.log("destroyRemoteVideo:" + peerId);
+        writeLog("* destroyRemoteVideo:" + peerId);
         let id = `video-${peerId}`;
         let video = document.getElementById(id) as HTMLVideoElement | null;
         if (video) {
             video.remove();
+        } else {
+            writeLog("video element not found " + id);
         }
     }
 
     ctlJoinRoomButton.onclick = async (event) => {
-        console.log("ctlJoinRoomButton click");
+        writeLog("ctlJoinRoomButton click");
         event.preventDefault();
 
         ctlJoinRoomButton.disabled = false;
@@ -142,7 +150,7 @@ import * as rooms from "@rooms/rooms-client";
 
     ctlLeaveRoomButton.onclick = async (event) => {
 
-        console.log("ctlLeaveRoomButton click");
+        writeLog("ctlLeaveRoomButton click");
         event.preventDefault();
 
         ctlLeaveRoomButton.disabled = true;
@@ -157,37 +165,37 @@ import * as rooms from "@rooms/rooms-client";
 
     }
 
-    async function writeLog(statusText: string) {
-        console.log(statusText);
+    async function writeLog(...params: any) {
+        console.log(...["WEB", ...params]);
         // ctlSatus.innerHTML = statusText + ctlSatus.innerText + "<br>";
-        ctlSatus.innerHTML = `${statusText}<br>${ctlSatus.innerHTML}`;
+        ctlSatus.innerHTML = `${params.join(" ")}<br>${ctlSatus.innerHTML}`;
     }
 
     async function createJoinNewRoom() {
-        console.log("createJoinNewRoom()");
+        writeLog("* createJoinNewRoom()");
 
-        let roomDuration = 5;
-        let maxPeers = 3;
+        let roomDuration = 1; // max duration of the room
+        let maxPeers = 2; // max number of peers that can join
 
         let resultToken = await roomsClient.waitForNewRoomToken(roomDuration);
         if (resultToken.data.error) {
-            console.log("unable to create room");
+            writeLog("* unable to create room");
             return;
         }
 
         let result = await roomsClient.waitForNewRoom(maxPeers, roomDuration);
         if (result.data.error) {
-            console.log("unable to create room");
+            writeLog("* unable to create room");
             return;
         }
 
         let joinResult = await roomsClient.waitForRoomJoin(result.data.roomId, result.data.roomToken);
         if (joinResult.data.error) {
-            console.log("unable to join room");
+            writeLog("* unable to join room");
             return;
         }
 
-        console.log("joined room, peer count:" + joinResult.data.peers.length);
+        writeLog("* joined room, peer count:" + joinResult.data.peers.length);
         let joinInfo: rooms.JoinInfo = {
             roomId: roomsClient.localRoomId,
             roomToken: roomsClient.roomToken
@@ -202,15 +210,16 @@ import * as rooms from "@rooms/rooms-client";
         let joinInfo: rooms.JoinInfo = JSON.parse(ctlJoinInfo.value);
         let joinResult = await roomsClient.waitForRoomJoin(joinInfo.roomId, joinInfo.roomToken);
         if (joinResult.data.error) {
-            console.log("* error, could not join existing room " + joinResult);
+            writeLog("* error, could not join existing room " + joinResult);
             return;
         }
 
-        console.log("* joined existing room");
-        console.log("* joined room, peer count:" + joinResult.data.peers.length);
+        writeLog("* joined existing room");
+        writeLog("* joined room, peer count:" + joinResult.data.peers.length);
 
 
     }
+
     async function roomLeave() {
         for (let peer of roomsClient.peers) {
             destroyRemoteVideo(peer.peerId);
