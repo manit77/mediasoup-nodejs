@@ -8,6 +8,7 @@ import {
     InviteMsg,
     InviteResultMsg,
     RegisterResultMsg,
+    ConferenceType,
 } from "@conf/conf-models";
 
 type confirmCallback = (accepted: boolean) => void;
@@ -338,7 +339,7 @@ class ConferenceApp {
      * @param contact 
      */
     private callContact(contact: Contact) {
-        this.confMgr.invite(contact);
+        this.confMgr.invite(contact.participantId, ConferenceType.p2p, 2);
     }
 
     private handleInviteReceived(msg: InviteMsg) {
@@ -351,7 +352,7 @@ class ConferenceApp {
                 if (accepted) {
                     this.confMgr.acceptInvite(msg);
                 } else {
-                    this.confMgr.reject(msg.data.participantId, msg.data.conferenceRoomId);
+                    this.confMgr.reject(msg);
                 }
                 this.updateUIForCall();
             }

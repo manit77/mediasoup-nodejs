@@ -1,5 +1,5 @@
 import { WebSocket } from "ws";
-import { ConferenceConfig } from "./conferenceSharedModels.js";
+import { ConferenceConfig } from "@conf/conf-models";
 
 export interface IAuthPayload {
     username: string,

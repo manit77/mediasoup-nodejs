@@ -12,13 +12,17 @@ export enum payloadTypeClient {
     connectProducerTransport = "connectProducerTransport",
     connectConsumerTransport = "connectConsumerTransport",
 
-
     roomNewToken = "roomNewToken",
     roomNewTokenResult = "roomNewTokenResult",
     roomNew = "roomNew",
     roomJoin = "roomJoin",
     roomLeave = "roomLeave",
     roomTerminate = "roomTerminate",
+
+    rtc_needOffer = "rtc_needOffer",
+    rtc_offer = "rtc_offer",
+    rtc_answer = "rtc_answer",
+    rtc_ice = "rtc_ice",
 
     produce = "produce",
     consume = "consume",
@@ -37,7 +41,6 @@ export enum payloadTypeServer {
     consumerTransportCreated = "consumerTransportCreated",
     produced = "produced",
     consumed = "consumed",
-    unauthorized = "",
 
     roomNewResult = "roomNewResult",
     roomNewTokenResult = "roomNewTokenResult",
@@ -49,9 +52,16 @@ export enum payloadTypeServer {
     roomTerminateResult = "roomTerminateResult",
     roomClosed = "roomClosed",
 
+    rtc_needOffer = "rtc_needOffer",
+    rtc_offer = "rtc_offer",
+    rtc_answer = "rtc_answer",
+    rtc_ice = "rtc_ice",
+
     peerTerminated = "peerTerminated",
     error = "error",
     ok = "ok",
+    unauthorized = "",
+
 
 }
 
@@ -280,6 +290,7 @@ export class RoomJoinResultMsg implements IMsg {
         roomId?: string,
         roomToken?: string,
         rtpCapabilities?: any,
+        roomType?: RoomType,
         peers?: {
             peerId: string,
             producers?: { producerId: string, kind: "audio" | "video" }[]
@@ -378,7 +389,6 @@ export class UnauthorizedMsg implements IMsg {
     } = {};
 }
 
-
 export enum RoomServerAPIRoutes {
     newAuthUserToken = "/newAuthUserToken",
     newRoomToken = "/newRoomToken",
@@ -387,8 +397,46 @@ export enum RoomServerAPIRoutes {
 }
 
 export class RoomConfig {
+    roomType = RoomType.sfu;
     maxPeers = 2;
     newRoomTokenExpiresInMinutes = 30; //room token expiration from date created
     maxRoomDurationMinutes = 30; // room max duration, starts when the room is created
     timeOutNoParticipantsSecs = 5 * 60; //when no participants in the room, timer starts and will close the room 
+}
+
+export enum RoomType {
+    "sfu" = "sfu",
+    "p2p" = "p2p"
+}
+
+export class RTCNeedOfferMsg implements IMsg {
+    type = payloadTypeClient.rtc_needOffer;
+    data: {
+        remotePeerId?: string,
+        sdp?: any
+    } = {};
+}
+
+export class RTCOfferMsg implements IMsg {
+    type = payloadTypeClient.rtc_offer;
+    data: {
+        remotePeerId?: string,
+        sdp?: any
+    } = {};
+}
+
+export class RTCAnswerMsg implements IMsg {
+    type = payloadTypeClient.rtc_answer;
+    data: {
+        remotePeerId?: string,
+        sdp?: any
+    } = {};
+}
+
+export class RTCIceMsg implements IMsg {
+    type = payloadTypeClient.rtc_ice;
+    data: {
+        remotePeerId?: string,
+        candidate?: any
+    } = {};
 }

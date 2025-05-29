@@ -1,5 +1,5 @@
 import express from 'express';
-import { LoginMsg, LoginResultMsg } from '../models/conferenceSharedModels.js';
+import { LoginMsg, LoginResultMsg } from '@conf/conf-models';
 import * as jwt from '../utils/jwtUtil.js';
 import { IAuthPayload } from '../models/models.js';
 import { ConferenceUtils } from './conferenceUtils.js';
@@ -9,7 +9,7 @@ const DSTR = "ConferenceAPI";
 
 export class ConferenceAPI {
 
-    constructor(private app: express.Express, private confUtils : ConferenceUtils) {
+    constructor(private app: express.Express, private confUtils: ConferenceUtils) {
 
         app.get("/hello", (req, res) => {
             res.send("ConferenceAPI");
@@ -20,7 +20,7 @@ export class ConferenceAPI {
             //returns the auth token
             //returns the signaling info
             let msgIn = req.body as LoginMsg;
-            let loginResult: LoginResultMsg = confUtils.login(msgIn);            
+            let loginResult: LoginResultMsg = confUtils.login(msgIn);
             res.send(loginResult);
 
         });

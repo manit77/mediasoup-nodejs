@@ -16,6 +16,10 @@ export var payloadTypeClient;
     payloadTypeClient["roomJoin"] = "roomJoin";
     payloadTypeClient["roomLeave"] = "roomLeave";
     payloadTypeClient["roomTerminate"] = "roomTerminate";
+    payloadTypeClient["rtc_needOffer"] = "rtc_needOffer";
+    payloadTypeClient["rtc_offer"] = "rtc_offer";
+    payloadTypeClient["rtc_answer"] = "rtc_answer";
+    payloadTypeClient["rtc_ice"] = "rtc_ice";
     payloadTypeClient["produce"] = "produce";
     payloadTypeClient["consume"] = "consume";
 })(payloadTypeClient || (payloadTypeClient = {}));
@@ -30,7 +34,6 @@ export var payloadTypeServer;
     payloadTypeServer["consumerTransportCreated"] = "consumerTransportCreated";
     payloadTypeServer["produced"] = "produced";
     payloadTypeServer["consumed"] = "consumed";
-    payloadTypeServer["unauthorized"] = "";
     payloadTypeServer["roomNewResult"] = "roomNewResult";
     payloadTypeServer["roomNewTokenResult"] = "roomNewTokenResult";
     payloadTypeServer["roomJoinResult"] = "roomJoinResult";
@@ -40,9 +43,14 @@ export var payloadTypeServer;
     payloadTypeServer["roomPeerLeft"] = "roomPeerLeft";
     payloadTypeServer["roomTerminateResult"] = "roomTerminateResult";
     payloadTypeServer["roomClosed"] = "roomClosed";
+    payloadTypeServer["rtc_needOffer"] = "rtc_needOffer";
+    payloadTypeServer["rtc_offer"] = "rtc_offer";
+    payloadTypeServer["rtc_answer"] = "rtc_answer";
+    payloadTypeServer["rtc_ice"] = "rtc_ice";
     payloadTypeServer["peerTerminated"] = "peerTerminated";
     payloadTypeServer["error"] = "error";
     payloadTypeServer["ok"] = "ok";
+    payloadTypeServer["unauthorized"] = "";
 })(payloadTypeServer || (payloadTypeServer = {}));
 export class ErrorMsg {
     type = payloadTypeServer.error;
@@ -197,9 +205,31 @@ export var RoomServerAPIRoutes;
     RoomServerAPIRoutes["terminateRoom"] = "/terminateRoom";
 })(RoomServerAPIRoutes || (RoomServerAPIRoutes = {}));
 export class RoomConfig {
+    roomType = RoomType.sfu;
     maxPeers = 2;
     newRoomTokenExpiresInMinutes = 30; //room token expiration from date created
     maxRoomDurationMinutes = 30; // room max duration, starts when the room is created
     timeOutNoParticipantsSecs = 5 * 60; //when no participants in the room, timer starts and will close the room 
+}
+export var RoomType;
+(function (RoomType) {
+    RoomType["sfu"] = "sfu";
+    RoomType["p2p"] = "p2p";
+})(RoomType || (RoomType = {}));
+export class RTCNeedOfferMsg {
+    type = payloadTypeClient.rtc_needOffer;
+    data = {};
+}
+export class RTCOfferMsg {
+    type = payloadTypeClient.rtc_offer;
+    data = {};
+}
+export class RTCAnswerMsg {
+    type = payloadTypeClient.rtc_answer;
+    data = {};
+}
+export class RTCIceMsg {
+    type = payloadTypeClient.rtc_ice;
+    data = {};
 }
 //# sourceMappingURL=roomsSharedModels.js.map

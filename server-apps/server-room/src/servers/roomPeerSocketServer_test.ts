@@ -107,7 +107,6 @@ describe('RoomPeerSocketServer', () => {
             //create new room token
             let roomNewTokenMsg = new RoomNewTokenMsg();
             roomNewTokenMsg.data.authToken = authToken;
-            roomNewTokenMsg.data.trackingId = trackingId;
 
             mockWS.send(JSON.stringify(roomNewTokenMsg));
 

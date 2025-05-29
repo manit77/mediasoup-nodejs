@@ -1,7 +1,8 @@
 import {
     payloadTypeServer,
     RoomJoinResultMsg,
-    RoomPeerLeftMsg
+    RoomPeerLeftMsg,
+    RoomType
 } from "@rooms/rooms-models";
 import * as rooms from "@rooms/rooms-client";
 
@@ -41,12 +42,12 @@ import * as rooms from "@rooms/rooms-client";
 
         roomsClient.onRoomJoinedEvent = (roomId: string) => {
             writeLog("* onRoomJoinedEvent");
-            roomsClient.publishLocalStream();
+            // roomsClient.publishLocalStream();
         };
 
         roomsClient.onRoomPeerJoinedEvent = (roomid: string, peer: rooms.Peer) => {
             writeLog("* onRoomPeerJoinedEvent");
-            roomsClient.connectToPeer(peer);
+            // roomsClient.consumePeerProducers(peer);
         };
 
         roomsClient.onRoomPeerLeftEvent = (roomid: string, peer: rooms.Peer) => {
@@ -174,6 +175,7 @@ import * as rooms from "@rooms/rooms-client";
     async function createJoinNewRoom() {
         writeLog("* createJoinNewRoom()");
 
+        let roomType: RoomType = RoomType.p2p;
         let roomDuration = 1; // max duration of the room
         let maxPeers = 2; // max number of peers that can join
 
@@ -183,7 +185,7 @@ import * as rooms from "@rooms/rooms-client";
             return;
         }
 
-        let result = await roomsClient.waitForNewRoom(maxPeers, roomDuration);
+        let result = await roomsClient.waitForNewRoom(roomType, maxPeers, roomDuration);
         if (result.data.error) {
             writeLog("* unable to create room");
             return;
@@ -197,8 +199,8 @@ import * as rooms from "@rooms/rooms-client";
 
         writeLog("* joined room, peer count:" + joinResult.data.peers.length);
         let joinInfo: rooms.JoinInfo = {
-            roomId: roomsClient.localRoomId,
-            roomToken: roomsClient.roomToken
+            roomId: roomsClient.localPeer.roomId,
+            roomToken: roomsClient.localPeer.roomToken
         }
 
         ctlJoinInfo.value = JSON.stringify(joinInfo);

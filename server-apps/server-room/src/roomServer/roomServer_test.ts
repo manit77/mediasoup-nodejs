@@ -27,7 +27,7 @@ describe("roomServerTests", () => {
     afterAll(async () => {
 
         console.log("### afterAll");
-        roomServer.dispose();        
+        roomServer.dispose();
         expect(roomServer.getPeerCount()).toBe(0);
         expect(roomServer.getRoomCount()).toBe(0);
 
@@ -40,7 +40,7 @@ describe("roomServerTests", () => {
         expect(room).toBeFalsy();
 
         //generate a room tokn
-        let [payload, roomtoken] = generateRoomToken(config.room_secretKey, "", 1, "");
+        let [payload, roomtoken] = generateRoomToken(config.room_secretKey, "", 1);
         expect(payload).toBeTruthy();
 
         //should not return a room, we need the roomid
@@ -49,7 +49,7 @@ describe("roomServerTests", () => {
 
         room = await roomServer.createRoom(payload.roomId, roomtoken, new RoomConfig());
         expect(room).toBeTruthy();
-        room.close();
+        room.close("test");
 
     });
 
@@ -82,7 +82,7 @@ describe("roomServerTests", () => {
         //ADMIN: get a room token
 
         //create a new room token, this will return a roomId
-        let resultNewRoomToken = await roomNewToken(roomTrackingId);
+        let resultNewRoomToken = await roomNewToken();
         roomId = resultNewRoomToken.data.roomId
         roomToken = resultNewRoomToken.data.roomToken;
 
@@ -114,7 +114,7 @@ describe("roomServerTests", () => {
         expect(room.getPeerCount()).toBe(0);
 
         //close the room
-        room.close();
+        room.close("test");
 
 
     }, timeout);
@@ -142,7 +142,7 @@ describe("roomServerTests", () => {
         }
 
         //create a room token        
-        let roomNewTokenRes = await roomNewToken("room 1");
+        let roomNewTokenRes = await roomNewToken();
         localRoom.roomToken = roomNewTokenRes.data.roomToken;
 
         //create room requires a peerid, use the first peer
@@ -160,7 +160,7 @@ describe("roomServerTests", () => {
         let room = roomServer.getRoom(localRoom.roomId);
         expect(room.getPeerCount()).toBe(numPeers);
 
-        room.close();
+        room.close("test");
         expect(room.getPeerCount()).toBe(0);
 
     }, timeout);
@@ -169,7 +169,6 @@ describe("roomServerTests", () => {
         //ADMIN: request a new user token
         let msg = new AuthUserNewTokenMsg();
         msg.data.expiresInMin = expiresInMin;
-        msg.data.trackingId = trackingId;
 
         return await roomServer.onAuthUserNewTokenMsg(msg);
     }
@@ -183,10 +182,9 @@ describe("roomServerTests", () => {
         return await roomServer.onRegisterPeer(msgRegister);
     }
 
-    async function roomNewToken(trackingId: string) {
+    async function roomNewToken() {
 
         let msgNewRoomToken = new RoomNewTokenMsg();
-        msgNewRoomToken.data.trackingId = trackingId;
         return await roomServer.onRoomNewTokenMsg(msgNewRoomToken);
 
     }

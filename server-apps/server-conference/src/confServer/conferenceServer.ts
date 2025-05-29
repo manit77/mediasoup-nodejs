@@ -1,7 +1,13 @@
 import https from 'https';
 import { WebSocket, WebSocketServer } from 'ws';
 import { randomUUID } from 'crypto';
-import { CallMessageType, ConferenceClosedMsg, ConferenceLeaveMsg, ConferenceRole, GetContactsMsg, InviteMsg, InviteResultMsg, JoinMsg, JoinResultMsg, LeaveMsg, RTCNeedOfferMsg, NewConferenceMsg, NewConferenceResultMsg, NewParticipantMsg, ParticipantLeftMsg, RegisterMsg, RegisterResultMsg, ReconnectMsg, ReconnectResultMsg, ParticipantReconnectedMsg, RejectMsg, ConferenceConfig, Contact, ConferenceType } from '../models/conferenceSharedModels.js';
+import {
+    CallMessageType, ConferenceClosedMsg, ConferenceLeaveMsg, ConferenceRole, GetContactsResultsMsg
+    , InviteMsg, InviteResultMsg, JoinMsg, JoinResultMsg, LeaveMsg, RTCNeedOfferMsg, NewConferenceMsg
+    , NewConferenceResultMsg, NewParticipantMsg, ParticipantLeftMsg, RegisterMsg, RegisterResultMsg
+    , ReconnectMsg, ReconnectResultMsg, ParticipantReconnectedMsg, RejectMsg, ConferenceConfig
+    , Contact, ConferenceType
+} from '@conf/conf-models';
 import { ConferenceRoom, IConfPayload, Participant } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
 import { jwtSign } from '../utils/jwtUtil.js';
@@ -12,7 +18,7 @@ export interface ConferenceServerConfig {
     conf_secret_key: string,
     conf_max_peers_per_conf: number,
     conf_token_expires_min: number
-    room_access_token : string,
+    room_access_token: string,
     room_api_url: string
 }
 
@@ -25,7 +31,7 @@ export class ConferenceServer {
     disconnectedParticipants = new Map<string, { participant: Participant, timeout: NodeJS.Timeout, conferenceRoomId: string }>();
 
     roomsAPI: RoomsAPI;
-    config : ConferenceServerConfig;
+    config: ConferenceServerConfig;
 
 
     constructor(c: ConferenceServerConfig, private httpServer: https.Server) {
@@ -531,7 +537,7 @@ export class ConferenceServer {
         }
 
         //broadcast to all participants of contacts
-        let contactsMsg = new GetContactsMsg();
+        let contactsMsg = new GetContactsResultsMsg();
         contactsMsg.data = [...this.participants.values()].map(p => ({
             participantId: p.participantId,
             displayName: p.displayName
@@ -548,7 +554,7 @@ export class ConferenceServer {
         //TODO: get list of contacts from database
         //For concept, get all participants online
 
-        let msg = new GetContactsMsg();
+        let msg = new GetContactsResultsMsg();
         this.getParticipantsExcept(ws).forEach((p) => {
             msg.data.push({
                 contactId: "",

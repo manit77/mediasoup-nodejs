@@ -6,7 +6,7 @@
   "author": "",
   "type": "module",
   "scripts": {
-    "build": "tsc && npx esbuild src/main.ts --bundle --outfile=dist/bundle.js --platform=browser && cp src/index.html dist/index.html",
+    "build": "tsc --build --force && npx esbuild src/main.ts --bundle --outfile=dist/bundle.js --platform=browser && cp src/index.html dist/index.html",
     "start": "serve dist -l 3001"
   },
   "dependencies": {

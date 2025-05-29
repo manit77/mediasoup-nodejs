@@ -202,8 +202,13 @@ export class ConferenceLeaveMsg {
     }
 }
 
-export class GetContactsResultsMsg {
+export class GetContactsMsg {
     type = CallMessageType.getContacts;
+    data: {}
+}
+
+export class GetContactsResultsMsg {
+    type = CallMessageType.getContactsResults;
     data: Contact[] = [];
 }
 

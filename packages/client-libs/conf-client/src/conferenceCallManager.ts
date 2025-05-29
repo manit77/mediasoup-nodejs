@@ -1,12 +1,17 @@
 import {
     CallMessageType, ConferenceClosedMsg, ConferenceConfig, ConferenceType
-    , GetContactsMsg, InviteMsg, InviteResultMsg, JoinMsg, JoinResultMsg
+    , GetContactsMsg, GetContactsResultsMsg, InviteMsg, InviteResultMsg, JoinMsg, JoinResultMsg
     , LeaveMsg, NewConferenceMsg, NewParticipantMsg, ParticipantLeftMsg, RegisterMsg, RegisterResultMsg, RejectMsg,
     RTCNeedOfferMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { WebRTCClient } from "@rooms/webrtc-client";
 import { RoomsClient, Peer } from "@rooms/rooms-client";
+
+interface DeviceInfo {
+    id: string,
+    label: string
+}
 
 interface Participant {
     participantId: string,
@@ -65,7 +70,6 @@ export class ConferenceCallManager {
     private rtcClient: WebRTCClient;
     private roomsClient: RoomsClient;
     isConnected = false;
-
 
     config = {
         conf_wsURI: 'wss://localhost:3001'
@@ -163,9 +167,6 @@ export class ConferenceCallManager {
                 case CallMessageType.inviteResult:
                     this.onInviteResult(message);
                     break;
-                case CallMessageType.rtc_needOffer:
-                    this.onRTCNeedOffer(message);
-                    break;
                 case CallMessageType.joinResult:
                     this.onJoinResult(message);
                     break;
@@ -177,6 +178,9 @@ export class ConferenceCallManager {
                     break;
                 case CallMessageType.conferenceClosed:
                     this.onConferenceClosed(message);
+                    break;
+                case CallMessageType.rtc_needOffer:
+                    this.onRTCNeedOffer(message);
                     break;
                 case CallMessageType.rtc_offer:
                     this.onRTCOffer(message);
@@ -203,24 +207,46 @@ export class ConferenceCallManager {
         return this.conferenceRoom.conferenceRoomId > "";
     }
 
-    public async getUserMedia(): Promise<MediaStream> {
-        this.writeLog("getUserMedia");
-        try {
-
-            if (this.localStream) {
+    async getUserMedia(audioDeviceId?: string, videoDeviceId?: string): Promise<MediaStream> {
+        if (this.localStream) {
+            // Stop existing tracks before getting new ones if devices change
+            if (audioDeviceId || videoDeviceId) {
                 this.localStream.getTracks().forEach(track => track.stop());
+                this.localStream = null;
+            } else {
+                return this.localStream;
             }
+        }
+        try {
+            const constraints: MediaStreamConstraints = {
+                audio: audioDeviceId ? { deviceId: { exact: audioDeviceId } } : true,
+                video: videoDeviceId ? { deviceId: { exact: videoDeviceId } } : true,
+            };
+            this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+            return this.localStream;
+        } catch (error) {
+            console.error('Error accessing media devices.', error);
+            throw error;
+        }
+    }
 
-            // Initialize user media
-            this.localStream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
+    async getDevices(): Promise<{ cameras: DeviceInfo[], mics: DeviceInfo[], speakers: DeviceInfo[] }> {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cameras: DeviceInfo[] = [];
+            const mics: DeviceInfo[] = [];
+            const speakers: DeviceInfo[] = [];
+            devices.forEach(device => {
+                if (device.kind === 'videoinput') cameras.push({ id: device.deviceId, label: device.label || `Camera ${cameras.length + 1}` });
+                else if (device.kind === 'audioinput') mics.push({ id: device.deviceId, label: device.label || `Mic ${mics.length + 1}` });
+                else if (device.kind === 'audiooutput') speakers.push({ id: device.deviceId, label: device.label || `Speaker ${speakers.length + 1}` });
             });
 
-            return this.localStream
-        } catch (err) {
-            console.error('Error accessing media devices:', err);
+            return { cameras, mics, speakers };
+        } catch (error) {
+            console.error('Error enumerating devices:', error);
         }
+
         return null;
     }
 
@@ -249,15 +275,13 @@ export class ConferenceCallManager {
      * send an invite to a contact that is onlin
      * @param contact 
      */
-    invite(contact: Contact) {
+    invite(participantId: string, confType: ConferenceType, maxParticipants: number = 2) {
         this.writeLog("invite()");
         const callMsg = new InviteMsg();
-        callMsg.data.participantId = contact.participantId;
-
+        callMsg.data.participantId = participantId;
         callMsg.data.conferenceConfig = new ConferenceConfig();
-        callMsg.data.conferenceConfig.maxParticipants = 2;
-        // callMsg.data.newConfConfig.type  = ConferenceType.p2p;
-        callMsg.data.conferenceConfig.type = ConferenceType.rooms;
+        callMsg.data.conferenceConfig.maxParticipants = maxParticipants;
+        callMsg.data.conferenceConfig.type = confType;
 
         this.sendToServer(callMsg);
     }
@@ -321,7 +345,7 @@ export class ConferenceCallManager {
             await this.rooms_waitForConnection(roomURI);
 
             await this.roomsClient.waitForRoomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
-            if (this.roomsClient.isConnected) {
+            if (this.roomsClient.isInRoom()) {
                 this.writeLog("room connected");
             } else {
                 this.writeLog("onJoinResult error: ", "failed to join room");
@@ -393,35 +417,76 @@ export class ConferenceCallManager {
         this.sendToServer(joinMsg);
     }
 
-    reject(participantId: string, conferenceRoomId: string) {
+    reject(message: InviteMsg) {
         this.writeLog("reject()");
         let msg = new RejectMsg();
-        msg.data.conferenceRoomId = conferenceRoomId;
+        msg.data.conferenceRoomId = message.data.conferenceRoomId;
         msg.data.fromParticipantId = this.participantId;
-        msg.data.toParticipantId = participantId;
+        msg.data.toParticipantId = message.data.participantId;
         this.sendToServer(msg);
 
         this.conferenceRoom.conferenceRoomId = "";
     }
 
-    toggleVideo() {
+    toggleVideo(): boolean {
         this.writeLog("toggleVideo");
         if (this.localStream) {
             const videoTrack = this.localStream.getVideoTracks()[0];
             if (videoTrack) {
                 videoTrack.enabled = !videoTrack.enabled;
+                return videoTrack.enabled;
             }
         }
+
+        return false;
     }
 
-    toggleAudio() {
+    toggleAudio(): boolean {
         this.writeLog("toggleAudio");
         if (this.localStream) {
             const audioTrack = this.localStream.getAudioTracks()[0];
             if (audioTrack) {
                 audioTrack.enabled = !audioTrack.enabled;
+                return audioTrack.enabled;
             }
         }
+
+        return false;
+    }
+
+    async startScreenShare(): Promise<MediaStream | null> {
+
+        try {
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            const screenTrack = screenStream.getVideoTracks()[0];
+
+
+            // Replace video track in all peer connections
+            this.conferenceRoom.participants.forEach(p => {
+                const sender = p.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+                if (sender) {
+                    sender.replaceTrack(screenTrack);
+                }
+            });
+
+            // Handle when user stops sharing via browser UI
+            screenTrack.onended = () => {
+                this.stopScreenShare(this.localStream?.getVideoTracks()[0] || null); // Revert to camera
+            };
+            return screenStream; // Return the screen stream for local preview if needed
+        } catch (error) {
+            console.error('Error starting screen share:', error);
+            return null;
+        }
+    }
+
+    stopScreenShare(cameraTrack: MediaStreamTrack | null): void {
+        this.conferenceRoom.participants.forEach(p => {
+            const sender = p.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+            if (sender && cameraTrack) {
+                sender.replaceTrack(cameraTrack);
+            }
+        });
     }
 
     leave() {
@@ -477,13 +542,10 @@ export class ConferenceCallManager {
         }
     }
 
-    private onContactsReceived(message: GetContactsMsg) {
+    private onContactsReceived(message: GetContactsResultsMsg) {
         this.writeLog("onContactsReceived");
         this.contacts = message.data.filter(c => c.participantId !== this.participantId);
-        //fire event new contacts
-
         this.onEvent(EventTypes.contactsReceived, this.contacts);
-
     }
 
     private onRejectReceived(message: InviteResultMsg) {

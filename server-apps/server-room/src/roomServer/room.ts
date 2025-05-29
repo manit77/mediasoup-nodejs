@@ -1,7 +1,7 @@
 import * as mediasoup from 'mediasoup';
 import { WebSocket } from 'ws';
 import { Peer } from './peer.js';
-import { RoomConfig } from "@rooms/rooms-models";
+import { RoomConfig, RoomType } from "@rooms/rooms-models";
 import { setTimeout, setInterval } from 'node:timers';
 
 
@@ -19,8 +19,8 @@ export class Room {
     onClosedEvent: (room: Room, peers: Peer[], reason: string) => void;
     onPeerRemovedEvent: (room: Room, peers: Peer) => void;
 
-    constructor(r: mediasoup.types.Router) {
-        this.router = r;
+    constructor() {
+
     }
 
     startTimers() {
