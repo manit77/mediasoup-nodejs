@@ -20,18 +20,25 @@
       <h2>Local Video</h2>
       PeerId: <label id="ctlPeerId"></label><br>
       Display Name: <input id="ctlDisplayName"> <br>
-      Join Info <input id="ctlJoinInfo"> <br>
-      <button id="ctlJoinRoomButton" class="btn btn-primary rounded-pill px-3">Join Room</button>
-      <button id="ctlLeaveRoomButton" class="btn btn-warning rounded-pill px-3" disabled="disabled" style="visibility: hidden;">Leave Room</button>
+      Join Info <input id="ctlJoinInfo">
+      <button id="ctlJoinRoomButton" class="btn btn-primary rounded-pill px-3">Join Existing Room</button>
+      <br>
+      <hr>
+
+      <button id="ctlCreateWebRTCRoomButton" class="btn btn-primary rounded-pill px-3">Create WebRTC Room</button>
+      <button id="ctlCreateSFURoomButton" class="btn btn-primary rounded-pill px-3">Create SFU Room</button>
+
+      <button id="ctlLeaveRoomButton" class="btn btn-warning rounded-pill px-3" disabled="disabled"
+        style="visibility: hidden;">Leave Room</button>
     </div>
     <div class="col-sm-6">
       <h2>Logs</h2>
-      
-      <div id="ctlSatus" class="card card-cover h-100 overflow-hidden text-bg-dark rounded-4 shadow-lg"></div>
-    </div>    
+
+      <div id="ctlStatus" class="card card-cover h-100 overflow-hidden text-bg-dark rounded-4 shadow-lg"></div>
+    </div>
   </div>
-  
-  
+
+
   <video id="ctlVideo" autoplay muted playsinline></video>
   <hr>
   <h2>Remote Videos</h2>

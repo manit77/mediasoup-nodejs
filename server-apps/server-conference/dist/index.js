@@ -22,3 +22,4 @@ const server = https.createServer(certInfo, app);
 app.use(express.static('client-webrtc'));
 let conferenceServer = new ConferenceServer(config, server);
 conferenceServer.start();
+//# sourceMappingURL=index.js.map

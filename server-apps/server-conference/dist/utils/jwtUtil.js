@@ -17,3 +17,4 @@ export function jwtVerify(secret, token) {
     }
     return null;
 }
+//# sourceMappingURL=jwtUtil.js.map

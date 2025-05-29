@@ -105,7 +105,7 @@ describe("roomServerTests", () => {
 
     test('newRoom', async () => {
 
-        let [payload, roomToken] = roomUtils.generateRoomToken(config.room_secretKey, "", 1);
+        let [payload, roomToken] = roomUtils.generateRoomToken(config.room_secretKey, 1);
 
         let msgOut = new RoomNewMsg();
         msgOut.data.roomId = payload.roomId;
@@ -133,7 +133,7 @@ describe("roomServerTests", () => {
 
     test('terminateRoom', async () => {
 
-        let [payload, roomToken] = roomUtils.generateRoomToken(config.room_secretKey, "", 1);
+        let [payload, roomToken] = roomUtils.generateRoomToken(config.room_secretKey, 1);
 
         let roomConfig = new RoomConfig();
         let room = await roomServer.createRoom(payload.roomId, roomToken, roomConfig);

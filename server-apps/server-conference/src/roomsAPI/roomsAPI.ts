@@ -1,7 +1,7 @@
 import axios from "axios";
 import {
     RoomNewMsg, AuthUserNewTokenMsg, AuthUserNewTokenResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg
-    , RoomServerAPIRoutes, RoomTerminateMsg
+    , RoomServerAPIRoutes, RoomTerminateMsg, RoomConfig
 } from "@rooms/rooms-models";
 import https from "https"
 
@@ -20,7 +20,7 @@ export class RoomsAPI {
         }
     }
 
-    async newRoomToken() {
+    async newRoomToken(): Promise<RoomNewTokenResultMsg> {
         let msgIn = new RoomNewTokenMsg();
         return await this.post(RoomServerAPIRoutes.newRoomToken, msgIn) as RoomNewTokenResultMsg;
     }
@@ -30,11 +30,12 @@ export class RoomsAPI {
         return await this.post(RoomServerAPIRoutes.newAuthUserToken, msgIn) as AuthUserNewTokenResultMsg;
     }
 
-    async newRoom(roomId: string, roomToken: string, maxPeers: number) {
+    async newRoom(roomId: string, roomToken: string, config: RoomConfig) {
         let msgIn = new RoomNewMsg();
-        //msgIn.data.maxPeers = maxPeers;
         msgIn.data.roomToken = roomToken;
         msgIn.data.roomId = roomId;
+        msgIn.data.roomConfig = config;
+
         return await this.post(RoomServerAPIRoutes.newRoom, msgIn) as RoomNewTokenResultMsg;
     }
 

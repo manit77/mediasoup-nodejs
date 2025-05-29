@@ -16,6 +16,7 @@ export var payloadTypeClient;
     payloadTypeClient["roomJoin"] = "roomJoin";
     payloadTypeClient["roomLeave"] = "roomLeave";
     payloadTypeClient["roomTerminate"] = "roomTerminate";
+    payloadTypeClient["roomGetLogs"] = "roomGetLogs";
     payloadTypeClient["rtc_needOffer"] = "rtc_needOffer";
     payloadTypeClient["rtc_offer"] = "rtc_offer";
     payloadTypeClient["rtc_answer"] = "rtc_answer";
@@ -43,6 +44,7 @@ export var payloadTypeServer;
     payloadTypeServer["roomPeerLeft"] = "roomPeerLeft";
     payloadTypeServer["roomTerminateResult"] = "roomTerminateResult";
     payloadTypeServer["roomClosed"] = "roomClosed";
+    payloadTypeServer["roomGetLogsResult"] = "roomGetLogsResult";
     payloadTypeServer["rtc_needOffer"] = "rtc_needOffer";
     payloadTypeServer["rtc_offer"] = "rtc_offer";
     payloadTypeServer["rtc_answer"] = "rtc_answer";
@@ -210,6 +212,10 @@ export class RoomConfig {
     newRoomTokenExpiresInMinutes = 30; //room token expiration from date created
     maxRoomDurationMinutes = 30; // room max duration, starts when the room is created
     timeOutNoParticipantsSecs = 5 * 60; //when no participants in the room, timer starts and will close the room 
+    closeRoomOnPeerCount = 0; //room will be closed when there are x number of peers
+    callBackURL_OnRoomClosed;
+    callBackURL_OnPeerLeft;
+    callBackURL_OnPeerJoined;
 }
 export var RoomType;
 (function (RoomType) {
@@ -231,5 +237,20 @@ export class RTCAnswerMsg {
 export class RTCIceMsg {
     type = payloadTypeClient.rtc_ice;
     data = {};
+}
+export var RoomLogAction;
+(function (RoomLogAction) {
+    RoomLogAction["roomCreated"] = "roomCreated";
+    RoomLogAction["roomClosed"] = "roomClosed";
+    RoomLogAction["peerJoined"] = "peerJoined";
+    RoomLogAction["peerLeft"] = "peerLeft";
+})(RoomLogAction || (RoomLogAction = {}));
+export class RoomGetLogsMsg {
+    type;
+    data = {};
+}
+export class RoomGetLogsResultMsg {
+    type;
+    data = { logs: [] };
 }
 //# sourceMappingURL=roomsSharedModels.js.map

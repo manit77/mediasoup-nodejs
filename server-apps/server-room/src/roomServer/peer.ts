@@ -10,11 +10,6 @@ export class Peer {
     public displayName: string;
     public authToken: string;
 
-    timeOutInactivitySecs = 3600; //if not activity for 60 minutes terminate the peer
-    timerIdInactivity: NodeJS.Timeout;
-
-    onInactive: (peer: Peer) => void;
-
     constructor() {
 
     }
@@ -126,28 +121,9 @@ export class Peer {
 
     }
 
-    restartInactiveTimer() {
-        console.log(`restartInactiveTimer ${this.id}`);
-        if (this.timerIdInactivity) {
-            clearTimeout(this.timerIdInactivity);
-        }
-
-        this.timerIdInactivity = setTimeout(() => {
-            console.log("peer inactive timer reached.");
-            if (this.onInactive) {
-                this.onInactive(this);
-            }
-        }, this.timeOutInactivitySecs * 1000);
-
-    }
 
     close() {
         console.log(`peer close() - ${this.id}`);
-
-        if (this.timerIdInactivity) {
-            console.log(`clearTimeout timerIdInactivity`);
-            clearTimeout(this.timerIdInactivity);
-        }
 
         this.producerTransport?.close();
         this.consumerTransport?.close();

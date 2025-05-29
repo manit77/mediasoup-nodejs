@@ -34,6 +34,8 @@ export class LocalPeer {
 
   stream: MediaStream = null;
 
+  transportSend: mediasoupClient.types.Transport;
+  transportReceive: mediasoupClient.types.Transport;
   consumers: mediasoupClient.types.Consumer[] = [];
   producers: mediasoupClient.types.Producer[] = [];
 }
@@ -63,8 +65,7 @@ export class RoomsClient {
   videoEnabled = true;
 
   device: mediasoupClient.types.Device;
-  transportSend: mediasoupClient.types.Transport;
-  transportReceive: mediasoupClient.types.Transport;
+
 
   config = {
     wsURI: "wss://localhost:3000",
@@ -91,7 +92,7 @@ export class RoomsClient {
     console.log("RoomsClient", ...params);
   };
 
-  initMediaSoupDevice = () => {
+  private initMediaSoupDevice = () => {
     this.writeLog("initMediaSoupDevice=");
     if (this.device) {
       this.writeLog("device already initialized");
@@ -121,10 +122,10 @@ export class RoomsClient {
           this.onRegisterResult(msgIn);
           break;
         case payloadTypeServer.producerTransportCreated:
-          this.onProducerTransportCreated(msgIn);
+          this.sfu_onProducerTransportCreated(msgIn);
           break;
         case payloadTypeServer.consumerTransportCreated:
-          this.onConsumerTransportCreated(msgIn);
+          this.sfu_onConsumerTransportCreated(msgIn);
           break;
         case payloadTypeServer.roomNewTokenResult:
           this.onRoomNewTokenResult(msgIn);
@@ -136,16 +137,16 @@ export class RoomsClient {
           this.onRoomNewPeer(msgIn);
           break;
         case payloadTypeServer.roomNewProducer:
-          this.onRoomNewProducer(msgIn);
+          this.sfu_onRoomNewProducer(msgIn);
           break;
         case payloadTypeServer.roomPeerLeft:
           this.onRoomPeerLeft(msgIn);
           break;
         case payloadTypeServer.produced:
-          this.onProduced(msgIn);
+          this.sfu_onProduced(msgIn);
           break;
         case payloadTypeServer.consumed:
-          this.onConsumed(msgIn);
+          this.sfu_onConsumed(msgIn);
           break;
         case payloadTypeServer.roomClosed:
           this.onRoomClosed(msgIn);
@@ -462,8 +463,8 @@ export class RoomsClient {
           }
         }
 
-        this.createConsumerTransport();
-        this.createProducerTransport();
+        this.sfu_createConsumerTransport();
+        this.sfu_createProducerTransport();
       });
     };
 
@@ -524,7 +525,7 @@ export class RoomsClient {
 
     if (this.localPeer.roomType == "sfu") {
 
-      if (!this.transportReceive || !this.transportSend) {
+      if (!this.localPeer.transportReceive || !this.localPeer.transportSend) {
         this.writeLog("transports have not been created.");
         return;
       }
@@ -535,7 +536,7 @@ export class RoomsClient {
       }
 
       peer.producers.forEach(p => {
-        this.consumeProducer(peer.peerId, p.id);
+        this.sfu_consumeProducer(peer.peerId, p.id);
       });
 
     }
@@ -544,7 +545,20 @@ export class RoomsClient {
 
   disconnect = () => {
     this.writeLog("disconnect");
+    for (let peer of this.peers) {
+      peer.rtc_Connection?.pc.close();
+    }
+
+    this.localPeer.consumers?.forEach(c => c.close());
+    this.localPeer.producers?.forEach(c => c.close());
+
+    this.localPeer.transportReceive?.close();
+    this.localPeer.transportSend?.close();
+
     this.ws.disconnect();
+
+    //reset the local peer
+    this.localPeer = new LocalPeer();
   };
 
   send = (msg: any) => {
@@ -610,14 +624,14 @@ export class RoomsClient {
       return;
     }
 
-    if (!this.transportSend) {
+    if (!this.localPeer.transportSend) {
       this.writeLog("transportSend is required.");
       return;
     }
 
     let tracks = this.localPeer.stream.getTracks();
     console.log("tracks=" + tracks.length);
-    tracks.forEach(track => this.transportSend.produce({ track: track }));
+    tracks.forEach(track => this.localPeer.transportSend.produce({ track: track }));
 
   };
 
@@ -752,7 +766,7 @@ export class RoomsClient {
 
   };
 
-  createProducerTransport = (): boolean => {
+  sfu_createProducerTransport = (): boolean => {
     this.writeLog("-- createProducerTransport");
 
     if (this.localPeer.roomType != "sfu") {
@@ -765,7 +779,7 @@ export class RoomsClient {
     return true;
   };
 
-  createConsumerTransport = (): boolean => {
+  sfu_createConsumerTransport = (): boolean => {
     this.writeLog("-- createConsumerTransport");
 
     if (this.localPeer.roomType != "sfu") {
@@ -811,7 +825,8 @@ export class RoomsClient {
     config.maxPeers = maxPeers;
     config.maxRoomDurationMinutes = maxRoomDurationMinutes;
     config.newRoomTokenExpiresInMinutes = maxRoomDurationMinutes;
-    config.timeOutNoParticipantsSecs = 60;
+    config.timeOutNoParticipantsSecs = 30;
+    config.closeRoomOnPeerCount = 0; //close the room when there are zero participants
 
     let msg = new RoomNewMsg();
     msg.data = {
@@ -933,11 +948,11 @@ export class RoomsClient {
 
     this.localPeer.consumers.forEach(c => c.close());
     this.localPeer.producers.forEach(c => c.close());
-    this.transportReceive?.close();
-    this.transportSend?.close();
+    this.localPeer.transportReceive?.close();
+    this.localPeer.transportSend?.close();
 
-    this.transportReceive = null;
-    this.transportSend = null;
+    this.localPeer.transportReceive = null;
+    this.localPeer.transportSend = null;
     this.peers = [];
     this.localPeer = new LocalPeer();
     this.ws.disconnect();
@@ -945,10 +960,10 @@ export class RoomsClient {
 
   };
 
-  private onConsumerTransportCreated = async (msgIn: ConsumerTransportCreatedMsg) => {
+  private sfu_onConsumerTransportCreated = async (msgIn: ConsumerTransportCreatedMsg) => {
     this.writeLog("-- onConsumerTransportCreated");
 
-    this.transportReceive = this.device.createRecvTransport({
+    this.localPeer.transportReceive = this.device.createRecvTransport({
       id: msgIn.data!.transportId,
       iceServers: msgIn.data!.iceServers,
       iceCandidates: msgIn.data!.iceCandidates,
@@ -957,7 +972,7 @@ export class RoomsClient {
       iceTransportPolicy: msgIn.data!.iceTransportPolicy
     });
 
-    this.transportReceive.on('connect', ({ dtlsParameters }, callback) => {
+    this.localPeer.transportReceive.on('connect', ({ dtlsParameters }, callback) => {
       let msg = new ConnectConsumerTransportMsg();
       msg.data = {
         dtlsParameters: dtlsParameters
@@ -967,16 +982,16 @@ export class RoomsClient {
     });
 
     if (this.onTransportsReadyEvent) {
-      this.onTransportsReadyEvent(this.transportReceive);
+      this.onTransportsReadyEvent(this.localPeer.transportReceive);
     }
   }
 
-  private onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
+  private sfu_onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
     this.writeLog("-- onProducerTransportCreated");
 
     //the server has created a transport
     //create a client transport to connect to the server transport
-    this.transportSend = this.device.createSendTransport({
+    this.localPeer.transportSend = this.device.createSendTransport({
       id: msgIn.data!.transportId,
       iceServers: msgIn.data!.iceServers,
       iceCandidates: msgIn.data!.iceCandidates,
@@ -985,7 +1000,7 @@ export class RoomsClient {
       iceTransportPolicy: msgIn.data!.iceTransportPolicy
     });
 
-    this.transportSend.on("connect", ({ dtlsParameters }, callback) => {
+    this.localPeer.transportSend.on("connect", ({ dtlsParameters }, callback) => {
       this.writeLog("-- sendTransport connect");
       //fires when the transport connects to the mediasoup server
 
@@ -999,7 +1014,7 @@ export class RoomsClient {
 
     });
 
-    this.transportSend.on('produce', ({ kind, rtpParameters }, callback) => {
+    this.localPeer.transportSend.on('produce', ({ kind, rtpParameters }, callback) => {
 
       this.writeLog("-- sendTransport produce");
 
@@ -1015,7 +1030,7 @@ export class RoomsClient {
     });
 
     if (this.onTransportsReadyEvent) {
-      this.onTransportsReadyEvent(this.transportSend);
+      this.onTransportsReadyEvent(this.localPeer.transportSend);
     }
 
   }
@@ -1035,7 +1050,7 @@ export class RoomsClient {
 
       if (msgIn.data?.producers) {
         for (let producer of msgIn.data.producers) {
-          this.consumeProducer(msgIn.data.peerId, producer.producerId);
+          this.sfu_consumeProducer(msgIn.data.peerId, producer.producerId);
         }
       }
     } else {
@@ -1108,8 +1123,8 @@ export class RoomsClient {
         p.close();
       });
 
-      this.transportSend?.close();
-      this.transportReceive?.close();
+      this.localPeer.transportSend?.close();
+      this.localPeer.transportReceive?.close();
     }
 
     let tracks = this.localPeer.stream.getTracks()
@@ -1124,9 +1139,9 @@ export class RoomsClient {
 
   }
 
-  private onRoomNewProducer = async (msgIn: RoomNewProducerMsg) => {
+  private sfu_onRoomNewProducer = async (msgIn: RoomNewProducerMsg) => {
     this.writeLog("onRoomNewProducer: " + msgIn.data?.kind);
-    this.consumeProducer(msgIn.data?.peerId!, msgIn.data?.producerId!);
+    this.sfu_consumeProducer(msgIn.data?.peerId!, msgIn.data?.producerId!);
   }
 
   addLocalTrack = async (track: MediaStreamTrack) => {
@@ -1144,7 +1159,7 @@ export class RoomsClient {
       if (!currentTracks.find(t => t.id === track.id)) {
         this.localPeer.stream.addTrack(track);
         this.writeLog("track added: " + track.kind);
-        await this.transportSend.produce({ track });
+        await this.localPeer.transportSend.produce({ track });
       }
     }
 
@@ -1157,7 +1172,7 @@ export class RoomsClient {
     }
   };
 
-  consumeProducer = async (remotePeerId: string, producerId: string) => {
+  sfu_consumeProducer = async (remotePeerId: string, producerId: string) => {
     this.writeLog("consumeProducer() :" + remotePeerId, producerId);
     if (remotePeerId === this.localPeer.peerId) {
       console.error("consumeProducer() - you can't consume yourself.");
@@ -1182,9 +1197,9 @@ export class RoomsClient {
     this.send(msg);
   };
 
-  private onConsumed = async (msgIn: ConsumedMsg) => {
+  private sfu_onConsumed = async (msgIn: ConsumedMsg) => {
     this.writeLog("onConsumed() " + msgIn.data?.kind);
-    const consumer = await this.transportReceive.consume({
+    const consumer = await this.localPeer.transportReceive.consume({
       id: msgIn.data!.consumerId,
       producerId: msgIn.data!.producerId,
       kind: msgIn.data!.kind,
@@ -1193,7 +1208,7 @@ export class RoomsClient {
     this.addRemoteTrack(msgIn.data!.peerId, consumer.track);
   };
 
-  private onProduced = async (msgIn: ProducedMsg) => {
+  private sfu_onProduced = async (msgIn: ProducedMsg) => {
     this.writeLog("onProduced " + msgIn.data?.kind);
   };
 

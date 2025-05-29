@@ -1,5 +1,5 @@
 import { IAuthPayload } from "../models/models.js";
-import { LoginMsg, LoginResultMsg } from "../models/conferenceSharedModels.js";
+import { LoginMsg, LoginResultMsg } from "@conf/conf-models";
 import * as jwt from '../utils/jwtUtil.js';
 
 export class ConferenceUtils {

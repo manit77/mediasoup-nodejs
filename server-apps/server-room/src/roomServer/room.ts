@@ -1,12 +1,17 @@
 import * as mediasoup from 'mediasoup';
-import { WebSocket } from 'ws';
 import { Peer } from './peer.js';
-import { RoomConfig, RoomType } from "@rooms/rooms-models";
+import { RoomCallBackData, RoomConfig, RoomLog, RoomLogAction, RoomPeerCallBackData } from "@rooms/rooms-models";
 import { setTimeout, setInterval } from 'node:timers';
+import axios from 'axios';
 
+export interface RoomLogAdapter {
+    save: (log: RoomLog) => Promise<void>;
+    get: (roomId: string) => Promise<RoomLog[]>;
+}
 
 export class Room {
     id: string;
+    trackingId: string;
     private peers: Map<string, Peer> = new Map();
     roomToken: string;
 
@@ -16,6 +21,7 @@ export class Room {
     timerIdNoParticipants?: NodeJS.Timeout = null;
 
     router?: mediasoup.types.Router;
+    roomLogAdapter: RoomLogAdapter;
     onClosedEvent: (room: Room, peers: Peer[], reason: string) => void;
     onPeerRemovedEvent: (room: Room, peers: Peer) => void;
 
@@ -24,6 +30,7 @@ export class Room {
     }
 
     startTimers() {
+
         console.log(`room startTimer() maxRoomDurationMinutes:${this.config.maxRoomDurationMinutes}`);
 
         if (this.config.maxRoomDurationMinutes > 0) {
@@ -36,6 +43,13 @@ export class Room {
         }
 
         this.startTimerNoParticipants();
+
+        this.writeRoomLog({
+            Action: RoomLogAction.roomCreated,
+            Date: new Date(),
+            PeerId: "",
+            RoomId: this.id
+        });
     }
 
     private startTimerNoParticipants() {
@@ -73,12 +87,36 @@ export class Room {
             clearTimeout(this.timerIdNoParticipants);
         }
 
+        this.writeRoomLog({
+            Action: RoomLogAction.peerJoined,
+            Date: new Date(),
+            PeerId: peer.id,
+            RoomId: this.id
+        });
+
+        if (this.config.callBackURL_OnPeerJoined) {
+            let cbData: RoomPeerCallBackData = {
+                peerId: peer.id,
+                roomId: this.id,
+                peerTrackingId: peer.trackingid,
+                roomTrackingId: this.trackingId
+            }
+
+            axios.post(this.config.callBackURL_OnPeerJoined, cbData);
+        }
+
+
         return true;
     }
 
     removePeer(peerId: string): void {
-        console.log("removePeer ", peerId);
+        console.log("removePeer() - ", peerId);
         let peer = this.peers.get(peerId);
+
+        if (!peer) {
+            console.error("removePeer() - peer not found.");
+            return;
+        }
         if (peer) {
             peer.room = null;
             this.peers.delete(peerId);
@@ -90,6 +128,28 @@ export class Room {
 
         if (this.onPeerRemovedEvent) {
             this.onPeerRemovedEvent(this, peer);
+        }
+
+        if (this.config.closeRoomOnPeerCount == this.peers.size) {
+            this.close("closeRoomOnPeerCount");
+        }
+
+        this.writeRoomLog({
+            Action: RoomLogAction.peerLeft,
+            Date: new Date(),
+            PeerId: peer.id,
+            RoomId: this.id
+        });
+
+        if (this.config.callBackURL_OnPeerLeft) {
+            let cbData: RoomPeerCallBackData = {
+                peerId: peer.id,
+                roomId: this.id,
+                peerTrackingId: peer.trackingid,
+                roomTrackingId: this.trackingId
+            }
+
+            axios.post(this.config.callBackURL_OnPeerLeft, cbData);
         }
     }
 
@@ -136,6 +196,30 @@ export class Room {
 
         if (this.onClosedEvent) {
             this.onClosedEvent(this, peersCopy, reason);
+        }
+
+        this.writeRoomLog({
+            Action: RoomLogAction.roomClosed,
+            Date: new Date(),
+            PeerId: "",
+            RoomId: this.id
+        });
+
+        if (this.config.callBackURL_OnRoomClosed) {
+            let roomCallBackData: RoomCallBackData = {
+                peers: [],
+                roomId: this.id,
+                status: "closed",
+                trackingId: this.trackingId
+            }
+
+            axios.post(this.config.callBackURL_OnRoomClosed, roomCallBackData);
+        }
+    }
+
+    writeRoomLog(log: RoomLog) {
+        if (this.roomLogAdapter) {
+            this.roomLogAdapter.save(log);
         }
     }
 

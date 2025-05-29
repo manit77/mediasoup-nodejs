@@ -21,11 +21,11 @@ export class RoomsAPI {
         let msgIn = new AuthUserNewTokenMsg();
         return await this.post(RoomServerAPIRoutes.newAuthUserToken, msgIn);
     }
-    async newRoom(roomId, roomToken, maxPeers) {
+    async newRoom(roomId, roomToken, config) {
         let msgIn = new RoomNewMsg();
-        //msgIn.data.maxPeers = maxPeers;
         msgIn.data.roomToken = roomToken;
         msgIn.data.roomId = roomId;
+        msgIn.data.roomConfig = config;
         return await this.post(RoomServerAPIRoutes.newRoom, msgIn);
     }
     async terminateRoom(roomId) {
@@ -56,3 +56,4 @@ export class RoomsAPI {
         }
     }
 }
+//# sourceMappingURL=roomsAPI.js.map

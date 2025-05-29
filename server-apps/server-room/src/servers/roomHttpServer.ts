@@ -120,6 +120,17 @@ export class RoomHTTPServer {
             let resultMsg = this.roomServer.onRoomTerminateMsg(msgIn);
             res.send(resultMsg);
         });
+
+        // app.post(RoomServerAPIRoutes.getRoomLogs, this.tokenCheck as any, async (req, res) => {
+        //     console.log(RoomServerAPIRoutes.getRoomLogs);
+        //     let msgIn = req.body as RoomTerminateMsg;
+        //     msgIn.data.authToken = req.rooms_authtoken;
+
+        //     let resultMsg = this.roomServer.onRoomTerminateMsg(msgIn);
+        //     res.send(resultMsg);
+        // });
+
+
     }
 
 }

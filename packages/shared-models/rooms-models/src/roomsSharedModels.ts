@@ -18,6 +18,7 @@ export enum payloadTypeClient {
     roomJoin = "roomJoin",
     roomLeave = "roomLeave",
     roomTerminate = "roomTerminate",
+    roomGetLogs = "roomGetLogs",
 
     rtc_needOffer = "rtc_needOffer",
     rtc_offer = "rtc_offer",
@@ -51,6 +52,7 @@ export enum payloadTypeServer {
     roomPeerLeft = "roomPeerLeft",
     roomTerminateResult = "roomTerminateResult",
     roomClosed = "roomClosed",
+    roomGetLogsResult = "roomGetLogsResult",
 
     rtc_needOffer = "rtc_needOffer",
     rtc_offer = "rtc_offer",
@@ -402,6 +404,10 @@ export class RoomConfig {
     newRoomTokenExpiresInMinutes = 30; //room token expiration from date created
     maxRoomDurationMinutes = 30; // room max duration, starts when the room is created
     timeOutNoParticipantsSecs = 5 * 60; //when no participants in the room, timer starts and will close the room 
+    closeRoomOnPeerCount = 0; //room will be closed when there are x number of peers
+    callBackURL_OnRoomClosed: string;
+    callBackURL_OnPeerLeft: string;
+    callBackURL_OnPeerJoined: string;
 }
 
 export enum RoomType {
@@ -439,4 +445,44 @@ export class RTCIceMsg implements IMsg {
         remotePeerId?: string,
         candidate?: any
     } = {};
+}
+
+export interface RoomPeerCallBackData {
+    peerId: string;
+    peerTrackingId: string;
+    roomId: string;
+    roomTrackingId: string;
+}
+
+export interface RoomCallBackData {
+    roomId: string;
+    trackingId: string;
+    status: "open" | "closed";
+    peers: RoomPeerCallBackData[];
+}
+
+export enum RoomLogAction {
+    roomCreated = "roomCreated",
+    roomClosed = "roomClosed",
+    peerJoined = "peerJoined",
+    peerLeft = "peerLeft"
+}
+
+export interface RoomLog {
+    RoomId: string,
+    PeerId: string,
+    Date: Date,
+    Action: RoomLogAction
+}
+
+export class RoomGetLogsMsg implements IMsg {
+    type: payloadTypeClient.roomGetLogs;
+    data = {};
+}
+
+export class RoomGetLogsResultMsg implements IMsg {
+    type: payloadTypeServer.roomGetLogsResult;
+    data: {
+        logs: RoomLog[]
+    } = { logs: [] };
 }

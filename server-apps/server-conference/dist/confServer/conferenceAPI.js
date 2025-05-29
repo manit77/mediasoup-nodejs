@@ -18,3 +18,4 @@ export class ConferenceAPI {
         });
     }
 }
+//# sourceMappingURL=conferenceAPI.js.map

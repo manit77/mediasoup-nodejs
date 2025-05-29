@@ -7,7 +7,7 @@ import {
     , ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg
     , ConsumerTransportCreatedMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient
     , PeerTerminatedMsg, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg
-    , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomJoinMsg
+    , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomGetLogsMsg, RoomJoinMsg
     , RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResult, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
     , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg
     , RoomTerminateMsg
@@ -20,6 +20,7 @@ import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
 import { AuthUserRoles, AuthUserTokenPayload } from '../models/tokenPayloads.js';
 import { setTimeout, setInterval } from 'node:timers';
+import { RoomLogAdapterInMemory } from './roomLogsAdapter.js';
 
 type outMessage = (peerId: string, msg: any) => void;
 export interface RoomServerConfig {
@@ -43,9 +44,10 @@ export class RoomServer {
     private peers = new Map<string, Peer>();
     private rooms = new Map<string, Room>();
 
-    private outMsgListeners: outMessage[] = [];
+    private eventListeners: outMessage[] = [];
     private config: RoomServerConfig;
     private timerIdResourceInterval: any;
+    private roomLogAdapter = new RoomLogAdapterInMemory();
 
     constructor(c: RoomServerConfig) {
         this.config = c;
@@ -92,8 +94,7 @@ export class RoomServer {
                 });
 
             worker.on('died', () => {
-                console.error(
-                    'Worker died, exiting  in 2 seconds... [pid:%d]', worker.pid);
+                console.error('Worker died, exiting  in 2 seconds... [pid:%d]', worker.pid);
 
                 setTimeout(() => process.exit(1), 2000);
             });
@@ -122,13 +123,13 @@ export class RoomServer {
     }
 
     addEventListner(event: outMessage) {
-        this.outMsgListeners.push(event);
+        this.eventListeners.push(event);
     }
 
     removeEventListner(event: outMessage) {
-        let idx = this.outMsgListeners.findIndex((f) => f === event);
+        let idx = this.eventListeners.findIndex((f) => f === event);
         if (idx > -1) {
-            this.outMsgListeners.splice(idx, 1);
+            this.eventListeners.splice(idx, 1);
         }
     }
 
@@ -175,33 +176,33 @@ export class RoomServer {
                 return this.onRoomTerminate(peerId, msgIn);
             }
             case payloadTypeClient.createProducerTransport: {
-                return this.onCreateProducerTransport(peerId, msgIn);
+                return this.onMediasoup_CreateProducerTransport(peerId, msgIn);
             }
             case payloadTypeClient.createConsumerTransport: {
-                return this.onCreateConsumerTransport(peerId, msgIn);
+                return this.onMediasoup_CreateConsumerTransport(peerId, msgIn);
             }
             case payloadTypeClient.connectProducerTransport: {
-                return this.onConnectProducerTransport(peerId, msgIn);
+                return this.onMediasoup_ConnectProducerTransport(peerId, msgIn);
             }
             case payloadTypeClient.connectConsumerTransport: {
-                return this.onConnectConsumerTransport(peerId, msgIn);
+                return this.onMediasoup_ConnectConsumerTransport(peerId, msgIn);
             }
             case payloadTypeClient.produce: {
-                return this.onProduce(peerId, msgIn);
+                return this.onMediasoup_Produce(peerId, msgIn);
             }
             case payloadTypeClient.consume: {
-                return this.onConsume(peerId, msgIn);
+                return this.onMediasoup_Consume(peerId, msgIn);
             }
             case payloadTypeClient.rtc_offer: {
-                this.onRTCOffer(peerId, msgIn);
+                this.onRTC_Offer(peerId, msgIn);
                 break;
             }
             case payloadTypeClient.rtc_answer: {
-                this.onRTCAnswer(peerId, msgIn);
+                this.onRTC_Answer(peerId, msgIn);
                 break;
             }
             case payloadTypeClient.rtc_ice: {
-                this.onRTCIce(peerId, msgIn);
+                this.onRTC_Ice(peerId, msgIn);
                 break;
             }
         }
@@ -273,22 +274,9 @@ export class RoomServer {
         peer.authToken = authToken;
         peer.displayName = displayName;
         peer.trackingid = trackingId;
-        peer.timeOutInactivitySecs
 
         this.addPeerGlobal(peer);
-        peer.restartInactiveTimer();
 
-        peer.onInactive = (peer: Peer) => {
-            if (peer.room) {
-                console.log("peer was inactive, remove from room.");
-                peer.room.removePeer(peer.id);
-                peer.restartInactiveTimer();
-                return;
-            } else {
-                console.log("peer was inactive, terminate the peer.");
-                this.closePeer(peer);
-            }
-        };
 
         return peer;
     }
@@ -325,6 +313,7 @@ export class RoomServer {
         console.log("router created");
 
         let room = new Room();
+        room.roomLogAdapter = this.roomLogAdapter;
         room.id = roomId;
         room.roomToken = roomToken;
         room.config = config;
@@ -415,20 +404,22 @@ export class RoomServer {
         this.peers.delete(peer.id);
     }
 
-    removeRoomGlobal(room: Room) {
+    private removeRoomGlobal(room: Room) {
         console.log(`removeRoomGlobal() ${room.id}`);
-        this.rooms.delete(room.id);
         this.printStats();
+        this.rooms.delete(room.id);
+
+
     }
 
     private async send(peerId: string, msg: any) {
         console.log('send() ', msg.type);
-        this.outMsgListeners.forEach(event => {
+        this.eventListeners.forEach(event => {
             event(peerId, msg);
         });
     }
 
-    async broadCastExcept(room: Room, except: Peer, msg: any) {
+    private async broadCastExcept(room: Room, except: Peer, msg: any) {
         console.log("broadCastExcept()", except.id);
         for (let peer of room.getPeers()) {
             if (except != peer) {
@@ -437,7 +428,7 @@ export class RoomServer {
         }
     }
 
-    broadCastAll(room: Room, msg: any) {
+    private broadCastAll(room: Room, msg: any) {
         console.log("broadCastAll()");
         for (let peer of room.getPeers()) {
             this.send(peer.id, msg);
@@ -467,7 +458,7 @@ export class RoomServer {
         return msg;
     }
 
-    async onCreateProducerTransport(peerId: string, msgIn: CreateProducerTransportMsg): Promise<IMsg> {
+    async onMediasoup_CreateProducerTransport(peerId: string, msgIn: CreateProducerTransportMsg): Promise<IMsg> {
         console.log("onCreateProducerTransport");
         let peer = this.peers.get(peerId);
         if (!peer) {
@@ -484,8 +475,6 @@ export class RoomServer {
             return new ErrorMsg("invalid room type for message.");
         }
 
-        peer.restartInactiveTimer();
-
         await peer!.createProducerTransport()
 
         let producerTransportCreated = new ProducerTransportCreatedMsg();
@@ -501,7 +490,7 @@ export class RoomServer {
         return producerTransportCreated;
     }
 
-    async onCreateConsumerTransport(peerId: string, msgIn: CreateProducerTransportMsg): Promise<IMsg> {
+    async onMediasoup_CreateConsumerTransport(peerId: string, msgIn: CreateProducerTransportMsg): Promise<IMsg> {
         console.log("onCreateConsumerTransport");
 
         //client requests to create a consumer transport to receive data
@@ -522,8 +511,6 @@ export class RoomServer {
             return new ErrorMsg("invalid room type for message.");
         }
 
-        peer.restartInactiveTimer();
-
         await peer.createConsumerTransport()
 
         let consumerTransportCreated = new ConsumerTransportCreatedMsg();
@@ -539,7 +526,7 @@ export class RoomServer {
         return consumerTransportCreated;
     }
 
-    async onConnectProducerTransport(peerId: string, msgIn: ConnectProducerTransportMsg): Promise<IMsg> {
+    async onMediasoup_ConnectProducerTransport(peerId: string, msgIn: ConnectProducerTransportMsg): Promise<IMsg> {
 
         console.log("onConnectProducerTransport");
 
@@ -564,15 +551,13 @@ export class RoomServer {
             return new ErrorMsg("peer is not in a room");
         }
 
-        peer.restartInactiveTimer();
-
         //producerTransport needs dtls params from the client, contains, ports, codecs, etc.
         await peer.producerTransport!.connect({ dtlsParameters: msgIn.data.dtlsParameters });
 
         return new OkMsg(msgIn.type);
     }
 
-    async onConnectConsumerTransport(peerId: string, msgIn: ConnectConsumerTransportMsg): Promise<IMsg> {
+    async onMediasoup_ConnectConsumerTransport(peerId: string, msgIn: ConnectConsumerTransportMsg): Promise<IMsg> {
         console.log("onConnectConsumerTransport");
 
         let peer = this.peers.get(peerId);
@@ -595,8 +580,6 @@ export class RoomServer {
             return new ErrorMsg("consumerTransport not found.");
         }
 
-        peer.restartInactiveTimer();
-
         //consumerTransport needs dtls params from the client, contains, ports, codecs, etc.
         await peer.consumerTransport!.connect({ dtlsParameters: msgIn.data.dtlsParameters });
 
@@ -618,8 +601,6 @@ export class RoomServer {
             return msg;
         }
 
-        peer.restartInactiveTimer();
-
         return await this.onRoomNewTokenMsg(msgIn);
     }
 
@@ -627,7 +608,7 @@ export class RoomServer {
         console.log("roomNewToken");
 
         let msg = new RoomNewTokenResultMsg();
-        let [payloadRoom, roomToken] = roomUtils.generateRoomToken(this.config.room_secretKey, "", msgIn.data.expiresInMin);
+        let [payloadRoom, roomToken] = roomUtils.generateRoomToken(this.config.room_secretKey, msgIn.data.expiresInMin);
 
         if (roomToken) {
             msg.data.roomId = payloadRoom.roomId;
@@ -655,7 +636,6 @@ export class RoomServer {
         return msg;
     }
 
-
     /**
      * client requests to create a room
      * room will be added to the rooms map
@@ -672,8 +652,6 @@ export class RoomServer {
             msg.data.error = "invalid peer";
             return msg;
         }
-
-        peer.restartInactiveTimer();
 
         let roomNewResultMsg = await this.onRoomNewMsg(msgIn);
         return roomNewResultMsg;
@@ -762,6 +740,10 @@ export class RoomServer {
         msgError.data.error = "unable to terminate room.";
 
         return msgError;
+    }
+
+    onRoomGetLogsMsg(msg: RoomGetLogsMsg) {
+
     }
 
     /**
@@ -888,7 +870,7 @@ export class RoomServer {
 
     }
 
-    private async onProduce(peerId: string, msgIn: ProduceMsg): Promise<IMsg> {
+    private async onMediasoup_Produce(peerId: string, msgIn: ProduceMsg): Promise<IMsg> {
         console.log("onProduce");
 
         //client is requesting to produce/send audio or video
@@ -944,7 +926,7 @@ export class RoomServer {
         return producedMsg;
     }
 
-    private async onConsume(peerId: string, msgIn: ConsumeMsg): Promise<IMsg> {
+    private async onMediasoup_Consume(peerId: string, msgIn: ConsumeMsg): Promise<IMsg> {
         console.log("onConsume");
         //client is requesting to consume a producer
 
@@ -1022,7 +1004,7 @@ export class RoomServer {
         return consumed;
     }
 
-    private async onRTCOffer(peerId: string, msgIn: RTCOfferMsg): Promise<IMsg> {
+    private async onRTC_Offer(peerId: string, msgIn: RTCOfferMsg): Promise<IMsg> {
         console.log("onRTCOffer");
         //client is requesting to consume a producer
 
@@ -1060,7 +1042,7 @@ export class RoomServer {
 
     }
 
-    private async onRTCAnswer(peerId: string, msgIn: RTCAnswerMsg): Promise<IMsg> {
+    private async onRTC_Answer(peerId: string, msgIn: RTCAnswerMsg): Promise<IMsg> {
         console.log("onRTCAnswer");
         //client is requesting to consume a producer
 
@@ -1098,7 +1080,7 @@ export class RoomServer {
 
     }
 
-    private async onRTCIce(peerId: string, msgIn: RTCIceMsg): Promise<IMsg> {
+    private async onRTC_Ice(peerId: string, msgIn: RTCIceMsg): Promise<IMsg> {
         console.log("onRTCIce");
         //client is requesting to consume a producer
 
@@ -1136,14 +1118,23 @@ export class RoomServer {
 
     }
 
-    printStats() {
+    async printStats() {
+        console.log("### STATS ###");
         console.log(`### rooms: ${this.rooms.size}, peers: ${this.peers.size} ###`);
         for (let [roomid, room] of this.rooms) {
             console.log(`##### roomid: ${roomid}, peers: ${room.getPeerCount()}`);
             room.getPeers().forEach(p => {
                 console.log(`##### roomid: ${roomid}, peerid: ${p.id}}`);
             });
+
+            if (room.roomLogAdapter) {
+                let logs = await room.roomLogAdapter.get(room.id);
+                logs.forEach(log => {
+                    console.log(`####### RoomLog: RoomId: ${log.RoomId}, PeerId: ${log.PeerId}, Action: ${log.Action}, Date: ${log.Date} `);
+                });
+            }
         }
+        console.log("### ##### ###");
     }
 
 }
