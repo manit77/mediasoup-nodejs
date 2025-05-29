@@ -53,6 +53,19 @@ export class Peer {
   }[] = [];
 }
 
+export type MediaDeviceOptions = {
+  videoDeviceId?: string;
+  audioDeviceId?: string;
+  outputDevice?: string;
+  videoEnabled?: boolean;
+  audioEnabled?: boolean;
+  resolution?: {
+    width: number;
+    height: number;
+    frameRate: number;
+  };
+};
+
 export class RoomsClient {
 
   ws: WebSocketClient;
@@ -65,7 +78,9 @@ export class RoomsClient {
   videoEnabled = true;
 
   device: mediasoupClient.types.Device;
-
+  iceServers: RTCIceServer[] = [
+    { urls: 'stun:stun.l.google.com:19302' }
+  ]
 
   config = {
     wsURI: "wss://localhost:3000",
@@ -200,21 +215,40 @@ export class RoomsClient {
 
   };
 
-  async getUserMedia(audioDeviceId?: string, videoDeviceId?: string): Promise<MediaStream> {
-    if (this.localPeer.stream) {
-      // Stop existing tracks before getting new ones if devices change
-      if (audioDeviceId || videoDeviceId) {
-        this.localPeer.stream.getTracks().forEach(track => track.stop());
-        this.localPeer.stream = null;
-      } else {
-        return this.localPeer.stream;
+  async getUserMedia(opts?: MediaDeviceOptions): Promise<MediaStream> {
+
+    if (!opts) {
+      opts = {
+        resolution: {
+          frameRate: 15,
+          height: 480,
+          width: 640
+        },
+        audioEnabled: true,
+        videoEnabled: true
       }
     }
+
+    const constraints: MediaStreamConstraints = {
+      video: opts.videoEnabled
+        ? {
+          deviceId: opts.videoDeviceId ? { exact: opts.videoDeviceId } : undefined,
+          width: opts.resolution?.width,
+          height: opts.resolution?.height,
+          frameRate: opts.resolution?.frameRate
+        }
+        : false,
+      audio: opts.audioEnabled
+        ? { deviceId: opts.audioDeviceId ? { exact: opts.audioDeviceId } : undefined }
+        : false
+    };
+
+    if (this.localPeer.stream) {
+      this.writeLog("stream already exists");
+      return;
+    }
+
     try {
-      const constraints: MediaStreamConstraints = {
-        audio: audioDeviceId ? { deviceId: { exact: audioDeviceId } } : true,
-        video: videoDeviceId ? { deviceId: { exact: videoDeviceId } } : true,
-      };
       this.localPeer.stream = await navigator.mediaDevices.getUserMedia(constraints);
       return this.localPeer.stream;
     } catch (error) {
@@ -244,10 +278,23 @@ export class RoomsClient {
   };
 
   /**
- * resolves when the socket is connected
- * @param wsURI 
- * @returns 
- */
+   * speaker output is set on the audio or video element 
+   * @param video 
+   */
+  async setSpeakerOutput(video: HTMLVideoElement, speakerDeviceId: string) {
+    // Set the speaker/output device
+    if (typeof video.setSinkId === "function") {
+      await video.setSinkId(speakerDeviceId);
+    } else {
+      console.warn("setSinkId not supported in this browser.");
+    }
+  }
+
+  /**
+  * resolves when the socket is connected
+  * @param wsURI 
+  * @returns 
+  */
   waitForConnect = async (wsURI: string = ""): Promise<IMsg> => {
     this.writeLog(`waitForConnect() ${wsURI}`);
     return new Promise<IMsg>((resolve, reject) => {
@@ -964,12 +1011,12 @@ export class RoomsClient {
     this.writeLog("-- onConsumerTransportCreated");
 
     this.localPeer.transportReceive = this.device.createRecvTransport({
-      id: msgIn.data!.transportId,
-      iceServers: msgIn.data!.iceServers,
-      iceCandidates: msgIn.data!.iceCandidates,
-      iceParameters: msgIn.data!.iceParameters,
-      dtlsParameters: msgIn.data!.dtlsParameters,
-      iceTransportPolicy: msgIn.data!.iceTransportPolicy
+      id: msgIn.data.transportId,
+      iceServers: msgIn.data.iceServers ?? this.iceServers,
+      iceCandidates: msgIn.data.iceCandidates,
+      iceParameters: msgIn.data.iceParameters,
+      dtlsParameters: msgIn.data.dtlsParameters,
+      iceTransportPolicy: msgIn.data.iceTransportPolicy
     });
 
     this.localPeer.transportReceive.on('connect', ({ dtlsParameters }, callback) => {
@@ -993,11 +1040,11 @@ export class RoomsClient {
     //create a client transport to connect to the server transport
     this.localPeer.transportSend = this.device.createSendTransport({
       id: msgIn.data!.transportId,
-      iceServers: msgIn.data!.iceServers,
-      iceCandidates: msgIn.data!.iceCandidates,
-      iceParameters: msgIn.data!.iceParameters,
-      dtlsParameters: msgIn.data!.dtlsParameters,
-      iceTransportPolicy: msgIn.data!.iceTransportPolicy
+      iceServers: msgIn.data.iceServers ?? this.iceServers,
+      iceCandidates: msgIn.data.iceCandidates,
+      iceParameters: msgIn.data.iceParameters,
+      dtlsParameters: msgIn.data.dtlsParameters,
+      iceTransportPolicy: msgIn.data.iceTransportPolicy
     });
 
     this.localPeer.transportSend.on("connect", ({ dtlsParameters }, callback) => {
@@ -1055,7 +1102,7 @@ export class RoomsClient {
       }
     } else {
 
-      newPeer.rtc_Connection = this.rtcClient.getOrCreatePeerConnection(newPeer.peerId);
+      newPeer.rtc_Connection = this.rtcClient.getOrCreatePeerConnection(newPeer.peerId, { iceServers: this.iceServers });
       this.rtcClient.publishLocalStreamToPeer(newPeer.peerId);
 
       let offer = await this.rtcClient.createOffer(newPeer.peerId);

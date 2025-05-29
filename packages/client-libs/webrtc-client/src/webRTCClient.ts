@@ -51,7 +51,7 @@ export class WebRTCClient {
    * @param key 
    * @returns 
    */
-  getOrCreatePeerConnection(key: string, config?: any): ConnectionInfo {
+  getOrCreatePeerConnection(key: string, config?: RTCConfiguration): ConnectionInfo {
     console.log(this.DSTR, "createPeerConnection");
 
     if (this.peerConnections.has(key)) {
