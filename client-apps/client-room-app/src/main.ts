@@ -6,7 +6,6 @@ import {
 } from "@rooms/rooms-models";
 import * as rooms from "@rooms/rooms-client";
 
-
 (async () => {
 
     const wsURI = "wss://localhost:3000";
@@ -73,6 +72,7 @@ import * as rooms from "@rooms/rooms-client";
     }
 
     async function connectRooms() {
+
         let connected = await roomsClient.waitForConnect();
         if (connected.type == payloadTypeServer.error) {
             writeLog("ERROR: failed to connect to rooms server.");
@@ -99,6 +99,8 @@ import * as rooms from "@rooms/rooms-client";
     }
 
     async function disconnectRooms() {
+        ctlLeaveRoomButton.style.visibility = "hidden";
+        ctlJoinInfo.value = "";
         roomsClient.disconnect();
     }
 
@@ -173,7 +175,6 @@ import * as rooms from "@rooms/rooms-client";
         writeLog("ctlLeaveRoomButton click");
         event.preventDefault();
 
-        ctlLeaveRoomButton.disabled = true;
         ctlLeaveRoomButton.style.visibility = "hidden";
         ctlJoinInfo.value = "";
 
@@ -229,7 +230,6 @@ import * as rooms from "@rooms/rooms-client";
         }
 
         ctlJoinInfo.value = JSON.stringify(joinInfo);
-        ctlLeaveRoomButton.disabled = false;
         ctlLeaveRoomButton.style.visibility = "visible"
 
     }
@@ -261,7 +261,6 @@ import * as rooms from "@rooms/rooms-client";
 
         writeLog("* joined existing room");
         writeLog("* joined room, peer count:" + joinResult.data.peers.length);
-        ctlLeaveRoomButton.disabled = false;
         ctlLeaveRoomButton.style.visibility = "visible";
 
     }

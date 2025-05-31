@@ -21,9 +21,42 @@ export class WebRTCClient {
 
   }
 
-  async initLocalMedia(): Promise<MediaStream> {
-    this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  async getUserMedia(constraints?: MediaStreamConstraints): Promise<MediaStream> {
+    this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
     return this.localStream;
+  }
+
+  async getDevices(): Promise<{ cameras: { id: string, label: string }[], mics: { id: string, label: string }[], speakers: { id: string, label: string }[] }> {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras: { id: string, label: string }[] = [];
+      const mics: { id: string, label: string }[] = [];
+      const speakers: { id: string, label: string }[] = [];
+      devices.forEach(device => {
+        if (device.kind === 'videoinput') cameras.push({ id: device.deviceId, label: device.label || `Camera ${cameras.length + 1}` });
+        else if (device.kind === 'audioinput') mics.push({ id: device.deviceId, label: device.label || `Mic ${mics.length + 1}` });
+        else if (device.kind === 'audiooutput') speakers.push({ id: device.deviceId, label: device.label || `Speaker ${speakers.length + 1}` });
+      });
+
+      return { cameras, mics, speakers };
+    } catch (error) {
+      console.error('Error enumerating devices:', error);
+    }
+
+    return null;
+  };
+
+  /**
+   * speaker output is set on the audio or video element 
+   * @param video 
+   */
+  async setSpeakerOutput(video: HTMLVideoElement, speakerDeviceId: string) {
+    // Set the speaker/output device
+    if (typeof video.setSinkId === "function") {
+      await video.setSinkId(speakerDeviceId);
+    } else {
+      console.warn("setSinkId not supported in this browser.");
+    }
   }
 
   setLocalstream(stream: MediaStream) {
@@ -166,7 +199,7 @@ export class WebRTCClient {
     //local stream is required to be published to the PC
     const hasLocalTracks = connInfo.pc.getSenders().some(sender => sender.track);
     if (!hasLocalTracks) {
-      throw new Error(`not tracks published to this PeerConnection`);
+      throw new Error(`no tracks published to this PeerConnection`);
     }
 
     const answer = await connInfo.pc.createAnswer();

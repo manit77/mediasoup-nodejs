@@ -86,8 +86,9 @@ export class RoomsClient {
     wsURI: "wss://localhost:3000",
   }
 
+  private sfu_onTransportsReadyEvent: (transport: mediasoupClient.types.Transport) => void;
+
   onRoomJoinedEvent: (roomId: string) => void;
-  onTransportsReadyEvent: (transport: mediasoupClient.types.Transport) => void;
   onRoomPeerJoinedEvent: (roomId: string, peer: Peer) => void;
   onPeerNewTrackEvent: (peer: Peer, track: MediaStreamTrack) => void;
   onRoomPeerLeftEvent: (roomId: string, peer: Peer) => void;
@@ -103,86 +104,32 @@ export class RoomsClient {
 
   };
 
+  dispose = () => {
+
+    this.writeLog("disposeRoom()");
+    if (this.localPeer.stream) {
+      let tracks = this.localPeer.stream.getTracks();
+      tracks.forEach((track) => {
+        this.localPeer.stream.removeTrack(track);
+      });
+    }
+
+    this.localPeer.consumers.forEach(c => c.close());
+    this.localPeer.producers.forEach(c => c.close());
+    this.localPeer.transportReceive?.close();
+    this.localPeer.transportSend?.close();
+
+    this.localPeer.transportReceive = null;
+    this.localPeer.transportSend = null;
+    this.peers = [];
+    this.localPeer = new LocalPeer();
+    this.ws.disconnect();
+    this.writeLog("dispose() - complete");
+
+  };
+
   writeLog = async (...params: any) => {
     console.log("RoomsClient", ...params);
-  };
-
-  private initMediaSoupDevice = () => {
-    this.writeLog("initMediaSoupDevice=");
-    if (this.device) {
-      this.writeLog("device already initialized");
-      return;
-    }
-
-    try {
-      // In real implementation, this would use the actual mediasoup-client
-      this.device = new mediasoupClient.Device();
-      this.writeLog("MediaSoup device initialized");
-    } catch (error) {
-      this.writeLog(`Error initializing MediaSoup: ${error.message}`);
-    }
-  };
-
-  onSocketEvent = async (event: any) => {
-
-    let msgIn = JSON.parse(event.data);
-    this.writeLog("-- onmessage", msgIn.type, msgIn);
-
-    try {
-      switch (msgIn.type) {
-        case payloadTypeServer.authUserNewTokenResult:
-          this.onAuthUserNewTokenResult(msgIn);
-          break;
-        case payloadTypeServer.registerPeerResult:
-          this.onRegisterResult(msgIn);
-          break;
-        case payloadTypeServer.producerTransportCreated:
-          this.sfu_onProducerTransportCreated(msgIn);
-          break;
-        case payloadTypeServer.consumerTransportCreated:
-          this.sfu_onConsumerTransportCreated(msgIn);
-          break;
-        case payloadTypeServer.roomNewTokenResult:
-          this.onRoomNewTokenResult(msgIn);
-          break;
-        case payloadTypeServer.roomJoinResult:
-          this.onRoomJoinResult(msgIn);
-          break;
-        case payloadTypeServer.roomNewPeer:
-          this.onRoomNewPeer(msgIn);
-          break;
-        case payloadTypeServer.roomNewProducer:
-          this.sfu_onRoomNewProducer(msgIn);
-          break;
-        case payloadTypeServer.roomPeerLeft:
-          this.onRoomPeerLeft(msgIn);
-          break;
-        case payloadTypeServer.produced:
-          this.sfu_onProduced(msgIn);
-          break;
-        case payloadTypeServer.consumed:
-          this.sfu_onConsumed(msgIn);
-          break;
-        case payloadTypeServer.roomClosed:
-          this.onRoomClosed(msgIn);
-          break;
-        case payloadTypeServer.rtc_offer: {
-          this.onRTCOffer(msgIn);
-          break;
-        }
-        case payloadTypeServer.rtc_answer: {
-          this.onRTCAnswer(msgIn);
-          break;
-        }
-        case payloadTypeServer.rtc_ice: {
-          this.onRTCIce(msgIn);
-          break;
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-
   };
 
   connect = async (wsURI: string = "") => {
@@ -215,7 +162,7 @@ export class RoomsClient {
 
   };
 
-  async getUserMedia(opts?: MediaDeviceOptions): Promise<MediaStream> {
+  getUserMedia = async (opts?: MediaDeviceOptions): Promise<MediaStream> => {
 
     if (!opts) {
       opts = {
@@ -249,7 +196,7 @@ export class RoomsClient {
     }
 
     try {
-      this.localPeer.stream = await navigator.mediaDevices.getUserMedia(constraints);
+      this.localPeer.stream = await this.rtcClient.getUserMedia(constraints);
       return this.localPeer.stream;
     } catch (error) {
       console.error('Error accessing media devices.', error);
@@ -257,38 +204,14 @@ export class RoomsClient {
     }
   };
 
-  async getDevices(): Promise<{ cameras: DeviceInfo[], mics: DeviceInfo[], speakers: DeviceInfo[] }> {
+  getDevices = async (): Promise<{ cameras: DeviceInfo[], mics: DeviceInfo[], speakers: DeviceInfo[] }> => {
     try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const cameras: DeviceInfo[] = [];
-      const mics: DeviceInfo[] = [];
-      const speakers: DeviceInfo[] = [];
-      devices.forEach(device => {
-        if (device.kind === 'videoinput') cameras.push({ id: device.deviceId, label: device.label || `Camera ${cameras.length + 1}` });
-        else if (device.kind === 'audioinput') mics.push({ id: device.deviceId, label: device.label || `Mic ${mics.length + 1}` });
-        else if (device.kind === 'audiooutput') speakers.push({ id: device.deviceId, label: device.label || `Speaker ${speakers.length + 1}` });
-      });
-
-      return { cameras, mics, speakers };
+      return this.rtcClient.getDevices();
     } catch (error) {
       console.error('Error enumerating devices:', error);
     }
-
     return null;
   };
-
-  /**
-   * speaker output is set on the audio or video element 
-   * @param video 
-   */
-  async setSpeakerOutput(video: HTMLVideoElement, speakerDeviceId: string) {
-    // Set the speaker/output device
-    if (typeof video.setSinkId === "function") {
-      await video.setSinkId(speakerDeviceId);
-    } else {
-      console.warn("setSinkId not supported in this browser.");
-    }
-  }
 
   /**
   * resolves when the socket is connected
@@ -333,6 +256,42 @@ export class RoomsClient {
         console.error(err);
         resolve(new ErrorMsg("failed to connect"));
       }
+
+    });
+  };
+
+  waitForGetAuthoken = (serviceToken: string): Promise<IMsg> => {
+    console.log("waitForGetAuthoken()");
+
+    return new Promise<IMsg>(async (resolve, reject) => {
+
+      let timerid = setTimeout(() => reject("failed to get authtoken"), 5000);
+
+      const onmessage = (event: any) => {
+
+        try {
+          let msg = JSON.parse(event.data);
+          if (msg.type == payloadTypeServer.authUserNewTokenResult) {
+            this.writeLog("-- waitForGetAuthoken() - onmessage", msg);
+            let msgIn = msg as AuthUserNewTokenResultMsg;
+            clearTimeout(timerid);
+            this.ws.removeEventHandler("onmessage", onmessage);
+            if (msgIn.data.authToken) {
+              resolve(new OkMsg("token received"));
+              return;
+            }
+            resolve(new ErrorMsg("failed to get token"));
+          }
+        } catch (err) {
+          console.error(err);
+          resolve(new ErrorMsg("error getting token"));
+        }
+
+      };
+
+      this.ws.addEventHandler("onmessage", onmessage);
+
+      this.getAuthoken(serviceToken);
 
     });
   };
@@ -466,129 +425,45 @@ export class RoomsClient {
     });
   };
 
-  /**
-   * when you join a room transports need be created and published to a room
-   */
-  private waitForRoomTransports = async (): Promise<IMsg> => {
+  getAuthoken = (serviceToken: string) => {
+    this.writeLog(`-- getAuthoken `);
+    //the server may reject this request due to server settings
+    //in a typical setting, your application will request an authtoken from the rooms server using a service auth token
 
-    if (!this.localPeer.roomId) {
-      this.writeLog("room is required for creating transports");
-      return new ErrorMsg("cannot create transports before joining a room.");
-    }
+    let msg = new AuthUserNewTokenMsg();
+    msg.data.authToken = serviceToken;
+    msg.data.expiresInMin = 60;
 
-    if (this.localPeer.roomType != "sfu") {
-      this.writeLog("invalid room type, cannot call transports");
-      return new ErrorMsg("cannot create transports for this roomtype.");
-    }
-
-    let waitFunc = () => {
-      return new Promise<IMsg>((resolve, reject) => {
-        let transTrack = { recv: false, send: false };
-
-        let timerid = setTimeout(() => {
-          console.log("transport timed out.");
-          resolve(new ErrorMsg("transport timeout"));
-        }, 5000);
-
-        this.onTransportsReadyEvent = (transport: Transport) => {
-
-          try {
-
-            if (transport.direction == "recv") {
-              transTrack.recv = true;
-            } else {
-              transTrack.send = true;
-            }
-            if (transTrack.recv && transTrack.send) {
-              clearTimeout(timerid);
-              resolve(new OkMsg("transportCreated"));
-            }
-          } catch (err) {
-            console.log(err);
-            clearTimeout(timerid);
-            resolve(new ErrorMsg("failed to create transport"));
-          }
-        }
-
-        this.sfu_createConsumerTransport();
-        this.sfu_createProducerTransport();
-      });
-    };
-
-    let waitResult = await waitFunc();
-    return waitResult;
+    this.send(msg);
 
   };
 
-  waitForTransportConnected = async (transport: mediasoupClient.types.Transport): Promise<IMsg> => {
-    this.writeLog("-- waitForTransportConnected created " + transport.direction)
-    return new Promise<IMsg>((resolve, reject) => {
+  register = (authToken: string, trackingId: string, displayName: string) => {
+    this.writeLog(`-- register `);
 
-      let timeoutId = setTimeout(() => {
-        console.log("waitForTransportConnected timeout " + transport.direction);
-        resolve(new ErrorMsg("tranport timed out"));
-      }, 5000);
+    if (this.localPeer.peerId) {
+      this.writeLog(`-- register, already registered. ${this.localPeer.peerId}`);
+      return false;
+    }
 
-      try {
-        if (transport.connectionState === 'connected') {
-          clearTimeout(timeoutId);
-          resolve(new OkMsg("connected"));
-          return;
-        }
-        const onStateChange = (state: string) => {
-          this.writeLog("connectionstatechange transport: " + state);
-          if (state === 'connected') {
-            clearTimeout(timeoutId);
-            resolve(new OkMsg("connected"));
-            transport.off('connectionstatechange', onStateChange);
-          } else if (state === 'failed' || state === 'closed') {
-            clearTimeout(timeoutId);
-            resolve(new ErrorMsg("failed to connect"));
-            transport.off('connectionstatechange', onStateChange);
-          }
-        };
-        transport.on('connectionstatechange', onStateChange);
-      } catch (err: any) {
-        console.error(err);
-        clearTimeout(timeoutId);
-        resolve(new ErrorMsg("failed to connect"));
-      }
-    });
+    if (!authToken) {
+      this.writeLog("-- register, authtoken is required.");
+      return false;
+    }
+
+    this.localPeer.trackingId = trackingId;
+    this.localPeer.displayName = displayName;
+
+    let msg = new RegisterPeerMsg();
+    msg.data = {
+      authToken: authToken,
+      displayName: this.localPeer.displayName
+    }
+
+    this.send(msg);
+
+    return true;
   };
-
-  /**
-   * if sfu, consume the producers in the room
-   * if rtc, create offer
-   * @param peer
-   * @returns 
-   */
-  async sfu_consumePeerProducers(peer: Peer) {
-    this.writeLog(`connectToPeer() ${peer.peerId}`);
-
-    if (!this.localPeer.roomId) {
-      this.writeLog("cannot connect to a peer. not in a room.");
-      return;
-    }
-
-    if (this.localPeer.roomType == "sfu") {
-
-      if (!this.localPeer.transportReceive || !this.localPeer.transportSend) {
-        this.writeLog("transports have not been created.");
-        return;
-      }
-
-      //consume transports
-      if (peer.producers && peer.producers.length > 0) {
-        this.writeLog("peer has no producers");
-      }
-
-      peer.producers.forEach(p => {
-        this.sfu_consumeProducer(peer.peerId, p.id);
-      });
-
-    }
-
-  }
 
   disconnect = () => {
     this.writeLog("disconnect");
@@ -608,11 +483,6 @@ export class RoomsClient {
     this.localPeer = new LocalPeer();
   };
 
-  send = (msg: any) => {
-    this.writeLog("send", msg.type, msg);
-    this.ws.send(JSON.stringify(msg));
-  };
-
   toggleAudio = () => {
     this.audioEnabled = !this.audioEnabled;
     this.writeLog(`Microphone ${!this.audioEnabled ? 'enabled' : 'disabled'}`);
@@ -623,7 +493,176 @@ export class RoomsClient {
     this.writeLog(`Camera ${!this.videoEnabled ? 'enabled' : 'disabled'}`);
   };
 
-  addPeer = (peer: Peer) => {
+  addLocalTrack = async (track: MediaStreamTrack) => {
+    console.log("addLocalTrack() " + track.kind);
+
+    if (!this.localPeer.stream) {
+      this.writeLog("no local stream, creating one");
+      this.localPeer.stream = new MediaStream();
+    }
+
+    let currentTracks = this.localPeer.stream.getTracks();
+    console.log(`tracks=${currentTracks.length}`);
+
+    if (this.localPeer.roomType == "sfu") {
+      if (!currentTracks.find(t => t.id === track.id)) {
+        this.localPeer.stream.addTrack(track);
+        this.writeLog("track added: " + track.kind);
+        await this.localPeer.transportSend.produce({ track });
+      }
+    }
+
+  };
+
+  removeLocalTrack(track: MediaStreamTrack) {
+    if (this.localPeer.stream) {
+      this.localPeer.stream.removeTrack(track);
+      this.writeLog("track removed: " + track.kind);
+    }
+  };
+
+  roomNewToken = (expiresInMin: number = 60) => {
+    this.writeLog(`roomNewToken`);
+
+    let msg = new RoomNewTokenMsg();
+    msg.data = {
+      authToken: this.localPeer.authToken,
+      expiresInMin: expiresInMin
+    };
+
+    this.send(msg);
+  };
+
+  roomNew = (roomType: RoomType, maxPeers: number, maxRoomDurationMinutes: number) => {
+    this.writeLog(`roomNew ${roomType} ${maxPeers} ${maxRoomDurationMinutes}`)
+    let config = new RoomConfig();
+    config.roomType = roomType;
+    config.maxPeers = maxPeers;
+    config.maxRoomDurationMinutes = maxRoomDurationMinutes;
+    config.newRoomTokenExpiresInMinutes = maxRoomDurationMinutes;
+    config.timeOutNoParticipantsSecs = 30;
+    config.closeRoomOnPeerCount = 0; //close the room when there are zero participants
+
+    let msg = new RoomNewMsg();
+    msg.data = {
+      authToken: this.localPeer.authToken,
+      peerId: this.localPeer.peerId,
+      roomId: this.localPeer.roomId,
+      roomToken: this.localPeer.roomToken,
+      roomConfig: config
+    };
+
+    this.send(msg);
+  };
+
+  roomJoin = (roomid: string, roomToken: string) => {
+    this.writeLog(`roomJoin ${roomid} ${roomToken}`)
+    let msg = new RoomJoinMsg();
+    msg.data = {
+      roomId: roomid,
+      roomToken: roomToken
+    };
+    this.send(msg);
+  };
+
+  roomLeave = async () => {
+    let msg = new RoomLeaveMsg();
+    msg.data = {
+      roomId: this.localPeer.roomId,
+      roomToken: ""
+    };
+    this.send(msg);
+    this.roomClose();
+  };
+
+  isInRoom = () => {
+    return !!this.localPeer.roomId;
+  };
+
+  private initMediaSoupDevice = () => {
+    this.writeLog("initMediaSoupDevice=");
+    if (this.device) {
+      this.writeLog("device already initialized");
+      return;
+    }
+
+    try {
+      // In real implementation, this would use the actual mediasoup-client
+      this.device = new mediasoupClient.Device();
+      this.writeLog("MediaSoup device initialized");
+    } catch (error) {
+      this.writeLog(`Error initializing MediaSoup: ${error.message}`);
+    }
+  };
+
+  private onSocketEvent = async (event: any) => {
+
+    let msgIn = JSON.parse(event.data);
+    this.writeLog("-- onmessage", msgIn.type, msgIn);
+
+    try {
+      switch (msgIn.type) {
+        case payloadTypeServer.authUserNewTokenResult:
+          this.onAuthUserNewTokenResult(msgIn);
+          break;
+        case payloadTypeServer.registerPeerResult:
+          this.onRegisterResult(msgIn);
+          break;
+        case payloadTypeServer.producerTransportCreated:
+          this.sfu_onProducerTransportCreated(msgIn);
+          break;
+        case payloadTypeServer.consumerTransportCreated:
+          this.sfu_onConsumerTransportCreated(msgIn);
+          break;
+        case payloadTypeServer.roomNewTokenResult:
+          this.onRoomNewTokenResult(msgIn);
+          break;
+        case payloadTypeServer.roomJoinResult:
+          this.onRoomJoinResult(msgIn);
+          break;
+        case payloadTypeServer.roomNewPeer:
+          this.onRoomNewPeer(msgIn);
+          break;
+        case payloadTypeServer.roomNewProducer:
+          this.sfu_onRoomNewProducer(msgIn);
+          break;
+        case payloadTypeServer.roomPeerLeft:
+          this.onRoomPeerLeft(msgIn);
+          break;
+        case payloadTypeServer.produced:
+          this.sfu_onProduced(msgIn);
+          break;
+        case payloadTypeServer.consumed:
+          this.sfu_onConsumed(msgIn);
+          break;
+        case payloadTypeServer.roomClosed:
+          this.onRoomClosed(msgIn);
+          break;
+        case payloadTypeServer.rtc_offer: {
+          this.onRTCOffer(msgIn);
+          break;
+        }
+        case payloadTypeServer.rtc_answer: {
+          this.onRTCAnswer(msgIn);
+          break;
+        }
+        case payloadTypeServer.rtc_ice: {
+          this.onRTCIce(msgIn);
+          break;
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+
+  };
+
+  private send = (msg: any) => {
+    this.writeLog("send", msg.type, msg);
+    this.ws.send(JSON.stringify(msg));
+  };
+
+  private addPeer = (peer: Peer) => {
     this.writeLog(`addPeer() ${peer.peerId} ${peer.trackingId}`);
 
     if (this.peers.find(p => p.peerId === peer.peerId)) {
@@ -640,7 +679,7 @@ export class RoomsClient {
 
   };
 
-  removePeer = (peer: Peer) => {
+  private removePeer = (peer: Peer) => {
     this.writeLog(`removePeer() ${peer.peerId}`);
 
     let idx = this.peers.findIndex(p => p == peer);
@@ -649,7 +688,7 @@ export class RoomsClient {
     }
   };
 
-  getPeer = (peerId: string) => {
+  private getPeer = (peerId: string) => {
     return this.peers.find(p => p.peerId == peerId);
   };
 
@@ -658,7 +697,7 @@ export class RoomsClient {
    * if rtc, publish local streams to the remote peerConnection
    * @returns 
    */
-  sfu_publishLocalStream = async () => {
+  private sfu_publishLocalStream = async () => {
     console.log(`publishLocalStream() ${this.localPeer.roomType}`);
 
     if (!this.localPeer.roomId) {
@@ -704,88 +743,12 @@ export class RoomsClient {
 
   };
 
-  removeRemoteStream = (peer: Peer) => {
+  private removeRemoteStream = (peer: Peer) => {
     this.writeLog("removeRemoteStream()");
     if (peer.stream) {
       peer.stream.getTracks().forEach((track) => track.stop());
       peer.stream = null;
     }
-  };
-
-  getAuthoken = (serviceToken: string) => {
-    this.writeLog(`-- getAuthoken `);
-    //the server may reject this request due to server settings
-    //in a typical setting, your application will request an authtoken from the rooms server using a service auth token
-
-    let msg = new AuthUserNewTokenMsg();
-    msg.data.authToken = serviceToken;
-    msg.data.expiresInMin = 60;
-
-    this.send(msg);
-
-  };
-
-  waitForGetAuthoken = (serviceToken: string): Promise<IMsg> => {
-    console.log("waitForGetAuthoken()");
-
-    return new Promise<IMsg>(async (resolve, reject) => {
-
-      let timerid = setTimeout(() => reject("failed to get authtoken"), 5000);
-
-      const onmessage = (event: any) => {
-
-        try {
-          let msg = JSON.parse(event.data);
-          if (msg.type == payloadTypeServer.authUserNewTokenResult) {
-            this.writeLog("-- waitForGetAuthoken() - onmessage", msg);
-            let msgIn = msg as AuthUserNewTokenResultMsg;
-            clearTimeout(timerid);
-            this.ws.removeEventHandler("onmessage", onmessage);
-            if (msgIn.data.authToken) {
-              resolve(new OkMsg("token received"));
-              return;
-            }
-            resolve(new ErrorMsg("failed to get token"));
-          }
-        } catch (err) {
-          console.error(err);
-          resolve(new ErrorMsg("error getting token"));
-        }
-
-      };
-
-      this.ws.addEventHandler("onmessage", onmessage);
-
-      this.getAuthoken(serviceToken);
-
-    });
-  };
-
-  register = (authToken: string, trackingId: string, displayName: string) => {
-    this.writeLog(`-- register `);
-
-    if (this.localPeer.peerId) {
-      this.writeLog(`-- register, already registered. ${this.localPeer.peerId}`);
-      return false;
-    }
-
-    if (!authToken) {
-      this.writeLog("-- register, authtoken is required.");
-      return false;
-    }
-
-    this.localPeer.trackingId = trackingId;
-    this.localPeer.displayName = displayName;
-
-    let msg = new RegisterPeerMsg();
-    msg.data = {
-      authToken: authToken,
-      displayName: this.localPeer.displayName
-    }
-
-    this.send(msg);
-
-    return true;
   };
 
   private onAuthUserNewTokenResult = async (msgIn: AuthUserNewTokenResultMsg) => {
@@ -813,7 +776,7 @@ export class RoomsClient {
 
   };
 
-  sfu_createProducerTransport = (): boolean => {
+  private sfu_createProducerTransport = (): boolean => {
     this.writeLog("-- createProducerTransport");
 
     if (this.localPeer.roomType != "sfu") {
@@ -826,7 +789,7 @@ export class RoomsClient {
     return true;
   };
 
-  sfu_createConsumerTransport = (): boolean => {
+  private sfu_createConsumerTransport = (): boolean => {
     this.writeLog("-- createConsumerTransport");
 
     if (this.localPeer.roomType != "sfu") {
@@ -837,18 +800,6 @@ export class RoomsClient {
     let msg = new CreateConsumerTransportMsg();
     this.send(msg);
     return true;
-  };
-
-  roomNewToken = (expiresInMin: number = 60) => {
-    this.writeLog(`roomNewToken`);
-
-    let msg = new RoomNewTokenMsg();
-    msg.data = {
-      authToken: this.localPeer.authToken,
-      expiresInMin: expiresInMin
-    };
-
-    this.send(msg);
   };
 
   private onRoomNewTokenResult = async (msgIn: RoomNewTokenResultMsg) => {
@@ -864,38 +815,6 @@ export class RoomsClient {
     this.writeLog("room token set " + this.localPeer.roomToken, this.localPeer.roomId);
 
   }
-
-  roomNew = (roomType: RoomType, maxPeers: number, maxRoomDurationMinutes: number) => {
-    this.writeLog(`roomNew ${roomType} ${maxPeers} ${maxRoomDurationMinutes}`)
-    let config = new RoomConfig();
-    config.roomType = roomType;
-    config.maxPeers = maxPeers;
-    config.maxRoomDurationMinutes = maxRoomDurationMinutes;
-    config.newRoomTokenExpiresInMinutes = maxRoomDurationMinutes;
-    config.timeOutNoParticipantsSecs = 30;
-    config.closeRoomOnPeerCount = 0; //close the room when there are zero participants
-
-    let msg = new RoomNewMsg();
-    msg.data = {
-      authToken: this.localPeer.authToken,
-      peerId: this.localPeer.peerId,
-      roomId: this.localPeer.roomId,
-      roomToken: this.localPeer.roomToken,
-      roomConfig: config
-    };
-
-    this.send(msg);
-  };
-
-  roomJoin = (roomid: string, roomToken: string) => {
-    this.writeLog(`roomJoin ${roomid} ${roomToken}`)
-    let msg = new RoomJoinMsg();
-    msg.data = {
-      roomId: roomid,
-      roomToken: roomToken
-    };
-    this.send(msg);
-  };
 
   private onRoomJoinResult = async (msgIn: RoomJoinResultMsg) => {
 
@@ -918,7 +837,7 @@ export class RoomsClient {
         await this.device.load({ routerRtpCapabilities: msgIn.data.rtpCapabilities });
       }
 
-      let transports = await this.waitForRoomTransports();
+      let transports = await this.sfu_waitForRoomTransports();
 
       if (transports.data.error) {
         console.log("unable to create transports");
@@ -965,119 +884,6 @@ export class RoomsClient {
       if (this.onRoomPeerJoinedEvent) {
         this.onRoomPeerJoinedEvent(this.localPeer.roomId, peer);
       }
-    }
-
-  }
-
-  roomLeave = async () => {
-    let msg = new RoomLeaveMsg();
-    msg.data = {
-      roomId: this.localPeer.roomId,
-      roomToken: ""
-    };
-    this.send(msg);
-    this.roomClose();
-  };
-
-  isInRoom = () => {
-    return !!this.localPeer.roomId;
-  };
-
-  dispose = () => {
-
-    this.writeLog("disposeRoom()");
-    if (this.localPeer.stream) {
-      let tracks = this.localPeer.stream.getTracks();
-      tracks.forEach((track) => {
-        this.localPeer.stream.removeTrack(track);
-      });
-    }
-
-    this.localPeer.consumers.forEach(c => c.close());
-    this.localPeer.producers.forEach(c => c.close());
-    this.localPeer.transportReceive?.close();
-    this.localPeer.transportSend?.close();
-
-    this.localPeer.transportReceive = null;
-    this.localPeer.transportSend = null;
-    this.peers = [];
-    this.localPeer = new LocalPeer();
-    this.ws.disconnect();
-    this.writeLog("dispose() - complete");
-
-  };
-
-  private sfu_onConsumerTransportCreated = async (msgIn: ConsumerTransportCreatedMsg) => {
-    this.writeLog("-- onConsumerTransportCreated");
-
-    this.localPeer.transportReceive = this.device.createRecvTransport({
-      id: msgIn.data.transportId,
-      iceServers: msgIn.data.iceServers ?? this.iceServers,
-      iceCandidates: msgIn.data.iceCandidates,
-      iceParameters: msgIn.data.iceParameters,
-      dtlsParameters: msgIn.data.dtlsParameters,
-      iceTransportPolicy: msgIn.data.iceTransportPolicy
-    });
-
-    this.localPeer.transportReceive.on('connect', ({ dtlsParameters }, callback) => {
-      let msg = new ConnectConsumerTransportMsg();
-      msg.data = {
-        dtlsParameters: dtlsParameters
-      }
-      this.send(msg);
-      callback();
-    });
-
-    if (this.onTransportsReadyEvent) {
-      this.onTransportsReadyEvent(this.localPeer.transportReceive);
-    }
-  }
-
-  private sfu_onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
-    this.writeLog("-- onProducerTransportCreated");
-
-    //the server has created a transport
-    //create a client transport to connect to the server transport
-    this.localPeer.transportSend = this.device.createSendTransport({
-      id: msgIn.data!.transportId,
-      iceServers: msgIn.data.iceServers ?? this.iceServers,
-      iceCandidates: msgIn.data.iceCandidates,
-      iceParameters: msgIn.data.iceParameters,
-      dtlsParameters: msgIn.data.dtlsParameters,
-      iceTransportPolicy: msgIn.data.iceTransportPolicy
-    });
-
-    this.localPeer.transportSend.on("connect", ({ dtlsParameters }, callback) => {
-      this.writeLog("-- sendTransport connect");
-      //fires when the transport connects to the mediasoup server
-
-      let msg = new ConnectProducerTransportMsg();
-      msg.data = {
-        dtlsParameters: dtlsParameters
-      };
-      this.send(msg);
-
-      callback();
-
-    });
-
-    this.localPeer.transportSend.on('produce', ({ kind, rtpParameters }, callback) => {
-
-      this.writeLog("-- sendTransport produce");
-
-      //fires when we call produce with local tracks
-      let msg = new ProduceMsg();
-      msg.data = {
-        kind: kind,
-        rtpParameters: rtpParameters
-      }
-      this.send(msg);
-      //what is the id value???
-      callback({ id: 'placeholder' });
-    });
-
-    if (this.onTransportsReadyEvent) {
-      this.onTransportsReadyEvent(this.localPeer.transportSend);
     }
 
   }
@@ -1186,40 +992,211 @@ export class RoomsClient {
 
   }
 
+  /**
+   * when you join a room transports need be created and published to a room
+   */
+  private sfu_waitForRoomTransports = async (): Promise<IMsg> => {
+
+    if (!this.localPeer.roomId) {
+      this.writeLog("room is required for creating transports");
+      return new ErrorMsg("cannot create transports before joining a room.");
+    }
+
+    if (this.localPeer.roomType != "sfu") {
+      this.writeLog("invalid room type, cannot call transports");
+      return new ErrorMsg("cannot create transports for this roomtype.");
+    }
+
+    let waitFunc = () => {
+      return new Promise<IMsg>((resolve, reject) => {
+        let transTrack = { recv: false, send: false };
+
+        let timerid = setTimeout(() => {
+          console.log("transport timed out.");
+          resolve(new ErrorMsg("transport timeout"));
+        }, 5000);
+
+        this.sfu_onTransportsReadyEvent = (transport: Transport) => {
+
+          try {
+
+            if (transport.direction == "recv") {
+              transTrack.recv = true;
+            } else {
+              transTrack.send = true;
+            }
+            if (transTrack.recv && transTrack.send) {
+              clearTimeout(timerid);
+              resolve(new OkMsg("transportCreated"));
+            }
+          } catch (err) {
+            console.log(err);
+            clearTimeout(timerid);
+            resolve(new ErrorMsg("failed to create transport"));
+          }
+        }
+
+        this.sfu_createConsumerTransport();
+        this.sfu_createProducerTransport();
+      });
+    };
+
+    let waitResult = await waitFunc();
+    return waitResult;
+
+  };
+
+  private sfu_waitForTransportConnected = async (transport: mediasoupClient.types.Transport): Promise<IMsg> => {
+    this.writeLog("-- waitForTransportConnected created " + transport.direction)
+    return new Promise<IMsg>((resolve, reject) => {
+
+      let timeoutId = setTimeout(() => {
+        console.log("waitForTransportConnected timeout " + transport.direction);
+        resolve(new ErrorMsg("tranport timed out"));
+      }, 5000);
+
+      try {
+        if (transport.connectionState === 'connected') {
+          clearTimeout(timeoutId);
+          resolve(new OkMsg("connected"));
+          return;
+        }
+        const onStateChange = (state: string) => {
+          this.writeLog("connectionstatechange transport: " + state);
+          if (state === 'connected') {
+            clearTimeout(timeoutId);
+            resolve(new OkMsg("connected"));
+            transport.off('connectionstatechange', onStateChange);
+          } else if (state === 'failed' || state === 'closed') {
+            clearTimeout(timeoutId);
+            resolve(new ErrorMsg("failed to connect"));
+            transport.off('connectionstatechange', onStateChange);
+          }
+        };
+        transport.on('connectionstatechange', onStateChange);
+      } catch (err: any) {
+        console.error(err);
+        clearTimeout(timeoutId);
+        resolve(new ErrorMsg("failed to connect"));
+      }
+    });
+  };
+
+  /**
+   * if sfu, consume the producers in the room
+   * if rtc, create offer
+   * @param peer
+   * @returns 
+   */
+  async sfu_consumePeerProducers(peer: Peer) {
+    this.writeLog(`connectToPeer() ${peer.peerId}`);
+
+    if (!this.localPeer.roomId) {
+      this.writeLog("cannot connect to a peer. not in a room.");
+      return;
+    }
+
+    if (this.localPeer.roomType == "sfu") {
+
+      if (!this.localPeer.transportReceive || !this.localPeer.transportSend) {
+        this.writeLog("transports have not been created.");
+        return;
+      }
+
+      //consume transports
+      if (peer.producers && peer.producers.length > 0) {
+        this.writeLog("peer has no producers");
+      }
+
+      peer.producers.forEach(p => {
+        this.sfu_consumeProducer(peer.peerId, p.id);
+      });
+
+    }
+
+  }
+
+  private sfu_onConsumerTransportCreated = async (msgIn: ConsumerTransportCreatedMsg) => {
+    this.writeLog("-- onConsumerTransportCreated");
+
+    this.localPeer.transportReceive = this.device.createRecvTransport({
+      id: msgIn.data.transportId,
+      iceServers: msgIn.data.iceServers ?? this.iceServers,
+      iceCandidates: msgIn.data.iceCandidates,
+      iceParameters: msgIn.data.iceParameters,
+      dtlsParameters: msgIn.data.dtlsParameters,
+      iceTransportPolicy: msgIn.data.iceTransportPolicy
+    });
+
+    this.localPeer.transportReceive.on('connect', ({ dtlsParameters }, callback) => {
+      let msg = new ConnectConsumerTransportMsg();
+      msg.data = {
+        dtlsParameters: dtlsParameters
+      }
+      this.send(msg);
+      callback();
+    });
+
+    if (this.sfu_onTransportsReadyEvent) {
+      this.sfu_onTransportsReadyEvent(this.localPeer.transportReceive);
+    }
+  }
+
+  private sfu_onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
+    this.writeLog("-- onProducerTransportCreated");
+
+    //the server has created a transport
+    //create a client transport to connect to the server transport
+    this.localPeer.transportSend = this.device.createSendTransport({
+      id: msgIn.data!.transportId,
+      iceServers: msgIn.data.iceServers ?? this.iceServers,
+      iceCandidates: msgIn.data.iceCandidates,
+      iceParameters: msgIn.data.iceParameters,
+      dtlsParameters: msgIn.data.dtlsParameters,
+      iceTransportPolicy: msgIn.data.iceTransportPolicy
+    });
+
+    this.localPeer.transportSend.on("connect", ({ dtlsParameters }, callback) => {
+      this.writeLog("-- sendTransport connect");
+      //fires when the transport connects to the mediasoup server
+
+      let msg = new ConnectProducerTransportMsg();
+      msg.data = {
+        dtlsParameters: dtlsParameters
+      };
+      this.send(msg);
+
+      callback();
+
+    });
+
+    this.localPeer.transportSend.on('produce', ({ kind, rtpParameters }, callback) => {
+
+      this.writeLog("-- sendTransport produce");
+
+      //fires when we call produce with local tracks
+      let msg = new ProduceMsg();
+      msg.data = {
+        kind: kind,
+        rtpParameters: rtpParameters
+      }
+      this.send(msg);
+      //what is the id value???
+      callback({ id: 'placeholder' });
+    });
+
+    if (this.sfu_onTransportsReadyEvent) {
+      this.sfu_onTransportsReadyEvent(this.localPeer.transportSend);
+    }
+
+  }
+
   private sfu_onRoomNewProducer = async (msgIn: RoomNewProducerMsg) => {
     this.writeLog("onRoomNewProducer: " + msgIn.data?.kind);
     this.sfu_consumeProducer(msgIn.data?.peerId!, msgIn.data?.producerId!);
   }
 
-  addLocalTrack = async (track: MediaStreamTrack) => {
-    console.log("addLocalTrack() " + track.kind);
-
-    if (!this.localPeer.stream) {
-      this.writeLog("no local stream, creating one");
-      this.localPeer.stream = new MediaStream();
-    }
-
-    let currentTracks = this.localPeer.stream.getTracks();
-    console.log(`tracks=${currentTracks.length}`);
-
-    if (this.localPeer.roomType == "sfu") {
-      if (!currentTracks.find(t => t.id === track.id)) {
-        this.localPeer.stream.addTrack(track);
-        this.writeLog("track added: " + track.kind);
-        await this.localPeer.transportSend.produce({ track });
-      }
-    }
-
-  };
-
-  removeLocalTrack(track: MediaStreamTrack) {
-    if (this.localPeer.stream) {
-      this.localPeer.stream.removeTrack(track);
-      this.writeLog("track removed: " + track.kind);
-    }
-  };
-
-  sfu_consumeProducer = async (remotePeerId: string, producerId: string) => {
+  private sfu_consumeProducer = async (remotePeerId: string, producerId: string) => {
     this.writeLog("consumeProducer() :" + remotePeerId, producerId);
     if (remotePeerId === this.localPeer.peerId) {
       console.error("consumeProducer() - you can't consume yourself.");
@@ -1313,7 +1290,6 @@ export class RoomsClient {
       console.error('Error handling offer:', err);
     }
   }
-
 
   private onRTCAnswer = async (msgIn: RTCAnswerMsg) => {
     //received a call response
