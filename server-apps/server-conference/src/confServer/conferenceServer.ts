@@ -9,7 +9,8 @@ import {
     ConferenceReadyMsg,
     WebRoutes,
     AcceptResultMsg,
-    LeaveMsg
+    LeaveMsg,
+    InviteCancelledMsg
 } from '@conf/conf-models';
 import { ConferenceRoom, Participant } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
@@ -105,6 +106,9 @@ export class ConferenceServer {
                             break;
                         case CallMessageType.invite:
                             this.onInvite(ws, msgIn);
+                            break;
+                        case CallMessageType.inviteCancelled:
+                            this.onInviteCancelled(ws, msgIn);
                             break;
                         case CallMessageType.reject:
                             this.onReject(ws, msgIn);
@@ -259,7 +263,7 @@ export class ConferenceServer {
         let conference = this.conferences.get(msgIn.data.conferenceRoomId);
 
         if (!conference) {
-            let conferenceId = randomUUID().toString();
+            let conferenceId = "conf-" + randomUUID().toString();
             conference = new ConferenceRoom();
             conference.id = conferenceId;
             this.conferences.set(conference.id, conference);
@@ -282,6 +286,37 @@ export class ConferenceServer {
 
         this.send(receiver.socket, msg);
 
+    }
+
+    async onInviteCancelled(ws: WebSocket, msgIn: InviteCancelledMsg) {
+        console.log("onInviteCancel");
+
+        let caller = this.participants.get(ws);
+
+        if (!caller) {
+            console.error("caller not found.");
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.error = "failed to add you to the conference.";
+            this.send(ws, errorMsg);
+            return;
+        }
+
+        let receiver = this.getParticipant(msgIn.data.participantId);
+        if (!receiver) {
+            console.error("participant not found.");
+            return;
+        }
+
+        let conf = this.conferences.get(msgIn.data.conferenceRoomId);
+        if (!conf) {
+            console.error("conference not found.");
+            return;
+        }
+
+        let msg = new InviteCancelledMsg();
+        msg.data.conferenceRoomId = conf.id;
+        msg.data.participantId = caller.participantId;
+        this.send(receiver.socket, msg);
     }
 
     async onReject(ws: WebSocket, msgIn: RejectMsg) {
@@ -428,6 +463,14 @@ export class ConferenceServer {
         }
 
         conf.removeParticipant(participant.participantId);
+
+        //forward leave to all other participants
+        for (let p of conf.participants.values()) {
+            let msg = new LeaveMsg();
+            msg.data.conferenceRoomId = conf.id;
+            msg.data.participantId = participant.participantId;
+            this.send(p.socket, msg);
+        }
 
     }
 

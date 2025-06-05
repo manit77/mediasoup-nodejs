@@ -6,6 +6,7 @@ export enum CallMessageType {
     registerResult = "registerResult", //partcipant recieves a registration result
 
     invite = "invite", //invite to join room
+    inviteCancelled = "inviteCancelled", //invite cancelled
     inviteResult = "inviteResult", //result of the invite, the other participant could reject it
 
     reject = "reject", //the receiver rejects
@@ -91,6 +92,15 @@ export class InviteMsg {
         conferenceRoomId?: string,
         participantId?: string,
         displayName?: string,
+    } = {
+        }
+}
+
+export class InviteCancelledMsg {
+    type = CallMessageType.inviteCancelled;
+    data: {
+        conferenceRoomId?: string,
+        participantId?: string
     } = {
         }
 }

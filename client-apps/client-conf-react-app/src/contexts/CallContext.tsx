@@ -14,8 +14,13 @@ interface CallContextType {
     localStream: MediaStream | null;
     setLocalStream: React.Dispatch<React.SetStateAction<MediaStream | null>>;
     remoteStreams: Map<string, MediaStream>; // userId -> MediaStream
+
+    contacts: Contact[];
+    setContacts: React.Dispatch<React.SetStateAction<Contact[]>>;
+
     participants: CallParticipant[];
     setParticipants: React.Dispatch<React.SetStateAction<CallParticipant[]>>;
+
     isCallActive: boolean;
     incomingCall: IncomingCallInfo | null;
     setIncomingCall: React.Dispatch<React.SetStateAction<IncomingCallInfo | null>>;
@@ -47,6 +52,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [localParticipantId, setlocalParticipantId] = useState<string>("");
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
+    const [contacts, setContacts] = useState<Contact[]>([]);
     const [participants, setParticipants] = useState<CallParticipant[]>([]);
     const [isCallActive, setIsCallActive] = useState<boolean>(false);
     const [incomingCall, setIncomingCall] = useState<IncomingCallInfo | null>(null);
@@ -56,7 +62,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [selectedDevices, setSelectedDevices] = useState<{ videoId?: string; audioInId?: string; audioOutId?: string }>({});
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [originalVideoTrack, setOriginalVideoTrack] = useState<MediaStreamTrack | null>(null);
-
 
     const resetCallState = useCallback(() => {
         console.log("Resetting call state");
@@ -120,6 +125,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setlocalParticipantId(participantId);
         }
 
+        webRTCService.onContactsReceived = (contacts) => {
+            console.log("CallContext: onContactsReceived", contacts);
+            setContacts(contacts);
+        };
+
         webRTCService.onLocalStreamReady = (stream) => {
             console.log("CallContext: Local stream ready");
             setLocalStream(stream);
@@ -172,7 +182,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         webRTCService.onCallEnded = (reason: string) => {
             console.log(`CallContext: Call declined reason: ${reason}`);
-            setCallingContact(null);
+            resetCallState();
         };
 
         webRTCService.onParticipantJoined = (participantId: string, displayName: string) => {
@@ -203,13 +213,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return () => { // Cleanup
             webRTCService.dispose();
         }
-    }, [auth?.currentUser, participants, callingContact, isCallActive, resetCallState]); // resetCallState added
+    }, [auth.currentUser, participants, isCallActive, resetCallState]);
 
     useEffect(() => {
         if (auth?.isAuthenticated && auth.currentUser) {
             setupWebRTCEvents();
         }
-    }, [auth?.isAuthenticated, auth?.currentUser, setupWebRTCEvents]);
+    }, [auth?.isAuthenticated, auth.currentUser, setupWebRTCEvents]);
 
 
     const ensureLocalStream = async () => {
@@ -252,8 +262,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         } catch (error) {
             console.error('Failed to initiate call:', error);
-            setCallingContact(null);
-            // resetCallState();
+            resetCallState();
         }
     };
 
@@ -265,12 +274,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             await webRTCService.answerCall();
             setIsCallActive(true);
-
             setIncomingCall(null); // Clear incoming call notification
             console.log(`Call with ${incomingCall.displayName} accepted in room ${incomingCall}`);
         } catch (error) {
             console.error('Failed to accept call:', error);
-            // resetCallState();
+            resetCallState();
         }
     };
 
@@ -278,26 +286,26 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (isIncomingDecline && incomingCall) {
             webRTCService.declineCall();
             setIncomingCall(null);
+            setIsCallActive(false);
+
         }
-        // If declining an outgoing call that hasn't been answered, it's a cancel
-        // This is handled by cancelOutgoingCall
     };
 
     const cancelOutgoingCall = () => {
         if (callingContact) {
             console.log(`Call to ${callingContact.displayName} cancelled.`);
-            webRTCService.endCall(); // Clean up any tentative PC
+            webRTCService.endCall();
+
             setCallingContact(null);
-            // resetCallState(); // Or just parts of it
             if (participants.length <= 1) {
-                resetCallState(); // Reset if only self was in participant list
+                resetCallState();
             }
         }
     };
 
     const endCurrentCall = () => {
         console.log("Ending current call context-wise.");
-        webRTCService.endCall(); // Ends all connections for the current user in their current room       
+        webRTCService.endCall();
         resetCallState();
     };
 
@@ -405,6 +413,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return (
         <CallContext.Provider value={{
             localParticipantId,
+            contacts, setContacts,
             localStream, setLocalStream, remoteStreams, participants, setParticipants, isCallActive,
             incomingCall, setIncomingCall, callingContact, setCallingContact,
             availableDevices, selectedDevices, setSelectedDevices, isScreenSharing,

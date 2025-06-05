@@ -1,6 +1,6 @@
 import { ConferenceCallManager, EventTypes } from '@conf/conf-client';
 import { User } from '../types';
-import { Contact } from '@conf/conf-models';
+import { Contact, InviteMsg, InviteResultMsg } from '@conf/conf-models';
 import { getUserMedia } from '@rooms/webrtc-client';
 
 const confServerURI = 'https://localhost:3100'; // conference
@@ -9,7 +9,7 @@ class WebRTCService {
     localStream: MediaStream;
     confClient: ConferenceCallManager;
     contacts: Contact[] = [];
-    inviteMsg: any;
+    inviteMsg: InviteMsg;
 
     private peerConnections: Map<string, RTCPeerConnection> = new Map();
     public onServerConnected: (() => void) = () => { };
@@ -86,6 +86,10 @@ class WebRTCService {
                     this.eventInviteResult(payload);
                     break;
                 }
+                case EventTypes.inviteCancelled: {
+                    this.eventInviteCancelled(payload);
+                    break;
+                }
                 case EventTypes.conferenceReady: {
                     this.eventConferenceReady(payload);
                     break;
@@ -123,21 +127,26 @@ class WebRTCService {
     }
 
     public async initiateCall(participantId: string): Promise<void> {
-        this.confClient.invite(participantId);
+        this.inviteMsg = this.confClient.invite(participantId);
     }
 
     public async answerCall(): Promise<void> {
         this.confClient.acceptInvite(this.inviteMsg);
-
+        this.inviteMsg = null;
     }
 
     public declineCall(): void {
         this.confClient.reject(this.inviteMsg);
+        this.inviteMsg = null;
     }
 
     public endCall(): void {
         console.log("** endCall()");
         this.confClient.leave();
+        if (this.inviteMsg) {
+            this.confClient.inviteCancel(this.inviteMsg);
+            this.inviteMsg = null;
+        }
     }
 
     public toggleAudioMute(): boolean {
@@ -189,11 +198,21 @@ class WebRTCService {
         this.onIncomingCall(msg.data.participantId, msg.data.displayName);
     }
 
-    private eventInviteResult(msg: any) {
+    private eventInviteResult(msg: InviteResultMsg) {
         console.log("eventInviteResult", msg);
         if (msg.data.error) {
             this.onCallEnded(msg.data.error);
+            return;
         }
+
+        if (this.inviteMsg) {
+            this.inviteMsg.data.conferenceRoomId = msg.data.conferenceRoomId;
+        }
+    }
+
+    private eventInviteCancelled(msg: any) {
+        console.log("eventInviteCancelled", msg);
+        this.onCallEnded("call cancelled");
     }
 
     private eventRejectReceived(msg: any) {

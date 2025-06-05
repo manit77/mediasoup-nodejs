@@ -5,6 +5,7 @@ export var CallMessageType;
     CallMessageType["register"] = "register";
     CallMessageType["registerResult"] = "registerResult";
     CallMessageType["invite"] = "invite";
+    CallMessageType["inviteCancelled"] = "inviteCancelled";
     CallMessageType["inviteResult"] = "inviteResult";
     CallMessageType["reject"] = "reject";
     CallMessageType["accept"] = "accept";
@@ -42,7 +43,6 @@ export class RegisterResultMsg {
         userName: "",
         authToken: "",
         participantId: "",
-        conferenceRoomId: ""
     };
 }
 export class GetContactsMsg {
@@ -55,6 +55,10 @@ export class GetContactsResultsMsg {
 }
 export class InviteMsg {
     type = CallMessageType.invite;
+    data = {};
+}
+export class InviteCancelledMsg {
+    type = CallMessageType.inviteCancelled;
     data = {};
 }
 export class InviteResultMsg {

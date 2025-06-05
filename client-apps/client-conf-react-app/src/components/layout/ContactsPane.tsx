@@ -1,76 +1,76 @@
 import React, { useEffect, useState } from 'react';
-import { ListGroup, Badge } from 'react-bootstrap';
-import { ApiService } from '../../services/ApiService'; // For fetching initial list
+import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
-import { webRTCService } from '../../services/WebRTCService'; // For online status updates
 import { Contact } from '@conf/conf-models';
+import { webRTCService } from '../../services/WebRTCService';
 
-// Placeholder for an online indicator icon
+
 const OnlineIndicator: React.FC<{ isOnline: boolean }> = ({ isOnline }) => (
-    <Badge pill bg={isOnline ? "success" : "secondary"} className="ms-2">
+    <Badge pill bg={isOnline ? 'success' : 'secondary'} className="ms-2">
         {isOnline ? 'Online' : 'Offline'}
     </Badge>
 );
 
 const ContactsPane: React.FC = () => {
-    const [contacts, setContacts] = useState<Contact[]>([]);
+    const { contacts, setContacts, initiateCall, isCallActive, callingContact, incomingCall, localParticipantId } =
+        useCall();
     const [loading, setLoading] = useState(true);
-    const { initiateCall, isCallActive, callingContact, incomingCall } = useCall();
 
+    // Handle initial loading state
     useEffect(() => {
-        const fetchContacts = async () => {
-            try {
-                setLoading(true);
-            } catch (error) {
-                console.error("Failed to fetch contacts:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchContacts();
-    }, []);
-
-    useEffect(() => {
-
-        webRTCService.onContactsReceived = (contacts: Contact[]) => {
-
-            console.log("** onContactsReceived", contacts);
-            setContacts(contacts);
+        if (contacts.length > 0 || localParticipantId) {
+            setLoading(false);
         }
+    }, [contacts, localParticipantId]);
 
-        // webRTCService.onContactStatusChange = handleStatusChange;
-        // Request initial online statuses or rely on signaling server to send them upon connection
-        // This might involve sending a message to the signaling server to get current statuses of listed contacts
-
-        return () => {
-            webRTCService.onContactsReceived = null;
-        };
-    }, []);
-
-
-    const handleContactClick = (contact: Contact) => {
-        initiateCall(contact);
+    // Optional: Function to manually refresh contacts
+    const handleRefreshContacts = async () => {
+        setLoading(true);
+        try {
+            // Assuming webRTCService has a method to request contacts
+            // await webRTCService.getContacts();
+            // onContactsReceived will update the contacts state via CallProvider
+        } catch (error) {
+            console.error('Failed to refresh contacts:', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    if (loading) return <p>Loading contacts...</p>;
+    const handleContactClick = (contact: Contact) => {
+        if (!isCallActive && !callingContact && !incomingCall) {
+            initiateCall(contact);
+        }
+    };
 
     return (
         <div>
-            <h5>Contacts</h5>
-            {contacts && contacts.length === 0 && <p>No contacts found.</p>}
-            <ListGroup>
-                {contacts.map((contact) => (
-                    <ListGroup.Item
-                        key={contact.participantId}
-                        action
-                        onClick={() => handleContactClick(contact)}
-                        className="d-flex justify-content-between align-items-center"
-                    >
-                        {contact.displayName}
-                        <OnlineIndicator isOnline={contact.participantId > ""} />
-                    </ListGroup.Item>
-                ))}
-            </ListGroup>
+            <div className="d-flex justify-content-between align-items-center mb-2">
+                <h5>Contacts</h5>
+                {/* <Button variant="outline-primary" size="sm" onClick={handleRefreshContacts} disabled={loading}>
+                    Refresh
+                </Button> */}
+            </div>
+            {loading ? (
+                <p>Loading contacts...</p>
+            ) : contacts.length === 0 ? (
+                <p>No contacts found.</p>
+            ) : (
+                <ListGroup>
+                    {contacts.map((contact) => (
+                        <ListGroup.Item
+                            key={contact.participantId}
+                            action
+                            onClick={() => handleContactClick(contact)}
+                            className="d-flex justify-content-between align-items-center"
+                            disabled={isCallActive || !!callingContact || !!incomingCall}
+                        >
+                            {contact.displayName}
+                            <OnlineIndicator isOnline={true} />
+                        </ListGroup.Item>
+                    ))}
+                </ListGroup>
+            )}
         </div>
     );
 };

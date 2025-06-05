@@ -1,6 +1,6 @@
 import {
     AcceptMsg,
-    CallMessageType, ConferenceReadyMsg, GetContactsMsg, GetContactsResultsMsg, InviteMsg, InviteResultMsg
+    CallMessageType, ConferenceReadyMsg, GetContactsMsg, GetContactsResultsMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg
     , LeaveMsg, RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
@@ -40,6 +40,7 @@ export enum EventTypes {
 
     inviteResult = "inviteResult",
     inviteReceived = "inviteReceived",
+    inviteCancelled = "inviteCancelled",
     rejectReceived = "rejectReceived",
 
     conferenceReady = "conferenceReady",
@@ -133,6 +134,9 @@ export class ConferenceCallManager {
                 case CallMessageType.inviteResult:
                     this.onInviteResult(message);
                     break;
+                case CallMessageType.inviteCancelled:
+                    this.onInviteCancelled(message);
+                    break;
                 case CallMessageType.conferenceReady:
                     this.onConferenceReady(message);
             }
@@ -176,6 +180,15 @@ export class ConferenceCallManager {
         const callMsg = new InviteMsg();
         callMsg.data.participantId = participantId;
         this.sendToServer(callMsg);
+        return callMsg;
+    }
+
+    inviteCancel(inviteMsg: InviteMsg) {
+        this.writeLog("inviteCancel()");
+        const callMsg = new InviteCancelledMsg();
+        callMsg.data.participantId = inviteMsg.data.participantId;
+        callMsg.data.conferenceRoomId = inviteMsg.data.conferenceRoomId;
+        this.sendToServer(callMsg);
     }
 
     /*
@@ -199,6 +212,12 @@ export class ConferenceCallManager {
         this.onEvent(EventTypes.inviteReceived, message);
     }
 
+    async onInviteCancelled(message: InviteCancelledMsg) {
+        this.writeLog("onInviteCancelled()");
+        this.conferenceRoom.conferenceRoomId = "";
+        this.onEvent(EventTypes.inviteCancelled, message);
+    }
+
     acceptInvite(message: InviteMsg) {
         this.writeLog("acceptInvite()");
         const joinMsg = new AcceptMsg();
@@ -219,11 +238,15 @@ export class ConferenceCallManager {
 
 
     leave() {
-        this.writeLog("reject()");
+        this.writeLog("leave()");
+
         let msg = new LeaveMsg();
         msg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
         this.sendToServer(msg);
-        this.roomsClient.roomLeave();
+
+        if (this.roomsClient) {
+            this.roomsClient.roomLeave();
+        }
         this.conferenceRoom.conferenceRoomId = "";
     }
 

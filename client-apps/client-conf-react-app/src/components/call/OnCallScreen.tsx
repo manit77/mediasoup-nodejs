@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Container, Row, Col } from 'react-bootstrap';
 import CallTopMenu from './CallTopMenu';
 import ParticipantsPane from './ParticipantsPane';
@@ -11,11 +11,11 @@ import { Navigate } from 'react-router-dom';
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
     const [showInvite, setShowInvite] = useState(false);
-    const { isCallActive, localStream, remoteStreams, participants } = useCall();
+    const { isCallActive, localStream, participants } = useCall();
     const [mainStream, setMainStream] = useState<MediaStream | null>(null); // Could be local or a remote stream
     const [mainStreamUserId, setMainStreamUserId] = useState<string | null>(null); // ID of user in main view
 
-    React.useEffect(() => {
+    useEffect(() => {
         // Initially set local stream to main view if available
         if (localStream && !mainStream) {
             setMainStream(localStream);

@@ -1,4 +1,4 @@
-import { AcceptMsg, CallMessageType, GetContactsMsg, InviteMsg, LeaveMsg, RegisterMsg, RejectMsg } from "@conf/conf-models";
+import { AcceptMsg, CallMessageType, GetContactsMsg, InviteCancelledMsg, InviteMsg, LeaveMsg, RegisterMsg, RejectMsg } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient } from "@rooms/rooms-client";
 class Participant {
@@ -23,6 +23,7 @@ export var EventTypes;
     EventTypes["contactsReceived"] = "contactsReceived";
     EventTypes["inviteResult"] = "inviteResult";
     EventTypes["inviteReceived"] = "inviteReceived";
+    EventTypes["inviteCancelled"] = "inviteCancelled";
     EventTypes["rejectReceived"] = "rejectReceived";
     EventTypes["conferenceReady"] = "conferenceReady";
     EventTypes["conferenceJoined"] = "conferenceJoined";
@@ -95,6 +96,9 @@ export class ConferenceCallManager {
                 case CallMessageType.inviteResult:
                     this.onInviteResult(message);
                     break;
+                case CallMessageType.inviteCancelled:
+                    this.onInviteCancelled(message);
+                    break;
                 case CallMessageType.conferenceReady:
                     this.onConferenceReady(message);
             }
@@ -130,6 +134,14 @@ export class ConferenceCallManager {
         const callMsg = new InviteMsg();
         callMsg.data.participantId = participantId;
         this.sendToServer(callMsg);
+        return callMsg;
+    }
+    inviteCancel(inviteMsg) {
+        this.writeLog("inviteCancel()");
+        const callMsg = new InviteCancelledMsg();
+        callMsg.data.participantId = inviteMsg.data.participantId;
+        callMsg.data.conferenceRoomId = inviteMsg.data.conferenceRoomId;
+        this.sendToServer(callMsg);
     }
     /*
     receive an invite result
@@ -150,6 +162,11 @@ export class ConferenceCallManager {
         this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
         this.onEvent(EventTypes.inviteReceived, message);
     }
+    async onInviteCancelled(message) {
+        this.writeLog("onInviteCancelled()");
+        this.conferenceRoom.conferenceRoomId = "";
+        this.onEvent(EventTypes.inviteCancelled, message);
+    }
     acceptInvite(message) {
         this.writeLog("acceptInvite()");
         const joinMsg = new AcceptMsg();
@@ -166,11 +183,13 @@ export class ConferenceCallManager {
         this.conferenceRoom.conferenceRoomId = "";
     }
     leave() {
-        this.writeLog("reject()");
+        this.writeLog("leave()");
         let msg = new LeaveMsg();
         msg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
         this.sendToServer(msg);
-        this.roomsClient.roomLeave();
+        if (this.roomsClient) {
+            this.roomsClient.roomLeave();
+        }
         this.conferenceRoom.conferenceRoomId = "";
     }
     getParticipant(participantId) {

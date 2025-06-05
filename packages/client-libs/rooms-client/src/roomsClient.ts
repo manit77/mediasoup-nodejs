@@ -827,7 +827,7 @@ export class RoomsClient {
       if (!this.device.loaded) {
         this.writeLog("loading device with rtpCapabilities");
         await this.device.load({ routerRtpCapabilities: msgIn.data.rtpCapabilities });
-        this.writeLog("device loaded");
+        this.writeLog("device loaded ", this.device.loaded);
       }
 
       let transports = await this.sfu_waitForRoomTransports();

@@ -1,32 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
-import { webRTCService } from '../../services/WebRTCService';
 
 const CallingPopup: React.FC = () => {
-    const { callingContact, cancelOutgoingCall, endCurrentCall } = useCall();
-    const [showModal, setShowModal] = useState(true);
-
-
-    useEffect(() => {
-
-        if (!callingContact) {
-            return null;
-        }
-
-        webRTCService.onCallEnded = () => {
-            setShowModal(false);
-            endCurrentCall();
-        };
-
-        return () => {
-            webRTCService.onCallEnded = null;
-        };
-
-    }, [callingContact]);
+    const { callingContact, cancelOutgoingCall } = useCall();
 
     return (
-        <Modal show={showModal} centered backdrop="static" keyboard={false}>
+        <Modal show={true} centered backdrop="static" keyboard={false}>
             <Modal.Header>
                 <Modal.Title>Calling...</Modal.Title>
             </Modal.Header>
