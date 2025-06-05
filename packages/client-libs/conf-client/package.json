@@ -8,7 +8,7 @@
   "main": "dist/index.js",
   "types": "src/index.ts",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc --build --force"
   },
   "dependencies": {
     "@conf/conf-models": "1.0.0",

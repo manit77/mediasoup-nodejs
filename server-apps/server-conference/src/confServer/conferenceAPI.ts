@@ -1,9 +1,6 @@
 import express from 'express';
-import { LoginMsg, LoginResultMsg } from '@conf/conf-models';
-import * as jwt from '../utils/jwtUtil.js';
-import { IAuthPayload } from '../models/models.js';
+import { AuthenticateMsg, AuthenticateResultMsg, WebRoutes } from '@conf/conf-models';
 import { ConferenceUtils } from './conferenceUtils.js';
-
 
 const DSTR = "ConferenceAPI";
 
@@ -15,14 +12,13 @@ export class ConferenceAPI {
             res.send("ConferenceAPI");
         });
 
-        app.post("/login", async (req, res) => {
+        app.post(WebRoutes.authenticate, async (req, res) => {
             //conferencing server requests an authtoken to be created, doesnt create an actual room
             //returns the auth token
             //returns the signaling info
-            let msgIn = req.body as LoginMsg;
-            let loginResult: LoginResultMsg = confUtils.login(msgIn);
+            let msgIn = req.body as AuthenticateMsg;
+            let loginResult: AuthenticateResultMsg = confUtils.authenticate(msgIn);
             res.send(loginResult);
-
         });
     }
 }

@@ -1,3 +1,4 @@
+import { WebRoutes } from '@conf/conf-models';
 const DSTR = "ConferenceAPI";
 export class ConferenceAPI {
     app;
@@ -8,12 +9,12 @@ export class ConferenceAPI {
         app.get("/hello", (req, res) => {
             res.send("ConferenceAPI");
         });
-        app.post("/login", async (req, res) => {
+        app.post(WebRoutes.authenticate, async (req, res) => {
             //conferencing server requests an authtoken to be created, doesnt create an actual room
             //returns the auth token
             //returns the signaling info
             let msgIn = req.body;
-            let loginResult = confUtils.login(msgIn);
+            let loginResult = confUtils.authenticate(msgIn);
             res.send(loginResult);
         });
     }

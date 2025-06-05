@@ -9,7 +9,13 @@ export class Participant {
     conferenceRoom = undefined; //reference to a conf room
 }
 export class ConferenceRoom {
+    id;
+    roomURI;
     roomId;
     roomToken;
+    participants = new Map();
+    removeParticipant(id) {
+        this.participants.delete(id);
+    }
 }
 //# sourceMappingURL=models.js.map

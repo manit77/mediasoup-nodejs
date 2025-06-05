@@ -1,0 +1,23 @@
+.participant-list {
+    width: 200px;
+    background: #f0f0f0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-sizing: border-box;
+  }
+  
+  .participant-list-item {
+    padding: 8px;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .local-video-participant-list {
+    margin-top: auto;
+    width: 100%;
+    height: 150px;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+  }

@@ -37,14 +37,14 @@ describe('RoomPeerSocketServer', () => {
     config = await getENV('') as any;
     roomServer = new RoomServer(config);
 
-    await roomServer.initMediaSoup();
+    await roomServer.init();
 
     // Create mock WebSocket server
     mockWSServer = new MockWebSocketServer('ws://localhost:8080');
 
     // Initialize peerSocketServer with mock server
     peerSocketServer = new RoomPeerSocketServer(config, securityMap, roomServer);
-    await peerSocketServer.initWebSocket(mockWSServer as any);
+    await peerSocketServer.init(mockWSServer as any);
 
   });
 

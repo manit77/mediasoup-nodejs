@@ -1,12 +1,8 @@
-export enum ConferenceType {
-    p2p = "p2p",
-    rooms = "rooms"
-}
-
 export enum CallMessageType {
 
-    login = "login",
-    register = "register", //register the partcipant
+    authenticate = "authenticate", //gets an authtoken
+    authenticateResult = "authenticateResult",
+    register = "register", //register the partcipant as online
     registerResult = "registerResult", //partcipant recieves a registration result
 
     invite = "invite", //invite to join room
@@ -15,26 +11,33 @@ export enum CallMessageType {
     reject = "reject", //the receiver rejects
     accept = "accept", //participant requests to join the conference room
     leave = "leave", //participant signals to leave the room
+    conferenceReady = "conferenceReady",
 
     getContacts = "getContacts",
     getContactsResults = "getContactsResults",
 
 }
+export enum WebRoutes {
+    authenticate = "authenticate",
+    onRoomClosed = "onRoomClosed",
+    onPeerJoined = "onPeerJoined",
+    onPeerLeft = "onPeerLeft"
+}
 
-export interface LoginMsg {
-    type: "login"
+export class AuthenticateMsg {
+    type: CallMessageType.authenticate
     data: {
         username: string,
         password: string
-    }
+    } = { username: "", password: "" }
 }
 
-export interface LoginResultMsg {
-    type: "loginResult"
+export class AuthenticateResultMsg {
+    type: CallMessageType.authenticateResult;
     data: {
-        authToken: string,
+        authToken?: string,
         error?: string
-    }
+    } = {}
 }
 
 export interface Contact {
@@ -87,11 +90,9 @@ export class GetContactsResultsMsg {
 export class InviteMsg {
     type = CallMessageType.invite;
     data: {
+        conferenceRoomId?: string,
         participantId?: string,
         displayName?: string,
-        roomId?: string,
-        roomToken?: string
-        roomAuthUserToken?: string
     } = {
         }
 }
@@ -99,13 +100,7 @@ export class InviteMsg {
 export class InviteResultMsg {
     type = CallMessageType.inviteResult;
     data: {
-        participantId?: string,
-        displayName?: string,
-        conferenceToken?: string,
-        conferenceTitle?: string,
-        roomId?: string,
-        roomToken?: string,
-        roomAuthUserToken?: string
+        conferenceRoomId?: string,
         error?: string
     } = {
         }
@@ -125,9 +120,6 @@ export class AcceptMsg {
     type = CallMessageType.accept;
     data: {
         conferenceRoomId?: string,
-        conferenceToken?: string,
-        roomId?: string,
-        roomToken?: string,
         error?: string
     } = {
         }
@@ -137,9 +129,6 @@ export class AcceptResultMsg {
     type = CallMessageType.accept;
     data: {
         conferenceRoomId?: string,
-        conferenceToken?: string,
-        roomId?: string,
-        roomToken?: string,
         error?: string
     } = {
         }
@@ -153,3 +142,13 @@ export class LeaveMsg {
     }
 }
 
+export class ConferenceReadyMsg {
+    type = CallMessageType.conferenceReady;
+    data = {
+        conferenceRoomId: "",
+        authToken: "",
+        roomId: "",
+        roomToken: "",
+        roomURI: ""
+    }
+}

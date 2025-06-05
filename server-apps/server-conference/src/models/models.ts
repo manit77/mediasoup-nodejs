@@ -5,13 +5,6 @@ export interface IAuthPayload {
     expiresIn: number
 }
 
-export interface IConfPayload {
-    conferenceId: number,
-    conferenceRoomId: string,
-    expiresIn: number,
-    maxPeers: number
-}
-
 
 /**
  * active participant, the user has already authenticated
@@ -25,8 +18,14 @@ export class Participant {
 }
 
 export class ConferenceRoom {
-
+    id: string;
+    roomURI: string;
     roomId: string;
     roomToken: string;
+    participants: Map<string, Participant> = new Map();
+
+    removeParticipant(id: string) {
+        this.participants.delete(id);
+    }
 
 }

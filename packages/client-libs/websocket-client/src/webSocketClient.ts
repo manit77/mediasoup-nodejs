@@ -21,19 +21,19 @@ export class WebSocketClient {
         this.socket = new WebSocket(`${uri}`);
         this.state = "connecting";
 
-        this.socket.onopen = () => {
+        this.socket.onopen = async () => {
             this.state = "connected";
             this.writeLog('socket server connected');
-            this.fireEvent("onopen");
+            await this.fireEvent("onopen");
         };
 
-        this.socket.onerror = (error) => {
+        this.socket.onerror = async (error) => {
             this.state = "disconnected";
             console.error('socket server error:', error);
-            this.fireEvent("onerror");
+            await this.fireEvent("onerror");
         };
 
-        this.socket.onclose = () => {
+        this.socket.onclose = async () => {
             this.writeLog("onclose");
 
             if (this.autoReconnect) {
@@ -47,20 +47,22 @@ export class WebSocketClient {
             } else {
                 this.state = "disconnected";
                 this.writeLog('socket server disconnected');
-                this.fireEvent("onclose");
+                await this.fireEvent("onclose");
             }
         };
 
         // Handle incoming messages
-        this.socket.onmessage = (event) => {
-            this.fireEvent("onmessage", event);
+        this.socket.onmessage = async (event) => {
+            await this.fireEvent("onmessage", event);
         };
     }
 
-    private fireEvent(type: eventsTypes, data?: any) {
+    private async fireEvent(type: eventsTypes, data?: any) {
         // Trigger registered callbacks for onmessage
         if (this.callbacks.has(type)) {
-            this.callbacks.get(type).forEach((callback) => callback(data));
+            for (let cb of this.callbacks.get(type).values()) {
+                await cb(data);
+            }
         }
     }
 

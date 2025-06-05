@@ -98,7 +98,7 @@ export class Room {
             let cbData: RoomPeerCallBackData = {
                 peerId: peer.id,
                 roomId: this.id,
-                peerTrackingId: peer.trackingid,
+                peerTrackingId: peer.trackingId,
                 roomTrackingId: this.trackingId
             }
 
@@ -145,7 +145,7 @@ export class Room {
             let cbData: RoomPeerCallBackData = {
                 peerId: peer.id,
                 roomId: this.id,
-                peerTrackingId: peer.trackingid,
+                peerTrackingId: peer.trackingId,
                 roomTrackingId: this.trackingId
             }
 

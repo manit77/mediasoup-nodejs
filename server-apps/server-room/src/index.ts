@@ -34,15 +34,15 @@ import { WebSocketServer } from 'ws';
 
     //manager for media soup room server
     let roomServer = new RoomServer(config);
-    roomServer.initMediaSoup().then(() => {
+    roomServer.init().then(() => {
 
       let socketServerSecurityMap = defaultPeerSocketServerSecurityMap; //override with your security map
       let socketServer = new RoomPeerSocketServer(config, socketServerSecurityMap, roomServer);
-      socketServer.initWebSocket(new WebSocketServer({ server: server }));
+      socketServer.init(new WebSocketServer({ server: server }));
 
       let httpServerSecurityMap = defaultHTTPServerSecurityMap; //override with your security map
       let httpServer = new RoomHTTPServer(config, httpServerSecurityMap, roomServer);
-      httpServer.initHTTPServer(app);
+      httpServer.init(app);
 
     });
 

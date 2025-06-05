@@ -23,6 +23,9 @@
 		},
 		{
 			"path": "packages/shared-models/rooms-models"
+		},
+		{
+			"path": "client-apps/client-conf-react-app"
 		}
 	],
 	"settings": {

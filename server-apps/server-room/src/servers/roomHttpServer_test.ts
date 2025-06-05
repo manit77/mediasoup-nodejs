@@ -26,7 +26,7 @@ describe("roomServerTests", () => {
         console.log("### beforeAll");
         config = await getENV("") as any;
         roomServer = new RoomServer(config);
-        await roomServer.initMediaSoup();
+        await roomServer.init();
 
         room_access_token = config["room_access_token"];
 
@@ -34,7 +34,7 @@ describe("roomServerTests", () => {
         app.use(express.json()); // Enable JSON parsing
 
         let roomHttp = new RoomHTTPServer(config, defaultHTTPServerSecurityMap, roomServer);
-        roomHttp.initHTTPServer(app);
+        roomHttp.init(app);
 
     }, timeout);
 
@@ -136,7 +136,7 @@ describe("roomServerTests", () => {
         let [payload, roomToken] = roomUtils.generateRoomToken(config.room_secretKey, 1);
 
         let roomConfig = new RoomConfig();
-        let room = await roomServer.createRoom(payload.roomId, roomToken, roomConfig);
+        let room = await roomServer.createRoom(payload.roomId, roomToken, "", roomConfig);
 
         let msgOut = new RoomTerminateMsg();
         msgOut.data.roomId = room.id;

@@ -147,7 +147,7 @@ export class RoomLeaveMsg {
     type = payloadTypeClient.roomLeave;
     data = {};
 }
-export class RoomLeaveResult {
+export class RoomLeaveResultMsg {
     type = payloadTypeServer.roomLeaveResult;
     data = {};
 }

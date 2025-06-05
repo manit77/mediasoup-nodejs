@@ -5,6 +5,7 @@ import {
     RoomType
 } from "@rooms/rooms-models";
 import * as rooms from "@rooms/rooms-client";
+import { getUserMedia } from "@webrtc-client/webRTCClient.js";
 
 (async () => {
 
@@ -94,8 +95,13 @@ import * as rooms from "@rooms/rooms-client";
             await disconnectRooms();
             return;
         }
+        let stream = await getUserMedia();
 
-        ctlVideo.srcObject = await roomsClient.getUserMedia();
+        stream.getTracks().forEach(t => {
+            roomsClient.addLocalTrack(t);
+        });
+
+        ctlVideo.srcObject = stream;
     }
 
     async function disconnectRooms() {

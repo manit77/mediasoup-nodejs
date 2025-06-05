@@ -8,7 +8,7 @@ import {
     , ConsumerTransportCreatedMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient
     , PeerTerminatedMsg, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg
     , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomGetLogsMsg, RoomJoinMsg
-    , RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResult, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
+    , RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
     , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg
     , RoomTerminateMsg
     , RoomTerminateResultMsg
@@ -82,7 +82,7 @@ export class RoomServer {
 
     }
 
-    async initMediaSoup() {
+    async init() {
         console.log(`initMediaSoup()`);
         console.log(`cpu count: ${os.cpus().length}`);
 
@@ -260,7 +260,7 @@ export class RoomServer {
      * @returns 
      */
     private createPeer(authToken: string, trackingId: string, displayName: string): Peer {
-        console.log("createPeer()");
+        console.log(`createPeer() trackingId: ${trackingId} `);
 
         let payload: AuthUserTokenPayload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
 
@@ -273,7 +273,7 @@ export class RoomServer {
         peer.id = roomUtils.GetPeerId();
         peer.authToken = authToken;
         peer.displayName = displayName;
-        peer.trackingid = trackingId;
+        peer.trackingId = trackingId;
 
         this.addPeerGlobal(peer);
 
@@ -281,7 +281,7 @@ export class RoomServer {
         return peer;
     }
 
-    async createRoom(roomId: string, roomToken: string, config: RoomConfig): Promise<Room> {
+    async createRoom(roomId: string, roomToken: string, trackingId: string, config: RoomConfig): Promise<Room> {
 
         console.log(`createRoom() - roomId:${roomId} roomToken: ${roomToken}`);
 
@@ -316,6 +316,7 @@ export class RoomServer {
         room.roomLogAdapter = this.roomLogAdapter;
         room.id = roomId;
         room.roomToken = roomToken;
+        room.trackingId = trackingId;
         room.config = config;
 
         if (room.config.roomType == "sfu") {
@@ -408,8 +409,6 @@ export class RoomServer {
         console.log(`removeRoomGlobal() ${room.id}`);
         this.printStats();
         this.rooms.delete(room.id);
-
-
     }
 
     private async send(peerId: string, msg: any) {
@@ -671,7 +670,7 @@ export class RoomServer {
             return errorMsg;
         }
 
-        let room = await this.createRoom(msgIn.data.roomId, msgIn.data.roomToken, msgIn.data.roomConfig);
+        let room = await this.createRoom(msgIn.data.roomId, msgIn.data.roomToken, msgIn.data.trackingId, msgIn.data.roomConfig);
         if (!room) {
             let errorMsg = new RoomNewResultMsg();
             errorMsg.data.error = "error creating room.";
@@ -812,6 +811,7 @@ export class RoomServer {
         for (let [, otherPeer] of otherPeers) {
             joinRoomResult.data.peers.push({
                 peerId: otherPeer.id,
+                peerTrackingId: otherPeer.trackingId,
                 producers: (room.config.roomType == "sfu"
                     ? [...otherPeer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }))
                     : undefined)
@@ -823,6 +823,7 @@ export class RoomServer {
             let msg = new RoomNewPeerMsg();
             msg.data.roomId = room.id;
             msg.data.peerId = peer.id;
+            msg.data.peerTrackingId = peer.trackingId;
             msg.data.displayName = peer.displayName;
             msg.data.producers = (room.config.roomType == "sfu"
                 ? [...peer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }))
@@ -864,7 +865,7 @@ export class RoomServer {
         this.broadCastAll(room, msg);
         this.printStats();
 
-        let roomLeaveResult = new RoomLeaveResult();
+        let roomLeaveResult = new RoomLeaveResultMsg();
         roomLeaveResult.data.roomId = room.id;
         return roomLeaveResult;
 

@@ -6,7 +6,7 @@ import { setTimeout, setInterval } from 'node:timers';
 export class Peer {
 
     public id: string;
-    public trackingid: string;
+    public trackingId: string;
     public displayName: string;
     public authToken: string;
 

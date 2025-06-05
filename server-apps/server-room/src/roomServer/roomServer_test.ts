@@ -20,7 +20,7 @@ describe("roomServerTests", () => {
         console.log("### beforeAll");
         config = await getENV("") as any;
         roomServer = new RoomServer(config);
-        await roomServer.initMediaSoup();
+        await roomServer.init();
 
     }, timeout);
 
@@ -36,7 +36,7 @@ describe("roomServerTests", () => {
     it("createRoom", async () => {
 
         //send invalid token, this should not generate a room
-        let room = await roomServer.createRoom("", "a", new RoomConfig());
+        let room = await roomServer.createRoom("", "a", "", new RoomConfig());
         expect(room).toBeFalsy();
 
         //generate a room tokn
@@ -44,10 +44,10 @@ describe("roomServerTests", () => {
         expect(payload).toBeTruthy();
 
         //should not return a room, we need the roomid
-        room = await roomServer.createRoom("", roomtoken, new RoomConfig());
+        room = await roomServer.createRoom("", roomtoken, "", new RoomConfig());
         expect(room).toBeFalsy();
 
-        room = await roomServer.createRoom(payload.roomId, roomtoken, new RoomConfig());
+        room = await roomServer.createRoom(payload.roomId, roomtoken, "", new RoomConfig());
         expect(room).toBeTruthy();
         room.close("test");
 

@@ -1,16 +1,20 @@
 import axios from "axios";
-import { RoomNewMsg, AuthUserNewTokenMsg, RoomNewTokenMsg, RoomServerAPIRoutes, RoomTerminateMsg } from "@rooms/rooms-models";
+import { RoomNewMsg, AuthUserNewTokenMsg, RoomNewTokenMsg, RoomServerAPIRoutes, RoomTerminateMsg, RoomLeaveMsg } from "@rooms/rooms-models";
 import https from "https";
 export class RoomsAPI {
     /**
      * rooms socket server
      */
     config = {
-        apiURI: "https://localhost:3000"
+        apiURI: "https://localhost:3000",
+        accessToken: ""
     };
-    constructor(uri) {
+    constructor(uri, accessToken) {
         if (uri) {
             this.config.apiURI = uri;
+        }
+        if (accessToken) {
+            this.config.accessToken = accessToken;
         }
     }
     async newRoomToken() {
@@ -28,6 +32,12 @@ export class RoomsAPI {
         msgIn.data.roomConfig = config;
         return await this.post(RoomServerAPIRoutes.newRoom, msgIn);
     }
+    async leaveRoom(roomId, peerId) {
+        let msgIn = new RoomLeaveMsg();
+        msgIn.data.roomId = roomId;
+        msgIn.data.peerId = peerId;
+        return await this.post(RoomServerAPIRoutes.newRoom, msgIn);
+    }
     async terminateRoom(roomId) {
         let msgIn = new RoomTerminateMsg();
         msgIn.data.roomId = roomId;
@@ -38,7 +48,10 @@ export class RoomsAPI {
         console.log(`POST: ${url}`);
         const agent = new https.Agent({ rejectUnauthorized: false }); // Use only in development
         const options = {
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.config.accessToken}`
+            },
             httpsAgent: agent,
         };
         try {

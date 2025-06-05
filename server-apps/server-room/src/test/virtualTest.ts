@@ -92,7 +92,7 @@ for (let roomS of roomsScenarios) {
     roomConf.newRoomTokenExpiresInMinutes = 1
     let [payload, roomToken] = generateRoomToken(config.room_secretKey, roomConf.newRoomTokenExpiresInMinutes);
 
-    let room = await roomServer.createRoom(payload.roomId, roomToken, roomConf);
+    let room = await roomServer.createRoom(payload.roomId, roomToken, "0", roomConf);
     roomS.forEach(element => {
 
     });

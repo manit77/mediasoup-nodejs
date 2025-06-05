@@ -196,6 +196,7 @@ export class RoomNewMsg implements IMsg {
         peerId?: string,
         roomId?: string,
         roomToken?: string,
+        trackingId?: string,
         roomConfig?: RoomConfig;
     } = {
             roomConfig: new RoomConfig()
@@ -271,7 +272,7 @@ export class RoomLeaveMsg implements IMsg {
     } = {}
 }
 
-export class RoomLeaveResult implements IMsg {
+export class RoomLeaveResultMsg implements IMsg {
     type = payloadTypeServer.roomLeaveResult;
     data: {
         roomId?: string,
@@ -295,6 +296,7 @@ export class RoomJoinResultMsg implements IMsg {
         roomType?: RoomType,
         peers?: {
             peerId: string,
+            peerTrackingId: string,
             producers?: { producerId: string, kind: "audio" | "video" }[]
         }[],
         error?: string,
@@ -305,6 +307,7 @@ export class RoomNewPeerMsg implements IMsg {
     type = payloadTypeServer.roomNewPeer;
     data: {
         peerId?: string;
+        peerTrackingId?: string;
         roomId?: string;
         displayName?: string;
         producers?: { producerId: string, kind: "audio" | "video" }[]

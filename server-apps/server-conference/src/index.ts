@@ -3,28 +3,19 @@ import https from 'https';
 import fs from 'fs';
 import cors from 'cors';
 import { ConferenceServer, ConferenceServerConfig } from './confServer/conferenceServer.js';
+import { getENV } from './utils/env.js';
 
-let config: ConferenceServerConfig = {
-  conf_server_port: 3001,
-  conf_reconnection_timeout: 30000,
-  conf_secret_key: "IFXBhILlrwNGpOLK8XDvvgqrInnU3eZ1",
-  conf_max_peers_per_conf: 2,
-  conf_token_expires_min: 60,
-  room_access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjowLCJpYXQiOjE3NDc0OTU4NjZ9.cCqKeByvZ2EujLG3bUWBHjYDSJ9qTOWWMBuGYaGE6wQ",
-  room_api_url: "https://localhost:3000",
-}
+let config: ConferenceServerConfig = await getENV() as any;
 
 const app = express();
 app.use(cors());
 
 const certInfo = {
-  key: fs.readFileSync('./certs/server.key'),
-  cert: fs.readFileSync('./certs/server.crt'),
+  key: fs.readFileSync(config.cert_key_path),
+  cert: fs.readFileSync(config.cert_file_path),
 };
 
 const server = https.createServer(certInfo, app);
-app.use(express.static('client-webrtc'));
-
+// app.use(express.static('client-webrtc'));
 let conferenceServer = new ConferenceServer(config, app, server);
-
 conferenceServer.start();

@@ -65,7 +65,7 @@ export class RoomPeerSocketServer {
 
     }
 
-    async initWebSocket(socketServer: WebSocketServer) {
+    async init(socketServer: WebSocketServer) {
 
         console.log(DSTR, "initWebSocket");
         this.webSocketServer = socketServer;

@@ -1,5 +1,5 @@
 import { IAuthPayload } from "../models/models.js";
-import { LoginMsg, LoginResultMsg } from "@conf/conf-models";
+import { AuthenticateMsg, AuthenticateResultMsg } from "@conf/conf-models";
 import * as jwt from '../utils/jwtUtil.js';
 
 export class ConferenceUtils {
@@ -9,15 +9,15 @@ export class ConferenceUtils {
         authTokenExpiresInMinutes: 60 * 24 * 1 //0 for never expires
     }
 
-    login(msgIn: LoginMsg) {
+    authenticate(msgIn: AuthenticateMsg) {
         let userName = msgIn.data.username;
         let password = msgIn.data.password;
 
-        let loginResult: LoginResultMsg = { type: "loginResult", data: { authToken: "" } };
+        let authResult = new AuthenticateResultMsg();
         let dbResult = true; //get from database
         if (!dbResult) {
-            loginResult.data.error = "invalid username and password";
-            return loginResult;
+            authResult.data.error = "invalid username and password";
+            return authResult;
         }
 
         let payload: IAuthPayload = {
@@ -32,10 +32,10 @@ export class ConferenceUtils {
         let authToken = jwt.jwtSign(this.config.secretKey, payload);
 
         if (authToken) {
-            loginResult.data.error = "login failed";
+            authResult.data.error = "login failed";
         }
 
-        return loginResult;
+        return authResult;
     }
 
 

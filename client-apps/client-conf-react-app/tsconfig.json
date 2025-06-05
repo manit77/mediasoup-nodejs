@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "src"
+  ],
+  "paths": {
+    "@conf-client/*": [
+      "../../packages/client-libs/conf-client/src/*"
+    ],
+    "@rooms-client/*": [
+      "../../packages/client-libs/rooms-client/src/*"
+    ],
+    "@websocket-client/*": [
+      "../../packages/client-libs/websocket-client/src/*"
+    ],
+    "@webrtc-client/*": [
+      "../../packages/client-libs/webrtc-client/src/*"
+    ],
+    "@conf-models/*": [
+      "../../packages/shared-models/conf-models/src/*"
+    ],
+    "@rooms-models/*": [
+      "../../packages/shared-models/rooms-models/src/*"
+    ]
+  }
+}

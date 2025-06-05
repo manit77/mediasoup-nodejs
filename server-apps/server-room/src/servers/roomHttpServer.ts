@@ -43,10 +43,11 @@ export class RoomHTTPServer {
     }
 
     tokenCheck = (req: Request, res: Response, next: NextFunction) => {
-        console.log(`tokenCheck: ${req.path}`);
+        console.log(DSTR, `tokenCheck: ${req.path}`);
 
         const authHeader = req.headers['authorization'];
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            console.log(DSTR, "Missing or invalid Authorization header");
             return res.status(401).json({ error: 'Missing or invalid Authorization header' });
         }
         const authtoken = authHeader.split(' ')[1];
@@ -56,34 +57,37 @@ export class RoomHTTPServer {
 
             //this requires admin access
             if (!authtoken) {
-                console.error("authToken required.");
+                console.error(DSTR, "authToken required.");
                 return res.status(401).json({ error: 'Missing or invalid authToken' });
             }
 
             let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authtoken);
             if (!payload) {
-                console.error("invalid authToken.");
+                console.error(DSTR, "invalid authToken.");
                 return res.status(401).json({ error: 'invalid authToken.' });
             }
 
             let secMap = this.securityMap[req.path];
             if (!secMap || (secMap.length > 0 && !secMap.includes(payload.role))) {
+                console.error(DSTR, "unauthorized authToken.");
                 return res.status(401).json({ error: 'unauthorized.' });
             }
 
             next();
         } catch (error) {
+            console.error(DSTR, error);
             return res.status(401).json({ error: 'Invalid or expired token' });
         }
     };
 
-    initHTTPServer(app: express.Express) {
+    init(app: express.Express) {
         app.get("/hello", (req, res) => {
             res.send("RoomHTTPServer");
         });
 
         app.post(RoomServerAPIRoutes.newAuthUserToken, this.tokenCheck as any, async (req, res) => {
 
+            console.log(DSTR, RoomServerAPIRoutes.newAuthUserToken);
             console.log(RoomServerAPIRoutes.newAuthUserToken);
             let msgIn = req.body as AuthUserNewTokenMsg;
             msgIn.data.authToken = req.rooms_authtoken;
@@ -94,7 +98,7 @@ export class RoomHTTPServer {
         });
 
         app.post(RoomServerAPIRoutes.newRoomToken, this.tokenCheck as any, async (req, res) => {
-            console.log(RoomServerAPIRoutes.newRoomToken);
+            console.log(DSTR, RoomServerAPIRoutes.newRoomToken);
             let msgIn = req.body as RoomNewTokenMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
@@ -103,7 +107,7 @@ export class RoomHTTPServer {
         });
 
         app.post(RoomServerAPIRoutes.newRoom, this.tokenCheck as any, async (req, res) => {
-            console.log(RoomServerAPIRoutes.newRoom);
+            console.log(DSTR, RoomServerAPIRoutes.newRoom);
             let msgIn = req.body as RoomNewMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
@@ -113,7 +117,7 @@ export class RoomHTTPServer {
         });
 
         app.post(RoomServerAPIRoutes.terminateRoom, this.tokenCheck as any, async (req, res) => {
-            console.log(RoomServerAPIRoutes.terminateRoom);
+            console.log(DSTR, RoomServerAPIRoutes.terminateRoom);
             let msgIn = req.body as RoomTerminateMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 

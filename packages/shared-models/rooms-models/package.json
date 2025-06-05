@@ -6,7 +6,7 @@
   "author": "manit chanthavong",
   "type": "module",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "types": "src/index.ts",
   "scripts": {
     "build": "tsc --build --force"
   }
