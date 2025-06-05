@@ -260,7 +260,7 @@ export class RoomServer {
      * @returns 
      */
     private createPeer(authToken: string, trackingId: string, displayName: string): Peer {
-        console.log(`createPeer() trackingId: ${trackingId} `);
+        console.log(`createPeer() - trackingId: ${trackingId}, displayName: ${displayName}`);
 
         let payload: AuthUserTokenPayload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
 
@@ -435,7 +435,7 @@ export class RoomServer {
     }
 
     async onRegisterPeer(msgIn: RegisterPeerMsg) {
-        console.log(`onRegister() - ${msgIn.data.displayName}`);
+        console.log(`onRegister() - trackingId:${msgIn.data.trackingId},  displayName:${msgIn.data.displayName}`);
 
         let peer = this.createPeer(msgIn.data.authToken, msgIn.data.trackingId, msgIn.data.displayName);
         if (!peer) {
@@ -801,7 +801,6 @@ export class RoomServer {
             return msgError;
         }
 
-
         let joinRoomResult = new RoomJoinResultMsg();
         joinRoomResult.data.roomId = room.id;
         joinRoomResult.data.rtpCapabilities = room.config.roomType == "sfu" ? room.router.rtpCapabilities : undefined;
@@ -812,6 +811,7 @@ export class RoomServer {
             joinRoomResult.data.peers.push({
                 peerId: otherPeer.id,
                 peerTrackingId: otherPeer.trackingId,
+                displayName: otherPeer.displayName,
                 producers: (room.config.roomType == "sfu"
                     ? [...otherPeer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }))
                     : undefined)
@@ -1125,7 +1125,7 @@ export class RoomServer {
         for (let [roomid, room] of this.rooms) {
             console.log(`##### roomid: ${roomid}, peers: ${room.getPeerCount()}`);
             room.getPeers().forEach(p => {
-                console.log(`##### roomid: ${roomid}, peerid: ${p.id}}`);
+                console.log(`##### roomid: ${roomid}, peerid: ${p.id}}, displayName:${p.displayName}`);
             });
 
             if (room.roomLogAdapter) {
@@ -1134,6 +1134,11 @@ export class RoomServer {
                     console.log(`####### RoomLog: RoomId: ${log.RoomId}, PeerId: ${log.PeerId}, Action: ${log.Action}, Date: ${log.Date} `);
                 });
             }
+        }
+
+        console.log(`### peers: ${this.peers.size} ###`);
+        for (let [peerid, peer] of this.peers) {
+            console.log(`##### peerid: ${peerid}, displayName: ${peer.displayName}`);
         }
         console.log("### ##### ###");
     }

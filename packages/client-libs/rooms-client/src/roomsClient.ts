@@ -407,7 +407,7 @@ export class RoomsClient {
   };
 
   register = (authToken: string, trackingId: string, displayName: string) => {
-    this.writeLog(`-- register trackingId: ${trackingId}`);
+    this.writeLog(`-- register trackingId: ${trackingId}, displayName: ${displayName}`);
 
     if (this.localPeer.peerId) {
       this.writeLog(`-- register, already registered. ${this.localPeer.peerId}`);
@@ -571,6 +571,16 @@ export class RoomsClient {
 
     let msgIn = JSON.parse(event.data);
     this.writeLog("-- onmessage", msgIn.type, msgIn);
+    //parse the msgIn
+    if (!msgIn.type) {
+      this.writeLog("invalid message type");
+      return;
+    }
+
+    if (!msgIn.data) {
+      this.writeLog("invalid message data");
+      return;
+    }
 
     try {
       switch (msgIn.type) {
@@ -844,7 +854,7 @@ export class RoomsClient {
     if (msgIn.data && msgIn.data.peers) {
       for (let p of msgIn.data.peers) {
 
-        let newpeer: Peer = this.createPeer(p.peerId, p.peerTrackingId);
+        let newpeer: Peer = this.createPeer(p.peerId, p.peerTrackingId, p.displayName);
         if (this.localPeer.roomType == RoomType.sfu) {
           newpeer.producers.push(...p.producers.map(p => ({ id: p.producerId, kind: p.kind })));
         } else {
@@ -869,10 +879,11 @@ export class RoomsClient {
 
   }
 
-  private createPeer(peerId: string, trackingId: string) {
+  private createPeer(peerId: string, trackingId: string, displayName: string) {
     let newpeer: Peer = new Peer();
     newpeer.peerId = peerId;
     newpeer.trackingId = trackingId;
+    newpeer.displayName = displayName;
 
     this.addPeer(newpeer);
 
@@ -883,7 +894,7 @@ export class RoomsClient {
     this.writeLog("onRoomNewPeer " + msgIn.data?.peerId + " producers: " + msgIn.data?.producers?.length);
     this.writeLog(`new PeeerJoined ${msgIn.data?.peerId} `);
 
-    let newpeer: Peer = this.createPeer(msgIn.data.peerId, msgIn.data.peerTrackingId);
+    let newpeer: Peer = this.createPeer(msgIn.data.peerId, msgIn.data.peerTrackingId, msgIn.data.displayName);
 
     if (this.localPeer.roomType == "sfu") {
 
@@ -916,11 +927,11 @@ export class RoomsClient {
   }
 
   private onRoomPeerLeft = async (msgIn: RoomPeerLeftMsg) => {
-    this.writeLog("peer left the room, peerid:" + msgIn.data?.peerId);
+    this.writeLog("peer left the room, peerid:" + msgIn.data.peerId);
 
     let peer = this.peers.find(p => p.peerId === msgIn.data.peerId);
     if (!peer) {
-      this.writeLog(`peer not found ${peer.peerId}`);
+      this.writeLog(`peer not found ${msgIn.data.peerId}`);
       return;
     }
 
@@ -1180,8 +1191,8 @@ export class RoomsClient {
   }
 
   private sfu_onRoomNewProducer = async (msgIn: RoomNewProducerMsg) => {
-    this.writeLog("onRoomNewProducer: " + msgIn.data?.kind);
-    this.sfu_consumeProducer(msgIn.data?.peerId!, msgIn.data?.producerId!);
+    this.writeLog("onRoomNewProducer: " + msgIn.data.kind);
+    this.sfu_consumeProducer(msgIn.data.peerId!, msgIn.data.producerId!);
   }
 
   private sfu_consumeProducer = async (remotePeerId: string, producerId: string) => {

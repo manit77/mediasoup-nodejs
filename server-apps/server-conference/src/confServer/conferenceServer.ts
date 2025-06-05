@@ -169,7 +169,6 @@ export class ConferenceServer {
             userName: participant.displayName,
             authToken: "",  // TODO: implement auth tokens
             participantId: participant.participantId,
-            conferenceRoomId: participant.conferenceRoom ? participant.conferenceRoom.roomId : ""
         };
 
         this.send(ws, msg);

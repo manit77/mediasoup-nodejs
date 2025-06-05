@@ -59,6 +59,7 @@ export class ConferenceCallManager {
     private socket: WebSocketClient;
     localStream: MediaStream | null = null;
     participantId: string = '';
+    userName: string = "";
     conferenceRoom: Conference = new Conference();
     public contacts: Contact[] = [];
     private roomsClient: RoomsClient;
@@ -246,17 +247,10 @@ export class ConferenceCallManager {
             console.error(message.data.error);
             this.onEvent(EventTypes.registerResult, message);
         } else {
-
-            this.onEvent(EventTypes.registerResult, message);
-
             this.participantId = message.data.participantId;
-            this.writeLog('Registered with participantId:', this.participantId, "conferenceRoomId:", message.data.conferenceRoomId);
-
-            if (message.data.conferenceRoomId) {
-                //we logged into an existing conference
-                //rejoin conference?
-                this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
-            }
+            this.userName = message.data.userName;
+            this.writeLog('Registered with participantId:', this.participantId, this.userName);
+            this.onEvent(EventTypes.registerResult, message);
         }
     }
 
@@ -334,6 +328,7 @@ export class ConferenceCallManager {
         };
 
         this.roomsClient.onRoomJoinedEvent = (roomId: string) => {
+            //confirmation for local user has joined a room
             this.writeLog("onRoomJoinedEvent");
             let msg = {
                 type: EventTypes.conferenceJoined,
@@ -351,7 +346,7 @@ export class ConferenceCallManager {
             if (!participant) {
                 //this is a new peer get 
                 participant = new Participant();
-                participant.displayName = "";
+                participant.displayName = peer.displayName;
                 participant.mediaStream = new MediaStream();
                 participant.participantId = peer.trackingId;
                 participant.peerId = peer.peerId;
@@ -368,10 +363,16 @@ export class ConferenceCallManager {
                 return;
             }
 
+            if (!participant.displayName) {
+                console.error("no displayName");
+                return;
+            }
+
             let msg = {
                 type: EventTypes.participantJoined,
                 data: {
                     participantId: participant.participantId,
+                    displayName: participant.displayName,
                     conferenceRoomId: this.conferenceRoom.conferenceRoomId
                 }
             }
@@ -399,7 +400,7 @@ export class ConferenceCallManager {
 
         this.roomsClient.init(message.data.roomURI);
         let connectResult = await this.roomsClient.waitForConnect();
-        let registerResult = await this.roomsClient.waitForRegister(this.conferenceRoom.roomAuthToken, this.participantId, "");
+        let registerResult = await this.roomsClient.waitForRegister(this.conferenceRoom.roomAuthToken, this.participantId, this.userName);
         let roomJoinResult = connectResult = await this.roomsClient.waitForRoomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
 
         //add tracks after joining a room

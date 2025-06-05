@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
-import { webRTCService } from '../../services/WebRTCService'; // For online status updates
+import { webRTCService } from '../../services/WebRTCService';
 
 const CallingPopup: React.FC = () => {
     const { callingContact, cancelOutgoingCall, endCurrentCall } = useCall();

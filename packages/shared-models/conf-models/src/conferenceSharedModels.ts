@@ -67,13 +67,11 @@ export class RegisterResultMsg {
         userName: string,
         authToken: string,
         participantId: string,
-        conferenceRoomId: string,
         error?: string
     } = {
             userName: "",
             authToken: "",
             participantId: "",
-            conferenceRoomId: ""
         }
 }
 

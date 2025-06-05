@@ -15,7 +15,7 @@ class WebRTCService {
     public onServerConnected: (() => void) = () => { };
     public onServerDisconnected: (() => void) = () => { };
 
-    public onRegistered: () => void = () => { };
+    public onRegistered: (participantId: string) => void = () => { };
     public onRegisterFailed: (error: string) => void = () => { };
     public onContactsReceived: (contacts: Contact[]) => void = () => { };
 
@@ -158,18 +158,21 @@ class WebRTCService {
     }
 
     public disconnectSignaling(): void {
+        console.log("disconnectSignaling");
         this.confClient.disconnect();
     }
 
     private eventSignalingDisconnected() {
+        console.log("eventSignalingDisconnected");
         this.onServerDisconnected();
     }
 
     private eventRegisterResult(msg: any) {
+        console.log("eventRegisterResult", msg);
         if (msg.data.error) {
             this.onRegisterFailed(msg.data.error);
         } else {
-            this.onRegistered();
+            this.onRegistered(msg.data.participantId);
         }
     }
 
@@ -183,7 +186,7 @@ class WebRTCService {
     private eventInviteReceived(msg: any) {
         console.log("eventInviteReceived", msg);
         this.inviteMsg = msg;
-        this.onIncomingCall(msg.data.partcipantId, msg.data.displayName);
+        this.onIncomingCall(msg.data.participantId, msg.data.displayName);
     }
 
     private eventInviteResult(msg: any) {

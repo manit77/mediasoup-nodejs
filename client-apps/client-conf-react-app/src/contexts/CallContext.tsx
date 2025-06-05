@@ -10,6 +10,7 @@ interface IncomingCallInfo {
 }
 
 interface CallContextType {
+    localParticipantId: string;
     localStream: MediaStream | null;
     setLocalStream: React.Dispatch<React.SetStateAction<MediaStream | null>>;
     remoteStreams: Map<string, MediaStream>; // userId -> MediaStream
@@ -43,6 +44,7 @@ export const CallContext = createContext<CallContextType | undefined>(undefined)
 
 export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const auth = useContext(AuthContext);
+    const [localParticipantId, setlocalParticipantId] = useState<string>("");
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
     const [participants, setParticipants] = useState<CallParticipant[]>([]);
@@ -112,6 +114,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 
     const setupWebRTCEvents = useCallback(() => {
+
+        webRTCService.onRegistered = (participantId: string) => {
+            console.log("CallContext: onRegistered: participantId", participantId);
+            setlocalParticipantId(participantId);
+        }
 
         webRTCService.onLocalStreamReady = (stream) => {
             console.log("CallContext: Local stream ready");
@@ -397,6 +404,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return (
         <CallContext.Provider value={{
+            localParticipantId,
             localStream, setLocalStream, remoteStreams, participants, setParticipants, isCallActive,
             incomingCall, setIncomingCall, callingContact, setCallingContact,
             availableDevices, selectedDevices, setSelectedDevices, isScreenSharing,

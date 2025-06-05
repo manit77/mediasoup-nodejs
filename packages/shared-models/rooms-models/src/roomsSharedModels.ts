@@ -297,6 +297,7 @@ export class RoomJoinResultMsg implements IMsg {
         peers?: {
             peerId: string,
             peerTrackingId: string,
+            displayName: string,
             producers?: { producerId: string, kind: "audio" | "video" }[]
         }[],
         error?: string,
