@@ -32,12 +32,12 @@ export class LocalPeer {
   authToken: string = "";
   roomToken: string = "";
 
-  stream: MediaStream = null;
-
   transportSend: mediasoupClient.types.Transport;
   transportReceive: mediasoupClient.types.Transport;
   consumers: mediasoupClient.types.Consumer[] = [];
   producers: mediasoupClient.types.Producer[] = [];
+
+  tracks: MediaStream = new MediaStream();
 }
 
 export class Peer {
@@ -110,12 +110,10 @@ export class RoomsClient {
   dispose = () => {
 
     this.writeLog("disposeRoom()");
-    if (this.localPeer.stream) {
-      let tracks = this.localPeer.stream.getTracks();
-      tracks.forEach((track) => {
-        this.localPeer.stream.removeTrack(track);
-      });
-    }
+
+    this.localPeer.tracks.getTracks().forEach((track) => {
+      track.stop();
+    });
 
     this.localPeer.consumers.forEach(c => c.close());
     this.localPeer.producers.forEach(c => c.close());
@@ -133,6 +131,10 @@ export class RoomsClient {
 
   writeLog = async (...params: any) => {
     console.log("RoomsClient", ...params);
+  };
+
+  writeError = async (...params: any) => {
+    console.error("RoomsClient", ...params);
   };
 
   connect = async (wsURI: string = "") => {
@@ -462,35 +464,195 @@ export class RoomsClient {
     this.writeLog(`Camera ${!this.videoEnabled ? 'enabled' : 'disabled'}`);
   };
 
-  addLocalTrack = async (track: MediaStreamTrack) => {
-    this.writeLog("addLocalTrack() " + track.kind);
+  addLocalTracks = async (tracks: MediaStream) => {
+    this.writeLog("addLocalTrack() ");
+    this.writeLog(`current tracks=${this.localPeer.tracks.getTracks().length}`);
 
-    if (!this.localPeer.stream) {
-      this.writeLog("no local stream, creating one");
-      this.localPeer.stream = new MediaStream();
-    }
+    tracks.getTracks().forEach(t => {
+      this.localPeer.tracks.addTrack(t);
+    })
 
-    let currentTracks = this.localPeer.stream.getTracks();
-    this.writeLog(`current tracks=${currentTracks.length}`);
+    this.writeLog("track added to localPeer.stream");
+
+    tracks.getTracks().forEach(t => {
+      t.enabled = t.kind === "audio" ? this.audioEnabled : this.videoEnabled;
+    });
+
 
     if (this.localPeer.roomType == "sfu") {
-      if (!currentTracks.find(t => t.id === track.id)) {
-        this.localPeer.stream.addTrack(track);
-        this.writeLog("track added: " + track.kind);
-        if (this.localPeer.transportSend) {
-          this.writeLog(`product track ${track.kind}`)
-          await this.localPeer.transportSend.produce({ track });
+      if (this.localPeer.transportSend) {
+
+        for (let track of tracks.getTracks()) {
+          try {
+            this.writeLog(`produce track ${track.kind}`);
+            let producer = this.localPeer.producers.find(p => p.track.id == track.id);
+            if (producer) {
+              this.writeError("producer found with existing track.");
+              return;
+            }
+
+            producer = await this.localPeer.transportSend.produce({ track });
+            this.localPeer.producers.push(producer);
+            this.writeLog("track added: " + track.kind);
+          } catch (error) {
+            this.writeError(`Failed to produce track: ${error.message}`);
+            this.writeError(error);
+          }
+        }
+
+      } else {
+        this.writeLog('No transportSend');
+      }
+    } else {
+      // P2P mode
+      for (let peer of this.peers) {
+        let pc = peer.rtc_Connection?.pc;
+        if (pc) {
+          let tracksAdded = false;
+          for (let track of tracks.getTracks()) {
+            try {
+              let sender = pc.getSenders().find(s => s.track.id == track.id);
+              if (sender) {
+                this.writeError(`peer ${peer.peerId} already sending track.`);
+                continue;
+              }
+              pc.addTrack(track);
+              tracksAdded = true;
+              this.writeLog(`Added track ${track.kind} to peer ${peer.peerId}`);
+            } catch (error) {
+              this.writeLog(`Failed to add track ${track.kind} to peer ${peer.peerId}: ${error.message}`);
+              continue;
+            }
+          }
+          if (tracksAdded) {
+            let offer = await this.rtcClient.createOffer(peer.peerId);
+            if (offer) {
+              let msg = new RTCOfferMsg();
+              msg.data.remotePeerId = peer.peerId;
+              msg.data.sdp = offer;
+              this.send(msg);
+              this.writeLog(`Sent offer for tracks to peer ${peer.peerId}`);
+            }
+          } else {
+            this.writeLog(`no tracks added to peer ${peer.peerId}`);
+          }
+
+        } else {
+          this.writeLog(`No RTCPeerConnection for peer ${peer.peerId}`);
         }
       }
     }
 
   };
 
-  removeLocalTrack(track: MediaStreamTrack) {
-    if (this.localPeer.stream) {
-      this.localPeer.stream.removeTrack(track);
-      this.writeLog("track removed: " + track.kind);
+  removeLocalTracks = async (tracks: MediaStream) => {
+
+    let localTracks = this.localPeer.tracks.getTracks();
+    tracks.getTracks().forEach(track => {
+      track.stop();
+      let existingTrack = localTracks.find(t => t.id === track.id)
+      if (existingTrack) {
+        this.localPeer.tracks.removeTrack(existingTrack);
+      }
+    });
+
+
+    if (this.localPeer.roomType == "sfu") {
+
+      for (let track of tracks.getTracks()) {
+        let producer = this.localPeer.producers.find(p => p.track.id === track.id);
+        if (producer) {
+          producer.close();
+          this.localPeer.producers = this.localPeer.producers.filter(p => p != producer);
+          this.writeLog(`track removed ${track.kind}`);
+        }
+      }
+
+    } else {
+      // P2P mode
+      for (let peer of this.peers) {
+        let pc = peer.rtc_Connection?.pc;
+        if (pc) {
+          try {
+
+            let offerNeeded = false;
+            for (let track of tracks.getTracks()) {
+              //remove the track from the senders
+              const sender = pc.getSenders().find(s => s.track === track);
+              if (sender) {
+                pc.removeTrack(sender);
+                offerNeeded = true;
+              }
+            }
+
+            if (offerNeeded) {
+              // Trigger renegotiation to reflect removed track, even if 0 tracks
+              let offer = await this.rtcClient.createOffer(peer.peerId);
+              if (offer) {
+                let msg = new RTCOfferMsg();
+                msg.data.remotePeerId = peer.peerId;
+                msg.data.sdp = offer;
+                // Include track metadata for clarity
+                //msg.data.trackInfo = { id: track.id, kind: track.kind, action: "remove" };
+                this.send(msg);
+                this.writeLog(`Sent offer for removed tracks to peer ${peer.peerId}`);
+              }
+            }
+          } catch (error) {
+            this.writeLog(`Failed to renegotiate for peer ${peer.peerId}: ${error.message}`);
+          }
+        } else {
+          this.writeLog(`No RTCPeerConnection for peer ${peer.peerId}`);
+        }
+      }
     }
+
+  };
+
+  findTrack = (kind: string) => {
+    return this.localPeer.tracks.getTracks().find(t => t.kind === kind);
+  }
+
+  replaceTrack = async (existingTrack: MediaStreamTrack, newTrack: MediaStreamTrack) => {
+    this.writeLog("replaceTrack");
+
+    if (!existingTrack) {
+      this.writeError("existing track is null");
+      return;
+    }
+
+    if (!newTrack) {
+      this.writeError("new track is null");
+      return;
+    }
+
+    this.localPeer.tracks.removeTrack(existingTrack);
+    this.localPeer.tracks.addTrack(newTrack);
+
+    if (this.localPeer.roomType == "sfu") {
+      let producer = this.localPeer.producers.find(p => p.track.id === existingTrack.id);
+      if (producer) {
+        producer.replaceTrack({ track: newTrack })
+      } else {
+        this.writeError("existing track not found.");
+      }
+
+    } else {
+      for (let peer of this.peers) {
+        let pc = peer.rtc_Connection?.pc;
+        if (pc) {
+          let sender = pc.getSenders().find(s => s.track.id === existingTrack.id);
+          if (sender) {
+            sender.replaceTrack(newTrack);
+          } else {
+            this.writeError(`track not found for peer ${peer.peerId}.`);
+          }
+        } else {
+          this.writeLog(`No RTCPeerConnection for peer ${peer.peerId}`);
+        }
+      }
+    }
+
   };
 
   roomNewToken = (expiresInMin: number = 60) => {
@@ -697,14 +859,8 @@ export class RoomsClient {
       return;
     }
 
-    if (!this.localPeer.stream) {
-      this.writeLog("localPeer stream is required.");
-      return;
-    }
-
-    let tracks = this.localPeer.stream.getTracks();
-    console.log("tracks=" + tracks.length);
-    tracks.forEach(track => this.localPeer.transportSend.produce({ track: track }));
+    console.log("tracks=" + this.localPeer.tracks.getTracks().length);
+    this.localPeer.tracks.getTracks().forEach(track => this.localPeer.transportSend.produce({ track: track }));
 
   };
 
@@ -728,14 +884,6 @@ export class RoomsClient {
       peer.stream.addTrack(track);
     }
 
-  };
-
-  private removeRemoteStream = (peer: Peer) => {
-    this.writeLog("removeRemoteStream()");
-    if (peer.stream) {
-      peer.stream.getTracks().forEach((track) => track.stop());
-      peer.stream = null;
-    }
   };
 
   private onAuthUserNewTokenResult = async (msgIn: AuthUserNewTokenResultMsg) => {
@@ -842,9 +990,8 @@ export class RoomsClient {
       await this.sfu_publishLocalStream();
 
     } else {
-      this.rtcClient.setLocalstream(this.localPeer.stream);
+      this.rtcClient.addTracks(this.localPeer.tracks.getTracks());
     }
-
 
     if (this.onRoomJoinedEvent) {
       this.onRoomJoinedEvent(this.localPeer.roomId);
@@ -908,7 +1055,7 @@ export class RoomsClient {
     } else {
 
       newpeer.rtc_Connection = this.rtcClient.getOrCreatePeerConnection(newpeer.peerId, { iceServers: this.iceServers });
-      this.rtcClient.publishLocalStreamToPeer(newpeer.peerId);
+      this.rtcClient.publishTracks(newpeer.peerId);
 
       let offer = await this.rtcClient.createOffer(newpeer.peerId);
       if (offer) {
@@ -935,7 +1082,12 @@ export class RoomsClient {
       return;
     }
 
-    this.removeRemoteStream(peer);
+    //stop all tracks
+    if (peer.stream) {
+      peer.stream.getTracks().forEach((track) => track.stop());
+      peer.stream = null;
+    }
+
     this.removePeer(peer);
 
     if (this.onRoomPeerLeftEvent) {
@@ -979,12 +1131,10 @@ export class RoomsClient {
       this.localPeer.transportReceive?.close();
     }
 
-    let tracks = this.localPeer.stream.getTracks()
-    for (let t of tracks) {
+    for (let t of this.localPeer.tracks.getTracks()) {
       t.stop();
-      this.localPeer.stream.removeTrack(t);
     }
-
+    this.localPeer.tracks = new MediaStream();
     this.localPeer.roomId = "";
     this.localPeer.roomType = RoomType.p2p;
     this.peers = [];
@@ -1277,7 +1427,7 @@ export class RoomsClient {
 
       await this.rtcClient.setRemoteDescription(peer.peerId, msgIn.data.sdp);
       //a track is required before an answer can be generated
-      this.rtcClient.publishLocalStreamToPeer(peer.peerId);
+      this.rtcClient.publishTracks(peer.peerId);
       const answer = await this.rtcClient.createAnswer(peer.peerId);
 
       let msg = new RTCAnswerMsg();
@@ -1297,7 +1447,7 @@ export class RoomsClient {
       this.writeLog(`peer not found ${msgIn.data.remotePeerId}`);
       return;
     }
-    this.rtcClient.publishLocalStreamToPeer(peer.peerId);
+    this.rtcClient.publishTracks(peer.peerId);
     this.rtcClient.setRemoteDescription(msgIn.data.remotePeerId, msgIn.data.sdp);
   }
 

@@ -66,7 +66,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const resetCallState = useCallback(() => {
         console.log("Resetting call state");
         if (localStream) {
-            // webRTCService.stopLocalStream(); // Service handles this on endCall or disconnect
+            localStream.getTracks().forEach(t => {
+                t.stop();
+            })
         }
         setLocalStream(null);
         setRemoteStreams(new Map());
@@ -173,11 +175,20 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIncomingCall({ participantId, displayName });
         };
 
-        // This handles when *your* call request is accepted by the callee
         webRTCService.onCallConnected = () => {
             console.log(`CallContext: Call accepted`);
-            setCallingContact(null); // Clear the "calling..." popup
+            setCallingContact(null);
             setIsCallActive(true);
+            // Add self to participants immediately
+            let newParticipants = [...participants];
+            newParticipants.push({
+                displayName: auth.currentUser.displayName,
+                id: auth.currentUser.id,
+                isMuted: !localStream.getAudioTracks()[0]?.enabled,
+                isVideoOff: !localStream.getVideoTracks()[0]?.enabled,
+                stream: localStream
+            });
+            setParticipants(newParticipants);
         };
 
         webRTCService.onCallEnded = (reason: string) => {
@@ -213,7 +224,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return () => { // Cleanup
             webRTCService.dispose();
         }
-    }, [auth.currentUser, participants, isCallActive, resetCallState]);
+    }, [auth.currentUser, participants, isCallActive, localStream, resetCallState]);
 
     useEffect(() => {
         if (auth?.isAuthenticated && auth.currentUser) {
@@ -226,17 +237,14 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         let stream = localStream;
         if (!stream) {
             // selectedDevices.audioInId, selectedDevices.videoId
-            stream = await webRTCService.getUserMedia();
+
+            const constraints = {
+                audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
+                video: selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true
+            };
+
+            stream = await webRTCService.getUserMedia(constraints);
             setLocalStream(stream);
-            if (auth?.currentUser && stream) {
-                // Add self to participants list if not already there
-                setParticipants(prev => {
-                    if (!prev.find(p => p.id === auth.currentUser!.id)) {
-                        return [...prev, { ...auth.currentUser!, stream, isMuted: !stream.getAudioTracks()[0]?.enabled, isVideoOff: !stream.getVideoTracks()[0]?.enabled }];
-                    }
-                    return prev.map(p => p.id === auth.currentUser!.id ? { ...p, stream, isMuted: !stream.getAudioTracks()[0]?.enabled, isVideoOff: !stream.getVideoTracks()[0]?.enabled } : p);
-                });
-            }
         }
         return stream;
     };
@@ -252,10 +260,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (!stream) throw new Error("Local stream not available");
 
             setCallingContact(contactToCall);
-            setIsCallActive(false); // Not fully active until accepted           
-
-            // Add self to participants immediately
-            setParticipants([{ ...auth.currentUser, stream, isMuted: !stream.getAudioTracks()[0]?.enabled, isVideoOff: !stream.getVideoTracks()[0]?.enabled }]);
+            setIsCallActive(false); // Not fully active until accepted
 
             await webRTCService.initiateCall(contactToCall.participantId);
             console.log(`Call initiated to ${contactToCall.displayName}`);
@@ -372,7 +377,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const switchDevice = async (type: 'video' | 'audioIn' | 'audioOut', deviceId: string) => {
-        setSelectedDevices(prev => ({ ...prev, [`${type === 'video' ? 'video' : type}Id`]: deviceId }));
         if (type === 'audioOut') {
             // For video elements: videoEl.setSinkId(deviceId)
             // This needs to be applied to all <video> elements displaying remote/local streams.
@@ -381,16 +385,49 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return;
         }
 
-        // Get new stream with selected devices
-        let config = {};
+        //detect a change
+        let updateAudio = false;
+        let updateVideo = false;
+        if (type === "video") {
+            if (selectedDevices.videoId !== deviceId) {
+                //video has changed
+                updateVideo = true;
+            }
+        }
+
+        if (type === "audioIn") {
+            if (selectedDevices.audioInId !== deviceId) {
+                //video has changed
+                updateAudio = true;
+            }
+        }
+
+        setSelectedDevices(prev => ({ ...prev, [`${type === 'video' ? 'video' : type}Id`]: deviceId }));
+
+        if (webRTCService.isOnCall()) {
+
+            const constraints = {
+                audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
+                video: selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true
+            };
+
+            let newstream = await webRTCService.getNewStream(constraints);
+            console.log(newstream);
+
+            webRTCService.replaceStream(newstream);
+
+        }
+
+        // Get new stream with selected devices       
         // type === 'audioIn' ? deviceId : selectedDevices.audioInId,
         //   type === 'video' ? deviceId : selectedDevices.videoId
-        const newStream = await webRTCService.getUserMedia(config);
-        setLocalStream(newStream); // Update local stream in context
+        //const newStream = await webRTCService.getUserMedia();
+        //setLocalStream(newStream); // Update local stream in context
 
         // Update tracks in existing peer connections
-        const audioTrack = newStream.getAudioTracks()[0];
-        const videoTrack = newStream.getVideoTracks()[0];
+        //const audioTrack = newStream.getAudioTracks()[0];
+        //const videoTrack = newStream.getVideoTracks()[0];
+
 
         // webRTCService.getPeerConnectionsState().forEach(pc => {
         //     pc.getSenders().forEach(sender => {

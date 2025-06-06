@@ -17,15 +17,63 @@ export class Participant {
     conferenceRoom?: ConferenceRoom = undefined; //reference to a conf room
 }
 
+type conferenceStatus = "none" | "initializing" | "ready" | "closed";
 export class ConferenceRoom {
     id: string;
     roomURI: string;
     roomId: string;
     roomToken: string;
     participants: Map<string, Participant> = new Map();
+    status: conferenceStatus = "none";
+
+    onReadyListeners: (() => void)[] = [];
+    onClose: (conf: ConferenceRoom) => void;
+
+    addOnReadyListener(cb: () => void) {
+        if (this.status == "ready") {
+            cb();
+            return;
+        }
+        this.onReadyListeners.push(cb);
+    }
+
+    removeOnReadyListener(callback: () => void): void {
+        this.onReadyListeners = this.onReadyListeners.filter(listener => listener !== callback);
+    }
+
+    updateStatus(status: conferenceStatus) {
+        if (status == "ready") {
+            for (let cb of this.onReadyListeners) {
+                cb();
+            }
+            this.onReadyListeners = [];
+        }
+    }
 
     removeParticipant(id: string) {
         this.participants.delete(id);
+        if (this.participants.size == 0) {
+            this.close();
+        }
+    }
+
+    addParticipant(part: Participant) {
+        if (this.participants.has(part.participantId)) {
+            return;
+        }
+
+        this.participants.set(part.participantId, part);
+        part.conferenceRoom = this;
+    }
+
+    close() {
+        console.log(`conference close. ${this.id}`);
+
+        this.participants.clear();
+        this.onReadyListeners = [];
+        if (this.onClose) {
+            this.onClose(this);
+        }
     }
 
 }

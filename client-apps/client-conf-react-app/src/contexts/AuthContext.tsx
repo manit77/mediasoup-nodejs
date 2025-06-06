@@ -21,7 +21,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         console.log("** AuthProvider created");
 
-        // Check for existing session on load (e.g., from localStorage)
+        //Check for existing session on load (e.g., from localStorage)
         const storedUser = localStorage.getItem('user');
         const token = localStorage.getItem('authToken');
         if (storedUser && token) {

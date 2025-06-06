@@ -53,6 +53,7 @@ export class WebSocketClient {
 
         // Handle incoming messages
         this.socket.onmessage = async (event) => {
+            this.writeLog("event", event.data);
             await this.fireEvent("onmessage", event);
         };
     }

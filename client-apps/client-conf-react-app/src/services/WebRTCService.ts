@@ -119,11 +119,22 @@ class WebRTCService {
         };
     }
 
-
     public async getUserMedia(constraints?: MediaStreamConstraints): Promise<MediaStream> {
         this.localStream = await getUserMedia(constraints);
-        this.confClient.localStream = this.localStream;
+        this.confClient.setLocalStream(this.localStream);
         return this.localStream;
+    }
+
+    public async getNewStream(constraints?: MediaStreamConstraints): Promise<MediaStream> {
+        return await getUserMedia(constraints);
+    }
+
+    public async replaceStream(stream: MediaStream) {
+        this.confClient.setLocalStream(stream);
+    }
+
+    public isOnCall() {
+        return this.confClient && this.confClient.isInConference();
     }
 
     public async initiateCall(participantId: string): Promise<void> {
@@ -142,11 +153,12 @@ class WebRTCService {
 
     public endCall(): void {
         console.log("** endCall()");
-        this.confClient.leave();
         if (this.inviteMsg) {
             this.confClient.inviteCancel(this.inviteMsg);
             this.inviteMsg = null;
         }
+
+        this.confClient.leave();
     }
 
     public toggleAudioMute(): boolean {
@@ -202,6 +214,7 @@ class WebRTCService {
         console.log("eventInviteResult", msg);
         if (msg.data.error) {
             this.onCallEnded(msg.data.error);
+            this.inviteMsg = null;
             return;
         }
 
@@ -213,26 +226,31 @@ class WebRTCService {
     private eventInviteCancelled(msg: any) {
         console.log("eventInviteCancelled", msg);
         this.onCallEnded("call cancelled");
+        this.inviteMsg = null;
     }
 
     private eventRejectReceived(msg: any) {
         console.log("eventRejectReceived", msg);
         this.onCallEnded("call rejected");
+        this.inviteMsg = null;
     }
 
     private eventConferenceReady(msg: any) {
         console.log("eventConferenceReady", msg);
         this.onCallConnected();
+        this.inviteMsg = null;
     }
 
     private eventConferenceFailed(msg: any) {
         console.log("eventConferenceFailed", msg);
         this.onCallEnded("system error");
+        this.inviteMsg = null;
     }
 
     private eventConferenceClosed(msg: any) {
         console.log("eventConferenceClosed", msg);
         this.onCallEnded("call ended.");
+        this.inviteMsg = null;
     }
 
     private eventParticipantJoined(msg: any) {

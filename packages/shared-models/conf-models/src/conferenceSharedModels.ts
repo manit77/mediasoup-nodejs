@@ -109,6 +109,7 @@ export class InviteResultMsg {
     type = CallMessageType.inviteResult;
     data: {
         conferenceRoomId?: string,
+        participantId?: string,
         error?: string
     } = {
         }
