@@ -241,15 +241,16 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [auth?.isAuthenticated, auth.currentUser, setupWebRTCEvents]);
 
 
-    const getSetLocalStream = async () => {
-        let stream: MediaStream;
-
+    const getMediaContraints = () => {
         const constraints = {
             audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
             video: selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true
         };
-
-        stream = await webRTCService.getUserMedia(constraints);
+        return constraints;
+    }
+    const getSetLocalStream = async () => {
+        let stream: MediaStream;
+        stream = await webRTCService.getUserMedia(getMediaContraints());
         setLocalStream(stream);
 
         return stream;
@@ -258,14 +259,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const ensureLocalStream = async () => {
         let stream = localStream;
         if (!stream) {
-            // selectedDevices.audioInId, selectedDevices.videoId
-
-            const constraints = {
-                audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
-                video: selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true
-            };
-
-            stream = await webRTCService.getUserMedia(constraints);
+            stream = await webRTCService.getUserMedia(getMediaContraints());
             setLocalStream(stream);
         }
         return stream;
@@ -371,29 +365,79 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return isNowEnabled;
     };
 
+
     const startScreenShare = async () => {
-        if (!localStream) return;
-        if (!originalVideoTrack && localStream.getVideoTracks().length > 0) {
-            setOriginalVideoTrack(localStream.getVideoTracks()[0]);
+        console.log(`startScreenShare`);
+
+        if (!localStream) {
+            console.log(`no local stream initiated`)
+            return;
         }
+
+        let cameraTrack = localStream.getVideoTracks()[0];
+
+        // cameraTrack.addEventListener("ended", () => {
+        //     console.log(`*** camera track ended.`);
+        // });
+
+        // console.log(`before camera track stopped ${cameraTrack.readyState}.`);
+        // setTimeout(() => {
+        //     cameraTrack.stop();
+        //     console.log(`camera track stopped ${cameraTrack.readyState}.`);
+        // }, 1000);
+        // console.log(`camera track stopped ${cameraTrack.readyState}.`);
+
+        setOriginalVideoTrack(cameraTrack);
+        console.log(`setOriginalVideoTrack ${cameraTrack.id}`);
+
         const screenStream = await webRTCService.startScreenShare();
         if (screenStream) {
             setIsScreenSharing(true);
-            // Optionally update localStream to show screen share locally,
-            // but the service handles track replacement for peers.
+
+            if (cameraTrack) {
+                localStream.removeTrack(cameraTrack);
+                console.log(`cameraTrack track removed`);
+            }
+
+            let screenTrack = screenStream.getVideoTracks()[0];
+            localStream.addTrack(screenTrack);
+            console.log(`screen track added to localStream`);
+
+            let newStream = new MediaStream(localStream.getTracks());
+            setLocalStream(newStream);
+
+            console.log(`new stream set with ${newStream.getTracks().length}`);
+            newStream.getTracks().forEach(t => console.log(`${t.id} ${t.kind}`));
         }
     };
 
-    const stopScreenShare = () => {
-        if (originalVideoTrack) {
-            webRTCService.stopScreenShare(originalVideoTrack);
-            // Restore original video track to local stream for local preview consistency if needed
-            // const newStream = new MediaStream();
-            // localStream?.getAudioTracks().forEach(t => newStream.addTrack(t));
-            // newStream.addTrack(originalVideoTrack);
-            // setLocalStream(newStream);
-            // setParticipants(prev => prev.map(p => p.id === auth?.currentUser?.id ? {...p, stream: newStream} : p));
+    const stopScreenShare = async () => {
+        console.log(`stopScreenShare`);
+
+        let cameraTrack = originalVideoTrack;
+
+        if (cameraTrack) {
+            console.log(`onended handler set: ${originalVideoTrack.readyState}`, originalVideoTrack.onended);
         }
+
+        if (!cameraTrack || cameraTrack.readyState === "ended") {
+            console.log(`getting new camera track the old camera track ended, cameraTrack readyState:${cameraTrack.readyState} `);
+            cameraTrack = (await webRTCService.getUserMedia(getMediaContraints())).getVideoTracks()[0];
+        }
+
+        if (cameraTrack) {
+            console.log(`add cameraTrack: ${cameraTrack.readyState} ${cameraTrack.kind} ${cameraTrack.id}`);
+
+            webRTCService.replaceStream(new MediaStream([cameraTrack]));
+
+            let screenTrack = localStream.getVideoTracks()[0];
+            if (screenTrack) {
+                localStream.removeTrack(screenTrack);
+            }
+            localStream.addTrack(cameraTrack);
+        }
+
+
         setIsScreenSharing(false);
         setOriginalVideoTrack(null);
     };

@@ -121,7 +121,9 @@ class WebRTCService {
 
     public async getUserMedia(constraints?: MediaStreamConstraints): Promise<MediaStream> {
         this.localStream = await getUserMedia(constraints);
-        this.confClient.setLocalStream(this.localStream);
+        if (this.confClient) {
+            this.confClient.setLocalStream(this.localStream);
+        }
         return this.localStream;
     }
 
@@ -136,14 +138,22 @@ class WebRTCService {
             console.log("client not ready");
             return;
         }
+
+        if (!this.localStream) {
+            console.log("no localStream");
+            return;
+        }
         let existingTracks = this.confClient.getLocalStream().getTracks();
 
         //remove all tracks by kind: video, and audio
         let tracksToRemove = new MediaStream();
         newStream.getTracks().forEach(newTrack => {
             let existingTrack = existingTracks.find(t => t.kind === newTrack.kind);
-            tracksToRemove.addTrack(existingTrack);
+            if (existingTrack) {
+                tracksToRemove.addTrack(existingTrack);
+            }
         });
+
         this.confClient.removeTracks(tracksToRemove);
 
         this.confClient.setLocalStream(newStream);
@@ -187,11 +197,16 @@ class WebRTCService {
     }
 
     public async startScreenShare(): Promise<MediaStream | null> {
-        return null;
+        if (!this.confClient) {
+            console.error(`conference not started`);
+            return;
+        }
+
+        return await this.confClient.startScreenShare();
     }
 
-    public stopScreenShare(cameraTrack: MediaStreamTrack | null): void {
-
+    public stopScreenShare(screenStream: MediaStream | null): void {
+        this.confClient.stopScreenShare(screenStream);
     }
 
     public disconnectSignaling(): void {

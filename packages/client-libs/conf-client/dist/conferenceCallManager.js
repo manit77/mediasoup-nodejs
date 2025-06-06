@@ -79,6 +79,43 @@ export class ConferenceCallManager {
             this.roomsClient.removeLocalTracks(stream);
         }
     }
+    async startScreenShare() {
+        console.log(`startScreenShare`);
+        if (!this.roomsClient) {
+            return;
+        }
+        try {
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({
+                video: true,
+                audio: false
+            });
+            let videoTrack = screenStream.getVideoTracks()[0];
+            videoTrack.onended = () => {
+                this.stopScreenShare(screenStream);
+            };
+            console.log(`screen videoTrack created ${videoTrack.kind} ${videoTrack.id}`);
+            let existingTrack = this.roomsClient.findTrack("video");
+            if (existingTrack) {
+                //replace the videoTrack with screen track
+                console.log(`existingTrack found ${existingTrack.kind} ${existingTrack.id}`);
+                this.roomsClient.replaceTrack(existingTrack, videoTrack);
+            }
+            else {
+                this.roomsClient.addLocalTracks(new MediaStream([videoTrack]));
+            }
+            return screenStream;
+        }
+        catch (error) {
+            console.error('Error starting screen share:', error);
+            return null;
+        }
+    }
+    async stopScreenShare(screenStream) {
+        let videoTrack = screenStream.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.stop();
+        }
+    }
     connect(autoReconnect, conf_wsURIOverride = "") {
         if (this.socket) {
             this.writeLog("already connecting.");
