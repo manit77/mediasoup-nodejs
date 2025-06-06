@@ -501,7 +501,7 @@ export class RoomsClient {
         }
 
       } else {
-        this.writeLog('No transportSend');
+        this.writeError('No transportSend');
       }
     } else {
       // P2P mode
@@ -520,7 +520,7 @@ export class RoomsClient {
               tracksAdded = true;
               this.writeLog(`Added track ${track.kind} to peer ${peer.peerId}`);
             } catch (error) {
-              this.writeLog(`Failed to add track ${track.kind} to peer ${peer.peerId}: ${error.message}`);
+              this.writeError(`Failed to add track ${track.kind} to peer ${peer.peerId}: ${error.message}`);
               continue;
             }
           }
@@ -534,11 +534,11 @@ export class RoomsClient {
               this.writeLog(`Sent offer for tracks to peer ${peer.peerId}`);
             }
           } else {
-            this.writeLog(`no tracks added to peer ${peer.peerId}`);
+            this.writeError(`no tracks added to peer ${peer.peerId}`);
           }
 
         } else {
-          this.writeLog(`No RTCPeerConnection for peer ${peer.peerId}`);
+          this.writeError(`No RTCPeerConnection for peer ${peer.peerId}`);
         }
       }
     }
@@ -546,6 +546,7 @@ export class RoomsClient {
   };
 
   removeLocalTracks = async (tracks: MediaStream) => {
+    console.log(`removeLocalTracks`);
 
     let localTracks = this.localPeer.tracks.getTracks();
     tracks.getTracks().forEach(track => {
@@ -553,9 +554,9 @@ export class RoomsClient {
       let existingTrack = localTracks.find(t => t.id === track.id)
       if (existingTrack) {
         this.localPeer.tracks.removeTrack(existingTrack);
+        console.log(`existing track removed ${existingTrack.kind}`);
       }
     });
-
 
     if (this.localPeer.roomType == "sfu") {
 

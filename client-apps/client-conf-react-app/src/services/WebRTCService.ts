@@ -129,8 +129,24 @@ class WebRTCService {
         return await getUserMedia(constraints);
     }
 
-    public async replaceStream(stream: MediaStream) {
-        this.confClient.setLocalStream(stream);
+    public async replaceStream(newStream: MediaStream) {
+        console.log(`replaceStream`);
+
+        if (!this.confClient) {
+            console.log("client not ready");
+            return;
+        }
+        let existingTracks = this.confClient.getLocalStream().getTracks();
+
+        //remove all tracks by kind: video, and audio
+        let tracksToRemove = new MediaStream();
+        newStream.getTracks().forEach(newTrack => {
+            let existingTrack = existingTracks.find(t => t.kind === newTrack.kind);
+            tracksToRemove.addTrack(existingTrack);
+        });
+        this.confClient.removeTracks(tracksToRemove);
+
+        this.confClient.setLocalStream(newStream);
     }
 
     public isOnCall() {

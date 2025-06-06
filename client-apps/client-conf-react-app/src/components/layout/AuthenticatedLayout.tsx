@@ -2,8 +2,24 @@ import React, { useState } from 'react';
 import TopMenu from './TopMenu';
 import ContactsPane from './ContactsPane';
 import SettingsPopup from '../popups/SettingsPopup';
+import MainVideo from '../call/MainVideo';
+import { useCall } from '../../hooks/useCall';
+import { Button } from 'react-bootstrap';
 const AuthenticatedLayout: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
+    const { localStream, getSetLocalStream, setLocalStream } = useCall();
+
+    const previewClick = () => {
+        if (localStream) {
+            setLocalStream(null);
+        } else {
+            getSetLocalStream();
+        }
+    }
+
+    const showDeviceSettingsClick = () => {
+        setShowSettings(true);
+    }
 
     return (
         <div className="d-flex flex-column vh-100">
@@ -13,8 +29,12 @@ const AuthenticatedLayout: React.FC = () => {
                     <ContactsPane />
                 </div>
                 <div className="col-9 p-3" style={{ overflowY: 'auto' }}>
-                    {/* Main content area for when not in a call, e.g., chat, user profile, etc. */}
-                    <p>Welcome! Select a contact to call.</p>
+                    <Button variant="primary" onClick={showDeviceSettingsClick}>Device Settings</Button> <Button variant="secondary" onClick={previewClick}>
+                        {
+                            localStream == null ? "Preview Video" : "Stop Preview"
+                        }
+                    </Button>
+                    <MainVideo stream={localStream} />
                 </div>
             </div>
             <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />

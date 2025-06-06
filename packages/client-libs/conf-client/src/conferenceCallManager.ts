@@ -81,8 +81,18 @@ export class ConferenceCallManager {
         console.log(this.DSTR, ...params);
     }
 
+    writeError(...params: any) {
+        console.error(this.DSTR, ...params);
+    }
+
     setLocalStream(stream: MediaStream) {
-        if (this.localStream) {
+        console.log(`setLocalStream`);
+
+        if (!stream) {
+            console.error("stream is required.");
+        }
+
+        if (this.localStream && this.roomsClient) {
             //swap out the tracks
             //remove any local tracks
             this.roomsClient.removeLocalTracks(this.localStream);
@@ -92,6 +102,16 @@ export class ConferenceCallManager {
         }
 
         this.localStream = stream;
+    }
+
+    getLocalStream() {
+        return this.localStream;
+    }
+
+    removeTracks(stream: MediaStream) {
+        if (this.roomsClient) {
+            this.roomsClient.removeLocalTracks(stream);
+        }
     }
 
     connect(autoReconnect: boolean, conf_wsURIOverride: string = "") {
@@ -364,7 +384,7 @@ export class ConferenceCallManager {
 
         this.onEvent(EventTypes.conferenceReady, message);
         if (this.conferenceRoom.conferenceRoomId != message.data.conferenceRoomId) {
-            this.writeLog("onConferenceReady() - conferenceRoomId does not match");
+            this.writeError(`onConferenceReady() - conferenceRoomId does not match ${this.conferenceRoom.conferenceRoomId} ${message.data.conferenceRoomId}`);
             return;
         }
 
@@ -374,22 +394,22 @@ export class ConferenceCallManager {
         this.conferenceRoom.roomAuthToken = message.data.authToken;
 
         if (!this.conferenceRoom.roomId) {
-            this.writeLog("ERORR: no roomId");
+            this.writeError("ERORR: no roomId");
             return;
         }
 
         if (!this.conferenceRoom.roomToken) {
-            this.writeLog("ERORR: no roomToken");
+            this.writeError("ERORR: no roomToken");
             return;
         }
 
         if (!this.conferenceRoom.roomURI) {
-            this.writeLog("ERORR: no roomURI");
+            this.writeError("ERORR: no roomURI");
             return;
         }
 
         if (!this.conferenceRoom.roomAuthToken) {
-            this.writeLog("ERORR: no roomAuthToken");
+            this.writeError("ERORR: no roomAuthToken");
             return;
         }
 

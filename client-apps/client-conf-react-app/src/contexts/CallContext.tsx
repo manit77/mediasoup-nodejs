@@ -31,6 +31,7 @@ interface CallContextType {
     setSelectedDevices: React.Dispatch<React.SetStateAction<{ videoId?: string; audioInId?: string; audioOutId?: string }>>;
     isScreenSharing: boolean;
 
+    getSetLocalStream: () => void;
     initiateCall: (contact: Contact) => Promise<void>;
     acceptCall: () => Promise<void>;
     declineCall: (isIncomingDecline?: boolean) => void;
@@ -43,6 +44,7 @@ interface CallContextType {
     stopScreenShare: () => void;
     updateMediaDevices: () => Promise<void>;
     switchDevice: (type: 'video' | 'audioIn' | 'audioOut', deviceId: string) => Promise<void>;
+    switchDevices: (videoId: string, audioId: string, audioOutId: string) => Promise<void>;
 }
 
 export const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -142,9 +144,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
         };
 
-        webRTCService.onParticipantTrack = (userId, track) => {
+        webRTCService.onParticipantTrack = (participantId, track) => {
+            console.log('CallContext: onParticipantTrack');
 
-            if (!userId) {
+            if (!participantId) {
                 console.error("CallContext: no userid");
             }
 
@@ -152,13 +155,17 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 console.error("CallContext: no track");
             }
 
-            console.log(`CallContext: Remote stream added for ${userId}`);
+            console.log(`CallContext: Remote stream added for ${participantId}`);
             //setRemoteStreams(prev => new Map(prev).set(userId, track));
             // Participant should be added when 'user-joined-room' or call is established
             // Here, we update the stream for an existing participant
             setParticipants(prev => {
                 return prev.map(p => {
-                    if (p.id == userId) {
+                    if (p.id === participantId) {
+                        let existingTrack = p.stream.getTracks().find(t => t.kind === track.kind);
+                        if (existingTrack) {
+                            p.stream.removeTrack(existingTrack);
+                        }
                         p.stream.addTrack(track);
                     }
                     return p;
@@ -167,8 +174,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         webRTCService.onIncomingCall = (participantId: string, displayName: string) => {
-            console.log(`CallContext: Incoming call from ${displayName}`);
-            if (isCallActive) { // Auto-decline if already in a call
+            console.log(`CallContext: Incoming call from ${displayName} ${participantId}`);
+            // Auto-decline if already in a call
+            if (isCallActive) {
                 webRTCService.declineCall();
                 return;
             }
@@ -232,6 +240,20 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [auth?.isAuthenticated, auth.currentUser, setupWebRTCEvents]);
 
+
+    const getSetLocalStream = async () => {
+        let stream: MediaStream;
+
+        const constraints = {
+            audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
+            video: selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true
+        };
+
+        stream = await webRTCService.getUserMedia(constraints);
+        setLocalStream(stream);
+
+        return stream;
+    };
 
     const ensureLocalStream = async () => {
         let stream = localStream;
@@ -376,6 +398,38 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setOriginalVideoTrack(null);
     };
 
+    const switchDevices = async (videoId: string, audioId: string, speakerId: string) => {
+        console.log(`switchDevices videoId:${videoId}, audioId:${audioId}, speakerId:${speakerId}`);
+
+        //set selected devices
+        if (selectedDevices.videoId !== videoId) {
+            selectedDevices.videoId = videoId ?? selectedDevices.videoId;
+        }
+
+        if (selectedDevices.audioInId !== audioId) {
+            selectedDevices.audioInId = audioId ?? selectedDevices.audioInId;
+        }
+
+        if (selectedDevices.audioOutId !== speakerId) {
+            selectedDevices.audioOutId = speakerId ?? selectedDevices.audioOutId;
+        }
+
+        const constraints = {
+            audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
+            video: selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true
+        };
+
+        //get new stream based on devices
+        let newstream = await webRTCService.getNewStream(constraints);
+
+        //replace the stream
+        await webRTCService.replaceStream(newstream);
+
+        //update the local stream
+        setLocalStream(newstream);
+
+    };
+
     const switchDevice = async (type: 'video' | 'audioIn' | 'audioOut', deviceId: string) => {
         if (type === 'audioOut') {
             // For video elements: videoEl.setSinkId(deviceId)
@@ -451,11 +505,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         <CallContext.Provider value={{
             localParticipantId,
             contacts, setContacts,
+            getSetLocalStream,
             localStream, setLocalStream, remoteStreams, participants, setParticipants, isCallActive,
             incomingCall, setIncomingCall, callingContact, setCallingContact,
             availableDevices, selectedDevices, setSelectedDevices, isScreenSharing,
             initiateCall, acceptCall, declineCall, cancelOutgoingCall, endCurrentCall, inviteToOngoingCall,
-            toggleMuteAudio, toggleMuteVideo, startScreenShare, stopScreenShare, updateMediaDevices, switchDevice
+            toggleMuteAudio, toggleMuteVideo, startScreenShare, stopScreenShare, updateMediaDevices,
+            switchDevice, switchDevices
         }}>
             {children}
         </CallContext.Provider>

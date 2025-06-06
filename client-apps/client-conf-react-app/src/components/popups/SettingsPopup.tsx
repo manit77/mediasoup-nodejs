@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, Button, Form, ListGroup, Tab, Row, Col, Nav } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall'; // Assuming settings are also relevant during a call
 
@@ -7,27 +7,44 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         availableDevices,
         selectedDevices,
         updateMediaDevices,
-        switchDevice,
+        switchDevices,
         startScreenShare, // For screen selection part
     } = useCall();
+
+    const [audioId, setaudioId] = useState("true");
+    const [videoId, setvideoId] = useState("true");
+    const [speakerId, setspeakerId] = useState("true");
+
 
     useEffect(() => {
         if (show) {
             updateMediaDevices();
+
+            setaudioId(selectedDevices.audioInId);
+            setvideoId(selectedDevices.videoId);
+            setspeakerId(selectedDevices.audioOutId);
+
         }
     }, [show, updateMediaDevices]);
 
     const handleDeviceChange = (type: 'video' | 'audioIn' | 'audioOut', deviceId: string) => {
-        switchDevice(type, deviceId);
+        if (type === "video") {
+            setvideoId(deviceId);
+        } else if (type === "audioIn") {
+            setaudioId(deviceId);
+        } else {
+            setspeakerId(deviceId);
+        }
     };
 
     const handleScreenShareSelect = async () => {
-        // The actual screen selection happens via browser's picker
         await startScreenShare();
-        // No need to list screens here as getDisplayMedia handles it
-        // This section could be simplified or used to confirm action
-        alert("Screen sharing initiated. Use browser prompt to select screen.");
-        handleClose(); // Close settings after initiating
+        handleClose();
+    };
+
+    const closeButtonClick = async () => {
+        switchDevices(videoId, audioId, speakerId);
+        handleClose();
     };
 
 
@@ -56,7 +73,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                     {availableDevices.video.length > 0 ? (
                                         <Form.Select
                                             aria-label="Select Camera"
-                                            value={selectedDevices.videoId || ''}
+                                            value={videoId || ''}
                                             onChange={(e) => handleDeviceChange('video', e.target.value)}
                                             className="mb-3"
                                         >
@@ -70,7 +87,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                     {availableDevices.audioIn.length > 0 ? (
                                         <Form.Select
                                             aria-label="Select Microphone"
-                                            value={selectedDevices.audioInId || ''}
+                                            value={audioId || ''}
                                             onChange={(e) => handleDeviceChange('audioIn', e.target.value)}
                                             className="mb-3"
                                         >
@@ -84,7 +101,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                     {availableDevices.audioOut.length > 0 ? (
                                         <Form.Select
                                             aria-label="Select Speaker"
-                                            value={selectedDevices.audioOutId || ''}
+                                            value={speakerId || ''}
                                             onChange={(e) => handleDeviceChange('audioOut', e.target.value)}
                                             className="mb-3"
                                         >
@@ -95,21 +112,20 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                         </Form.Select>
                                     ) : <p>No speakers found. (Note: Speaker selection support varies by browser)</p>}
                                 </Tab.Pane>
-
-                                <Tab.Pane eventKey="screenShare">
+                                {/* <Tab.Pane eventKey="screenShare">
                                     <h5>Select Screen to Share</h5>
                                     <p>When you click "Start Screen Sharing", your browser will prompt you to choose which screen, window, or tab to share.</p>
                                     <Button variant="primary" onClick={handleScreenShareSelect}>
                                         Start Screen Sharing
                                     </Button>
-                                </Tab.Pane>
+                                </Tab.Pane> */}
                             </Tab.Content>
                         </Col>
                     </Row>
                 </Tab.Container>
             </Modal.Body>
             <Modal.Footer>
-                <Button variant="secondary" onClick={handleClose}>
+                <Button variant="secondary" onClick={closeButtonClick}>
                     Close
                 </Button>
             </Modal.Footer>
