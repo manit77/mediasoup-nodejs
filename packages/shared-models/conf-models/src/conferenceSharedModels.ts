@@ -158,6 +158,7 @@ export class ConferenceReadyMsg {
         authToken: "",
         roomId: "",
         roomToken: "",
-        roomURI: ""
+        roomURI: "",
+        roomRtpCapabilities: undefined,
     }
 }

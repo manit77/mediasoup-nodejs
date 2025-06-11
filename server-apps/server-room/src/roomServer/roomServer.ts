@@ -338,7 +338,8 @@ export class RoomServer {
                 ],
             });
 
-            room.router = router;
+            room.roomRouter = router;
+            room.roomRtpCapabilities = router.rtpCapabilities;
         }
 
         room.onClosedEvent = (r, peers) => {
@@ -657,7 +658,7 @@ export class RoomServer {
     }
 
     /**
-     * app requests a room to be created, a peerId is not required
+     * app requests a room to be created
      * @param msgIn 
      * @returns 
      */
@@ -677,11 +678,12 @@ export class RoomServer {
             return errorMsg;
         }
 
-        let roomNewResultMsg = new RoomNewResultMsg();
-        roomNewResultMsg.data.roomId = room.id;
-        roomNewResultMsg.data.roomToken = room.roomToken;
+        let msg = new RoomNewResultMsg();
+        msg.data.roomId = room.id;
+        msg.data.roomToken = room.roomToken;
+        msg.data.roomRtpCapabilities = room.roomRtpCapabilities;
 
-        return roomNewResultMsg;
+        return msg;
     }
 
     roomTerminate(room: Room) {
@@ -803,7 +805,6 @@ export class RoomServer {
 
         let joinRoomResult = new RoomJoinResultMsg();
         joinRoomResult.data.roomId = room.id;
-        joinRoomResult.data.rtpCapabilities = room.config.roomType == "sfu" ? room.router.rtpCapabilities : undefined;
         joinRoomResult.data.roomType = room.config.roomType;
 
         let otherPeers = room.otherPeers(peer.id);

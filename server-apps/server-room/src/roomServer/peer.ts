@@ -34,12 +34,12 @@ export class Peer {
             return true;
         }
 
-        if (!this.room.router) {
+        if (!this.room.roomRouter) {
             console.log(`no room router.`);
             return true;
         }
 
-        this.producerTransport = await roomUtils.createTransport(this.room.router);
+        this.producerTransport = await roomUtils.createTransport(this.room.roomRouter);
 
         this.producerTransport.on('@close', () => {
             console.log(`Producer transport closed for peer ${this.id}`);
@@ -67,12 +67,12 @@ export class Peer {
             return true;
         }
 
-        if (!this.room.router) {
+        if (!this.room.roomRouter) {
             console.log(`no room router.`);
             return true;
         }
 
-        this.consumerTransport = await roomUtils.createTransport(this.room.router);
+        this.consumerTransport = await roomUtils.createTransport(this.room.roomRouter);
 
         // Consumer transport events
         this.consumerTransport.on('@close', () => {

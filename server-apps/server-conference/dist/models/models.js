@@ -13,9 +13,49 @@ export class ConferenceRoom {
     roomURI;
     roomId;
     roomToken;
+    roomRtpCapabilities;
     participants = new Map();
+    status = "none";
+    onReadyListeners = [];
+    onClose;
+    addOnReadyListener(cb) {
+        if (this.status == "ready") {
+            cb();
+            return;
+        }
+        this.onReadyListeners.push(cb);
+    }
+    removeOnReadyListener(callback) {
+        this.onReadyListeners = this.onReadyListeners.filter(listener => listener !== callback);
+    }
+    updateStatus(status) {
+        if (status == "ready") {
+            for (let cb of this.onReadyListeners) {
+                cb();
+            }
+            this.onReadyListeners = [];
+        }
+    }
     removeParticipant(id) {
         this.participants.delete(id);
+        if (this.participants.size == 0) {
+            this.close();
+        }
+    }
+    addParticipant(part) {
+        if (this.participants.has(part.participantId)) {
+            return;
+        }
+        this.participants.set(part.participantId, part);
+        part.conferenceRoom = this;
+    }
+    close() {
+        console.log(`conference close. ${this.id}`);
+        this.participants.clear();
+        this.onReadyListeners = [];
+        if (this.onClose) {
+            this.onClose(this);
+        }
     }
 }
 //# sourceMappingURL=models.js.map

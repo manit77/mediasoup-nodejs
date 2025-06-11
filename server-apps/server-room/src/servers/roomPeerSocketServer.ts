@@ -158,6 +158,7 @@ export class RoomPeerSocketServer {
         console.log(DSTR, "onWebSocketClosed");
         let peerid = this.findPeerBySocket(ws);
         if (peerid) {
+            this.peers.delete(peerid);
             let msg = new TerminatePeerMsg();
             msg.data.peerId = peerid;
             this.roomServer.onTerminatePeer(peerid, msg);

@@ -390,7 +390,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setOriginalVideoTrack(cameraTrack);
         console.log(`setOriginalVideoTrack ${cameraTrack.id}`);
 
+        console.log(`before cameraTrack: readyState ${cameraTrack.readyState} ${cameraTrack.id}`);
         const screenStream = await webRTCService.startScreenShare();
+        console.log(`after cameraTrack: readyState ${cameraTrack.readyState} ${cameraTrack.id}`);
+
         if (screenStream) {
             setIsScreenSharing(true);
 
@@ -409,6 +412,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log(`new stream set with ${newStream.getTracks().length}`);
             newStream.getTracks().forEach(t => console.log(`${t.id} ${t.kind}`));
         }
+
+        console.log(`end of function cameraTrack: readyState ${cameraTrack.readyState} ${cameraTrack.id}`);
     };
 
     const stopScreenShare = async () => {
@@ -417,7 +422,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         let cameraTrack = originalVideoTrack;
 
         if (cameraTrack) {
-            console.log(`onended handler set: ${originalVideoTrack.readyState}`, originalVideoTrack.onended);
+            console.log(`cameraTrack: readyState ${cameraTrack.readyState} ${cameraTrack.id}`);
         }
 
         if (!cameraTrack || cameraTrack.readyState === "ended") {

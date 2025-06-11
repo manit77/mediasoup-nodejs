@@ -3,7 +3,8 @@ import {
     RoomNewMsg, AuthUserNewTokenMsg, AuthUserNewTokenResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg
     , RoomServerAPIRoutes, RoomTerminateMsg, RoomConfig,
     RoomLeaveMsg,
-    RoomLeaveResultMsg
+    RoomLeaveResultMsg,
+    RoomNewResultMsg
 } from "@rooms/rooms-models";
 import https from "https"
 
@@ -43,7 +44,7 @@ export class RoomsAPI {
         msgIn.data.trackingId = trackingId;
         msgIn.data.roomConfig = config;
 
-        return await this.post(RoomServerAPIRoutes.newRoom, msgIn) as RoomNewTokenResultMsg;
+        return await this.post(RoomServerAPIRoutes.newRoom, msgIn) as RoomNewResultMsg;
     }
 
     async leaveRoom(roomId: string, peerId: string) {

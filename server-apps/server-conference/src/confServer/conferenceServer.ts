@@ -470,6 +470,7 @@ export class ConferenceServer {
         msg.data.roomToken = conference.roomToken;
         msg.data.authToken = authUserTokenResult.data.authToken;
         msg.data.roomURI = conference.roomURI;
+        msg.data.roomRtpCapabilities = conference.roomRtpCapabilities;
 
         this.send(participant.socket, msg);
     }
@@ -514,6 +515,7 @@ export class ConferenceServer {
         conference.roomId = roomId;
         conference.roomToken = roomToken;
         conference.roomURI = roomURI;
+        conference.roomRtpCapabilities = roomNewResult.data.roomRtpCapabilities;
         conference.updateStatus("ready");
 
         return conference;

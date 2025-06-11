@@ -20,8 +20,9 @@ export class Room {
     timerIdMaxRoomDuration?: NodeJS.Timeout = null;
     timerIdNoParticipants?: NodeJS.Timeout = null;
 
-    router?: mediasoup.types.Router;
+    roomRouter?: mediasoup.types.Router;
     roomLogAdapter: RoomLogAdapter;
+    roomRtpCapabilities: mediasoup.types.RtpCapabilities;
     onClosedEvent: (room: Room, peers: Peer[], reason: string) => void;
     onPeerRemovedEvent: (room: Room, peers: Peer) => void;
 
@@ -191,8 +192,8 @@ export class Room {
             clearTimeout(this.timerIdMaxRoomDuration);
         }
 
-        this.router?.close();
-        this.router = null;
+        this.roomRouter?.close();
+        this.roomRouter = null;
 
         if (this.onClosedEvent) {
             this.onClosedEvent(this, peersCopy, reason);

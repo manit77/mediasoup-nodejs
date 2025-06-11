@@ -127,10 +127,12 @@ export class RoomsClient {
   onRoomPeerLeftEvent: (roomId: string, peer: Peer) => void;
   onRoomClosedEvent: (roomId: string, peers: Peer[]) => void;
 
-  init = async (uri: string) => {
+  init = async (websocketURI: string, rtpCapabilities?: any) => {
+
     console.log(DSTR, "init");
-    this.config.wsURI = uri;
-    this.initMediaSoupDevice();
+
+    this.config.wsURI = websocketURI;
+    await this.initMediaSoupDevice(rtpCapabilities);
 
     this.rtcClient = new WebRTCClient();
     this.rtcClient.onIceCandidate = this.rtc_SendIceCandidate;
@@ -740,8 +742,8 @@ export class RoomsClient {
     return !!this.localPeer.roomId;
   };
 
-  private initMediaSoupDevice = () => {
-    console.log(DSTR, "initMediaSoupDevice=");
+  private initMediaSoupDevice = async (rtpCapabilities?: any) => {
+    console.log(DSTR, "initMediaSoupDevice");
     if (this.device) {
       console.log(DSTR, "device already initialized");
       return;
@@ -751,6 +753,13 @@ export class RoomsClient {
       // In real implementation, this would use the actual mediasoup-client
       this.device = new mediasoupClient.Device();
       console.log(DSTR, "MediaSoup device initialized");
+      if (rtpCapabilities) {
+        console.log(rtpCapabilities);
+
+        await this.device.load({ routerRtpCapabilities: rtpCapabilities });
+        console.log(DSTR, "MediaSoup device loaded");
+      }
+
     } catch (error) {
       console.log(DSTR, `Error initializing MediaSoup: ${error.message}`);
     }
@@ -787,6 +796,9 @@ export class RoomsClient {
           break;
         case payloadTypeServer.roomNewTokenResult:
           this.onRoomNewTokenResult(msgIn);
+          break;
+        case payloadTypeServer.roomNewResult:
+          this.onRoomNewResult(msgIn);
           break;
         case payloadTypeServer.roomJoinResult:
           this.onRoomJoinResult(msgIn);
@@ -980,7 +992,24 @@ export class RoomsClient {
     this.localPeer.roomToken = msgIn.data.roomToken;
     console.log(DSTR, "room token set " + this.localPeer.roomToken, this.localPeer.roomId);
 
-  }
+  };
+
+  private onRoomNewResult = async (msgIn: RoomNewResultMsg) => {
+
+    console.log(DSTR, "-- onRoomNewResult()");
+
+    if (!msgIn.data.roomRtpCapabilities) {
+      console.log(DSTR, "ERROR: not  rtpCapabilities received.");
+      return;
+    }
+
+    if (!this.device.loaded) {
+      console.log(DSTR, "loading device with rtpCapabilities");
+      await this.device.load({ routerRtpCapabilities: msgIn.data.roomRtpCapabilities });
+      console.log(DSTR, "** device loaded ", this.device.loaded);
+    }
+
+  };
 
   private onRoomJoinResult = async (msgIn: RoomJoinResultMsg) => {
 
@@ -998,16 +1027,6 @@ export class RoomsClient {
 
 
     if (msgIn.data.roomType == "sfu") {
-      if (!msgIn.data.rtpCapabilities) {
-        console.log(DSTR, "ERROR: not  rtpCapabilities received.");
-        return;
-      }
-
-      if (!this.device.loaded) {
-        console.log(DSTR, "loading device with rtpCapabilities");
-        await this.device.load({ routerRtpCapabilities: msgIn.data.rtpCapabilities });
-        console.log(DSTR, "device loaded ", this.device.loaded);
-      }
 
       let transports = await this.sfu_waitForRoomTransports();
 
@@ -1391,6 +1410,8 @@ export class RoomsClient {
       console.error("invalid roomtype");
       return;
     }
+
+    console.log(`** device loaded: ${this.device.loaded}`)
 
     let msg = new ConsumeMsg();
     msg.data = {

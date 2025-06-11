@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navbar, Nav, Button, Container } from 'react-bootstrap';
-import { BoxArrowRight, GearFill, ShareFill, PersonPlusFill } from 'react-bootstrap-icons';
+import { BoxArrowRight, GearFill, ShareFill, PersonPlusFill, DisplayFill } from 'react-bootstrap-icons';
 import { useCall } from '../../hooks/useCall';
 import { useNavigate } from 'react-router-dom';
 
@@ -35,7 +35,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowInvite, onShowSettings 
                         <PersonPlusFill size={20} /> <span className="d-none d-md-inline">Invite</span>
                     </Button>
                     <Button variant={isScreenSharing ? "info" : "outline-light"} className="me-2" onClick={handleToggleScreenShare} title={isScreenSharing ? "Stop Sharing" : "Share Screen"}>
-                        <ShareFill size={20} /> <span className="d-none d-md-inline">{isScreenSharing ? "Stop Sharing" : "Share"}</span>
+                        <DisplayFill size={20} /> <span className="d-none d-md-inline">{isScreenSharing ? "Stop Sharing" : "Share"}</span>
                     </Button>
                     <Button variant="outline-light" className="me-2" onClick={onShowSettings} title="Settings">
                         <GearFill size={20} /> <span className="d-none d-md-inline">Settings</span>

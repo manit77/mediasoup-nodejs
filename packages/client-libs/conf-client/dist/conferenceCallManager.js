@@ -349,19 +349,23 @@ export class ConferenceCallManager {
         this.conferenceRoom.roomURI = message.data.roomURI;
         this.conferenceRoom.roomAuthToken = message.data.authToken;
         if (!this.conferenceRoom.roomId) {
-            this.writeError("ERORR: no roomId");
+            this.writeError("ERROR: no roomId");
             return;
         }
         if (!this.conferenceRoom.roomToken) {
-            this.writeError("ERORR: no roomToken");
+            this.writeError("ERROR: no roomToken");
             return;
         }
         if (!this.conferenceRoom.roomURI) {
-            this.writeError("ERORR: no roomURI");
+            this.writeError("ERROR: no roomURI");
             return;
         }
         if (!this.conferenceRoom.roomAuthToken) {
-            this.writeError("ERORR: no roomAuthToken");
+            this.writeError("ERROR: no roomAuthToken");
+            return;
+        }
+        if (!message.data.roomRtpCapabilities) {
+            this.writeError("ERROR: no roomRtpCapabilities");
             return;
         }
         this.roomsClient = new RoomsClient();
@@ -452,7 +456,7 @@ export class ConferenceCallManager {
             };
             this.onEvent(EventTypes.participantLeft, msg);
         };
-        this.roomsClient.init(message.data.roomURI);
+        await this.roomsClient.init(message.data.roomURI, message.data.roomRtpCapabilities);
         let connectResult = await this.roomsClient.waitForConnect();
         let registerResult = await this.roomsClient.waitForRegister(this.conferenceRoom.roomAuthToken, this.participantId, this.userName);
         let roomJoinResult = connectResult = await this.roomsClient.waitForRoomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);

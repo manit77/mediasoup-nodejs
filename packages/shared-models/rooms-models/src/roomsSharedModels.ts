@@ -244,6 +244,7 @@ export class RoomNewResultMsg implements IMsg {
         peerId?: string,
         roomId?: string,
         roomToken?: string,
+        roomRtpCapabilities?: any;
         /**
          * your app's unique to track the room
          */
@@ -292,7 +293,6 @@ export class RoomJoinResultMsg implements IMsg {
     data: {
         roomId?: string,
         roomToken?: string,
-        rtpCapabilities?: any,
         roomType?: RoomType,
         peers?: {
             peerId: string,
