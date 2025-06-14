@@ -309,14 +309,27 @@ export class ConferenceServer {
 
         let receiver = this.getParticipant(msgIn.data.participantId);
         if (!receiver) {
+            console.error("receiver not found.");
             let errorMsg = new InviteResultMsg();
             errorMsg.data.error = "remote party not found.";
             this.send(caller.socket, errorMsg);
             return;
         }
 
-        let conference = this.createConference();
-        conference.addParticipant(caller);
+        if (receiver.conferenceRoom) {
+            console.error("receiver is in another conference room.");
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.error = "busy.";
+            this.send(caller.socket, errorMsg);
+            return;
+        }
+
+        let conference = caller.conferenceRoom;
+
+        if (!conference) {
+            conference = this.createConference();
+            conference.addParticipant(caller);
+        }
 
         let inviteResultMsg = new InviteResultMsg();
         //send InviteResult back to the caller
@@ -342,9 +355,6 @@ export class ConferenceServer {
 
         if (!caller) {
             console.error("caller not found.");
-            let errorMsg = new InviteResultMsg();
-            errorMsg.data.error = "failed to add you to the conference.";
-            this.send(ws, errorMsg);
             return;
         }
 
@@ -358,6 +368,16 @@ export class ConferenceServer {
         if (!conf) {
             console.error("conference not found.");
             return;
+        }
+
+        if (caller.conferenceRoom != conf) {
+            console.error("not the same conference room.");
+            return;
+        }
+
+        if (conf.participants.size == 1) {
+            console.error("closing conference room");
+            conf.close();
         }
 
         let msg = new InviteCancelledMsg();
@@ -392,7 +412,7 @@ export class ConferenceServer {
         let conference = this.conferences.get(msgIn.data.conferenceRoomId);
 
         if (!conference) {
-            console.log("invalid conference room");
+            console.error("ERROR: conference room does not exist");
             let msg = new AcceptResultMsg();
             msg.data.conferenceRoomId = msgIn.data.conferenceRoomId;
             msg.data.error = "unable to join conference";
@@ -449,7 +469,6 @@ export class ConferenceServer {
 
         conference.addParticipant(participant);
 
-        //room already started
         //send the room info the participant
         let roomsAPI = new RoomsAPI(conference.roomURI, this.config.room_access_token);
 

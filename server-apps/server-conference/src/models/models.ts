@@ -52,7 +52,12 @@ export class ConferenceRoom {
     }
 
     removeParticipant(id: string) {
-        this.participants.delete(id);
+        let part = this.participants.get(id);
+        if (part) {
+            part.conferenceRoom = null;
+            this.participants.delete(id);
+        }
+
         if (this.participants.size == 0) {
             this.close();
         }
@@ -70,7 +75,11 @@ export class ConferenceRoom {
     close() {
         console.log(`conference close. ${this.id}`);
 
+        for (let part of this.participants.values()) {
+            part.conferenceRoom = null;
+        }
         this.participants.clear();
+
         this.onReadyListeners = [];
         if (this.onClose) {
             this.onClose(this);

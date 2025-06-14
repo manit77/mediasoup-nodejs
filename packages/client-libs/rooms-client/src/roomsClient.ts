@@ -495,6 +495,11 @@ export class RoomsClient {
     console.log(DSTR, "addLocalTrack() ");
     console.log(DSTR, `current tracks=${this.localPeer.tracks.getTracks().length}`);
 
+    if (!tracks) {
+      console.error("ERROR: tracks is required.")
+      return;
+    }
+
     tracks.getTracks().forEach(t => {
       this.localPeer.tracks.addTrack(t);
     })

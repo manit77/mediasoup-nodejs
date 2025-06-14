@@ -30,6 +30,9 @@ interface CallContextType {
     selectedDevices: { videoId?: string; audioInId?: string; audioOutId?: string };
     setSelectedDevices: React.Dispatch<React.SetStateAction<{ videoId?: string; audioInId?: string; audioOutId?: string }>>;
     isScreenSharing: boolean;
+    errorPopMessage: string;
+    setErrorPopMessage: React.Dispatch<React.SetStateAction<string>>;
+
 
     getSetLocalStream: () => void;
     initiateCall: (contact: Contact) => Promise<void>;
@@ -64,6 +67,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [selectedDevices, setSelectedDevices] = useState<{ videoId?: string; audioInId?: string; audioOutId?: string }>({});
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [originalVideoTrack, setOriginalVideoTrack] = useState<MediaStreamTrack | null>(null);
+    const [errorPopMessage, setErrorPopMessage] = useState("");
 
     const resetCallState = useCallback(() => {
         console.log("Resetting call state");
@@ -180,6 +184,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 webRTCService.declineCall();
                 return;
             }
+            setErrorPopMessage("");
             setIncomingCall({ participantId, displayName });
         };
 
@@ -202,6 +207,14 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         webRTCService.onCallEnded = (reason: string) => {
             console.log(`CallContext: Call declined reason: ${reason}`);
             resetCallState();
+
+            if (reason) {
+                setErrorPopMessage(reason);
+                return;
+            }
+
+            setErrorPopMessage("");
+
         };
 
         webRTCService.onParticipantJoined = (participantId: string, displayName: string) => {
@@ -555,6 +568,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             localParticipantId,
             contacts, setContacts,
             getSetLocalStream,
+            errorPopMessage, setErrorPopMessage,
             localStream, setLocalStream, remoteStreams, participants, setParticipants, isCallActive,
             incomingCall, setIncomingCall, callingContact, setCallingContact,
             availableDevices, selectedDevices, setSelectedDevices, isScreenSharing,

@@ -233,8 +233,11 @@ export class ConferenceServer {
             this.send(caller.socket, errorMsg);
             return;
         }
-        let conference = this.createConference();
-        conference.addParticipant(caller);
+        let conference = caller.conferenceRoom;
+        if (!conference) {
+            conference = this.createConference();
+            conference.addParticipant(caller);
+        }
         let inviteResultMsg = new InviteResultMsg();
         //send InviteResult back to the caller
         inviteResultMsg.data.conferenceRoomId = conference.id;
@@ -339,7 +342,6 @@ export class ConferenceServer {
     async conferenceReady(conference, participant) {
         console.log("conferenceReady");
         conference.addParticipant(participant);
-        //room already started
         //send the room info the participant
         let roomsAPI = new RoomsAPI(conference.roomURI, this.config.room_access_token);
         let authUserTokenResult = await roomsAPI.newAuthUserToken();
