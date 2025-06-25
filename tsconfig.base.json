@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "composite": true,
-    "target": "ES2024",
+    "target": "es2024",
     "module": "NodeNext",
     "moduleResolution": "nodenext",
     "sourceMap": true,

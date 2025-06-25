@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --force --build",
+    "tscversion": "tsc --version",
     "start": "NODE_OPTIONS='--loader ts-node/esm' ts-node --esm src/index.ts",
     "test": "vitest"
   },

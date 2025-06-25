@@ -15,6 +15,7 @@
     "delete-tsbuildinfo": "find . -type f -name \"tsconfig.tsbuildinfo\" -delete ",
     "delete-package-lock": "find . -type f -name \"package-lock.json\" -delete "
   },
-  "devDependencies": {},
-  "dependencies": {}
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
 }

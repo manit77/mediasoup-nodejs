@@ -8,6 +8,7 @@
   "main": "dist/index.js",
   "types": "src/index.ts",
   "scripts": {
-    "build": "tsc --build --force"
+    "build": "tsc --build --force",
+    "tscversion": "tsc --version"
   }
 }

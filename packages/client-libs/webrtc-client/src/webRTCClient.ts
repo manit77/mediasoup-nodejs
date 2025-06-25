@@ -60,8 +60,8 @@ export class WebRTCClient {
    */
   async setSpeakerOutput(video: HTMLVideoElement, speakerDeviceId: string) {
     // Set the speaker/output device
-    if (typeof video.setSinkId === "function") {
-      await video.setSinkId(speakerDeviceId);
+    if (typeof (video as any).setSinkId === "function") {
+      await (video as any).setSinkId(speakerDeviceId);
     } else {
       console.warn(DSTR, "setSinkId not supported in this browser.");
     }
