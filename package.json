@@ -9,8 +9,9 @@
     "packages/client-libs/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
+    "build": "npm run --workspace=packages/shared-models && npm run --workspace=packages/client-libs && npm run --workspace=server-apps build",
     "start-room": "ts-node --project server-apps/server-room/src/index.ts ",
+    "delete-node_modules": "find . -type d -name \"node_modules\" -exec rm -rf {} +",
     "delete-dist": "find . -type d -name \"dist\" -exec rm -rf {} +",
     "delete-tsbuildinfo": "find . -type f -name \"tsconfig.tsbuildinfo\" -delete ",
     "delete-package-lock": "find . -type f -name \"package-lock.json\" -delete "

@@ -1,4 +1,4 @@
-import { RoomLog } from "packages/shared-models/rooms-models/dist/roomsSharedModels.js";
+import { RoomLog } from "@rooms/rooms-models";
 import { RoomLogAdapter } from "./room.js";
 
 export class RoomLogAdapterInMemory implements RoomLogAdapter {

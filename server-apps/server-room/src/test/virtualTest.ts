@@ -1,6 +1,6 @@
 //mimic a scenario where many clients connect and disconnect
 
-import { RoomConfig } from "packages/shared-models/rooms-models/dist/roomsSharedModels.js";
+import { RoomConfig } from "@rooms/rooms-models";
 import { RoomServer, RoomServerConfig } from "../roomServer/roomServer.js";
 import { generateRoomToken } from "../roomServer/utils.js";
 import { getENV } from "../utils/env.js";
