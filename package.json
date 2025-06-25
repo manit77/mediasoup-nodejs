@@ -3,13 +3,14 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "server-apps/*",
-    "client-apps/*",
-    "packages/shared-models/*",
-    "packages/client-libs/*"
+    "packages/*",
+    "shared/*",
+    "rooms/*",
+    "conf/*",
+    "client-apps/*"    
   ],
   "scripts": {
-    "build": "npm run --workspace=packages/shared-models && npm run --workspace=packages/client-libs && npm run --workspace=server-apps build",
+    "build": "npm run --workspace=packages build && npm run --workspace=shared build && npm run --workspace=rooms build && npm run --workspace=conf build && && npm run --workspace=client-apps build ",
     "start-room": "ts-node --project server-apps/server-room/src/index.ts ",
     "delete-node_modules": "find . -type d -name \"node_modules\" -exec rm -rf {} +",
     "delete-dist": "find . -type d -name \"dist\" -exec rm -rf {} +",

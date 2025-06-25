@@ -1,13 +1,15 @@
 {
-  "name": "@rooms/server",
+  "name": "@conf/conf-server",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "build": "tsc --build --force",
+    "tscversion": "tsc --version",
     "start": "NODE_OPTIONS='--loader ts-node/esm' ts-node --esm src/index.ts",
-    "test": "vitest run"
+    "test": "vitest"
   },
   "dependencies": {
+    "@conf/conf-models": "1.0.0",
     "@rooms/rooms-models": "1.0.0",
     "axios": "^1.9.0",
     "cors": "^2.8.5",
@@ -20,7 +22,6 @@
     "sinon": "^20.0.0"
   },
   "devDependencies": {
-    "@tsconfig/node18": "^18.2.4",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.2",
     "@types/fluent-ffmpeg": "^2.1.27",
@@ -35,7 +36,6 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.4",
     "why-is-node-running": "^3.2.2",
     "ws": "^8.18.2"
   }

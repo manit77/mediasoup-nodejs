@@ -5,7 +5,7 @@ import {
     RoomType
 } from "@rooms/rooms-models";
 import * as rooms from "@rooms/rooms-client";
-import { getUserMedia } from "@webrtc-client/webRTCClient.js";
+import { getUserMedia } from "@rooms/webrtc-client";
 
 (async () => {
 
@@ -89,7 +89,7 @@ import { getUserMedia } from "@webrtc-client/webRTCClient.js";
             return;
         }
 
-        let registered = await roomsClient.waitForRegister("", ctlDisplayName.value);
+        let registered = await roomsClient.waitForRegister("", "", ctlDisplayName.value);
         if (registered.type == payloadTypeServer.error) {
             writeLog("failed to register client");
             await disconnectRooms();
@@ -97,9 +97,7 @@ import { getUserMedia } from "@webrtc-client/webRTCClient.js";
         }
         let stream = await getUserMedia();
 
-        stream.getTracks().forEach(t => {
-            roomsClient.addLocalTrack(t);
-        });
+        roomsClient.addLocalTracks(stream);
 
         ctlVideo.srcObject = stream;
     }
