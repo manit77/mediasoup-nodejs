@@ -6,9 +6,10 @@ import MainVideo from '../call/MainVideo';
 import { useCall } from '../../hooks/useCall';
 import { Button } from 'react-bootstrap';
 import PopupMessage from '../popups/PopupMessage';
+
 const AuthenticatedLayout: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
-    const { localStream, getSetLocalStream, setLocalStream, errorPopMessage, setErrorPopMessage } = useCall();
+    const {localStream, getSetLocalStream, setLocalStream, popUpMessage, hidePopUp} = useCall();
 
     const previewClick = () => {
         if (localStream) {
@@ -39,7 +40,7 @@ const AuthenticatedLayout: React.FC = () => {
                 </div>
             </div>
             <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />
-            <PopupMessage show={errorPopMessage ? true : false} message={errorPopMessage} handleClose={() => setErrorPopMessage("")} />
+            <PopupMessage show={popUpMessage ? true : false} message={popUpMessage} handleClose={() => hidePopUp()} />
         </div>
     );
 };

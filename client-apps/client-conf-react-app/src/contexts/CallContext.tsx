@@ -15,6 +15,7 @@ interface CallContextType {
     setLocalStream: React.Dispatch<React.SetStateAction<MediaStream | null>>;
     remoteStreams: Map<string, MediaStream>; // userId -> MediaStream
 
+    getContacts: ()=> void;
     contacts: Contact[];
     setContacts: React.Dispatch<React.SetStateAction<Contact[]>>;
 
@@ -30,10 +31,9 @@ interface CallContextType {
     selectedDevices: { videoId?: string; audioInId?: string; audioOutId?: string };
     setSelectedDevices: React.Dispatch<React.SetStateAction<{ videoId?: string; audioInId?: string; audioOutId?: string }>>;
     isScreenSharing: boolean;
-    errorPopMessage: string;
-    setErrorPopMessage: React.Dispatch<React.SetStateAction<string>>;
-
-
+    popUpMessage: string;
+    hidePopUp: () => void;
+    showPopUp: (message: string, timeoutSecs?: number) => void;
     getSetLocalStream: () => void;
     initiateCall: (contact: Contact) => Promise<void>;
     acceptCall: () => Promise<void>;
@@ -67,7 +67,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [selectedDevices, setSelectedDevices] = useState<{ videoId?: string; audioInId?: string; audioOutId?: string }>({});
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [originalVideoTrack, setOriginalVideoTrack] = useState<MediaStreamTrack | null>(null);
-    const [errorPopMessage, setErrorPopMessage] = useState("");
+    const [popUpMessage, setPopUpMessage] = useState("");
+    const [popUpTimerId, setPopUpTimerId] = useState(undefined);
 
     const resetCallState = useCallback(() => {
         console.log("Resetting call state");
@@ -125,13 +126,24 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
     }, [updateMediaDevices]);
 
-
     const setupWebRTCEvents = useCallback(() => {
 
         webRTCService.onRegistered = (participantId: string) => {
             console.log("CallContext: onRegistered: participantId", participantId);
             setlocalParticipantId(participantId);
+            hidePopUp();
         }
+
+        webRTCService.onServerConnected = () => {
+            console.log("CallContext: server connected");
+            hidePopUp();
+        }
+
+        webRTCService.onServerDisconnected = () => {
+            console.log("CallContext: disconnected from server");
+            showPopUp("disconnected from server. trying to reconnect...");
+        }
+
 
         webRTCService.onContactsReceived = (contacts) => {
             console.log("CallContext: onContactsReceived", contacts);
@@ -184,7 +196,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 webRTCService.declineCall();
                 return;
             }
-            setErrorPopMessage("");
+            setPopUpMessage("");
             setIncomingCall({ participantId, displayName });
         };
 
@@ -209,11 +221,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             resetCallState();
 
             if (reason) {
-                setErrorPopMessage(reason);
+                showPopUp(reason, 3);
                 return;
             }
 
-            setErrorPopMessage("");
+            hidePopUp();
 
         };
 
@@ -253,6 +265,37 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [auth?.isAuthenticated, auth.currentUser, setupWebRTCEvents]);
 
+    const getContacts = () => {
+        webRTCService.getContacts();
+    }
+
+    const hidePopUp = () => {
+        setPopUpMessage("");
+        if (popUpTimerId) {
+            clearTimeout(popUpTimerId);
+        }
+    }
+
+    const showPopUp = (message: string, timeoutSecs?: number) => {
+        console.log(`showPopUp ${message} ${timeoutSecs}`);
+
+        if (timeoutSecs) {
+
+            if (popUpTimerId) {
+                clearTimeout(popUpTimerId);
+            }
+
+            setPopUpMessage(message);
+            let timerid = setTimeout(() => {
+                setPopUpMessage("");
+            }, timeoutSecs * 1000);
+
+            setPopUpTimerId(timerid);
+
+        } else {
+            setPopUpMessage(message);
+        }
+    }
 
     const getMediaContraints = () => {
         const constraints = {
@@ -566,9 +609,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return (
         <CallContext.Provider value={{
             localParticipantId,
-            contacts, setContacts,
+            contacts, setContacts, getContacts,
             getSetLocalStream,
-            errorPopMessage, setErrorPopMessage,
+            hidePopUp,
+            showPopUp,
+            popUpMessage,
             localStream, setLocalStream, remoteStreams, participants, setParticipants, isCallActive,
             incomingCall, setIncomingCall, callingContact, setCallingContact,
             availableDevices, selectedDevices, setSelectedDevices, isScreenSharing,

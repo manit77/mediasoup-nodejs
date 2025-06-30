@@ -295,8 +295,7 @@ export class ConferenceServer {
      */
     async onInvite(ws: WebSocket, msgIn: InviteMsg) {
         console.log("onInvite");
-        //new call
-        //create a room if needed
+       
         let caller = this.participants.get(ws);
 
         if (!caller) {

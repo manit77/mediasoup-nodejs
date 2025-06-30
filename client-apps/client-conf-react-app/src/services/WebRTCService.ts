@@ -12,6 +12,7 @@ class WebRTCService {
     inviteMsg: InviteMsg;
 
     private peerConnections: Map<string, RTCPeerConnection> = new Map();
+
     public onServerConnected: (() => void) = () => { };
     public onServerDisconnected: (() => void) = () => { };
 
@@ -31,6 +32,7 @@ class WebRTCService {
     public onParticipantLeft: ((participantId: string) => void) | null = () => { };
 
     public dispose() {
+        console.log("dispose");
         this.onServerConnected = null;
         this.onServerDisconnected = null;
         this.onRegistered = null;
@@ -46,6 +48,7 @@ class WebRTCService {
     }
 
     public connectSignaling(user: User): void {
+        console.log("connectSignaling");
         if (this.confClient) {
             console.log("already connecting to ConferenceCallManager");
             return;
@@ -119,6 +122,12 @@ class WebRTCService {
         };
     }
 
+    public getContacts() {
+        if(this.confClient) {
+            this.confClient.getContacts();
+        }
+    }
+    
     public async getUserMedia(constraints?: MediaStreamConstraints): Promise<MediaStream> {
         this.localStream = await getUserMedia(constraints);
         if (this.confClient) {
@@ -212,11 +221,14 @@ class WebRTCService {
     public disconnectSignaling(): void {
         console.log("disconnectSignaling");
         this.confClient.disconnect();
+        this.confClient = null;
     }
 
     private eventSignalingDisconnected() {
         console.log("eventSignalingDisconnected");
-        this.onServerDisconnected();
+        if (this.onServerDisconnected) {
+            this.onServerDisconnected();
+        }
     }
 
     private eventRegisterResult(msg: any) {

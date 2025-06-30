@@ -2,8 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { Contact } from '@conf/conf-models';
-import { webRTCService } from '../../services/WebRTCService';
-
 
 const OnlineIndicator: React.FC<{ isOnline: boolean }> = ({ isOnline }) => (
     <Badge pill bg={isOnline ? 'success' : 'secondary'} className="ms-2">
@@ -12,8 +10,10 @@ const OnlineIndicator: React.FC<{ isOnline: boolean }> = ({ isOnline }) => (
 );
 
 const ContactsPane: React.FC = () => {
-    const { contacts, setContacts, initiateCall, isCallActive, callingContact, incomingCall, localParticipantId } =
+    
+    const { contacts, getContacts, initiateCall, isCallActive, callingContact, incomingCall, localParticipantId } =
         useCall();
+
     const [loading, setLoading] = useState(true);
 
     // Handle initial loading state
@@ -27,9 +27,7 @@ const ContactsPane: React.FC = () => {
     const handleRefreshContacts = async () => {
         setLoading(true);
         try {
-            // Assuming webRTCService has a method to request contacts
-            // await webRTCService.getContacts();
-            // onContactsReceived will update the contacts state via CallProvider
+            getContacts();           
         } catch (error) {
             console.error('Failed to refresh contacts:', error);
         } finally {
@@ -47,9 +45,9 @@ const ContactsPane: React.FC = () => {
         <div>
             <div className="d-flex justify-content-between align-items-center mb-2">
                 <h5>Contacts</h5>
-                {/* <Button variant="outline-primary" size="sm" onClick={handleRefreshContacts} disabled={loading}>
+                <Button variant="outline-primary" size="sm" onClick={handleRefreshContacts} disabled={loading}>
                     Refresh
-                </Button> */}
+                </Button>
             </div>
             {loading ? (
                 <p>Loading contacts...</p>
