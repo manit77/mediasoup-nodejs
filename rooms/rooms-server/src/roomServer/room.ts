@@ -12,6 +12,8 @@ export interface RoomLogAdapter {
 export class Room {
     id: string;
     trackingId: string;
+    adminTrackingId: string;
+    admin: Peer;
     private peers: Map<string, Peer> = new Map();
     roomToken: string;
 
@@ -84,6 +86,10 @@ export class Room {
         console.log("addPeer", peer.id);
         this.peers.set(peer.id, peer);
 
+        if (!this.admin && this.adminTrackingId && peer.trackingId && this.adminTrackingId === peer.trackingId) {
+            this.admin = peer;
+        }
+
         if (this.timerIdNoParticipants) {
             clearTimeout(this.timerIdNoParticipants);
         }
@@ -95,17 +101,18 @@ export class Room {
             RoomId: this.id
         });
 
-        if (this.config.callBackURL_OnPeerJoined) {
-            let cbData: RoomPeerCallBackData = {
-                peerId: peer.id,
-                roomId: this.id,
-                peerTrackingId: peer.trackingId,
-                roomTrackingId: this.trackingId
+        if (peer.role != "monitor") {
+            if (this.config.callBackURL_OnPeerJoined) {
+                let cbData: RoomPeerCallBackData = {
+                    peerId: peer.id,
+                    roomId: this.id,
+                    peerTrackingId: peer.trackingId,
+                    roomTrackingId: this.trackingId
+                }
+
+                axios.post(this.config.callBackURL_OnPeerJoined, cbData);
             }
-
-            axios.post(this.config.callBackURL_OnPeerJoined, cbData);
         }
-
 
         return true;
     }
@@ -183,6 +190,7 @@ export class Room {
         });
 
         this.peers.clear();
+        this.admin = null;
 
         if (this.timerIdNoParticipants) {
             clearTimeout(this.timerIdNoParticipants);

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import { User } from '../types';
+import { Conference, User } from '../types';
 import { webRTCService } from '../services/WebRTCService';
 import { ApiService } from '../services/ApiService';
 
@@ -9,6 +9,7 @@ interface AuthContextType {
     isLoading: boolean;
     login: (displayName: string) => Promise<void>;
     logout: () => Promise<void>;
+    getConferences: () =>  Promise<Conference[]>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,7 +60,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             setIsLoading(true);
             webRTCService.disconnectSignaling(); // Disconnect signaling on logout
-            webRTCService.dispose();            
+            webRTCService.dispose();
             await ApiService.logout();
             setCurrentUser(null);
             setIsAuthenticated(false);
@@ -78,8 +79,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
+    const getConferences = async (): Promise<Conference[]> => {
+        return await ApiService.getConferences();
+    }
+
     return (
-        <AuthContext.Provider value={{ currentUser, isAuthenticated, isLoading, login, logout }}>
+        <AuthContext.Provider value={{ currentUser, isAuthenticated, isLoading, login, logout, getConferences }}>
             {children}
         </AuthContext.Provider>
     );

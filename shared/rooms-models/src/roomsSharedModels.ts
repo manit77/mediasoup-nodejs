@@ -188,7 +188,6 @@ export class ConnectConsumerTransportMsg implements IMsg {
     } = {};
 }
 
-//creates a new room token
 export class RoomNewMsg implements IMsg {
     type = payloadTypeClient.roomNew;
     data: {
@@ -197,6 +196,7 @@ export class RoomNewMsg implements IMsg {
         roomId?: string,
         roomToken?: string,
         trackingId?: string,
+        ownerTrackingId?: string,
         roomConfig?: RoomConfig;
     } = {
             roomConfig: new RoomConfig()
@@ -404,7 +404,11 @@ export enum RoomServerAPIRoutes {
 
 export class RoomConfig {
     roomType = RoomType.sfu;
-    maxPeers = 2;
+    maxPeers = 99;
+    peerAllowMic = true;
+    peerAllowCamera = true;
+    monitorAllowMic = false;
+    monitorAllowCamera = false;
     newRoomTokenExpiresInMinutes = 30; //room token expiration from date created
     maxRoomDurationMinutes = 30; // room max duration, starts when the room is created
     timeOutNoParticipantsSecs = 5 * 60; //when no participants in the room, timer starts and will close the room 

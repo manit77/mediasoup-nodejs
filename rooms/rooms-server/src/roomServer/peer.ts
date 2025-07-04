@@ -9,6 +9,7 @@ export class Peer {
     public trackingId: string;
     public displayName: string;
     public authToken: string;
+    public role: "admin" | "peer" | "monitor" = "peer";
 
     constructor() {
 

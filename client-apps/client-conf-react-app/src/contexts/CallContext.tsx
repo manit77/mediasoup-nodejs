@@ -4,7 +4,7 @@ import { webRTCService } from '../services/WebRTCService';
 import { AuthContext } from './AuthContext';
 import { Contact } from '@conf/conf-models';
 
-interface IncomingCallInfo {
+interface InviteInfo {
     participantId: string;
     displayName: string;
 }
@@ -15,7 +15,7 @@ interface CallContextType {
     setLocalStream: React.Dispatch<React.SetStateAction<MediaStream | null>>;
     remoteStreams: Map<string, MediaStream>; // userId -> MediaStream
 
-    getContacts: ()=> void;
+    getContacts: () => void;
     contacts: Contact[];
     setContacts: React.Dispatch<React.SetStateAction<Contact[]>>;
 
@@ -23,10 +23,14 @@ interface CallContextType {
     setParticipants: React.Dispatch<React.SetStateAction<CallParticipant[]>>;
 
     isCallActive: boolean;
-    incomingCall: IncomingCallInfo | null;
-    setIncomingCall: React.Dispatch<React.SetStateAction<IncomingCallInfo | null>>;
-    callingContact: Contact | null; // Contact being called
-    setCallingContact: React.Dispatch<React.SetStateAction<Contact | null>>;
+    inviteInfo: InviteInfo | null;
+    setInviteInfo: React.Dispatch<React.SetStateAction<InviteInfo | null>>;
+    inviteContact: Contact | null; // Contact being called
+    setInviteContact: React.Dispatch<React.SetStateAction<Contact | null>>;
+
+    createConference : (trackingId: string) => void;
+    joinConference : (conferenceRoomId: string) => void;
+
     availableDevices: { video: Device[]; audioIn: Device[]; audioOut: Device[] };
     selectedDevices: { videoId?: string; audioInId?: string; audioOutId?: string };
     setSelectedDevices: React.Dispatch<React.SetStateAction<{ videoId?: string; audioInId?: string; audioOutId?: string }>>;
@@ -35,12 +39,13 @@ interface CallContextType {
     hidePopUp: () => void;
     showPopUp: (message: string, timeoutSecs?: number) => void;
     getSetLocalStream: () => void;
-    initiateCall: (contact: Contact) => Promise<void>;
-    acceptCall: () => Promise<void>;
-    declineCall: (isIncomingDecline?: boolean) => void;
-    cancelOutgoingCall: () => void;
+
+    sendInvite: (contact: Contact) => Promise<void>;
+    acceptInvite: () => Promise<void>;
+    declineInvite: (isIncomingDecline?: boolean) => void;
+    cancelInvite: () => void;
+
     endCurrentCall: () => void;
-    inviteToOngoingCall: (contact: Contact) => void;
     toggleMuteAudio: () => boolean | undefined;
     toggleMuteVideo: () => boolean | undefined;
     startScreenShare: () => Promise<void>;
@@ -60,8 +65,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [participants, setParticipants] = useState<CallParticipant[]>([]);
     const [isCallActive, setIsCallActive] = useState<boolean>(false);
-    const [incomingCall, setIncomingCall] = useState<IncomingCallInfo | null>(null);
-    const [callingContact, setCallingContact] = useState<Contact | null>(null); // For outgoing call popup
+    const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
+    const [inviteContact, setInviteContact] = useState<Contact | null>(null); // For outgoing call popup
 
     const [availableDevices, setAvailableDevices] = useState<{ video: Device[]; audioIn: Device[]; audioOut: Device[] }>({ video: [], audioIn: [], audioOut: [] });
     const [selectedDevices, setSelectedDevices] = useState<{ videoId?: string; audioInId?: string; audioOutId?: string }>({});
@@ -81,8 +86,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setRemoteStreams(new Map());
         setParticipants([]);
         setIsCallActive(false);
-        setIncomingCall(null);
-        setCallingContact(null);
+        setInviteInfo(null);
+        setInviteContact(null);
         setIsScreenSharing(false);
         setOriginalVideoTrack(null);
         // webRTCService.stopLocalStream(); // Ensure this is called
@@ -189,35 +194,37 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             });
         };
 
-        webRTCService.onIncomingCall = (participantId: string, displayName: string) => {
+        webRTCService.onInviteReceived = (participantId: string, displayName: string) => {
             console.log(`CallContext: Incoming call from ${displayName} ${participantId}`);
             // Auto-decline if already in a call
             if (isCallActive) {
-                webRTCService.declineCall();
+                webRTCService.declineInvite();
                 return;
             }
             setPopUpMessage("");
-            setIncomingCall({ participantId, displayName });
+            setInviteInfo({ participantId, displayName });
         };
 
-        webRTCService.onCallConnected = () => {
-            console.log(`CallContext: Call accepted`);
-            setCallingContact(null);
+        webRTCService.onConferenceConnected = () => {
+            console.log(`CallContext: conference connected`);
+            setInviteContact(null);
             setIsCallActive(true);
             // Add self to participants immediately
-            let newParticipants = [...participants];
-            newParticipants.push({
+            let self: CallParticipant = {
                 displayName: auth.currentUser.displayName,
                 id: auth.currentUser.id,
                 isMuted: !localStream.getAudioTracks()[0]?.enabled,
                 isVideoOff: !localStream.getVideoTracks()[0]?.enabled,
                 stream: localStream
-            });
+            };
+
+            let newParticipants = [...participants];
+            newParticipants.push(self);
             setParticipants(newParticipants);
         };
 
-        webRTCService.onCallEnded = (reason: string) => {
-            console.log(`CallContext: Call declined reason: ${reason}`);
+        webRTCService.onConferenceEnded = (reason: string) => {
+            console.log(`CallContext: conference ended: ${reason}`);
             resetCallState();
 
             if (reason) {
@@ -321,7 +328,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return stream;
     };
 
-    const initiateCall = async (contactToCall: Contact) => {
+    const sendInvite = async (contactToCall: Contact) => {
         if (!auth?.currentUser) {
             console.error("User not authenticated to initiate call");
             return;
@@ -331,10 +338,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const stream = await ensureLocalStream();
             if (!stream) throw new Error("Local stream not available");
 
-            setCallingContact(contactToCall);
+            setInviteContact(contactToCall);
             setIsCallActive(false); // Not fully active until accepted
 
-            await webRTCService.initiateCall(contactToCall.participantId);
+            await webRTCService.sendInvite(contactToCall.participantId);
             console.log(`Call initiated to ${contactToCall.displayName}`);
 
         } catch (error) {
@@ -343,37 +350,37 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const acceptCall = async () => {
-        if (!incomingCall || !auth?.currentUser) return;
+    const acceptInvite = async () => {
+        if (!inviteInfo || !auth?.currentUser) return;
         try {
             const stream = await ensureLocalStream();
             if (!stream) throw new Error("Local stream not available");
 
-            await webRTCService.answerCall();
+            await webRTCService.acceptInvite();
             setIsCallActive(true);
-            setIncomingCall(null); // Clear incoming call notification
-            console.log(`Call with ${incomingCall.displayName} accepted in room ${incomingCall}`);
+            setInviteInfo(null); // Clear incoming call notification
+            console.log(`Call with ${inviteInfo.displayName} accepted in room ${inviteInfo}`);
         } catch (error) {
             console.error('Failed to accept call:', error);
             resetCallState();
         }
     };
 
-    const declineCall = (isIncomingDecline: boolean = true) => {
-        if (isIncomingDecline && incomingCall) {
-            webRTCService.declineCall();
-            setIncomingCall(null);
+    const declineInvite = (isIncomingDecline: boolean = true) => {
+        if (isIncomingDecline && inviteInfo) {
+            webRTCService.declineInvite();
+            setInviteInfo(null);
             setIsCallActive(false);
 
         }
     };
 
-    const cancelOutgoingCall = () => {
-        if (callingContact) {
-            console.log(`Call to ${callingContact.displayName} cancelled.`);
+    const cancelInvite = () => {
+        if (inviteContact) {
+            console.log(`Call to ${inviteContact.displayName} cancelled.`);
             webRTCService.endCall();
 
-            setCallingContact(null);
+            setInviteContact(null);
             if (participants.length <= 1) {
                 resetCallState();
             }
@@ -386,14 +393,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         resetCallState();
     };
 
-    const inviteToOngoingCall = (contactToInvite: Contact) => {
-        if (!isCallActive) {
-            console.error("Cannot invite: no active call, room ID, or current user.");
-            return;
-        }
-        webRTCService.initiateCall(contactToInvite.participantId);
-        alert(`Inviting ${contactToInvite.displayName} to the call.`);
-    };
+    const createConference = (trackingId: string) => {
+        webRTCService.createConferenceRoom(trackingId);
+    }
+
+    const joinConference = (conferenceRoomId: string) => {
+        webRTCService.joinConferenceRoom(conferenceRoomId)
+    }
 
     const toggleMuteAudio = () => {
         const isNowEnabled = webRTCService.toggleAudioMute();
@@ -614,10 +620,15 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             hidePopUp,
             showPopUp,
             popUpMessage,
-            localStream, setLocalStream, remoteStreams, participants, setParticipants, isCallActive,
-            incomingCall, setIncomingCall, callingContact, setCallingContact,
+            localStream, setLocalStream, remoteStreams, 
+            participants, setParticipants, 
+            isCallActive,
+            createConference, joinConference,
+            inviteInfo, setInviteInfo,
+            inviteContact, setInviteContact,
             availableDevices, selectedDevices, setSelectedDevices, isScreenSharing,
-            initiateCall, acceptCall, declineCall, cancelOutgoingCall, endCurrentCall, inviteToOngoingCall,
+            sendInvite, acceptInvite, declineInvite, cancelInvite,
+            endCurrentCall,
             toggleMuteAudio, toggleMuteVideo, startScreenShare, stopScreenShare, updateMediaDevices,
             switchDevice, switchDevices
         }}>

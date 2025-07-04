@@ -6,6 +6,7 @@ import MainVideo from '../call/MainVideo';
 import { useCall } from '../../hooks/useCall';
 import { Button } from 'react-bootstrap';
 import PopupMessage from '../popups/PopupMessage';
+import RoomsPane from './RoomsPane';
 
 const AuthenticatedLayout: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
@@ -29,6 +30,7 @@ const AuthenticatedLayout: React.FC = () => {
             <div className="d-flex flex-grow-1" style={{ overflow: 'hidden' }}>
                 <div className="col-3 border-end p-3" style={{ overflowY: 'auto' }}>
                     <ContactsPane />
+                    <RoomsPane />
                 </div>
                 <div className="col-9 p-3" style={{ overflowY: 'auto' }}>
                     <Button variant="primary" onClick={showDeviceSettingsClick}>Device Settings</Button> <Button variant="secondary" onClick={previewClick}>

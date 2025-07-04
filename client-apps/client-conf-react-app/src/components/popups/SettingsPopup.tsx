@@ -61,9 +61,9 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                 <Nav.Item>
                                     <Nav.Link eventKey="devices">Media Devices</Nav.Link>
                                 </Nav.Item>
-                                <Nav.Item>
+                                {/* <Nav.Item>
                                     <Nav.Link eventKey="screenShare">Screen Share</Nav.Link>
-                                </Nav.Item>
+                                </Nav.Item> */}
                             </Nav>
                         </Col>
                         <Col sm={9}>

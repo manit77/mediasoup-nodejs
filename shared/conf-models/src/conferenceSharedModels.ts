@@ -5,6 +5,11 @@ export enum CallMessageType {
     register = "register", //register the partcipant as online
     registerResult = "registerResult", //partcipant recieves a registration result
 
+    createConf = "createConf",
+    createConfResult = "createConfResult",
+    joinConf = "joinConf",
+    joinConfResult = "joinConfResult",
+
     invite = "invite", //invite to join room
     inviteCancelled = "inviteCancelled", //invite cancelled
     inviteResult = "inviteResult", //result of the invite, the other participant could reject it
@@ -15,7 +20,7 @@ export enum CallMessageType {
     conferenceReady = "conferenceReady",
 
     getContacts = "getContacts",
-    getContactsResults = "getContactsResults",
+    getContactsResult = "getContactsResult",
 
 }
 export enum WebRoutes {
@@ -24,6 +29,8 @@ export enum WebRoutes {
     onPeerJoined = "onPeerJoined",
     onPeerLeft = "onPeerLeft"
 }
+
+export type ParticipantRole = "admin" | "user" | "guest";
 
 export class AuthenticateMsg {
     type: CallMessageType.authenticate
@@ -42,7 +49,6 @@ export class AuthenticateResultMsg {
 }
 
 export interface Contact {
-    contactId: string, //unique identifier of the contact, normally from the primary key
     participantId: string,
     displayName: string,
     status: "online" | "offline" | "reconnecting",
@@ -65,14 +71,12 @@ export class RegisterMsg {
 export class RegisterResultMsg {
     type = CallMessageType.registerResult;
     data: {
-        userName: string,
-        authToken: string,
-        participantId: string,
+        userName?: string,
+        authToken?: string,
+        participantId?: string,
+        role?: ParticipantRole,
         error?: string
     } = {
-            userName: "",
-            authToken: "",
-            participantId: "",
         }
 }
 
@@ -82,8 +86,47 @@ export class GetContactsMsg {
 }
 
 export class GetContactsResultsMsg {
-    type = CallMessageType.getContactsResults;
+    type = CallMessageType.getContactsResult;
     data: Contact[] = [];
+}
+
+export class CreateConfMsg {
+    type = CallMessageType.createConf;
+    data: {
+        conferenceRoomTrackingId?: string,
+        conferenceRoomConfig?: ConferenceRoomConfig,
+        error?: string
+    } = {
+        }
+}
+
+export class CreateConfResultMsg {
+    type = CallMessageType.createConfResult;
+    data: {
+        conferenceRoomId?: string,
+        trackingId?: string,
+        error?: string
+    } = {
+        }
+}
+
+export class JoinConfMsg {
+    type = CallMessageType.joinConf;
+    data: {
+        conferenceRoomId?: string,
+        trackingId?: string,
+        error?: string
+    } = {
+        }
+}
+
+export class JoinConfResultMsg {
+    type = CallMessageType.joinConfResult;
+    data: {
+        conferenceRoomId?: string,
+        error?: string
+    } = {
+        }
 }
 
 export class InviteMsg {
@@ -92,6 +135,7 @@ export class InviteMsg {
         conferenceRoomId?: string,
         participantId?: string,
         displayName?: string,
+        conferenceRoomConfig?: ConferenceRoomConfig
     } = {
         }
 }
@@ -162,3 +206,11 @@ export class ConferenceReadyMsg {
         roomRtpCapabilities: undefined,
     }
 }
+
+export class ConferenceRoomConfig {
+    roomTimeoutSecs: number = 60 * 60;
+    maxGuests: number = 99;
+    guestAllowMic: boolean = true;
+    guestAllowCamera: boolean = true;
+}
+

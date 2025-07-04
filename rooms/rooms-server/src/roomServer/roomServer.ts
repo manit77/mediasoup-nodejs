@@ -277,11 +277,10 @@ export class RoomServer {
 
         this.addPeerGlobal(peer);
 
-
         return peer;
     }
 
-    async createRoom(roomId: string, roomToken: string, trackingId: string, config: RoomConfig): Promise<Room> {
+    async createRoom(roomId: string, roomToken: string, trackingId: string, adminTrackingId: string, config: RoomConfig): Promise<Room> {
 
         console.log(`createRoom() - roomId:${roomId} roomToken: ${roomToken}`);
 
@@ -318,6 +317,7 @@ export class RoomServer {
         room.roomToken = roomToken;
         room.trackingId = trackingId;
         room.config = config;
+        room.adminTrackingId = adminTrackingId;
 
         if (room.config.roomType == "sfu") {
             let worker = this.getNextWorker();
@@ -671,7 +671,7 @@ export class RoomServer {
             return errorMsg;
         }
 
-        let room = await this.createRoom(msgIn.data.roomId, msgIn.data.roomToken, msgIn.data.trackingId, msgIn.data.roomConfig);
+        let room = await this.createRoom(msgIn.data.roomId, msgIn.data.roomToken, msgIn.data.trackingId, msgIn.data.ownerTrackingId, msgIn.data.roomConfig);
         if (!room) {
             let errorMsg = new RoomNewResultMsg();
             errorMsg.data.error = "error creating room.";

@@ -1,15 +1,10 @@
-import { Contact } from '@conf/conf-models';
-import { User, Room } from '../types';
+import { User, Conference } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api'; // Configure your API base URL
 
 interface LoginResponse {
     user: User;
     token: string; // Auth token
-}
-
-interface RoomTokenResponse {
-    token: string; // Token for WebRTC service (e.g., Twilio, Agora, or your own)
 }
 
 export const ApiService = {
@@ -56,38 +51,18 @@ export const ApiService = {
         return Promise.resolve();
     },
 
-    getRoomToken: async (roomId: string, userId: string): Promise<RoomTokenResponse> => {
-        console.log(`ApiService: Getting room token for room ${roomId}, user ${userId}`);
-        // Replace with actual fetch call
-        // const token = localStorage.getItem('authToken');
-        // const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/token?userId=${userId}`, {
-        //   headers: { 'Authorization': `Bearer ${token}` },
-        // });
-        // if (!response.ok) throw new Error('Failed to get room token');
-        // return response.json() as Promise<RoomTokenResponse>;
-
-        // Mock implementation:
-        return Promise.resolve({ token: `fake-room-token-for-${roomId}` });
-    },
-
-    createRoom: async (roomName: string): Promise<Room> => {
-        console.log(`ApiService: Creating room ${roomName}`);
-        // Replace with actual fetch call
-        // const token = localStorage.getItem('authToken');
-        // const response = await fetch(`${API_BASE_URL}/rooms`, {
-        //   method: 'POST',
-        //   headers: {
-        //     'Content-Type': 'application/json',
-        //     'Authorization': `Bearer ${token}`
-        //   },
-        //   body: JSON.stringify({ roomName }),
-        // });
-        // if (!response.ok) throw new Error('Failed to create room');
-        // return response.json() as Promise<Room>;
-
-        // Mock implementation:
-        const newRoom = { id: `room-${Date.now()}`, name: roomName };
-        return Promise.resolve(newRoom);
-    },
+    getConferences: async (): Promise<Conference[]> => {
+        //get rooms from API
+        let rooms: Conference[] = [{
+            id: "",
+            trackingId: "1",
+            name: "room1"
+        }, {
+            id: "",
+            trackingId: "1",
+            name: "room2"
+        }];
+        return rooms;
+    }
 
 };

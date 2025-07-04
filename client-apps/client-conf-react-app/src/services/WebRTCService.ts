@@ -1,6 +1,6 @@
 import { ConferenceCallManager, EventTypes } from '@conf/conf-client';
 import { User } from '../types';
-import { Contact, InviteMsg, InviteResultMsg } from '@conf/conf-models';
+import { Contact, CreateConfMsg, CreateConfResultMsg, InviteMsg, InviteResultMsg } from '@conf/conf-models';
 import { getUserMedia } from '@rooms/webrtc-client';
 
 const confServerURI = 'https://localhost:3100'; // conference
@@ -22,12 +22,13 @@ class WebRTCService {
 
     public onLocalStreamReady: (stream: MediaStream) => void = () => { };
 
-    public onIncomingCall: ((participantId: string, displayName: string) => void) = () => { };
-    public onCallConnected: () => void = () => { };
-    public onCallEnded: (reason: string) => void = () => { };
+    public onInviteReceived: ((participantId: string, displayName: string) => void) = () => { };
+
+    public onConferenceCreated: (conferenceId: string, trackingId: string) => void = () => { };
+    public onConferenceConnected: () => void = () => { };
+    public onConferenceEnded: (conferenceId: string, reason: string) => void = () => { };
 
     public onParticipantTrack: ((participantId: string, track: MediaStreamTrack) => void) | null = () => { };
-
     public onParticipantJoined: ((participantId: string, displayName: string) => void) | null = () => { };
     public onParticipantLeft: ((participantId: string) => void) | null = () => { };
 
@@ -39,12 +40,14 @@ class WebRTCService {
         this.onRegisterFailed = null;
         this.onContactsReceived = null;
         this.onLocalStreamReady = null;
-        this.onIncomingCall = null;
-        this.onCallConnected = null;
-        this.onCallEnded = null;
+        this.onInviteReceived = null;
+        this.onConferenceCreated = null;
+        this.onConferenceConnected = null;
+        this.onConferenceEnded = null;
         this.onParticipantTrack = null;
         this.onParticipantJoined = null;
         this.onParticipantLeft = null;
+
     }
 
     public connectSignaling(user: User): void {
@@ -93,6 +96,10 @@ class WebRTCService {
                     this.eventInviteCancelled(payload);
                     break;
                 }
+                case EventTypes.conferenceCreatedResult: {
+                    this.eventConferenceCreatedResult(payload);
+                    break;
+                }
                 case EventTypes.conferenceReady: {
                     this.eventConferenceReady(payload);
                     break;
@@ -123,11 +130,11 @@ class WebRTCService {
     }
 
     public getContacts() {
-        if(this.confClient) {
+        if (this.confClient) {
             this.confClient.getContacts();
         }
     }
-    
+
     public async getUserMedia(constraints?: MediaStreamConstraints): Promise<MediaStream> {
         this.localStream = await getUserMedia(constraints);
         if (this.confClient) {
@@ -172,24 +179,39 @@ class WebRTCService {
         return this.confClient && this.confClient.isInConference();
     }
 
-    public async initiateCall(participantId: string): Promise<void> {
+    public createConferenceRoom(trackingId: string) {
+        this.confClient.createConferenceRoom(trackingId);
+    }
+
+    public joinConferenceRoom(conferenceRoomId: string) {
+        this.confClient.joinConferenceRoom(conferenceRoomId);
+    }
+
+    /**
+     * calls a participant that is online
+     * @param participantId 
+     */
+    public async sendInvite(participantId: string): Promise<void> {
         this.inviteMsg = this.confClient.invite(participantId);
     }
 
-    public async answerCall(): Promise<void> {
+    /**
+     * accepts an invite
+     */
+    public async acceptInvite(): Promise<void> {
         this.confClient.acceptInvite(this.inviteMsg);
         this.inviteMsg = null;
     }
 
-    public declineCall(): void {
-        this.confClient.reject(this.inviteMsg);
+    public declineInvite(): void {
+        this.confClient.rejectInvite(this.inviteMsg);
         this.inviteMsg = null;
     }
 
     public endCall(): void {
         console.log("** endCall()");
         if (this.inviteMsg) {
-            this.confClient.inviteCancel(this.inviteMsg);
+            this.confClient.cancelInvite(this.inviteMsg);
             this.inviteMsg = null;
         }
 
@@ -250,13 +272,13 @@ class WebRTCService {
     private eventInviteReceived(msg: any) {
         console.log("eventInviteReceived", msg);
         this.inviteMsg = msg;
-        this.onIncomingCall(msg.data.participantId, msg.data.displayName);
+        this.onInviteReceived(msg.data.participantId, msg.data.displayName);
     }
 
     private eventInviteResult(msg: InviteResultMsg) {
         console.log("eventInviteResult", msg);
         if (msg.data.error) {
-            this.onCallEnded(msg.data.error);
+            this.onConferenceEnded(msg.data.conferenceRoomId, msg.data.error);
             this.inviteMsg = null;
             return;
         }
@@ -268,31 +290,42 @@ class WebRTCService {
 
     private eventInviteCancelled(msg: any) {
         console.log("eventInviteCancelled", msg);
-        this.onCallEnded("call cancelled");
+        this.onConferenceEnded(msg.data.conferenceRoomId, "call cancelled");
         this.inviteMsg = null;
     }
 
     private eventRejectReceived(msg: any) {
         console.log("eventRejectReceived", msg);
-        this.onCallEnded("call rejected");
+        this.onConferenceEnded(msg.data.conferenceRoomId, "call rejected");
         this.inviteMsg = null;
+    }
+
+    private eventConferenceCreatedResult(msg: CreateConfResultMsg) {
+        console.log("eventConferenceCreatedResult", msg);
+        if (msg.data.error) {
+            console.error("failed to create conference.");
+            this.onConferenceEnded(msg.data.trackingId, "failed to create conference");
+            return;
+        }        
+        this.onConferenceCreated(msg.data.conferenceRoomId, msg.data.trackingId);
+        this.joinConferenceRoom(msg.data.conferenceRoomId);
     }
 
     private eventConferenceReady(msg: any) {
         console.log("eventConferenceReady", msg);
-        this.onCallConnected();
+        this.onConferenceConnected();
         this.inviteMsg = null;
     }
 
     private eventConferenceFailed(msg: any) {
         console.log("eventConferenceFailed", msg);
-        this.onCallEnded("system error");
+        this.onConferenceEnded(msg.data.conferenceRoomId, "system error");
         this.inviteMsg = null;
     }
 
     private eventConferenceClosed(msg: any) {
         console.log("eventConferenceClosed", msg);
-        this.onCallEnded("call ended.");
+        this.onConferenceEnded(msg.data.conferenceRoomId, "call ended.");
         this.inviteMsg = null;
     }
 

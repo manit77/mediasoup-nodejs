@@ -20,14 +20,10 @@ export class ConferenceUtils {
             return authResult;
         }
 
-        let payload: IAuthPayload = {
-            expiresIn: 0,
-            username: userName
-        };
-
-        if (this.config.authTokenExpiresInMinutes > 0) {
-            payload.expiresIn = Math.floor(Date.now() / 1000) + (this.config.authTokenExpiresInMinutes * 60);
-        }
+        let payload: IAuthPayload = {         
+            username: userName,
+            role: "user"
+        };       
 
         let authToken = jwt.jwtSign(this.config.secretKey, payload);
 
@@ -48,14 +44,6 @@ export class ConferenceUtils {
             // Check if roomId exists in the payload
             if (!payload.username) {
                 return false;
-            }
-
-            if (payload.expiresIn > 0) {
-                // Check expiration (if expiresIn or exp is used)
-                const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
-                if (payload.expiresIn && payload.expiresIn < currentTime) {
-                    return false;
-                }
             }
 
             // Token is valid

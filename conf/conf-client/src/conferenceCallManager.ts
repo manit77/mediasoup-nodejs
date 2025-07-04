@@ -1,7 +1,7 @@
 import {
     AcceptMsg,
-    CallMessageType, ConferenceReadyMsg, GetContactsMsg, GetContactsResultsMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg
-    , LeaveMsg, RegisterMsg, RegisterResultMsg, RejectMsg
+    CallMessageType, ConferenceReadyMsg, ConferenceRoomConfig, CreateConfMsg, CreateConfResultMsg, GetContactsMsg, GetContactsResultsMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg
+    , JoinConfMsg, JoinConfResultMsg, LeaveMsg, RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { WebRTCClient } from "@rooms/webrtc-client";
@@ -43,6 +43,7 @@ export enum EventTypes {
     inviteCancelled = "inviteCancelled",
     rejectReceived = "rejectReceived",
 
+    conferenceCreatedResult = "conferenceCreatedResult",
     conferenceReady = "conferenceReady",
     conferenceJoined = "conferenceJoined",
     conferenceClosed = "conferenceClosed",
@@ -194,7 +195,7 @@ export class ConferenceCallManager {
                 case CallMessageType.registerResult:
                     this.onRegisterResult(message);
                     break;
-                case CallMessageType.getContactsResults:
+                case CallMessageType.getContactsResult:
                     this.onContactsReceived(message);
                     break;
                 case CallMessageType.invite:
@@ -209,8 +210,16 @@ export class ConferenceCallManager {
                 case CallMessageType.inviteCancelled:
                     this.onInviteCancelled(message);
                     break;
+                case CallMessageType.createConfResult:
+                    this.onCreateConfResult(message);
+                    break;
+                case CallMessageType.joinConfResult:
+                    this.onJoinConfResult(message);
+                    break;
                 case CallMessageType.conferenceReady:
                     this.onConferenceReady(message);
+                    break;
+
             }
         });
 
@@ -254,7 +263,7 @@ export class ConferenceCallManager {
         return this.inviteMsg;
     }
 
-    inviteCancel(inviteMsg: InviteMsg) {
+    cancelInvite(inviteMsg: InviteMsg) {
         console.log(this.DSTR, "inviteCancel()");
         const callMsg = new InviteCancelledMsg();
         callMsg.data.participantId = inviteMsg.data.participantId;
@@ -263,8 +272,20 @@ export class ConferenceCallManager {
 
         this.inviteMsg = null;
         this.conferenceRoom.conferenceRoomId = "";
-
     }
+
+    createConferenceRoom(trackingId: string) {
+        const msg = new CreateConfMsg();
+        msg.data.conferenceRoomTrackingId = trackingId;
+        msg.data.conferenceRoomConfig = new ConferenceRoomConfig();
+        this.sendToServer(msg);
+    }
+
+    joinConferenceRoom(conferenceRoomId: string) {
+        const msg = new JoinConfMsg();
+        msg.data.conferenceRoomId = conferenceRoomId;
+        this.sendToServer(msg);
+    }    
 
     /*
     receive an invite result 
@@ -347,7 +368,7 @@ export class ConferenceCallManager {
         this.inviteMsg = null;
     }
 
-    reject(message: InviteMsg) {
+    rejectInvite(message: InviteMsg) {
         console.log(this.DSTR, "reject()");
 
         if (message.data.conferenceRoomId != this.inviteMsg.data.conferenceRoomId) {
@@ -430,6 +451,16 @@ export class ConferenceCallManager {
         this.inviteMsg = null;
     }
 
+    private onCreateConfResult(message: CreateConfResultMsg) {
+        console.log(this.DSTR, "onCreateConfResult");
+        this.onEvent(EventTypes.conferenceCreatedResult, message);
+    }
+
+    private onJoinConfResult(message: JoinConfResultMsg) { 
+        console.log(this.DSTR, "onJoinConfResult");
+        this.onEvent(EventTypes.conferenceJoined, message);
+    }
+
     private async onConferenceReady(message: ConferenceReadyMsg) {
         console.log(this.DSTR, "onConferenceReady()");
 
@@ -468,7 +499,6 @@ export class ConferenceCallManager {
             console.error(this.DSTR, "ERROR: no roomRtpCapabilities");
             return;
         }
-
 
         this.roomsClient = new RoomsClient();
 

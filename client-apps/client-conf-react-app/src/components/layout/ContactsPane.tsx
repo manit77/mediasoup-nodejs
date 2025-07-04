@@ -11,9 +11,7 @@ const OnlineIndicator: React.FC<{ isOnline: boolean }> = ({ isOnline }) => (
 
 const ContactsPane: React.FC = () => {
     
-    const { contacts, getContacts, initiateCall, isCallActive, callingContact, incomingCall, localParticipantId } =
-        useCall();
-
+    const { contacts, getContacts, sendInvite, isCallActive, inviteContact, inviteInfo, localParticipantId } = useCall();
     const [loading, setLoading] = useState(true);
 
     // Handle initial loading state
@@ -36,8 +34,8 @@ const ContactsPane: React.FC = () => {
     };
 
     const handleContactClick = (contact: Contact) => {
-        if (!isCallActive && !callingContact && !incomingCall) {
-            initiateCall(contact);
+        if (!isCallActive && !inviteContact && !inviteInfo) {
+            sendInvite(contact);
         }
     };
 
@@ -61,7 +59,7 @@ const ContactsPane: React.FC = () => {
                             action
                             onClick={() => handleContactClick(contact)}
                             className="d-flex justify-content-between align-items-center"
-                            disabled={isCallActive || !!callingContact || !!incomingCall}
+                            disabled={isCallActive || !!inviteContact || !!inviteInfo}
                         >
                             {contact.displayName}
                             <OnlineIndicator isOnline={true} />

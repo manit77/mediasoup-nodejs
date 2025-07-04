@@ -3,8 +3,9 @@ export interface User {
     displayName: string;
 }
 
-export interface Room {
+export interface Conference {
     id: string;
+    trackingId: string;
     name: string;
 }
 

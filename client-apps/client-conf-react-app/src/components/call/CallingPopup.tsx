@@ -3,7 +3,7 @@ import { Modal, Button, Spinner } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 
 const CallingPopup: React.FC = () => {
-    const { callingContact, cancelOutgoingCall } = useCall();
+    const { inviteContact, cancelInvite } = useCall();
 
     return (
         <Modal show={true} centered backdrop="static" keyboard={false}>
@@ -14,10 +14,10 @@ const CallingPopup: React.FC = () => {
                 <Spinner animation="border" role="status" className="mb-3">
                     <span className="visually-hidden">Loading...</span>
                 </Spinner>
-                <h4>Calling {callingContact.displayName}</h4>
+                <h4>Calling {inviteContact.displayName}</h4>
             </Modal.Body>
             <Modal.Footer>
-                <Button variant="danger" onClick={cancelOutgoingCall}>
+                <Button variant="danger" onClick={cancelInvite}>
                     Cancel
                 </Button>
             </Modal.Footer>
