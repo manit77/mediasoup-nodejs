@@ -285,10 +285,10 @@ export class ConferenceServer {
             return;
         }
 
-        if (partcipant.role === "guest") {
-            console.error("participant must be an authenticated user");
-            return;
-        }
+        // if (partcipant.role === "guest") {
+        //     console.error("participant must be an authenticated user");
+        //     return;
+        // }
 
         let msg = new GetContactsResultsMsg();
         this.getParticipantsExcept(ws).forEach((p) => {
@@ -345,10 +345,10 @@ export class ConferenceServer {
             return;
         }
 
-        if (caller.role === "guest") {
-            console.error("guest cannot send an invite.");
-            return;
-        }
+        // if (caller.role === "guest") {
+        //     console.error("guest cannot send an invite.");
+        //     return;
+        // }
 
         let receiver = this.getParticipant(msgIn.data.participantId);
         if (!receiver) {
@@ -519,10 +519,10 @@ export class ConferenceServer {
             return;
         }
 
-        if (caller.role === "guest") {
-            console.error("participant must be an authenticated user");
-            return;
-        }
+        // if (caller.role === "guest") {
+        //     console.error("participant must be an authenticated user");
+        //     return;
+        // }
 
         let conference = caller.conferenceRoom;
         if (conference) {
@@ -546,7 +546,7 @@ export class ConferenceServer {
     }
 
     async onJoinConference(ws: WebSocket, msgIn: JoinConfMsg) {
-        console.log("onCreateConf");
+        console.log("onJoinConference");
 
         let partcipant = this.participants.get(ws);
         if (!partcipant) {
@@ -656,7 +656,7 @@ export class ConferenceServer {
 
         let roomConfig = new RoomConfig();
         roomConfig.maxPeers = conference.config.maxGuests;
-        roomConfig.maxRoomDurationMinutes = conference.timeoutSecs * 60;
+        roomConfig.maxRoomDurationMinutes = Math.ceil(conference.timeoutSecs / 60);
 
         let roomNewResult = await roomsAPI.newRoom(roomId, roomToken, conference.id, roomConfig);
         if (!roomNewResult || roomNewResult?.data?.error) {

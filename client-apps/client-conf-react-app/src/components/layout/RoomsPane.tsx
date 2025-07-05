@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { useAuth } from '../../hooks/useAuth';
@@ -20,28 +20,28 @@ const RoomsPane: React.FC = () => {
     const [conferences, setConferences] = useState<Conference[]>([]);
 
     // Handle initial loading state
-    useEffect(() => {
 
-    }, []);
-
-    const handleRefreshRooms = async () => {
+    const handleRefreshRooms = useCallback(async () => {
         setLoading(true);
         try {
             setConferences(await getConferences());
         } catch (error) {
-            console.error('Failed to refresh contacts:', error);
+            console.error('Failed to refresh rooms:', error);
         } finally {
             setLoading(false);
         }
-    };
-
+    }, [getConferences]);
+    
+    useEffect(() => {
+        handleRefreshRooms();
+    }, [handleRefreshRooms]);
+    
     const handleConferenceClick = async (conference: Conference) => {
         setLoading(true);
         try {
             if (conference.id) {
                 joinConference(conference.id);
-            } else {
-                console.error("room not started");
+            } else {                
                 createConference(conference.trackingId);
             }
         } catch (error) {
@@ -84,3 +84,4 @@ const RoomsPane: React.FC = () => {
 };
 
 export default RoomsPane;
+

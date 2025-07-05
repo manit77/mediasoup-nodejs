@@ -49,6 +49,8 @@ export class ConferenceRoom {
     }
 
     updateStatus(status: conferenceStatus) {
+        this.status = status;
+        
         if (status == "ready") {
             for (let cb of this.onReadyListeners) {
                 cb();

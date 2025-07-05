@@ -282,8 +282,14 @@ export class ConferenceCallManager {
     }
 
     joinConferenceRoom(conferenceRoomId: string) {
+        console.log(`joinConferenceRoom ${conferenceRoomId}`);
+        if(this.conferenceRoom.conferenceRoomId) {
+            console.error(`already in conferenceroom ${this.conferenceRoom.conferenceRoomId}`);
+            return;
+        }
         const msg = new JoinConfMsg();
         msg.data.conferenceRoomId = conferenceRoomId;
+        this.conferenceRoom.conferenceRoomId = conferenceRoomId;
         this.sendToServer(msg);
     }    
 
@@ -458,6 +464,13 @@ export class ConferenceCallManager {
 
     private onJoinConfResult(message: JoinConfResultMsg) { 
         console.log(this.DSTR, "onJoinConfResult");
+        if(message.data.error) {
+            this.conferenceRoom.conferenceRoomId = "";
+            console.error(message.data.error);
+            return;
+        }
+
+        this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
         this.onEvent(EventTypes.conferenceJoined, message);
     }
 

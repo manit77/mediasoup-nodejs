@@ -80,7 +80,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const getConferences = async (): Promise<Conference[]> => {
-        return await ApiService.getConferences();
+        let conferences =  await ApiService.getConferences();
+        return conferences;
     }
 
     return (

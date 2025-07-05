@@ -53,16 +53,16 @@ export const ApiService = {
 
     getConferences: async (): Promise<Conference[]> => {
         //get rooms from API
-        let rooms: Conference[] = [{
+        let conferences: Conference[] = [{
             id: "",
             trackingId: "1",
             name: "room1"
         }, {
             id: "",
-            trackingId: "1",
+            trackingId: "2",
             name: "room2"
         }];
-        return rooms;
+        return conferences;
     }
 
 };

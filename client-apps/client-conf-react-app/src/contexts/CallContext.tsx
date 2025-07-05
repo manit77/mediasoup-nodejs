@@ -34,7 +34,9 @@ interface CallContextType {
     availableDevices: { video: Device[]; audioIn: Device[]; audioOut: Device[] };
     selectedDevices: { videoId?: string; audioInId?: string; audioOutId?: string };
     setSelectedDevices: React.Dispatch<React.SetStateAction<{ videoId?: string; audioInId?: string; audioOutId?: string }>>;
+
     isScreenSharing: boolean;
+
     popUpMessage: string;
     hidePopUp: () => void;
     showPopUp: (message: string, timeoutSecs?: number) => void;
@@ -131,6 +133,34 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
     }, [updateMediaDevices]);
 
+    const hidePopUp = useCallback(() => {
+        setPopUpMessage("");
+        if (popUpTimerId) {
+            clearTimeout(popUpTimerId);
+        }
+    }, [popUpTimerId])
+
+    const showPopUp = useCallback((message: string, timeoutSecs?: number) => {
+        console.log(`showPopUp ${message} ${timeoutSecs}`);
+
+        if (timeoutSecs) {
+
+            if (popUpTimerId) {
+                clearTimeout(popUpTimerId);
+            }
+
+            setPopUpMessage(message);
+            let timerid = setTimeout(() => {
+                setPopUpMessage("");
+            }, timeoutSecs * 1000);
+
+            setPopUpTimerId(timerid);
+
+        } else {
+            setPopUpMessage(message);
+        }
+    }, [popUpTimerId])
+    
     const setupWebRTCEvents = useCallback(() => {
 
         webRTCService.onRegistered = (participantId: string) => {
@@ -213,8 +243,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             let self: CallParticipant = {
                 displayName: auth.currentUser.displayName,
                 id: auth.currentUser.id,
-                isMuted: !localStream.getAudioTracks()[0]?.enabled,
-                isVideoOff: !localStream.getVideoTracks()[0]?.enabled,
+                isMuted: localStream ? localStream.getAudioTracks()[0]?.enabled : false,
+                isVideoOff: localStream ? localStream.getVideoTracks()[0]?.enabled : false,
                 stream: localStream
             };
 
@@ -264,7 +294,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return () => { // Cleanup
             webRTCService.dispose();
         }
-    }, [auth.currentUser, participants, isCallActive, localStream, resetCallState]);
+    }, [hidePopUp, showPopUp, auth.currentUser, participants, isCallActive, localStream, resetCallState]);
 
     useEffect(() => {
         if (auth?.isAuthenticated && auth.currentUser) {
@@ -274,35 +304,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const getContacts = () => {
         webRTCService.getContacts();
-    }
-
-    const hidePopUp = () => {
-        setPopUpMessage("");
-        if (popUpTimerId) {
-            clearTimeout(popUpTimerId);
-        }
-    }
-
-    const showPopUp = (message: string, timeoutSecs?: number) => {
-        console.log(`showPopUp ${message} ${timeoutSecs}`);
-
-        if (timeoutSecs) {
-
-            if (popUpTimerId) {
-                clearTimeout(popUpTimerId);
-            }
-
-            setPopUpMessage(message);
-            let timerid = setTimeout(() => {
-                setPopUpMessage("");
-            }, timeoutSecs * 1000);
-
-            setPopUpTimerId(timerid);
-
-        } else {
-            setPopUpMessage(message);
-        }
-    }
+    }    
 
     const getMediaContraints = () => {
         const constraints = {
@@ -610,7 +612,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // }
 
     };
-
 
     return (
         <CallContext.Provider value={{
