@@ -19,12 +19,6 @@ export enum payloadTypeClient {
     roomLeave = "roomLeave",
     roomTerminate = "roomTerminate",
     roomGetLogs = "roomGetLogs",
-
-    rtc_needOffer = "rtc_needOffer",
-    rtc_offer = "rtc_offer",
-    rtc_answer = "rtc_answer",
-    rtc_ice = "rtc_ice",
-
     produce = "produce",
     consume = "consume",
 }
@@ -53,12 +47,7 @@ export enum payloadTypeServer {
     roomTerminateResult = "roomTerminateResult",
     roomClosed = "roomClosed",
     roomGetLogsResult = "roomGetLogsResult",
-
-    rtc_needOffer = "rtc_needOffer",
-    rtc_offer = "rtc_offer",
-    rtc_answer = "rtc_answer",
-    rtc_ice = "rtc_ice",
-
+   
     peerTerminated = "peerTerminated",
     error = "error",
     ok = "ok",
@@ -293,12 +282,11 @@ export class RoomJoinResultMsg implements IMsg {
     data: {
         roomId?: string,
         roomToken?: string,
-        roomType?: RoomType,
         peers?: {
             peerId: string,
             peerTrackingId: string,
             displayName: string,
-            producers?: { producerId: string, kind: "audio" | "video" }[]
+            producerInfos?: { producerId: string, kind: "audio" | "video" }[]
         }[],
         error?: string,
     } = { peers: [] };
@@ -311,7 +299,7 @@ export class RoomNewPeerMsg implements IMsg {
         peerTrackingId?: string;
         roomId?: string;
         displayName?: string;
-        producers?: { producerId: string, kind: "audio" | "video" }[]
+        producerInfos?: { producerId: string, kind: "audio" | "video" }[]
     } = {};
 }
 
@@ -403,7 +391,6 @@ export enum RoomServerAPIRoutes {
 }
 
 export class RoomConfig {
-    roomType = RoomType.sfu;
     maxPeers = 99;
     peerAllowMic = true;
     peerAllowCamera = true;
@@ -416,43 +403,6 @@ export class RoomConfig {
     callBackURL_OnRoomClosed: string;
     callBackURL_OnPeerLeft: string;
     callBackURL_OnPeerJoined: string;
-}
-
-export enum RoomType {
-    "sfu" = "sfu",
-    "p2p" = "p2p"
-}
-
-export class RTCNeedOfferMsg implements IMsg {
-    type = payloadTypeClient.rtc_needOffer;
-    data: {
-        remotePeerId?: string,
-        sdp?: any
-    } = {};
-}
-
-export class RTCOfferMsg implements IMsg {
-    type = payloadTypeClient.rtc_offer;
-    data: {
-        remotePeerId?: string,
-        sdp?: any
-    } = {};
-}
-
-export class RTCAnswerMsg implements IMsg {
-    type = payloadTypeClient.rtc_answer;
-    data: {
-        remotePeerId?: string,
-        sdp?: any
-    } = {};
-}
-
-export class RTCIceMsg implements IMsg {
-    type = payloadTypeClient.rtc_ice;
-    data: {
-        remotePeerId?: string,
-        candidate?: any
-    } = {};
 }
 
 export interface RoomPeerCallBackData {

@@ -1,17 +1,15 @@
-import { ConferenceCallManager, EventTypes } from '@conf/conf-client';
+import { ConferenceClient, EventTypes } from '@conf/conf-client';
 import { User } from '../types';
-import { Contact, CreateConfMsg, CreateConfResultMsg, InviteMsg, InviteResultMsg } from '@conf/conf-models';
+import { Contact, CreateConfResultMsg, InviteMsg, InviteResultMsg } from '@conf/conf-models';
 import { getUserMedia } from '@rooms/webrtc-client';
 
 const confServerURI = 'https://localhost:3100'; // conference
 
 class WebRTCService {
     localStream: MediaStream;
-    confClient: ConferenceCallManager;
+    confClient: ConferenceClient;
     contacts: Contact[] = [];
     inviteMsg: InviteMsg;
-
-    private peerConnections: Map<string, RTCPeerConnection> = new Map();
 
     public onServerConnected: (() => void) = () => { };
     public onServerDisconnected: (() => void) = () => { };
@@ -57,7 +55,7 @@ class WebRTCService {
             return;
         }
 
-        this.confClient = new ConferenceCallManager();
+        this.confClient = new ConferenceClient();
         this.confClient.connect(true, confServerURI);
 
         this.confClient.onEvent = (eventType: EventTypes, payload?: any) => {
@@ -138,7 +136,7 @@ class WebRTCService {
     public async getUserMedia(constraints?: MediaStreamConstraints): Promise<MediaStream> {
         this.localStream = await getUserMedia(constraints);
         if (this.confClient) {
-            this.confClient.setLocalStream(this.localStream);
+            this.confClient.publishTracks(this.localStream);
         }
         return this.localStream;
     }
@@ -159,7 +157,7 @@ class WebRTCService {
             console.log("no localStream");
             return;
         }
-        let existingTracks = this.confClient.getLocalStream().getTracks();
+        let existingTracks = this.confClient.getTracks();
 
         //remove all tracks by kind: video, and audio
         let tracksToRemove = new MediaStream();
@@ -170,9 +168,9 @@ class WebRTCService {
             }
         });
 
-        this.confClient.removeTracks(tracksToRemove);
+        this.confClient.unpublishTracks(tracksToRemove);
 
-        this.confClient.setLocalStream(newStream);
+        this.confClient.publishTracks(newStream);
     }
 
     public isOnCall() {

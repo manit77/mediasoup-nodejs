@@ -1,6 +1,6 @@
 import {
-    payloadTypeServer,   
-    RoomType
+    payloadTypeServer
+    
 } from "@rooms/rooms-models";
 import * as rooms from "@rooms/rooms-client";
 import { getUserMedia } from "@rooms/webrtc-client";
@@ -48,8 +48,7 @@ import { getUserMedia } from "@rooms/webrtc-client";
         };
 
         roomsClient.onRoomPeerJoinedEvent = (roomid: string, peer: rooms.Peer) => {
-            writeLog("* onRoomPeerJoinedEvent");
-            // roomsClient.consumePeerProducers(peer);
+            writeLog("* onRoomPeerJoinedEvent");            
         };
 
         roomsClient.onRoomPeerLeftEvent = (roomid: string, peer: rooms.Peer) => {
@@ -95,7 +94,7 @@ import { getUserMedia } from "@rooms/webrtc-client";
         }
         let stream = await getUserMedia();
 
-        roomsClient.addLocalTracks(stream);
+        roomsClient.publishTracks(stream);
 
         ctlVideo.srcObject = stream;
     }
@@ -161,15 +160,7 @@ import { getUserMedia } from "@rooms/webrtc-client";
         event.preventDefault();
         ctlJoinRoomButton.disabled = false;
         await connectRooms();
-        await createJoinNewRoom(RoomType.sfu);
-    }
-
-    ctlCreateWebRTCRoomButton.onclick = async (event) => {
-        writeLog("ctlJoinSFURoomButton click");
-        event.preventDefault();
-        ctlJoinRoomButton.disabled = false;
-        await connectRooms();
-        await createJoinNewRoom(RoomType.p2p);
+        await createJoinNewRoom();
     }
 
     ctlLeaveRoomButton.onclick = async (event) => {
@@ -193,7 +184,7 @@ import { getUserMedia } from "@rooms/webrtc-client";
         ctlStatus.innerHTML = `${params.join(" ")}<br>${ctlStatus.innerHTML}`;
     }
 
-    async function createJoinNewRoom(roomType: RoomType) {
+    async function createJoinNewRoom() {
         writeLog("* createJoinNewRoom()");
 
         if (roomsClient.isInRoom()) {
@@ -211,7 +202,7 @@ import { getUserMedia } from "@rooms/webrtc-client";
             return;
         }
 
-        let result = await roomsClient.waitForNewRoom(roomType, maxPeers, roomDuration);
+        let result = await roomsClient.waitForNewRoom(maxPeers, roomDuration);
         if (result.data.error) {
             writeLog("* unable to create room");
             await disconnectRooms();

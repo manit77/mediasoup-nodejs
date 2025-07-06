@@ -40,7 +40,7 @@ interface CallContextType {
     popUpMessage: string;
     hidePopUp: () => void;
     showPopUp: (message: string, timeoutSecs?: number) => void;
-    getSetLocalStream: () => void;
+    getSetLocalStream: () => Promise<MediaStream>;
 
     sendInvite: (contact: Contact) => Promise<void>;
     acceptInvite: () => Promise<void>;
@@ -243,8 +243,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             let self: CallParticipant = {
                 displayName: auth.currentUser.displayName,
                 id: auth.currentUser.id,
-                isMuted: localStream ? localStream.getAudioTracks()[0]?.enabled : false,
-                isVideoOff: localStream ? localStream.getVideoTracks()[0]?.enabled : false,
+                isMuted: localStream ? !localStream.getAudioTracks()[0]?.enabled : true,
+                isVideoOff: localStream ? !localStream.getVideoTracks()[0]?.enabled : true,
                 stream: localStream
             };
 

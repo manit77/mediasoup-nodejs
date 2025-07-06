@@ -1,1 +1,1 @@
-export * from "./conferenceCallManager.js";
+export * from "./conferenceClient.js";

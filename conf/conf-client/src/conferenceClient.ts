@@ -4,7 +4,6 @@ import {
     , JoinConfMsg, JoinConfResultMsg, LeaveMsg, RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
-import { WebRTCClient } from "@rooms/webrtc-client";
 import { RoomsClient, Peer } from "@rooms/rooms-client";
 
 class Participant {
@@ -56,10 +55,9 @@ export enum EventTypes {
 }
 type ConferenceEvent = (eventType: EventTypes, payload?: any) => void;
 
-export class ConferenceCallManager {
+export class ConferenceClient {
     private DSTR = "ConferenceCallManager";
     private socket: WebSocketClient;
-    private localStream: MediaStream | null = null;
     participantId: string = '';
     userName: string = "";
     conferenceRoom: Conference = new Conference();
@@ -78,33 +76,24 @@ export class ConferenceCallManager {
     constructor() {
     }
 
-    setLocalStream(stream: MediaStream) {
-        console.log(`setLocalStream`);
-
-        if (!stream) {
-            console.error("stream is required.");
-        }
-
-        if (this.localStream && this.roomsClient) {
-            //swap out the tracks
-            //remove any local tracks
-            this.roomsClient.removeLocalTracks(this.localStream);
-            this.localStream = stream;
-            this.roomsClient.addLocalTracks(this.localStream);
-            return;
-        }
-
-        this.localStream = stream;
-    }
-
-    getLocalStream() {
-        return this.localStream;
-    }
-
-    removeTracks(stream: MediaStream) {
+    publishTracks(tracks: MediaStream) {
         if (this.roomsClient) {
-            this.roomsClient.removeLocalTracks(stream);
+            this.roomsClient.publishTracks(tracks);
         }
+    }
+
+    unpublishTracks(tracks: MediaStream) {
+        if (this.roomsClient) {
+            this.roomsClient.unpublishTracks(tracks);
+        }
+    }
+
+    getTracks() {
+        if (this.roomsClient) {
+            this.roomsClient.getTracks();
+        }
+
+        return [];
     }
 
     async startScreenShare() {
@@ -134,7 +123,7 @@ export class ConferenceCallManager {
                 console.log(`existingTrack found ${existingTrack.kind} ${existingTrack.id}`);
                 this.roomsClient.replaceTrack(existingTrack, videoTrack);
             } else {
-                this.roomsClient.addLocalTracks(new MediaStream([videoTrack]));
+                this.roomsClient.publishTracks(new MediaStream([videoTrack]));
             }
 
             return screenStream;
@@ -149,7 +138,6 @@ export class ConferenceCallManager {
         if (videoTrack) {
             videoTrack.stop();
         }
-
     }
 
     connect(autoReconnect: boolean, conf_wsURIOverride: string = "") {
@@ -283,7 +271,7 @@ export class ConferenceCallManager {
 
     joinConferenceRoom(conferenceRoomId: string) {
         console.log(`joinConferenceRoom ${conferenceRoomId}`);
-        if(this.conferenceRoom.conferenceRoomId) {
+        if (this.conferenceRoom.conferenceRoomId) {
             console.error(`already in conferenceroom ${this.conferenceRoom.conferenceRoomId}`);
             return;
         }
@@ -291,7 +279,7 @@ export class ConferenceCallManager {
         msg.data.conferenceRoomId = conferenceRoomId;
         this.conferenceRoom.conferenceRoomId = conferenceRoomId;
         this.sendToServer(msg);
-    }    
+    }
 
     /*
     receive an invite result 
@@ -462,9 +450,9 @@ export class ConferenceCallManager {
         this.onEvent(EventTypes.conferenceCreatedResult, message);
     }
 
-    private onJoinConfResult(message: JoinConfResultMsg) { 
+    private onJoinConfResult(message: JoinConfResultMsg) {
         console.log(this.DSTR, "onJoinConfResult");
-        if(message.data.error) {
+        if (message.data.error) {
             this.conferenceRoom.conferenceRoomId = "";
             console.error(message.data.error);
             return;
@@ -477,7 +465,6 @@ export class ConferenceCallManager {
     private async onConferenceReady(message: ConferenceReadyMsg) {
         console.log(this.DSTR, "onConferenceReady()");
 
-        this.onEvent(EventTypes.conferenceReady, message);
         if (this.conferenceRoom.conferenceRoomId != message.data.conferenceRoomId) {
             console.error(this.DSTR, `onConferenceReady() - conferenceRoomId does not match ${this.conferenceRoom.conferenceRoomId} ${message.data.conferenceRoomId}`);
             return;
@@ -515,36 +502,6 @@ export class ConferenceCallManager {
 
         this.roomsClient = new RoomsClient();
 
-        this.roomsClient.onRoomClosedEvent = (roomId: string, peers: Peer[]) => {
-            console.log(this.DSTR, "onRoomClosedEvent");
-            this.roomsClient.disconnect();
-            this.roomsClient.dispose();
-
-            let msg = {
-                type: EventTypes.conferenceClosed,
-                data: { roomId: this.conferenceRoom.roomId }
-            }
-            this.onEvent(EventTypes.conferenceClosed, msg);
-            this.conferenceRoom = new Conference();
-        };
-
-        this.roomsClient.onPeerNewTrackEvent = (peer: Peer, track: MediaStreamTrack) => {
-            console.log(this.DSTR, "onPeerNewTrackEvent");
-            let participant = this.conferenceRoom.participants.get(peer.trackingId);
-            if (!participant) {
-                console.error("participant not found.");
-                return;
-            }
-            let msg = {
-                type: EventTypes.participantNewTrack,
-                data: {
-                    participantId: participant.participantId,
-                    track: track
-                }
-            }
-            this.onEvent(EventTypes.participantNewTrack, msg);
-
-        };
 
         this.roomsClient.onRoomJoinedEvent = (roomId: string) => {
             //confirmation for local user has joined a room
@@ -556,7 +513,19 @@ export class ConferenceCallManager {
                 }
             }
             this.onEvent(EventTypes.conferenceJoined, msg);
+        };
 
+        this.roomsClient.onRoomClosedEvent = (roomId: string, peers: Peer[]) => {
+            console.log(this.DSTR, "onRoomClosedEvent");
+            this.roomsClient.disconnect();
+            this.roomsClient.dispose();
+
+            let msg = {
+                type: EventTypes.conferenceClosed,
+                data: { roomId: this.conferenceRoom.roomId }
+            }
+            this.onEvent(EventTypes.conferenceClosed, msg);
+            this.conferenceRoom = new Conference();
         };
 
         this.roomsClient.onRoomPeerJoinedEvent = (roomId: string, peer: Peer) => {
@@ -585,7 +554,7 @@ export class ConferenceCallManager {
             if (!participant.displayName) {
                 console.error("no displayName");
                 return;
-            }
+            }            
 
             let msg = {
                 type: EventTypes.participantJoined,
@@ -596,6 +565,25 @@ export class ConferenceCallManager {
                 }
             }
             this.onEvent(EventTypes.participantJoined, msg);
+        };
+
+        this.roomsClient.onPeerNewTrackEvent = (peer: Peer, track: MediaStreamTrack) => {
+            console.log(this.DSTR, "onPeerNewTrackEvent");
+            let participant = this.conferenceRoom.participants.get(peer.trackingId);
+            if (!participant) {
+                console.error("participant not found.");
+                return;
+            }
+
+            let msg = {
+                type: EventTypes.participantNewTrack,
+                data: {
+                    participantId: participant.participantId,
+                    track: track
+                }
+            }
+            this.onEvent(EventTypes.participantNewTrack, msg);
+
         };
 
         this.roomsClient.onRoomPeerLeftEvent = (roomId: string, peer: Peer) => {
@@ -622,8 +610,6 @@ export class ConferenceCallManager {
         let registerResult = await this.roomsClient.waitForRegister(this.conferenceRoom.roomAuthToken, this.participantId, this.userName);
         let roomJoinResult = connectResult = await this.roomsClient.waitForRoomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
 
-        this.roomsClient.addLocalTracks(this.localStream);
-
         if (connectResult.data.error || roomJoinResult.data.error) {
             //call failed
             let msg = {
@@ -637,7 +623,10 @@ export class ConferenceCallManager {
             this.conferenceRoom = new Conference();
             this.roomsClient.disconnect();
             this.roomsClient.dispose();
+            return;
         }
+
+        this.onEvent(EventTypes.conferenceReady, message);
 
     }
 

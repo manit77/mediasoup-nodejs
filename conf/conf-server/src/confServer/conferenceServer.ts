@@ -193,8 +193,8 @@ export class ConferenceServer {
             conference.config = config;
         }
 
-        if (config.roomTimeoutSecs) {
-            conference.timeoutSecs = config.roomTimeoutSecs;
+        if (conference.config.roomTimeoutSecs) {
+            conference.timeoutSecs = conference.config.roomTimeoutSecs;
         } else {
             //default timeout is one hour
             conference.timeoutSecs = 60 * 60;
