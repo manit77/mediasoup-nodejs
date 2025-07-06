@@ -2,11 +2,12 @@ import * as mediasoupClient from 'mediasoup-client';
 import {
   AuthUserNewTokenMsg,
   AuthUserNewTokenResultMsg,
-  ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg
-  , ConsumeMsg, ConsumerTransportCreatedMsg, CreateConsumerTransportMsg, CreateProducerTransportMsg
-  , ErrorMsg, IMsg, OkMsg, payloadTypeServer, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg
-  , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg
-  , RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg
+  ConnectConsumerTransportMsg, ConnectConsumerTransportResultMsg, ConnectProducerTransportMsg, ConnectProducerTransportResultMsg, ConsumedMsg,
+  ConsumeMsg, CreateConsumerTransportMsg, CreateConsumerTransportResultMsg, CreateProducerTransportMsg,
+  CreateProducerTransportResultMsg,
+  ErrorMsg, IMsg, OkMsg, payloadTypeServer, ProducedMsg, ProduceMsg,
+  RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
+  RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
 } from "@rooms/rooms-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { Consumer, Producer, Transport } from 'mediasoup-client/types';
@@ -26,8 +27,8 @@ export class LocalPeer {
   authToken: string = "";
   roomToken: string = "";
 
-  transportSend: mediasoupClient.types.Transport;
-  transportReceive: mediasoupClient.types.Transport;
+  transportProduce: mediasoupClient.types.Transport;
+  transportConsume: mediasoupClient.types.Transport;
   consumers: Map<string, mediasoupClient.types.Consumer> = new Map();
   producers: Map<string, mediasoupClient.types.Producer> = new Map();
 
@@ -142,11 +143,11 @@ export class RoomsClient {
 
     this.localPeer.getConsumers().forEach(c => c.close());
     this.localPeer.getProducers().forEach(c => c.close());
-    this.localPeer.transportReceive?.close();
-    this.localPeer.transportSend?.close();
+    this.localPeer.transportConsume?.close();
+    this.localPeer.transportProduce?.close();
 
-    this.localPeer.transportReceive = null;
-    this.localPeer.transportSend = null;
+    this.localPeer.transportConsume = null;
+    this.localPeer.transportProduce = null;
     this.peers = [];
     this.localPeer = new LocalPeer();
     this.ws.disconnect();
@@ -381,8 +382,6 @@ export class RoomsClient {
    * @returns 
    */
   waitForRoomJoin = async (roomid: string, roomToken: string): Promise<IMsg> => {
-
-    //remove the old event hanlder    
     return new Promise<IMsg>((resolve, reject) => {
       try {
         let timerid = setTimeout(() => reject("failed to join room"), 5000);
@@ -458,8 +457,8 @@ export class RoomsClient {
     this.localPeer.getConsumers().forEach(c => c.close());
     this.localPeer.getProducers().forEach(c => c.close());
 
-    this.localPeer.transportReceive?.close();
-    this.localPeer.transportSend?.close();
+    this.localPeer.transportConsume?.close();
+    this.localPeer.transportProduce?.close();
 
     this.ws.disconnect();
 
@@ -478,7 +477,7 @@ export class RoomsClient {
   };
 
   publishTracks = async (tracks: MediaStream) => {
-    console.log(DSTR, "addLocalTrack() ");
+    console.log(DSTR, "publishTracks() ");
 
     if (!tracks) {
       console.error("ERROR: tracks is required.")
@@ -490,35 +489,32 @@ export class RoomsClient {
       return;
     }
 
+    if (!this.localPeer.transportProduce) {
+      console.log(DSTR, 'No transportProduce');
+      return;
+    }
+
     tracks.getTracks().forEach(t => {
       t.enabled = t.kind === "audio" ? this.audioEnabled : this.videoEnabled;
     });
 
-    if (this.localPeer.transportSend) {
-
-      for (let track of tracks.getTracks()) {
-        try {
-          console.log(DSTR, `produce track ${track.kind}`);
-          let producer = this.localPeer.getProducers().find(p => p.track.id == track.id);
-          if (producer) {
-            console.error(DSTR, "producer found with existing track.");
-            return;
-          }
-
-          producer = await this.localPeer.transportSend.produce({ track });
-          this.localPeer.addProducer(producer);
-          console.log(DSTR, "track added: " + track.kind);
-        } catch (error) {
-          console.error(DSTR, `Failed to produce track: ${error.message}`);
-          console.error(DSTR, error);
+    for (let track of tracks.getTracks()) {
+      try {
+        console.log(DSTR, `produce track ${track.kind}`);
+        let producer = this.localPeer.getProducers().find(p => p.track.id == track.id);
+        if (producer) {
+          console.error(DSTR, "producer found with existing track.");
+          return;
         }
+
+        producer = await this.localPeer.transportProduce.produce({ track });
+        this.localPeer.addProducer(producer);
+        console.log(DSTR, "track added: " + track.kind);
+      } catch (error) {
+        console.error(DSTR, `Failed to produce track: ${error.message}`);
+        console.error(DSTR, error);
       }
-
-    } else {
-      console.log(DSTR, 'No transportSend');
     }
-
-
   };
 
   unpublishTracks = async (tracks: MediaStream) => {
@@ -671,12 +667,19 @@ export class RoomsClient {
         case payloadTypeServer.registerPeerResult:
           this.onRegisterResult(msgIn);
           break;
-        case payloadTypeServer.producerTransportCreated:
-          this.onProducerTransportCreated(msgIn);
+        case payloadTypeServer.createProducerTransportResult:
+          this.onCreateProducerTransport(msgIn);
           break;
-        case payloadTypeServer.consumerTransportCreated:
-          this.onConsumerTransportCreated(msgIn);
+        case payloadTypeServer.createConsumerTransportResult:
+          this.onCreateConsumerTransport(msgIn);
           break;
+        case payloadTypeServer.connectProducerTransportResult:
+          this.onConnectProducerTransport(msgIn);
+          break;
+        case payloadTypeServer.connectConsumerTransportResult:
+          this.onConnectConsumerTransport(msgIn);
+          break;
+
         case payloadTypeServer.roomNewTokenResult:
           this.onRoomNewTokenResult(msgIn);
           break;
@@ -759,12 +762,12 @@ export class RoomsClient {
   //     return;
   //   }
 
-  //   if (!this.localPeer.transportSend) {
-  //     console.log(DSTR, "transportSend is required.");
+  //   if (!this.localPeer.transportProduce) {
+  //     console.log(DSTR, "transportProduce is required.");
   //     return;
   //   }    
 
-  //   let producer = await this.localPeer.transportSend.produce({ track: track });
+  //   let producer = await this.localPeer.transportProduce.produce({ track: track });
   //   this.localPeer.addProducer(producer);
 
   // }
@@ -787,8 +790,8 @@ export class RoomsClient {
   //     return;
   //   }
 
-  //   if (!this.localPeer.transportSend) {
-  //     console.log(DSTR, "transportSend is required.");
+  //   if (!this.localPeer.transportProduce) {
+  //     console.log(DSTR, "transportProduce is required.");
   //     return;
   //   }
 
@@ -797,7 +800,7 @@ export class RoomsClient {
   //   for (let track of this.localPeer.tracks.getTracks()) {
   //     //produce only enabled and live streams
   //     if (track.enabled && track.readyState === "live") {
-  //       let producer = await this.localPeer.transportSend.produce({ track: track });
+  //       let producer = await this.localPeer.transportProduce.produce({ track: track });
   //       this.localPeer.addProducer(producer);
   //     }
   //   };
@@ -910,13 +913,26 @@ export class RoomsClient {
     console.log(DSTR, "joined room " + msgIn.data!.roomId);
     console.log(DSTR, `-- onRoomJoinResult() peers : ${msgIn.data?.peers.length}`);
 
-    let transports = await this.waitForRoomTransports();
-
-    if (transports.data.error) {
+    let transportsResult = await this.waitForCreateTransports();
+    if (transportsResult.data.error) {
       console.log("unable to create transports");
       return;
     }
-    console.log("transports created.");    
+    console.log("transports created.");
+    let produceConnected = await this.waitForTransportConnected(this.localPeer.transportProduce);
+    let consumeConnect = await this.waitForTransportConnected(this.localPeer.transportConsume);
+
+    if(produceConnected.data.error) {
+      console.log("producer not connected");
+      return;
+    }
+
+    if(consumeConnect.data.error) {
+      console.log("consumer not connected");
+      return;
+    }
+
+    console.log("transports connected.");
 
     if (this.onRoomJoinedEvent) {
       this.onRoomJoinedEvent(this.localPeer.roomId);
@@ -960,7 +976,7 @@ export class RoomsClient {
     console.log(DSTR, "onRoomNewPeer " + msgIn.data?.peerId + " producers: " + msgIn.data?.producerInfos?.length);
     console.log(DSTR, `new PeeerJoined ${msgIn.data?.peerId} `);
 
-    let newpeer: Peer = this.createPeer(msgIn.data.peerId, msgIn.data.peerTrackingId, msgIn.data.displayName);  
+    let newpeer: Peer = this.createPeer(msgIn.data.peerId, msgIn.data.peerTrackingId, msgIn.data.displayName);
     if (msgIn.data?.producerInfos) {
       for (let producer of msgIn.data.producerInfos) {
         this.consumeProducer(msgIn.data.peerId, producer.producerId);
@@ -1015,8 +1031,8 @@ export class RoomsClient {
       consumer.close();
     }
 
-    this.localPeer.transportSend?.close();
-    this.localPeer.transportReceive?.close();
+    this.localPeer.transportProduce?.close();
+    this.localPeer.transportConsume?.close();
 
     this.localPeer.roomId = "";
     this.peers = [];
@@ -1026,7 +1042,7 @@ export class RoomsClient {
   /**
    * when you join a room transports need be created and published to a room
    */
-  private waitForRoomTransports = async (): Promise<IMsg> => {
+  private waitForCreateTransports = async (): Promise<IMsg> => {
 
     if (!this.localPeer.roomId) {
       console.log(DSTR, "room is required for creating transports");
@@ -1122,7 +1138,7 @@ export class RoomsClient {
   //     return;
   //   }
 
-  //   if (!this.localPeer.transportReceive || !this.localPeer.transportSend) {
+  //   if (!this.localPeer.transportConsume || !this.localPeer.transportProduce) {
   //     console.log(DSTR, "transports have not been created.");
   //     return;
   //   }
@@ -1139,10 +1155,15 @@ export class RoomsClient {
 
   // }
 
-  private onConsumerTransportCreated = async (msgIn: ConsumerTransportCreatedMsg) => {
-    console.log(DSTR, "-- onConsumerTransportCreated");
+  private onCreateConsumerTransport = async (msgIn: CreateConsumerTransportResultMsg) => {
+    console.log(DSTR, "-- onCreateConsumerTransport");
 
-    this.localPeer.transportReceive = this.device.createRecvTransport({
+    if (msgIn.data.error) {
+      console.error(msgIn.data.error);
+      return;
+    }
+
+    this.localPeer.transportConsume = this.device.createRecvTransport({
       id: msgIn.data.transportId,
       iceServers: msgIn.data.iceServers ?? this.iceServers,
       iceCandidates: msgIn.data.iceCandidates,
@@ -1151,7 +1172,7 @@ export class RoomsClient {
       iceTransportPolicy: msgIn.data.iceTransportPolicy
     });
 
-    this.localPeer.transportReceive.on('connect', ({ dtlsParameters }, callback) => {
+    this.localPeer.transportConsume.on('connect', ({ dtlsParameters }, callback) => {
       let msg = new ConnectConsumerTransportMsg();
       msg.data = {
         dtlsParameters: dtlsParameters
@@ -1159,18 +1180,32 @@ export class RoomsClient {
       this.send(msg);
       callback();
     });
-
-    if (this.onTransportsReadyEvent) {
-      this.onTransportsReadyEvent(this.localPeer.transportReceive);
-    }
+  
   }
 
-  private onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
-    console.log(DSTR, "-- onProducerTransportCreated");
+  private onConnectConsumerTransport(msgIn: ConnectConsumerTransportResultMsg) {
+    if (msgIn.data.error) {
+      console.error(msgIn.data.error);
+      return;
+    }
+
+    if (this.onTransportsReadyEvent) {
+      this.onTransportsReadyEvent(this.localPeer.transportConsume);
+    }
+
+  }
+
+  private onCreateProducerTransport = async (msgIn: CreateProducerTransportResultMsg) => {
+    console.log(DSTR, "-- onCreateProducerTransport");
+
+    if (msgIn.data.error) {
+      console.error(msgIn.data.error);
+      return;
+    }
 
     //the server has created a transport
     //create a client transport to connect to the server transport
-    this.localPeer.transportSend = this.device.createSendTransport({
+    this.localPeer.transportProduce = this.device.createSendTransport({
       id: msgIn.data!.transportId,
       iceServers: msgIn.data.iceServers ?? this.iceServers,
       iceCandidates: msgIn.data.iceCandidates,
@@ -1178,8 +1213,8 @@ export class RoomsClient {
       dtlsParameters: msgIn.data.dtlsParameters,
       iceTransportPolicy: msgIn.data.iceTransportPolicy
     });
-
-    this.localPeer.transportSend.on("connect", ({ dtlsParameters }, callback) => {
+    
+    this.localPeer.transportProduce.on("connect", ({ dtlsParameters }, callback) => {
       console.log(DSTR, "-- sendTransport connect");
       //fires when the transport connects to the mediasoup server
 
@@ -1193,7 +1228,7 @@ export class RoomsClient {
 
     });
 
-    this.localPeer.transportSend.on('produce', ({ kind, rtpParameters }, callback) => {
+    this.localPeer.transportProduce.on('produce', ({ kind, rtpParameters }, callback) => {
 
       console.log(DSTR, "-- sendTransport produce");
 
@@ -1208,8 +1243,16 @@ export class RoomsClient {
       callback({ id: 'placeholder' });
     });
 
+  }
+
+  private onConnectProducerTransport(msgIn: ConnectProducerTransportResultMsg) {
+    if (msgIn.data.error) {
+      console.error(msgIn.data.error);
+      return;
+    }
+
     if (this.onTransportsReadyEvent) {
-      this.onTransportsReadyEvent(this.localPeer.transportSend);
+      this.onTransportsReadyEvent(this.localPeer.transportProduce);
     }
 
   }
@@ -1249,7 +1292,7 @@ export class RoomsClient {
       return;
     }
 
-    const consumer = await this.localPeer.transportReceive.consume({
+    const consumer = await this.localPeer.transportConsume.consume({
       id: msgIn.data!.consumerId,
       producerId: msgIn.data!.producerId,
       kind: msgIn.data!.kind,

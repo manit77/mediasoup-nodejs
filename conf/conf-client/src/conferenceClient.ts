@@ -43,7 +43,6 @@ export enum EventTypes {
     rejectReceived = "rejectReceived",
 
     conferenceCreatedResult = "conferenceCreatedResult",
-    conferenceReady = "conferenceReady",
     conferenceJoined = "conferenceJoined",
     conferenceClosed = "conferenceClosed",
     conferenceFailed = "conferenceFailed",
@@ -607,7 +606,7 @@ export class ConferenceClient {
 
         await this.roomsClient.init(message.data.roomURI, message.data.roomRtpCapabilities);
         let connectResult = await this.roomsClient.waitForConnect();
-        let registerResult = await this.roomsClient.waitForRegister(this.conferenceRoom.roomAuthToken, this.participantId, this.userName);
+        let registerResult = await this.roomsClient.waitForRegister(this.conferenceRoom.roomAuthToken, this.participantId, this.userName);        
         let roomJoinResult = connectResult = await this.roomsClient.waitForRoomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
 
         if (connectResult.data.error || roomJoinResult.data.error) {
@@ -625,9 +624,6 @@ export class ConferenceClient {
             this.roomsClient.dispose();
             return;
         }
-
-        this.onEvent(EventTypes.conferenceReady, message);
-
     }
 
 }

@@ -9,7 +9,7 @@ export enum payloadTypeClient {
 
     createProducerTransport = "createProducerTransport",
     createConsumerTransport = "createConsumerTransport",
-    connectProducerTransport = "connectProducerTransport",
+    connectProducerTransport = "connectProducerTransport",    
     connectConsumerTransport = "connectConsumerTransport",
 
     roomNewToken = "roomNewToken",
@@ -32,8 +32,12 @@ export enum payloadTypeServer {
     authUserNewTokenResult = "authUserNewTokenResult",
     registerPeerResult = "registerPeerResult",
 
-    producerTransportCreated = "producerTransportCreated",
-    consumerTransportCreated = "consumerTransportCreated",
+    createProducerTransportResult = "createProducerTransportResult",
+    createConsumerTransportResult = "createConsumerTransportResult",
+    connectProducerTransportResult = "connectConsumerTransportResult",
+    connectConsumerTransportResult = "connectConsumerTransportResult",
+
+
     produced = "produced",
     consumed = "consumed",
 
@@ -128,10 +132,10 @@ export class CreateProducerTransportMsg implements IMsg {
     } = {}
 }
 
-export class ProducerTransportCreatedMsg implements IMsg {
-    type = payloadTypeServer.producerTransportCreated;
+export class CreateProducerTransportResultMsg implements IMsg {
+    type = payloadTypeServer.createProducerTransportResult;
     data: {
-        authToken?: string,
+        error?: any,
         transportId?: string,
         iceParameters?: any,
         iceServers?: any,
@@ -149,6 +153,13 @@ export class ConnectProducerTransportMsg implements IMsg {
     } = {}
 }
 
+export class ConnectProducerTransportResultMsg implements IMsg {
+    type = payloadTypeServer.connectProducerTransportResult;
+    data: {        
+        error?: any
+    } = {}
+}
+
 export class CreateConsumerTransportMsg implements IMsg {
     type = payloadTypeClient.createConsumerTransport;
     data: {
@@ -156,24 +167,31 @@ export class CreateConsumerTransportMsg implements IMsg {
     } = {}
 }
 
-export class ConsumerTransportCreatedMsg implements IMsg {
-    type = payloadTypeServer.consumerTransportCreated;
+export class CreateConsumerTransportResultMsg implements IMsg {
+    type = payloadTypeServer.createConsumerTransportResult;
     data: {
-        authToken?: string,
         transportId?: string,
         iceParameters?: any,
         iceServers?: any,
         iceCandidates?: any,
         dtlsParameters?: any,
         iceTransportPolicy?: any,
+        error? : any
     } = {};
 }
 
 export class ConnectConsumerTransportMsg implements IMsg {
-    type = payloadTypeClient.connectConsumerTransport;
+    type = payloadTypeServer.connectProducerTransportResult;
     data: {
         authToken?: string,
         dtlsParameters?: any
+    } = {};
+}
+
+export class ConnectConsumerTransportResultMsg implements IMsg {
+    type = payloadTypeServer.connectConsumerTransportResult;
+    data: {
+        error?: any;
     } = {};
 }
 

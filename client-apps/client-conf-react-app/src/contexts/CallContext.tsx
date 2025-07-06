@@ -235,7 +235,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setInviteInfo({ participantId, displayName });
         };
 
-        webRTCService.onConferenceConnected = () => {
+        webRTCService.onConferenceJoined = () => {
             console.log(`CallContext: conference connected`);
             setInviteContact(null);
             setIsCallActive(true);

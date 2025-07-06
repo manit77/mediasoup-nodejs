@@ -23,7 +23,7 @@ class WebRTCService {
     public onInviteReceived: ((participantId: string, displayName: string) => void) = () => { };
 
     public onConferenceCreated: (conferenceId: string, trackingId: string) => void = () => { };
-    public onConferenceConnected: () => void = () => { };
+    public onConferenceJoined: () => void = () => { };
     public onConferenceEnded: (conferenceId: string, reason: string) => void = () => { };
 
     public onParticipantTrack: ((participantId: string, track: MediaStreamTrack) => void) | null = () => { };
@@ -40,7 +40,7 @@ class WebRTCService {
         this.onLocalStreamReady = null;
         this.onInviteReceived = null;
         this.onConferenceCreated = null;
-        this.onConferenceConnected = null;
+        this.onConferenceJoined = null;
         this.onConferenceEnded = null;
         this.onParticipantTrack = null;
         this.onParticipantJoined = null;
@@ -97,9 +97,9 @@ class WebRTCService {
                 case EventTypes.conferenceCreatedResult: {
                     this.eventConferenceCreatedResult(payload);
                     break;
-                }
-                case EventTypes.conferenceReady: {
-                    this.eventConferenceReady(payload);
+                }             
+                case EventTypes.conferenceJoined: {
+                    this.eventConferenceJoined(payload);
                     break;
                 }
                 case EventTypes.conferenceFailed: {
@@ -304,15 +304,17 @@ class WebRTCService {
             console.error("failed to create conference.");
             this.onConferenceEnded(msg.data.trackingId, "failed to create conference");
             return;
-        }        
+        }
         this.onConferenceCreated(msg.data.conferenceRoomId, msg.data.trackingId);
         this.joinConferenceRoom(msg.data.conferenceRoomId);
     }
 
-    private eventConferenceReady(msg: any) {
-        console.log("eventConferenceReady", msg);
-        this.onConferenceConnected();
+    private eventConferenceJoined(msg: any) {
+        if (this.localStream) {
+            this.confClient.publishTracks(this.localStream);
+        }
         this.inviteMsg = null;
+        this.onConferenceJoined();
     }
 
     private eventConferenceFailed(msg: any) {

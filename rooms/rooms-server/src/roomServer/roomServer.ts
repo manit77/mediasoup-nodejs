@@ -4,14 +4,14 @@ import { Room } from './room.js';
 import {
     AuthUserNewTokenMsg
     , AuthUserNewTokenResultMsg
-    , ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg
-    , ConsumerTransportCreatedMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient
-    , PeerTerminatedMsg, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg
+    , ConnectConsumerTransportMsg, ConnectConsumerTransportResultMsg, ConnectProducerTransportMsg, ConnectProducerTransportResultMsg, ConsumedMsg, ConsumeMsg
+    , CreateConsumerTransportMsg, CreateConsumerTransportResultMsg, CreateProducerTransportMsg, CreateProducerTransportResultMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient
+    , PeerTerminatedMsg, ProducedMsg, ProduceMsg
     , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomGetLogsMsg, RoomJoinMsg
     , RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
     , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg
     , RoomTerminateMsg
-    , RoomTerminateResultMsg   
+    , RoomTerminateResultMsg
     , TerminatePeerMsg
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
@@ -190,7 +190,7 @@ export class RoomServer {
             }
             case payloadTypeClient.consume: {
                 return this.Consume(peerId, msgIn);
-            }          
+            }
         }
         return null;
     }
@@ -456,22 +456,29 @@ export class RoomServer {
             return new ErrorMsg("peer is not in a room");
         }
 
-        await peer!.createProducerTransport()
+        if (await peer!.createProducerTransport()) {
 
-        let producerTransportCreated = new ProducerTransportCreatedMsg();
-        producerTransportCreated.data = {
-            iceServers: null,
-            iceTransportPolicy: null,
-            transportId: peer.producerTransport.id,
-            iceParameters: peer.producerTransport.iceParameters,
-            iceCandidates: peer.producerTransport.iceCandidates,
-            dtlsParameters: peer.producerTransport.dtlsParameters,
+            let resultMsg = new CreateProducerTransportResultMsg();
+            resultMsg.data = {
+                iceServers: null,
+                iceTransportPolicy: null,
+                transportId: peer.producerTransport.id,
+                iceParameters: peer.producerTransport.iceParameters,
+                iceCandidates: peer.producerTransport.iceCandidates,
+                dtlsParameters: peer.producerTransport.dtlsParameters,
+            }
+
+            this.send(peer.id, resultMsg);
+
+            return resultMsg;
         }
 
-        return producerTransportCreated;
+        let errorMsg = new CreateProducerTransportResultMsg();
+        errorMsg.data.error = "failed to create producer transport";
+        return errorMsg;
     }
 
-    async CreateConsumerTransport(peerId: string, msgIn: CreateProducerTransportMsg): Promise<IMsg> {
+    async CreateConsumerTransport(peerId: string, msgIn: CreateConsumerTransportMsg): Promise<IMsg> {
         console.log("onCreateConsumerTransport");
 
         //client requests to create a consumer transport to receive data
@@ -488,19 +495,23 @@ export class RoomServer {
             return new ErrorMsg("peer is not in a room");
         }
 
-        await peer.createConsumerTransport()
+        if (await peer.createConsumerTransport()) {
 
-        let consumerTransportCreated = new ConsumerTransportCreatedMsg();
-        consumerTransportCreated.data = {
-            iceServers: null,
-            iceTransportPolicy: null,
-            transportId: peer.consumerTransport.id,
-            iceParameters: peer.consumerTransport.iceParameters,
-            iceCandidates: peer.consumerTransport.iceCandidates,
-            dtlsParameters: peer.consumerTransport.dtlsParameters,
+            let resultMsg = new CreateConsumerTransportResultMsg();
+            resultMsg.data = {
+                iceServers: null,
+                iceTransportPolicy: null,
+                transportId: peer.consumerTransport.id,
+                iceParameters: peer.consumerTransport.iceParameters,
+                iceCandidates: peer.consumerTransport.iceCandidates,
+                dtlsParameters: peer.consumerTransport.dtlsParameters,
+            }
+            this.send(peer.id, resultMsg);
+
+            return resultMsg;
         }
 
-        return consumerTransportCreated;
+        return new ErrorMsg("failed to create consumer transport");
     }
 
     async ConnectProducerTransport(peerId: string, msgIn: ConnectProducerTransportMsg): Promise<IMsg> {
@@ -525,9 +536,18 @@ export class RoomServer {
         }
 
         //producerTransport needs dtls params from the client, contains, ports, codecs, etc.
-        await peer.producerTransport!.connect({ dtlsParameters: msgIn.data.dtlsParameters });
-
-        return new OkMsg(msgIn.type);
+        try {
+            await peer.producerTransport!.connect({ dtlsParameters: msgIn.data.dtlsParameters });
+            let resultMsg = new ConnectProducerTransportResultMsg();
+            this.send(peer.id, resultMsg);
+            return resultMsg;
+        } catch (err: any) {
+            console.error(err);
+            let errorMsg = new ConnectProducerTransportResultMsg();
+            errorMsg.data.error = "connection to producer transport failed.";
+            this.send(peerId, errorMsg);
+            return errorMsg;
+        }
     }
 
     async ConnectConsumerTransport(peerId: string, msgIn: ConnectConsumerTransportMsg): Promise<IMsg> {
@@ -550,9 +570,18 @@ export class RoomServer {
         }
 
         //consumerTransport needs dtls params from the client, contains, ports, codecs, etc.
-        await peer.consumerTransport!.connect({ dtlsParameters: msgIn.data.dtlsParameters });
-
-        return new OkMsg(msgIn.type);
+        try {
+            await peer.consumerTransport!.connect({ dtlsParameters: msgIn.data.dtlsParameters });
+            let resultMsg = new ConnectConsumerTransportResultMsg();
+            this.send(peerId, resultMsg);
+            return resultMsg;
+        } catch (err: any) {
+            console.error(err);
+            let errorMsg = new ConnectConsumerTransportResultMsg();
+            errorMsg.data.error = "connection to consumer transport failed.";
+            this.send(peerId, errorMsg);
+            return errorMsg;
+        }
 
     }
 
@@ -851,7 +880,7 @@ export class RoomServer {
             console.error('peer is not in a room', peer.id);
             return new ErrorMsg("peer is not in a room.");
         }
-     
+
         //requires a producerTransport
         if (!peer.producerTransport) {
             console.error('Transport not found for peer', peer.id);
@@ -908,7 +937,7 @@ export class RoomServer {
             console.error("peer not in room.");
             return new ErrorMsg("peer not in room.");
         }
-       
+
         let consumeMsg = msgIn;
 
         if (!consumeMsg.data?.producerId) {
@@ -959,7 +988,7 @@ export class RoomServer {
         };
 
         return consumed;
-    }  
+    }
 
     async printStats() {
         console.log("### STATS ###");
