@@ -35,6 +35,9 @@ export enum payloadTypeServer {
 
     producerTransportCreated = "producerTransportCreated",
     consumerTransportCreated = "consumerTransportCreated",
+    producerTransportConnected = "producerTransportConnected",
+    consumerTransportConnected = "consumerTransportConnected",
+
     produced = "produced",
     consumed = "consumed",
 
@@ -141,6 +144,13 @@ export class ProducerTransportCreatedMsg implements IMsg {
     } = {};
 }
 
+export class ProducerTransportConnectedMsg implements IMsg {
+    type = payloadTypeServer.producerTransportConnected;
+    data: {
+        error?: any
+    } = {};
+}
+
 export class ConnectProducerTransportMsg implements IMsg {
     type = payloadTypeClient.connectProducerTransport;
     data: {
@@ -169,6 +179,13 @@ export class ConsumerTransportCreatedMsg implements IMsg {
     } = {};
 }
 
+export class ConsumerTransportConnectedMsg implements IMsg {
+    type = payloadTypeServer.consumerTransportConnected;
+    data: {
+        error?: any
+    } = {};
+}
+
 export class ConnectConsumerTransportMsg implements IMsg {
     type = payloadTypeClient.connectConsumerTransport;
     data: {
@@ -176,6 +193,7 @@ export class ConnectConsumerTransportMsg implements IMsg {
         dtlsParameters?: any
     } = {};
 }
+
 
 export class RoomNewMsg implements IMsg {
     type = payloadTypeClient.roomNew;

@@ -4,7 +4,7 @@ import {
   AuthUserNewTokenResultMsg,
   ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg
   , ConsumeMsg, ConsumerTransportCreatedMsg, CreateConsumerTransportMsg, CreateProducerTransportMsg
-  , ErrorMsg, IMsg, OkMsg, payloadTypeServer, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg
+  , ErrorMsg, IMsg, OkMsg, payloadTypeServer, ProducedMsg, ProduceMsg, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg
   , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg
   , RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
 } from "@rooms/rooms-models";
@@ -683,8 +683,14 @@ export class RoomsClient {
         case payloadTypeServer.producerTransportCreated:
           this.onProducerTransportCreated(msgIn);
           break;
+        case payloadTypeServer.producerTransportConnected:
+          this.onProducerTransportConnected(msgIn);
+          break;
         case payloadTypeServer.consumerTransportCreated:
           this.onConsumerTransportCreated(msgIn);
+          break;
+        case payloadTypeServer.consumerTransportConnected:
+          this.onConsumerTransportConnected(msgIn);
           break;
         case payloadTypeServer.roomNewTokenResult:
           this.onRoomNewTokenResult(msgIn);
@@ -1169,6 +1175,10 @@ export class RoomsClient {
     }
   }
 
+  private onConsumerTransportConnected(msgIn: ProducerTransportConnectedMsg) {
+    console.log(DSTR, "-- onConsumerTransportConnected");    
+  }
+
   private onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
     console.log(DSTR, "-- onProducerTransportCreated");
 
@@ -1212,10 +1222,15 @@ export class RoomsClient {
       callback({ id: 'placeholder' });
     });
 
-    if (this.onTransportsReadyEvent) {
+     if (this.onTransportsReadyEvent) {
       this.onTransportsReadyEvent(this.localPeer.transportSend);
     }
 
+  }
+
+  private onProducerTransportConnected(msgIn: ProducerTransportConnectedMsg) {
+    console.log(DSTR, "-- onProducerTransportConnected");
+   
   }
 
   private onRoomNewProducer = async (msgIn: RoomNewProducerMsg) => {

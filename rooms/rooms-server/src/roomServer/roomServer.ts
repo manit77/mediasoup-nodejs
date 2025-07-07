@@ -5,8 +5,8 @@ import {
     AuthUserNewTokenMsg
     , AuthUserNewTokenResultMsg
     , ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg
-    , ConsumerTransportCreatedMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient
-    , PeerTerminatedMsg, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg
+    , ConsumerTransportConnectedMsg, ConsumerTransportCreatedMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient
+    , PeerTerminatedMsg, ProducedMsg, ProduceMsg, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg
     , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomGetLogsMsg, RoomJoinMsg
     , RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
     , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg
@@ -527,8 +527,12 @@ export class RoomServer {
 
         //producerTransport needs dtls params from the client, contains, ports, codecs, etc.
         await peer.producerTransport!.connect({ dtlsParameters: msgIn.data.dtlsParameters });
+        console.log("producerTransport connected.");
 
-        return new OkMsg(msgIn.type);
+        let resultMsg = new ProducerTransportConnectedMsg();
+        this.send(peer.id, resultMsg);
+
+        return resultMsg;
     }
 
     async onConnectConsumerTransport(peerId: string, msgIn: ConnectConsumerTransportMsg): Promise<IMsg> {
@@ -553,7 +557,10 @@ export class RoomServer {
         //consumerTransport needs dtls params from the client, contains, ports, codecs, etc.
         await peer.consumerTransport!.connect({ dtlsParameters: msgIn.data.dtlsParameters });
 
-        return new OkMsg(msgIn.type);
+        let resultMsg = new ConsumerTransportConnectedMsg();
+        this.send(peer.id, resultMsg);
+
+        return resultMsg;
 
     }
 
