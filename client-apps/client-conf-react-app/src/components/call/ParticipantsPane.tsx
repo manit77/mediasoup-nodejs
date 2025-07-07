@@ -18,7 +18,7 @@ interface ParticipantVideoPreviewProps {
 }
 
 const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, stream, displayName, isLocal, onClick, isMuted, isVideoOff, isSelected }) => {
-    const { getSetLocalStream } = useCall();
+    const { localStream, getLocalMedia } = useCall();
     const { currentUser } = useAuth();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [videoOff, setVideoOff] = useState(isVideoOff);
@@ -43,7 +43,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         if (localParticipant) {
             if (participant.stream == null) {
                 console.log("participant stream is null, get user media");
-                participant.stream = await getSetLocalStream();
+                participant.stream = await getLocalMedia();
                 participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;
                 participant.isMuted = !participant.stream.getAudioTracks()[0]?.enabled;
 
@@ -73,7 +73,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         if (localParticipant) {
             if (participant.stream == null) {
                 //get user media
-                participant.stream = await getSetLocalStream();
+                participant.stream = await getLocalMedia();
                 participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;
                 participant.isMuted = !participant.stream.getAudioTracks()[0]?.enabled;
                 setVideoOff(participant.isVideoOff);

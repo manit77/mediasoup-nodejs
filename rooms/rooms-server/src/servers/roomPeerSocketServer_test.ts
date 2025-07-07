@@ -61,7 +61,6 @@ describe('RoomPeerSocketServer', () => {
   });
 
   test('register', (done: any) => {
-
     return new Promise((resolve, reject) => {
       let authToken = "";
       let peerId = "";

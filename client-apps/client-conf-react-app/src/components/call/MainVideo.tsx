@@ -12,14 +12,15 @@ const MainVideo: React.FC<MainVideoProps> = ({ stream, userId }) => {
 
     useEffect(() => {
         if (videoRef.current && stream) {
-            videoRef.current.srcObject = stream;
-            // Set speaker if selected (for remote streams mainly, local stream audio output is system default)
-            if (userId !== "local" && selectedDevices.audioOutId && typeof (videoRef.current as any).setSinkId === 'function') {
-                try {
-                    (videoRef.current as any).setSinkId(selectedDevices.audioOutId);
-                } catch (error) {
-                    console.warn("Error setting sink ID for main video:", error);
-                }
+            try {              
+                videoRef.current.srcObject = stream;
+                // Set speaker if selected (for remote streams mainly, local stream audio output is system default)
+                // if (userId !== "local" && selectedDevices.audioOutId && typeof (videoRef.current as any).setSinkId === 'function') {
+                //     (videoRef.current as any).setSinkId(selectedDevices.audioOutId);
+                // }
+            }
+            catch (error) {
+                console.error(error);
             }
         } else if (videoRef.current) {
             videoRef.current.srcObject = null; // Clear if stream is removed

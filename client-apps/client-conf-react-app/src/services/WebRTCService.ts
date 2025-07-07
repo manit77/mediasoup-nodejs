@@ -6,7 +6,7 @@ import { getUserMedia } from '@rooms/webrtc-client';
 const confServerURI = 'https://localhost:3100'; // conference
 
 class WebRTCService {
-    localStream: MediaStream;
+    localStream: MediaStream = new MediaStream();
     confClient: ConferenceClient;
     contacts: Contact[] = [];
     inviteMsg: InviteMsg;
@@ -18,7 +18,7 @@ class WebRTCService {
     public onRegisterFailed: (error: string) => void = () => { };
     public onContactsReceived: (contacts: Contact[]) => void = () => { };
 
-    public onLocalStreamReady: (stream: MediaStream) => void = () => { };
+    //public onLocalStreamReady: (stream: MediaStream) => void = () => { };
 
     public onInviteReceived: ((participantId: string, displayName: string) => void) = () => { };
 
@@ -37,7 +37,7 @@ class WebRTCService {
         this.onRegistered = null;
         this.onRegisterFailed = null;
         this.onContactsReceived = null;
-        this.onLocalStreamReady = null;
+        //this.onLocalStreamReady = null;
         this.onInviteReceived = null;
         this.onConferenceCreated = null;
         this.onConferenceJoined = null;
@@ -97,7 +97,7 @@ class WebRTCService {
                 case EventTypes.conferenceCreatedResult: {
                     this.eventConferenceCreatedResult(payload);
                     break;
-                }             
+                }
                 case EventTypes.conferenceJoined: {
                     this.eventConferenceJoined(payload);
                     break;
@@ -133,36 +133,34 @@ class WebRTCService {
         }
     }
 
-    public async getUserMedia(constraints?: MediaStreamConstraints): Promise<MediaStream> {
-        console.log("getUserMedia");
-        this.localStream = await getUserMedia(constraints);
-        if (this.confClient) {
-            this.confClient.publishTracks(this.localStream);
-        }
-        return this.localStream;
+    public async getNewTracks(constraints?: MediaStreamConstraints) {
+        console.log("getNewTracks");
+        let tracks = await getUserMedia(constraints);
+        this.replaceTracks(tracks);
     }
 
-    public async getNewStream(constraints?: MediaStreamConstraints): Promise<MediaStream> {
-        return await getUserMedia(constraints);
-    }
-
-    public async replaceStream(newStream: MediaStream) {
+    public async replaceTracks(tracks: MediaStream) {
         console.log(`replaceStream`);
+
+        for (let track of tracks.getTracks()) {
+            let foundTrack = this.localStream.getTracks().find(t => t.kind === track.kind);
+            if (foundTrack) {
+                this.localStream.removeTrack(foundTrack);
+            }
+
+            this.localStream.addTrack(track);
+        }
 
         if (!this.confClient) {
             console.log("client not ready");
             return;
         }
 
-        if (!this.localStream) {
-            console.log("no localStream");
-            return;
-        }
         let existingTracks = this.confClient.getTracks();
 
         //remove all tracks by kind: video, and audio
         let tracksToRemove = new MediaStream();
-        newStream.getTracks().forEach(newTrack => {
+        tracks.getTracks().forEach(newTrack => {
             let existingTrack = existingTracks.find(t => t.kind === newTrack.kind);
             if (existingTrack) {
                 tracksToRemove.addTrack(existingTrack);
@@ -171,7 +169,7 @@ class WebRTCService {
 
         this.confClient.unpublishTracks(tracksToRemove);
 
-        this.confClient.publishTracks(newStream);
+        this.confClient.publishTracks(tracks);
     }
 
     public isOnCall() {
@@ -215,19 +213,12 @@ class WebRTCService {
         }
 
         this.confClient.leave();
-        
+
         //reset tracks
-        this.localStream = new MediaStream();
+        for (let t of this.localStream.getTracks()) {
+            this.localStream.removeTrack(t);
+        }
 
-    }
-
-    public toggleAudioMute(): boolean {
-        //mute the track the local stream
-        return true;
-    }
-
-    public toggleVideoMute(): boolean {
-        return true;
     }
 
     public async startScreenShare(): Promise<MediaStream | null> {

@@ -232,7 +232,7 @@ export class RoomsClient {
         this.ws.connect(this.config.wsURI, true);
       } catch (err: any) {
         console.error(err);
-        resolve(new ErrorMsg("failed to connect"));
+        reject("failed to connect");
       }
 
     });
@@ -242,34 +242,39 @@ export class RoomsClient {
     console.log("waitForGetAuthoken()");
 
     return new Promise<IMsg>(async (resolve, reject) => {
+      try {
 
-      let timerid = setTimeout(() => reject("failed to get authtoken"), 5000);
+        let timerid = setTimeout(() => reject("failed to get authtoken"), 5000);
 
-      const onmessage = (event: any) => {
+        const onmessage = (event: any) => {
 
-        try {
-          let msg = JSON.parse(event.data);
-          if (msg.type == payloadTypeServer.authUserNewTokenResult) {
-            console.log(DSTR, "-- waitForGetAuthoken() - onmessage", msg);
-            let msgIn = msg as AuthUserNewTokenResultMsg;
-            clearTimeout(timerid);
-            this.ws.removeEventHandler("onmessage", onmessage);
-            if (msgIn.data.authToken) {
-              resolve(new OkMsg("token received"));
-              return;
+          try {
+            let msg = JSON.parse(event.data);
+            if (msg.type == payloadTypeServer.authUserNewTokenResult) {
+              console.log(DSTR, "-- waitForGetAuthoken() - onmessage", msg);
+              let msgIn = msg as AuthUserNewTokenResultMsg;
+              clearTimeout(timerid);
+              this.ws.removeEventHandler("onmessage", onmessage);
+              if (msgIn.data.authToken) {
+                resolve(new OkMsg("token received"));
+                return;
+              }
+              resolve(new ErrorMsg("failed to get token"));
             }
-            resolve(new ErrorMsg("failed to get token"));
+          } catch (err) {
+            console.error(err);
+            resolve(new ErrorMsg("error getting token"));
           }
-        } catch (err) {
-          console.error(err);
-          resolve(new ErrorMsg("error getting token"));
-        }
 
-      };
+        };
 
-      this.ws.addEventHandler("onmessage", onmessage);
+        this.ws.addEventHandler("onmessage", onmessage);
 
-      this.getAuthoken(serviceToken);
+        this.getAuthoken(serviceToken);
+      } catch (err) {
+        reject(err);
+        console.error(err);
+      }
 
     });
   };
@@ -310,7 +315,7 @@ export class RoomsClient {
         this.register(this.localPeer.authToken, trackingId, displayName);
       } catch (err: any) {
         console.error(err);
-        resolve(new ErrorMsg("failed to register"));
+        reject("failed to register");
       }
     });
   };
@@ -339,7 +344,7 @@ export class RoomsClient {
         this.roomNewToken(expiresInMin);
 
       } catch (err: any) {
-        resolve(new ErrorMsg("unable to get data"));
+        reject("unable to get data");
       }
     });
   };
@@ -369,7 +374,7 @@ export class RoomsClient {
 
       } catch (err: any) {
         console.error(err);
-        resolve(new ErrorMsg("failed to create new room"));
+        reject("failed to create new room");
       }
     });
   };
@@ -403,7 +408,7 @@ export class RoomsClient {
         this.roomJoin(roomid, roomToken);
       } catch (err: any) {
         console.log(err);
-        resolve(new ErrorMsg("failed to join room"));
+        reject("failed to join room");
       }
     });
   };
@@ -1045,35 +1050,38 @@ export class RoomsClient {
 
     let waitFunc = () => {
       return new Promise<IMsg>((resolve, reject) => {
-        let transTrack = { recv: false, send: false };
+        try {
+          let transTrack = { recv: false, send: false };
 
-        let timerid = setTimeout(() => {
-          console.log("transport timed out.");
-          resolve(new ErrorMsg("transport timeout"));
-        }, 5000);
+          let timerid = setTimeout(() => {
+            console.log("transport timed out.");
+            resolve(new ErrorMsg("transport timeout"));
+          }, 5000);
 
-        this.onTransportsReadyEvent = (transport: Transport) => {
-
-          try {
-
-            if (transport.direction == "recv") {
-              transTrack.recv = true;
-            } else {
-              transTrack.send = true;
-            }
-            if (transTrack.recv && transTrack.send) {
+          this.onTransportsReadyEvent = (transport: Transport) => {
+            try {
+              if (transport.direction == "recv") {
+                transTrack.recv = true;
+              } else {
+                transTrack.send = true;
+              }
+              if (transTrack.recv && transTrack.send) {
+                clearTimeout(timerid);
+                resolve(new OkMsg("transportCreated"));
+              }
+            } catch (err) {
+              console.log(err);
               clearTimeout(timerid);
-              resolve(new OkMsg("transportCreated"));
+              reject("failed to create transport");
             }
-          } catch (err) {
-            console.log(err);
-            clearTimeout(timerid);
-            resolve(new ErrorMsg("failed to create transport"));
           }
-        }
 
-        this.createConsumerTransport();
-        this.createProducerTransport();
+          this.createConsumerTransport();
+          this.createProducerTransport();
+        } catch (err) {
+          console.error(err);
+          reject(err);
+        }
       });
     };
 
@@ -1113,7 +1121,7 @@ export class RoomsClient {
       } catch (err: any) {
         console.error(err);
         clearTimeout(timeoutId);
-        resolve(new ErrorMsg("failed to connect"));
+        reject("failed to connect transport");
       }
     });
   };
@@ -1176,7 +1184,7 @@ export class RoomsClient {
   }
 
   private onConsumerTransportConnected(msgIn: ProducerTransportConnectedMsg) {
-    console.log(DSTR, "-- onConsumerTransportConnected");    
+    console.log(DSTR, "-- onConsumerTransportConnected");
   }
 
   private onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
@@ -1222,7 +1230,7 @@ export class RoomsClient {
       callback({ id: 'placeholder' });
     });
 
-     if (this.onTransportsReadyEvent) {
+    if (this.onTransportsReadyEvent) {
       this.onTransportsReadyEvent(this.localPeer.transportSend);
     }
 
@@ -1230,7 +1238,7 @@ export class RoomsClient {
 
   private onProducerTransportConnected(msgIn: ProducerTransportConnectedMsg) {
     console.log(DSTR, "-- onProducerTransportConnected");
-   
+
   }
 
   private onRoomNewProducer = async (msgIn: RoomNewProducerMsg) => {

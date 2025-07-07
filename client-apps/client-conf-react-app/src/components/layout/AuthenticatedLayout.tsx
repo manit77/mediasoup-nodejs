@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import TopMenu from './TopMenu';
 import ContactsPane from './ContactsPane';
 import SettingsPopup from '../popups/SettingsPopup';
@@ -10,14 +10,28 @@ import RoomsPane from './RoomsPane';
 
 const AuthenticatedLayout: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
-    const {localStream, getSetLocalStream, setLocalStream, popUpMessage, hidePopUp} = useCall();
+    const { localStream, isLocalStreamUpdated, getLocalMedia, popUpMessage, hidePopUp } = useCall();
+    const [showPreview, setShowPreview] = useState(false);
 
-    const previewClick = () => {
-        if (localStream) {
-            setLocalStream(null);
-        } else {
-            getSetLocalStream();
+    useEffect(() => {
+        console.log("localStream refresh triggered.");
+        let videoTrack = localStream.getVideoTracks()[0];
+        if (videoTrack) {
+            setShowPreview(videoTrack.enabled);
         }
+    }, [isLocalStreamUpdated, localStream]);
+
+    const previewClick = async () => {
+        let videoTrack = localStream.getVideoTracks()[0];
+        if (!videoTrack) {            
+            await getLocalMedia();
+            videoTrack = localStream.getVideoTracks()[0];
+        } else {
+            console.log(`video track found.`)
+            videoTrack.enabled = !videoTrack.enabled;
+        }
+        setShowPreview(videoTrack.enabled);
+        console.log(`video track not found.`);
     }
 
     const showDeviceSettingsClick = () => {
@@ -35,7 +49,7 @@ const AuthenticatedLayout: React.FC = () => {
                 <div className="col-9 p-3" style={{ overflowY: 'auto' }}>
                     <Button variant="primary" onClick={showDeviceSettingsClick}>Device Settings</Button> <Button variant="secondary" onClick={previewClick}>
                         {
-                            localStream == null ? "Preview Video" : "Stop Preview"
+                            !showPreview ? "Preview Video" : "Stop Preview"
                         }
                     </Button>
                     <MainVideo stream={localStream} />

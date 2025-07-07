@@ -4,19 +4,24 @@ import fs from 'fs/promises';
 
 export function getFreeUDPPort(): Promise<number> {
   return new Promise((resolve, reject) => {
-    const socket = dgram.createSocket('udp4');
-    socket.bind(0, () => {
-      const address = socket.address();
-      socket.close();
-      if (typeof address === 'object') {
-        resolve(address.port);
-      } else {
-        reject(new Error('Failed to get a free port'));
-      }
-    });
+    try {
+      const socket = dgram.createSocket('udp4');
+      socket.bind(0, () => {
+        const address = socket.address();
+        socket.close();
+        if (typeof address === 'object') {
+          resolve(address.port);
+        } else {
+          reject(new Error('Failed to get a free port'));
+        }
+      });
+    }
+    catch (err) {
+      console.error(err);
+      reject(err);
+    }
   });
 }
-
 
 export function fileExists(src: string): boolean {
   return fsync.existsSync(src);
