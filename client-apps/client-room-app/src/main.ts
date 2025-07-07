@@ -94,7 +94,7 @@ import { getUserMedia } from "@rooms/webrtc-client";
         }
         let stream = await getUserMedia();
 
-        roomsClient.publishTracks(stream);
+        roomsClient.addLocalTracks(stream);
 
         ctlVideo.srcObject = stream;
     }

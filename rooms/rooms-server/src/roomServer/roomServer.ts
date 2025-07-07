@@ -12,8 +12,6 @@ import {
     , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg
     , RoomTerminateMsg
     , RoomTerminateResultMsg
-    , RTCAnswerMsg
-    , RTCIceMsg, RTCOfferMsg
     , TerminatePeerMsg
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
@@ -193,18 +191,6 @@ export class RoomServer {
             case payloadTypeClient.consume: {
                 return this.onMediasoup_Consume(peerId, msgIn);
             }
-            case payloadTypeClient.rtc_offer: {
-                this.onRTC_Offer(peerId, msgIn);
-                break;
-            }
-            case payloadTypeClient.rtc_answer: {
-                this.onRTC_Answer(peerId, msgIn);
-                break;
-            }
-            case payloadTypeClient.rtc_ice: {
-                this.onRTC_Ice(peerId, msgIn);
-                break;
-            }
         }
         return null;
     }
@@ -319,28 +305,28 @@ export class RoomServer {
         room.config = config;
         room.adminTrackingId = adminTrackingId;
 
-        if (room.config.roomType == "sfu") {
-            let worker = this.getNextWorker();
 
-            let router = await worker.createRouter({
-                mediaCodecs: [
-                    {
-                        kind: 'audio',
-                        mimeType: 'audio/opus',
-                        clockRate: 48000,
-                        channels: 2,
-                    },
-                    {
-                        kind: 'video',
-                        mimeType: 'video/VP8',
-                        clockRate: 90000,
-                    },
-                ],
-            });
+        let worker = this.getNextWorker();
 
-            room.roomRouter = router;
-            room.roomRtpCapabilities = router.rtpCapabilities;
-        }
+        let router = await worker.createRouter({
+            mediaCodecs: [
+                {
+                    kind: 'audio',
+                    mimeType: 'audio/opus',
+                    clockRate: 48000,
+                    channels: 2,
+                },
+                {
+                    kind: 'video',
+                    mimeType: 'video/VP8',
+                    clockRate: 90000,
+                },
+            ],
+        });
+
+        room.roomRouter = router;
+        room.roomRtpCapabilities = router.rtpCapabilities;
+
 
         room.onClosedEvent = (r, peers) => {
             this.removeRoomGlobal(r);
@@ -471,10 +457,6 @@ export class RoomServer {
             return new ErrorMsg("peer is not in a room");
         }
 
-        if (peer.room.config.roomType != "sfu") {
-            return new ErrorMsg("invalid room type for message.");
-        }
-
         await peer!.createProducerTransport()
 
         let producerTransportCreated = new ProducerTransportCreatedMsg();
@@ -505,10 +487,6 @@ export class RoomServer {
         if (!peer.room) {
             console.error("peer is not in a room");
             return new ErrorMsg("peer is not in a room");
-        }
-
-        if (peer.room.config.roomType != "sfu") {
-            return new ErrorMsg("invalid room type for message.");
         }
 
         await peer.createConsumerTransport()
@@ -542,10 +520,6 @@ export class RoomServer {
             return new ErrorMsg("not in a room.");
         }
 
-        if (peer.room.config.roomType != "sfu") {
-            return new ErrorMsg("invalid room type for message.");
-        }
-
         if (!peer.producerTransport) {
             console.error("producerTransport not found.");
             return new ErrorMsg("peer is not in a room");
@@ -569,10 +543,6 @@ export class RoomServer {
         if (!peer.room) {
             console.error("not in a room");
             return new ErrorMsg("not in a room.");
-        }
-
-        if (peer.room.config.roomType != "sfu") {
-            return new ErrorMsg("invalid room type for message.");
         }
 
         if (!peer.consumerTransport) {
@@ -805,7 +775,6 @@ export class RoomServer {
 
         let joinRoomResult = new RoomJoinResultMsg();
         joinRoomResult.data.roomId = room.id;
-        joinRoomResult.data.roomType = room.config.roomType;
 
         let otherPeers = room.otherPeers(peer.id);
         for (let [, otherPeer] of otherPeers) {
@@ -813,9 +782,7 @@ export class RoomServer {
                 peerId: otherPeer.id,
                 peerTrackingId: otherPeer.trackingId,
                 displayName: otherPeer.displayName,
-                producers: (room.config.roomType == "sfu"
-                    ? [...otherPeer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }))
-                    : undefined)
+                producers: [...otherPeer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }))
             });
         }
 
@@ -826,9 +793,8 @@ export class RoomServer {
             msg.data.peerId = peer.id;
             msg.data.peerTrackingId = peer.trackingId;
             msg.data.displayName = peer.displayName;
-            msg.data.producers = (room.config.roomType == "sfu"
-                ? [...peer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }))
-                : undefined);
+            msg.data.producers = [...peer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }))
+
 
             this.send(otherPeer.id, msg);
         }
@@ -887,11 +853,7 @@ export class RoomServer {
         if (!peer.room) {
             console.error('peer is not in a room', peer.id);
             return new ErrorMsg("peer is not in a room.");
-        }
-
-        if (peer.room.config.roomType != "sfu") {
-            return new ErrorMsg("invalid room type for message.");
-        }
+        }      
 
         //requires a producerTransport
         if (!peer.producerTransport) {
@@ -950,10 +912,6 @@ export class RoomServer {
             return new ErrorMsg("peer not in room.");
         }
 
-        if (peer.room.config.roomType != "sfu") {
-            return new ErrorMsg("invalid room type for message.");
-        }
-
         let consumeMsg = msgIn;
 
         if (!consumeMsg.data?.producerId) {
@@ -1004,120 +962,6 @@ export class RoomServer {
         };
 
         return consumed;
-    }
-
-    private async onRTC_Offer(peerId: string, msgIn: RTCOfferMsg): Promise<IMsg> {
-        console.log("onRTCOffer");
-        //client is requesting to consume a producer
-
-        let peer = this.peers.get(peerId);
-        if (!peer) {
-            console.error("peer not found: " + peerId);
-            return new ErrorMsg("peer not found.");
-        }
-
-        //the peer must be in room to consume streams
-        if (!peer.room) {
-            console.error("peer not in room.");
-            return new ErrorMsg("peer not in room.");
-        }
-
-        if (peer.room.config.roomType != "p2p") {
-            return new ErrorMsg("invalid room type for message.");
-        }
-
-        let remotePeer = this.peers.get(msgIn.data.remotePeerId);
-        if (!remotePeer) {
-            return new ErrorMsg("remote peer not found.");
-        }
-
-        if (remotePeer.room != peer.room) {
-            return new ErrorMsg("error validating room.");
-        }
-
-        //swap the remotePeerId
-        msgIn.data.remotePeerId = peerId;
-
-        this.send(remotePeer.id, msgIn);
-
-        return new OkMsg(`${msgIn.type} sent.`);
-
-    }
-
-    private async onRTC_Answer(peerId: string, msgIn: RTCAnswerMsg): Promise<IMsg> {
-        console.log("onRTCAnswer");
-        //client is requesting to consume a producer
-
-        let peer = this.peers.get(peerId);
-        if (!peer) {
-            console.error("peer not found: " + peerId);
-            return new ErrorMsg("peer not found.");
-        }
-
-        //the peer must be in room to consume streams
-        if (!peer.room) {
-            console.error("peer not in room.");
-            return new ErrorMsg("peer not in room.");
-        }
-
-        if (peer.room.config.roomType != "p2p") {
-            return new ErrorMsg("invalid room type for message.");
-        }
-
-        let remotePeer = this.peers.get(msgIn.data.remotePeerId);
-        if (!remotePeer) {
-            return new ErrorMsg("remote peer not found.");
-        }
-
-        if (remotePeer.room != peer.room) {
-            return new ErrorMsg("error validating room.");
-        }
-
-        //swap the remotePeerId
-        msgIn.data.remotePeerId = peerId;
-
-        this.send(remotePeer.id, msgIn);
-
-        return new OkMsg(`${msgIn.type} sent.`);
-
-    }
-
-    private async onRTC_Ice(peerId: string, msgIn: RTCIceMsg): Promise<IMsg> {
-        console.log("onRTCIce");
-        //client is requesting to consume a producer
-
-        let peer = this.peers.get(peerId);
-        if (!peer) {
-            console.error("peer not found: " + peerId);
-            return new ErrorMsg("peer not found.");
-        }
-
-        //the peer must be in room to consume streams
-        if (!peer.room) {
-            console.error("peer not in room.");
-            return new ErrorMsg("peer not in room.");
-        }
-
-        if (peer.room.config.roomType != "p2p") {
-            return new ErrorMsg("invalid room type for message.");
-        }
-
-        let remotePeer = this.peers.get(msgIn.data.remotePeerId);
-        if (!remotePeer) {
-            return new ErrorMsg("remote peer not found.");
-        }
-
-        if (remotePeer.room != peer.room) {
-            return new ErrorMsg("error validating room.");
-        }
-
-        //swap the remotePeerId
-        msgIn.data.remotePeerId = peerId;
-
-        this.send(remotePeer.id, msgIn);
-
-        return new OkMsg(`${msgIn.type} sent.`);
-
     }
 
     async printStats() {

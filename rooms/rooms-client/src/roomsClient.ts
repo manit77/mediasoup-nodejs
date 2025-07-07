@@ -4,13 +4,9 @@ import {
   AuthUserNewTokenResultMsg,
   ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg
   , ConsumeMsg, ConsumerTransportCreatedMsg, CreateConsumerTransportMsg, CreateProducerTransportMsg
-  , ErrorMsg, IMsg, OkMsg, payloadTypeClient, payloadTypeServer, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg
+  , ErrorMsg, IMsg, OkMsg, payloadTypeServer, ProducedMsg, ProduceMsg, ProducerTransportCreatedMsg
   , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg
   , RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
-  RoomType,
-  RTCAnswerMsg,
-  RTCIceMsg,
-  RTCOfferMsg
 } from "@rooms/rooms-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { WebRTCClient, ConnectionInfo } from "@rooms/webrtc-client";
@@ -28,7 +24,6 @@ export class LocalPeer {
   displayName: string = "";
 
   roomId: string = "";
-  roomType: RoomType = RoomType.p2p;
   authToken: string = "";
   roomToken: string = "";
 
@@ -133,11 +128,6 @@ export class RoomsClient {
 
     this.config.wsURI = websocketURI;
     await this.initMediaSoupDevice(rtpCapabilities);
-
-    this.rtcClient = new WebRTCClient();
-    this.rtcClient.onIceCandidate = this.rtc_SendIceCandidate;
-    this.rtcClient.onPeerTrack = this.rtc_OnPeerTrack;
-
     console.log(DSTR, "init complete");
 
   };
@@ -354,7 +344,7 @@ export class RoomsClient {
     });
   };
 
-  waitForNewRoom = async (roomType: RoomType, maxPeers: number, maxRoomDurationMinutes: number): Promise<IMsg> => {
+  waitForNewRoom = async (maxPeers: number, maxRoomDurationMinutes: number): Promise<IMsg> => {
     return new Promise<IMsg>((resolve, reject) => {
       try {
         let timerid = setTimeout(() => reject("failed to create new room"), 5000);
@@ -375,7 +365,7 @@ export class RoomsClient {
 
         this.ws.addEventHandler("onmessage", onmessage);
 
-        this.roomNew(roomType, maxPeers, maxRoomDurationMinutes);
+        this.roomNew(maxPeers, maxRoomDurationMinutes);
 
       } catch (err: any) {
         console.error(err);
@@ -510,69 +500,28 @@ export class RoomsClient {
       t.enabled = t.kind === "audio" ? this.audioEnabled : this.videoEnabled;
     });
 
+    if (this.localPeer.transportSend) {
 
-    if (this.localPeer.roomType == "sfu") {
-      if (this.localPeer.transportSend) {
-
-        for (let track of tracks.getTracks()) {
-          try {
-            console.log(DSTR, `produce track ${track.kind}`);
-            let producer = this.localPeer.getProducers().find(p => p.track.id == track.id);
-            if (producer) {
-              console.error(DSTR, "producer found with existing track.");
-              return;
-            }
-
-            producer = await this.localPeer.transportSend.produce({ track });
-            this.localPeer.addProducer(producer);
-            console.log(DSTR, "track added: " + track.kind);
-          } catch (error) {
-            console.error(DSTR, `Failed to produce track: ${error.message}`);
-            console.error(DSTR, error);
+      for (let track of tracks.getTracks()) {
+        try {
+          console.log(DSTR, `produce track ${track.kind}`);
+          let producer = this.localPeer.getProducers().find(p => p.track.id == track.id);
+          if (producer) {
+            console.error(DSTR, "producer found with existing track.");
+            return;
           }
-        }
 
-      } else {
-        console.log(DSTR, 'No transportSend');
+          producer = await this.localPeer.transportSend.produce({ track });
+          this.localPeer.addProducer(producer);
+          console.log(DSTR, "track added: " + track.kind);
+        } catch (error) {
+          console.error(DSTR, `Failed to produce track: ${error.message}`);
+          console.error(DSTR, error);
+        }
       }
+
     } else {
-      // P2P mode
-      for (let peer of this.peers) {
-        let pc = peer.rtc_Connection?.pc;
-        if (pc) {
-          let tracksAdded = false;
-          for (let track of tracks.getTracks()) {
-            try {
-              let sender = pc.getSenders().find(s => s.track.id == track.id);
-              if (sender) {
-                console.error(DSTR, `peer ${peer.peerId} already sending track.`);
-                continue;
-              }
-              pc.addTrack(track);
-              tracksAdded = true;
-              console.log(DSTR, `Added track ${track.kind} to peer ${peer.peerId}`);
-            } catch (error) {
-              console.error(DSTR, `Failed to add track ${track.kind} to peer ${peer.peerId}: ${error.message}`);
-              continue;
-            }
-          }
-          if (tracksAdded) {
-            let offer = await this.rtcClient.createOffer(peer.peerId);
-            if (offer) {
-              let msg = new RTCOfferMsg();
-              msg.data.remotePeerId = peer.peerId;
-              msg.data.sdp = offer;
-              this.send(msg);
-              console.log(DSTR, `Sent offer for tracks to peer ${peer.peerId}`);
-            }
-          } else {
-            console.error(DSTR, `no tracks added to peer ${peer.peerId}`);
-          }
-
-        } else {
-          console.error(DSTR, `No RTCPeerConnection for peer ${peer.peerId}`);
-        }
-      }
+      console.log(DSTR, 'No transportSend');
     }
 
   };
@@ -589,53 +538,12 @@ export class RoomsClient {
       }
     });
 
-    if (this.localPeer.roomType == "sfu") {
-
-      for (let track of tracks.getTracks()) {
-        let producer = this.localPeer.getProducers().find(p => p.track.id === track.id);
-        if (producer) {
-          producer.close();
-          this.localPeer.removeProducer(producer);
-          console.log(DSTR, `track removed ${track.kind}`);
-        }
-      }
-
-    } else {
-      // P2P mode
-      for (let peer of this.peers) {
-        let pc = peer.rtc_Connection?.pc;
-        if (pc) {
-          try {
-
-            let offerNeeded = false;
-            for (let track of tracks.getTracks()) {
-              //remove the track from the senders
-              const sender = pc.getSenders().find(s => s.track === track);
-              if (sender) {
-                pc.removeTrack(sender);
-                offerNeeded = true;
-              }
-            }
-
-            if (offerNeeded) {
-              // Trigger renegotiation to reflect removed track, even if 0 tracks
-              let offer = await this.rtcClient.createOffer(peer.peerId);
-              if (offer) {
-                let msg = new RTCOfferMsg();
-                msg.data.remotePeerId = peer.peerId;
-                msg.data.sdp = offer;
-                // Include track metadata for clarity
-                //msg.data.trackInfo = { id: track.id, kind: track.kind, action: "remove" };
-                this.send(msg);
-                console.log(DSTR, `Sent offer for removed tracks to peer ${peer.peerId}`);
-              }
-            }
-          } catch (error) {
-            console.log(DSTR, `Failed to renegotiate for peer ${peer.peerId}: ${error.message}`);
-          }
-        } else {
-          console.log(DSTR, `No RTCPeerConnection for peer ${peer.peerId}`);
-        }
+    for (let track of tracks.getTracks()) {
+      let producer = this.localPeer.getProducers().find(p => p.track.id === track.id);
+      if (producer) {
+        producer.close();
+        this.localPeer.removeProducer(producer);
+        console.log(DSTR, `track removed ${track.kind}`);
       }
     }
 
@@ -658,33 +566,13 @@ export class RoomsClient {
       return;
     }
 
-
-    if (this.localPeer.roomType == "sfu") {
-      let producer = this.localPeer.getProducers().find(p => p.track.id === existingTrack.id);
-      if (producer) {
-        producer.replaceTrack({ track: newTrack })
-        this.localPeer.tracks.removeTrack(existingTrack);
-        this.localPeer.tracks.addTrack(newTrack);
-      } else {
-        console.error(DSTR, `producer not found, existing track not found. ${existingTrack.kind} ${existingTrack.id}`);
-      }
-
+    let producer = this.localPeer.getProducers().find(p => p.track.id === existingTrack.id);
+    if (producer) {
+      producer.replaceTrack({ track: newTrack })
+      this.localPeer.tracks.removeTrack(existingTrack);
+      this.localPeer.tracks.addTrack(newTrack);
     } else {
-      for (let peer of this.peers) {
-        let pc = peer.rtc_Connection?.pc;
-        if (pc) {
-          let sender = pc.getSenders().find(s => s.track.id === existingTrack.id);
-          if (sender) {
-            sender.replaceTrack(newTrack);
-            this.localPeer.tracks.removeTrack(existingTrack);
-            this.localPeer.tracks.addTrack(newTrack);
-          } else {
-            console.error(DSTR, `track not found for peer ${peer.peerId}.`);
-          }
-        } else {
-          console.log(DSTR, `No RTCPeerConnection for peer ${peer.peerId}`);
-        }
-      }
+      console.error(DSTR, `producer not found, existing track not found. ${existingTrack.kind} ${existingTrack.id}`);
     }
 
   };
@@ -701,10 +589,9 @@ export class RoomsClient {
     this.send(msg);
   };
 
-  roomNew = (roomType: RoomType, maxPeers: number, maxRoomDurationMinutes: number) => {
-    console.log(DSTR, `roomNew ${roomType} ${maxPeers} ${maxRoomDurationMinutes}`)
+  roomNew = (maxPeers: number, maxRoomDurationMinutes: number) => {
+    console.log(DSTR, `${maxPeers} ${maxRoomDurationMinutes}`)
     let config = new RoomConfig();
-    config.roomType = roomType;
     config.maxPeers = maxPeers;
     config.maxRoomDurationMinutes = maxRoomDurationMinutes;
     config.newRoomTokenExpiresInMinutes = maxRoomDurationMinutes;
@@ -826,18 +713,6 @@ export class RoomsClient {
         case payloadTypeServer.roomClosed:
           this.onRoomClosed(msgIn);
           break;
-        case payloadTypeServer.rtc_offer: {
-          this.onRTCOffer(msgIn);
-          break;
-        }
-        case payloadTypeServer.rtc_answer: {
-          this.onRTCAnswer(msgIn);
-          break;
-        }
-        case payloadTypeServer.rtc_ice: {
-          this.onRTCIce(msgIn);
-          break;
-        }
       }
     } catch (err) {
       console.error(err);
@@ -886,15 +761,10 @@ export class RoomsClient {
    * @returns 
    */
   private sfu_publishLocalStream = async () => {
-    console.log(`publishLocalStream() ${this.localPeer.roomType}`);
+    console.log(`publishLocalStream()`);
 
     if (!this.localPeer.roomId) {
       console.log(DSTR, "not in a room.");
-      return;
-    }
-
-    if (this.localPeer.roomType != "sfu") {
-      console.log(DSTR, "invalid roomType.");
       return;
     }
 
@@ -962,11 +832,6 @@ export class RoomsClient {
   private sfu_createProducerTransport = (): boolean => {
     console.log(DSTR, "-- createProducerTransport");
 
-    if (this.localPeer.roomType != "sfu") {
-      console.log(DSTR, "invalid roomType.");
-      return false;
-    }
-
     let msg = new CreateProducerTransportMsg();
     this.send(msg);
     return true;
@@ -974,11 +839,6 @@ export class RoomsClient {
 
   private sfu_createConsumerTransport = (): boolean => {
     console.log(DSTR, "-- createConsumerTransport");
-
-    if (this.localPeer.roomType != "sfu") {
-      console.log(DSTR, "invalid roomType.");
-      return false;
-    }
 
     let msg = new CreateConsumerTransportMsg();
     this.send(msg);
@@ -1025,28 +885,22 @@ export class RoomsClient {
     }
 
     this.localPeer.roomId = msgIn.data.roomId;
-    this.localPeer.roomType = msgIn.data.roomType;
 
     console.log(DSTR, "joined room " + msgIn.data!.roomId);
-    console.log(DSTR, `-- onRoomJoinResult() peers : ${msgIn.data?.peers.length} roomType:${msgIn.data.roomType}`);
+    console.log(DSTR, `-- onRoomJoinResult() peers : ${msgIn.data?.peers.length}`);
 
 
-    if (msgIn.data.roomType == "sfu") {
+    let transports = await this.sfu_waitForRoomTransports();
 
-      let transports = await this.sfu_waitForRoomTransports();
-
-      if (transports.data.error) {
-        console.log("unable to create transports");
-        return;
-      }
-
-      console.log("transports created.");
-
-      await this.sfu_publishLocalStream();
-
-    } else {
-      this.rtcClient.addTracks(this.localPeer.tracks.getTracks());
+    if (transports.data.error) {
+      console.log("unable to create transports");
+      return;
     }
+
+    console.log("transports created.");
+
+    await this.sfu_publishLocalStream();
+
 
     if (this.onRoomJoinedEvent) {
       this.onRoomJoinedEvent(this.localPeer.roomId);
@@ -1057,11 +911,7 @@ export class RoomsClient {
       for (let p of msgIn.data.peers) {
 
         let newpeer: Peer = this.createPeer(p.peerId, p.peerTrackingId, p.displayName);
-        if (this.localPeer.roomType == RoomType.sfu) {
-          newpeer.producers.push(...p.producers.map(p => ({ id: p.producerId, kind: p.kind })));
-        } else {
-          newpeer.rtc_Connection = this.rtcClient.getOrCreatePeerConnection(newpeer.peerId);
-        }
+        newpeer.producers.push(...p.producers.map(p => ({ id: p.producerId, kind: p.kind })));
 
         console.log(DSTR, p.peerId);
         console.log(DSTR, "-- onRoomJoinResult producers :" + p.producers?.length);
@@ -1098,28 +948,12 @@ export class RoomsClient {
 
     let newpeer: Peer = this.createPeer(msgIn.data.peerId, msgIn.data.peerTrackingId, msgIn.data.displayName);
 
-    if (this.localPeer.roomType == "sfu") {
+    await this.sfu_publishLocalStream();
 
-      await this.sfu_publishLocalStream();
-
-      if (msgIn.data?.producers) {
-        for (let producer of msgIn.data.producers) {
-          this.sfu_consumeProducer(msgIn.data.peerId, producer.producerId);
-        }
+    if (msgIn.data?.producers) {
+      for (let producer of msgIn.data.producers) {
+        this.sfu_consumeProducer(msgIn.data.peerId, producer.producerId);
       }
-    } else {
-
-      newpeer.rtc_Connection = this.rtcClient.getOrCreatePeerConnection(newpeer.peerId, { iceServers: this.iceServers });
-      this.rtcClient.publishTracks(newpeer.peerId);
-
-      let offer = await this.rtcClient.createOffer(newpeer.peerId);
-      if (offer) {
-        let msg = new RTCOfferMsg();
-        msg.data.remotePeerId = newpeer.peerId;
-        msg.data.sdp = offer;
-        this.send(msg);
-      }
-
     }
 
     if (this.onRoomPeerJoinedEvent) {
@@ -1172,26 +1006,23 @@ export class RoomsClient {
       p.rtc_Connection?.pc?.close();
     });
 
+    this.localPeer.getProducers().forEach(p => {
+      p.close();
+    });
 
-    if (this.localPeer.roomType == "sfu") {
-      this.localPeer.getProducers().forEach(p => {
-        p.close();
-      });
+    this.localPeer.consumers.forEach(p => {
+      p.close();
+    });
 
-      this.localPeer.consumers.forEach(p => {
-        p.close();
-      });
+    this.localPeer.transportSend?.close();
+    this.localPeer.transportReceive?.close();
 
-      this.localPeer.transportSend?.close();
-      this.localPeer.transportReceive?.close();
-    }
 
     for (let t of this.localPeer.tracks.getTracks()) {
       t.stop();
     }
     this.localPeer.tracks = new MediaStream();
     this.localPeer.roomId = "";
-    this.localPeer.roomType = RoomType.p2p;
     this.peers = [];
 
   }
@@ -1204,11 +1035,6 @@ export class RoomsClient {
     if (!this.localPeer.roomId) {
       console.log(DSTR, "room is required for creating transports");
       return new ErrorMsg("cannot create transports before joining a room.");
-    }
-
-    if (this.localPeer.roomType != "sfu") {
-      console.log(DSTR, "invalid room type, cannot call transports");
-      return new ErrorMsg("cannot create transports for this roomtype.");
     }
 
     let waitFunc = () => {
@@ -1300,23 +1126,20 @@ export class RoomsClient {
       return;
     }
 
-    if (this.localPeer.roomType == "sfu") {
-
-      if (!this.localPeer.transportReceive || !this.localPeer.transportSend) {
-        console.log(DSTR, "transports have not been created.");
-        return;
-      }
-
-      //consume transports
-      if (peer.producers && peer.producers.length > 0) {
-        console.log(DSTR, "peer has no producers");
-      }
-
-      peer.producers.forEach(p => {
-        this.sfu_consumeProducer(peer.peerId, p.id);
-      });
-
+    if (!this.localPeer.transportReceive || !this.localPeer.transportSend) {
+      console.log(DSTR, "transports have not been created.");
+      return;
     }
+
+    //consume transports
+    if (peer.producers && peer.producers.length > 0) {
+      console.log(DSTR, "peer has no producers");
+    }
+
+    peer.producers.forEach(p => {
+      this.sfu_consumeProducer(peer.peerId, p.id);
+    });
+
 
   }
 
@@ -1411,11 +1234,6 @@ export class RoomsClient {
       return;
     }
 
-    if (this.localPeer.roomType != "sfu") {
-      console.error("invalid roomtype");
-      return;
-    }
-
     console.log(`** device loaded: ${this.device.loaded}`)
 
     let msg = new ConsumeMsg();
@@ -1441,81 +1259,4 @@ export class RoomsClient {
   private sfu_onProduced = async (msgIn: ProducedMsg) => {
     console.log(DSTR, "onProduced " + msgIn.data?.kind);
   };
-
-  private rtc_SendIceCandidate = (remotePeerId: string, candidate: RTCIceCandidate) => {
-    console.log(DSTR, "rtc_sendIceCandidate");
-    //send ice candidate to server
-    if (candidate) {
-      const iceMsg: RTCIceMsg = {
-        type: payloadTypeClient.rtc_ice,
-        data: {
-          remotePeerId: remotePeerId,
-          candidate: candidate
-        }
-      };
-      this.send(iceMsg);
-    }
-  };
-
-  private rtc_OnPeerTrack = (remotePeerId: string, track: MediaStreamTrack) => {
-    console.log(DSTR, "rtc_OnPeerTrack");
-    let peer = this.getPeer(remotePeerId);
-    if (!peer) {
-      console.log(DSTR, "peer not found.");
-      return;
-    }
-
-    if (this.onPeerNewTrackEvent) {
-      this.onPeerNewTrackEvent(peer, track);
-    }
-
-  };
-
-  private async onRTCOffer(msgIn: RTCOfferMsg) {
-    console.log(DSTR, "onRTCOffer()");
-    //incoming call
-    try {
-
-      let peer = this.getPeer(msgIn.data.remotePeerId);
-      if (!peer) {
-        console.log(DSTR, `peer not found ${msgIn.data.remotePeerId}`);
-        return;
-      }
-
-      await this.rtcClient.setRemoteDescription(peer.peerId, msgIn.data.sdp);
-      //a track is required before an answer can be generated
-      this.rtcClient.publishTracks(peer.peerId);
-      const answer = await this.rtcClient.createAnswer(peer.peerId);
-
-      let msg = new RTCAnswerMsg();
-      msg.data.remotePeerId = peer.peerId;;
-      msg.data.sdp = answer;
-
-      this.send(msg);
-    } catch (err) {
-      console.error('Error handling offer:', err);
-    }
-  }
-
-  private onRTCAnswer = async (msgIn: RTCAnswerMsg) => {
-    //received a call response
-    let peer = this.getPeer(msgIn.data.remotePeerId);
-    if (!peer) {
-      console.log(DSTR, `peer not found ${msgIn.data.remotePeerId}`);
-      return;
-    }
-    this.rtcClient.publishTracks(peer.peerId);
-    this.rtcClient.setRemoteDescription(msgIn.data.remotePeerId, msgIn.data.sdp);
-  }
-
-  private onRTCIce = async (msgIn: RTCIceMsg) => {
-    let peer = this.getPeer(msgIn.data.remotePeerId);
-    if (!peer) {
-      console.log(DSTR, `peer not found ${msgIn.data.remotePeerId}`);
-      return;
-    }
-
-    this.rtcClient.addIceCandidate(msgIn.data.remotePeerId, msgIn.data.candidate);
-  }
-
 }
