@@ -184,9 +184,26 @@ export class ConferenceServer {
         return part;
     }
 
-    createConference(conferenceId?: string, trackingId?: string, config?: ConferenceRoomConfig) {
+    getOrCreateConference(conferenceId?: string, trackingId?: string, config?: ConferenceRoomConfig) {
 
-        let conference = new ConferenceRoom();
+        //find room by tracking id
+        let conference: ConferenceRoom;
+
+        if (trackingId) {
+            conference = [...this.conferences.values()].find(c => c.trackingId === trackingId);
+            if (conference) {
+                console.log("conference found by trackingid", trackingId)
+                return conference;
+            }
+        } else if (conferenceId) {
+            conference = [...this.conferences.values()].find(c => c.id === conferenceId);
+            if (conference) {
+                console.log("conference found by conferenceId", trackingId)
+                return conference;
+            }
+        }
+
+        conference = new ConferenceRoom();
         conference.id = conferenceId ?? this.generateConferenceId();
         conference.trackingId = trackingId;
         if (config) {
@@ -370,7 +387,7 @@ export class ConferenceServer {
         let conference = caller.conferenceRoom;
 
         if (!conference) {
-            conference = this.createConference();
+            conference = this.getOrCreateConference();
             conference.addParticipant(caller);
         }
 
@@ -497,9 +514,8 @@ export class ConferenceServer {
             clearTimeout(timeoutid);
         });
 
-        if (conference.status == "none") {
-            conference = await this.startConference(conference);
-            if (conference) {
+        if (conference.status == "none") {            
+            if (await this.startConference(conference)) {
                 for (let p of conference.participants.values()) {
                     this.sendConferenceReady(conference, p);
                 }
@@ -528,7 +544,7 @@ export class ConferenceServer {
         if (conference) {
             console.log("conference already created");
         } else {
-            conference = this.createConference(null, msgIn.data.conferenceRoomTrackingId, msgIn.data.conferenceRoomConfig);
+            conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomTrackingId, msgIn.data.conferenceRoomConfig);
             if (!await this.startConference(conference)) {
                 console.error("unable to start a conference");
                 let errorMsg = new CreateConfResultMsg();
@@ -582,7 +598,7 @@ export class ConferenceServer {
         }
 
         if (conference.status !== "ready") {
-             let errorMsg = new JoinConfResultMsg();
+            let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "conference room not ready.";
             this.send(ws, errorMsg);
             return;
@@ -633,9 +649,10 @@ export class ConferenceServer {
         console.log("startConference");
 
         if (conference.status != "none") {
-            console.error("conference already started");
-            return null;
+            console.log("conference already started");
+            return true;
         }
+
         conference.updateStatus("initializing");
         //caller sent an invite
         //receiver accepted the invite
@@ -649,7 +666,7 @@ export class ConferenceServer {
             let errorMsg = new InviteResultMsg();
             errorMsg.data.error = "error creating conference for room.";
             conference.participants.forEach(p => this.send(p.socket, errorMsg));
-            return null;
+            return false;
         }
         let roomToken = roomTokenResult.data.roomToken;
         let roomId = roomTokenResult.data.roomId;
@@ -661,7 +678,7 @@ export class ConferenceServer {
         let roomNewResult = await roomsAPI.newRoom(roomId, roomToken, conference.id, roomConfig);
         if (!roomNewResult || roomNewResult?.data?.error) {
             console.error("failed to create new room");
-            return null;
+            return false;
         }
 
         conference.roomId = roomId;
@@ -671,7 +688,7 @@ export class ConferenceServer {
         conference.timeoutId = setTimeout(() => { conference.close(); }, conference.config.roomTimeoutSecs * 1000);
 
         conference.updateStatus("ready");
-        return conference;
+        return true;
 
     }
 
