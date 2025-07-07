@@ -22,7 +22,7 @@ class WebRTCService {
 
     public onInviteReceived: ((participantId: string, displayName: string) => void) = () => { };
 
-    public onConferenceCreated: (conferenceId: string, trackingId: string) => void = () => { };
+    //public onConferenceCreated: (conferenceId: string, trackingId: string) => void = () => { };
     public onConferenceJoined: () => void = () => { };
     public onConferenceEnded: (conferenceId: string, reason: string) => void = () => { };
 
@@ -39,7 +39,7 @@ class WebRTCService {
         this.onContactsReceived = null;
         //this.onLocalStreamReady = null;
         this.onInviteReceived = null;
-        this.onConferenceCreated = null;
+        //this.onConferenceCreated = null;
         this.onConferenceJoined = null;
         this.onConferenceEnded = null;
         this.onParticipantTrack = null;
@@ -301,11 +301,12 @@ class WebRTCService {
             this.onConferenceEnded(msg.data.trackingId, "failed to create conference");
             return;
         }
-        this.onConferenceCreated(msg.data.conferenceRoomId, msg.data.trackingId);
+        //this.onConferenceCreated(msg.data.conferenceRoomId, msg.data.trackingId);
         this.joinConferenceRoom(msg.data.conferenceRoomId);
     }
 
     private eventConferenceJoined(msg: any) {
+        console.log("eventConferenceJoined", msg);
         if (this.localStream) {
             this.confClient.publishTracks(this.localStream);
         }

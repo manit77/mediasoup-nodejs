@@ -910,8 +910,7 @@ export class RoomsClient {
 
     console.log("transports created.");
 
-    await this.publishLocalStream();
-
+    // await this.publishLocalStream();
 
     if (this.onRoomJoinedEvent) {
       this.onRoomJoinedEvent(this.localPeer.roomId);
@@ -959,7 +958,7 @@ export class RoomsClient {
 
     let newpeer: Peer = this.createPeer(msgIn.data.peerId, msgIn.data.peerTrackingId, msgIn.data.displayName);
 
-    await this.publishLocalStream();
+    //await this.publishLocalStream();
 
     if (msgIn.data?.producers) {
       for (let producer of msgIn.data.producers) {

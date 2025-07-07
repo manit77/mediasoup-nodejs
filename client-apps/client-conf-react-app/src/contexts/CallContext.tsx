@@ -223,7 +223,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         webRTCService.onInviteReceived = (participantId: string, displayName: string) => {
-            console.log(`CallContext: Incoming call from ${displayName} ${participantId}`);
+            console.log(`CallContext: onInviteReceived ${displayName} ${participantId}`);
             // Auto-decline if already in a call
             if (isCallActive) {
                 webRTCService.declineInvite();
@@ -233,14 +233,19 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setInviteInfo({ participantId, displayName });
         };
 
-        webRTCService.onConferenceJoined = () => {
-            console.log(`CallContext: conference connected`);
+        webRTCService.onConferenceJoined = async () => {
+            console.log(`CallContext: onConferenceJoined`);
             setInviteContact(null);
             setIsCallActive(true);
             // Add self to participants immediately
+
+            if (localStream.getTracks().length === 0) {
+                await getLocalMedia();
+            }
+
             let self: CallParticipant = {
-                displayName: auth.currentUser.displayName,
-                id: auth.currentUser.id,
+                displayName: auth.currentUser?.displayName,
+                id: auth.currentUser?.id,
                 isMuted: localStream ? !localStream.getAudioTracks()[0]?.enabled : true,
                 isVideoOff: localStream ? !localStream.getVideoTracks()[0]?.enabled : true,
                 stream: localStream
@@ -248,6 +253,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             let newParticipants = [...participants];
             newParticipants.push(self);
+            console.log("all participants:", newParticipants);
             setParticipants(newParticipants);
         };
 
@@ -265,18 +271,22 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         webRTCService.onParticipantJoined = (participantId: string, displayName: string) => {
-            console.log(`CallContext: Participant joined ${displayName} (${participantId})`);
+            console.log(`CallContext: onParticipantJoined ${displayName} (${participantId})`);
             if (!participantId) {
                 console.error("no participantId");
                 return;
             }
 
-            setParticipants(prev => {
-                if (!prev.find(p => p.id === participantId)) {
-                    return [...prev, new CallParticipant(participantId, displayName)];
-                }
-                return prev;
-            });
+            if (!participants.find(p => p.id === participantId)) {
+                console.log("add new participant", participantId, displayName);
+                let newParts = [...participants, new CallParticipant(participantId, displayName)]
+                console.log("all participants:", newParts);
+                setParticipants(newParts);
+
+            } else {
+                console.log("participant already exists", participantId, displayName);
+            }
+
         };
 
         webRTCService.onParticipantLeft = (userId) => {
@@ -292,7 +302,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return () => { // Cleanup
             webRTCService.dispose();
         }
-    }, [hidePopUp, showPopUp, auth.currentUser, participants, isCallActive, localStream, resetCallState]);
+    }, [hidePopUp, showPopUp, isCallActive, localStream, participants, resetCallState]);
 
     useEffect(() => {
         if (auth?.isAuthenticated && auth.currentUser) {
@@ -313,10 +323,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     const getLocalMedia = async () => {
-        console.log("getSetLocalStream");
+        console.log("getLocalMedia");
         await webRTCService.getNewTracks(getMediaContraints());
         setIsLocalStreamUpdated(true);
-        return localStream;   
+        return localStream;
     };
 
     const sendInvite = async (contactToCall: Contact) => {
@@ -442,8 +452,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             let screenTrack = screenStream.getVideoTracks()[0];
             localStream.addTrack(screenTrack);
-            console.log(`screen track added to localStream`);          
-            
+            console.log(`screen track added to localStream`);
+
         }
         setIsLocalStreamUpdated(true);
 
