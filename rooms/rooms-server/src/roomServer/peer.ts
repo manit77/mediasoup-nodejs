@@ -40,12 +40,7 @@ export class Peer {
             return true;
         }
 
-        try {
-            this.producerTransport = await roomUtils.createTransport(this.room.roomRouter);
-        } catch (err: any) {
-            console.error(err);
-            return false;
-        }        
+        this.producerTransport = await roomUtils.createTransport(this.room.roomRouter);
 
         this.producerTransport.on('@close', () => {
             console.log(`Producer transport closed for peer ${this.id}`);
@@ -58,11 +53,10 @@ export class Peer {
             }
         });
 
-        return true;
 
     }
 
-    async createConsumerTransport(): Promise<boolean> {
+    async createConsumerTransport() {
         console.log(`createConsumerTransport()`);
         if (this.consumerTransport) {
             console.log(`consumer transport already created.`);
@@ -79,12 +73,7 @@ export class Peer {
             return true;
         }
 
-        try {
-            this.consumerTransport = await roomUtils.createTransport(this.room.roomRouter);
-        } catch (err: any) {
-            console.error(err);
-            return false;
-        }
+        this.consumerTransport = await roomUtils.createTransport(this.room.roomRouter);
 
         // Consumer transport events
         this.consumerTransport.on('@close', () => {
@@ -97,8 +86,6 @@ export class Peer {
                 console.log(`Consumer transport DTLS state: ${dtlsState} for peer ${this.id}`);
             }
         });
-
-        return true;
 
     }
 

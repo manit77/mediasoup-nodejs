@@ -77,20 +77,20 @@ export class ConferenceClient {
 
     publishTracks(tracks: MediaStream) {
         if (this.roomsClient) {
-            this.roomsClient.publishTracks(tracks);
+            this.roomsClient.addLocalTracks(tracks);
         }
     }
 
     unpublishTracks(tracks: MediaStream) {
         if (this.roomsClient) {
-            this.roomsClient.unpublishTracks(tracks);
+            this.roomsClient.removeLocalTracks(tracks);
         }
     }
 
     getTracks() {
-        if (this.roomsClient) {
-            this.roomsClient.getTracks();
-        }
+        // if (this.roomsClient) {
+        //     this.roomsClient.getTracks();
+        // }
 
         return [];
     }
@@ -122,7 +122,7 @@ export class ConferenceClient {
                 console.log(`existingTrack found ${existingTrack.kind} ${existingTrack.id}`);
                 this.roomsClient.replaceTrack(existingTrack, videoTrack);
             } else {
-                this.roomsClient.publishTracks(new MediaStream([videoTrack]));
+                this.roomsClient.addLocalTracks(new MediaStream([videoTrack]));
             }
 
             return screenStream;

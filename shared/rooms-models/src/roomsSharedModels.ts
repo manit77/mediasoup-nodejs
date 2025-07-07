@@ -9,7 +9,7 @@ export enum payloadTypeClient {
 
     createProducerTransport = "createProducerTransport",
     createConsumerTransport = "createConsumerTransport",
-    connectProducerTransport = "connectProducerTransport",    
+    connectProducerTransport = "connectProducerTransport",
     connectConsumerTransport = "connectConsumerTransport",
 
     roomNewToken = "roomNewToken",
@@ -19,6 +19,12 @@ export enum payloadTypeClient {
     roomLeave = "roomLeave",
     roomTerminate = "roomTerminate",
     roomGetLogs = "roomGetLogs",
+
+    rtc_needOffer = "rtc_needOffer",
+    rtc_offer = "rtc_offer",
+    rtc_answer = "rtc_answer",
+    rtc_ice = "rtc_ice",
+
     produce = "produce",
     consume = "consume",
 }
@@ -32,12 +38,8 @@ export enum payloadTypeServer {
     authUserNewTokenResult = "authUserNewTokenResult",
     registerPeerResult = "registerPeerResult",
 
-    createProducerTransportResult = "createProducerTransportResult",
-    createConsumerTransportResult = "createConsumerTransportResult",
-    connectProducerTransportResult = "connectConsumerTransportResult",
-    connectConsumerTransportResult = "connectConsumerTransportResult",
-
-
+    producerTransportCreated = "producerTransportCreated",
+    consumerTransportCreated = "consumerTransportCreated",
     produced = "produced",
     consumed = "consumed",
 
@@ -51,7 +53,12 @@ export enum payloadTypeServer {
     roomTerminateResult = "roomTerminateResult",
     roomClosed = "roomClosed",
     roomGetLogsResult = "roomGetLogsResult",
-   
+
+    rtc_needOffer = "rtc_needOffer",
+    rtc_offer = "rtc_offer",
+    rtc_answer = "rtc_answer",
+    rtc_ice = "rtc_ice",
+
     peerTerminated = "peerTerminated",
     error = "error",
     ok = "ok",
@@ -132,10 +139,10 @@ export class CreateProducerTransportMsg implements IMsg {
     } = {}
 }
 
-export class CreateProducerTransportResultMsg implements IMsg {
-    type = payloadTypeServer.createProducerTransportResult;
+export class ProducerTransportCreatedMsg implements IMsg {
+    type = payloadTypeServer.producerTransportCreated;
     data: {
-        error?: any,
+        authToken?: string,
         transportId?: string,
         iceParameters?: any,
         iceServers?: any,
@@ -153,13 +160,6 @@ export class ConnectProducerTransportMsg implements IMsg {
     } = {}
 }
 
-export class ConnectProducerTransportResultMsg implements IMsg {
-    type = payloadTypeServer.connectProducerTransportResult;
-    data: {        
-        error?: any
-    } = {}
-}
-
 export class CreateConsumerTransportMsg implements IMsg {
     type = payloadTypeClient.createConsumerTransport;
     data: {
@@ -167,31 +167,24 @@ export class CreateConsumerTransportMsg implements IMsg {
     } = {}
 }
 
-export class CreateConsumerTransportResultMsg implements IMsg {
-    type = payloadTypeServer.createConsumerTransportResult;
+export class ConsumerTransportCreatedMsg implements IMsg {
+    type = payloadTypeServer.consumerTransportCreated;
     data: {
+        authToken?: string,
         transportId?: string,
         iceParameters?: any,
         iceServers?: any,
         iceCandidates?: any,
         dtlsParameters?: any,
         iceTransportPolicy?: any,
-        error? : any
     } = {};
 }
 
 export class ConnectConsumerTransportMsg implements IMsg {
-    type = payloadTypeServer.connectProducerTransportResult;
+    type = payloadTypeClient.connectConsumerTransport;
     data: {
         authToken?: string,
         dtlsParameters?: any
-    } = {};
-}
-
-export class ConnectConsumerTransportResultMsg implements IMsg {
-    type = payloadTypeServer.connectConsumerTransportResult;
-    data: {
-        error?: any;
     } = {};
 }
 
@@ -300,11 +293,12 @@ export class RoomJoinResultMsg implements IMsg {
     data: {
         roomId?: string,
         roomToken?: string,
+        roomType?: RoomType,
         peers?: {
             peerId: string,
             peerTrackingId: string,
             displayName: string,
-            producerInfos?: { producerId: string, kind: "audio" | "video" }[]
+            producers?: { producerId: string, kind: "audio" | "video" }[]
         }[],
         error?: string,
     } = { peers: [] };
@@ -317,7 +311,7 @@ export class RoomNewPeerMsg implements IMsg {
         peerTrackingId?: string;
         roomId?: string;
         displayName?: string;
-        producerInfos?: { producerId: string, kind: "audio" | "video" }[]
+        producers?: { producerId: string, kind: "audio" | "video" }[]
     } = {};
 }
 
@@ -409,6 +403,7 @@ export enum RoomServerAPIRoutes {
 }
 
 export class RoomConfig {
+    roomType = RoomType.sfu;
     maxPeers = 99;
     peerAllowMic = true;
     peerAllowCamera = true;
@@ -421,6 +416,43 @@ export class RoomConfig {
     callBackURL_OnRoomClosed: string;
     callBackURL_OnPeerLeft: string;
     callBackURL_OnPeerJoined: string;
+}
+
+export enum RoomType {
+    "sfu" = "sfu",
+    "p2p" = "p2p"
+}
+
+export class RTCNeedOfferMsg implements IMsg {
+    type = payloadTypeClient.rtc_needOffer;
+    data: {
+        remotePeerId?: string,
+        sdp?: any
+    } = {};
+}
+
+export class RTCOfferMsg implements IMsg {
+    type = payloadTypeClient.rtc_offer;
+    data: {
+        remotePeerId?: string,
+        sdp?: any
+    } = {};
+}
+
+export class RTCAnswerMsg implements IMsg {
+    type = payloadTypeClient.rtc_answer;
+    data: {
+        remotePeerId?: string,
+        sdp?: any
+    } = {};
+}
+
+export class RTCIceMsg implements IMsg {
+    type = payloadTypeClient.rtc_ice;
+    data: {
+        remotePeerId?: string,
+        candidate?: any
+    } = {};
 }
 
 export interface RoomPeerCallBackData {

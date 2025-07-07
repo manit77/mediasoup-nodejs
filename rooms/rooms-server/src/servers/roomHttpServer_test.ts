@@ -123,7 +123,7 @@ describe("roomServerTests", () => {
         expect(resultMsg.data.roomId).toBeTruthy();
         expect(resultMsg.data.roomToken).toBeTruthy();
 
-        let room = roomServer.getRoom(resultMsg.data.roomId!);
+        let room = roomServer.getRoom(resultMsg.data.roomId);
         expect(room).toBeTruthy();
         room.close("test");
 
@@ -136,7 +136,7 @@ describe("roomServerTests", () => {
         let [payload, roomToken] = roomUtils.generateRoomToken(config.room_secretKey, 1);
 
         let roomConfig = new RoomConfig();
-        let room = await roomServer.createRoom(payload.roomId!, roomToken, "", "", roomConfig);
+        let room = await roomServer.createRoom(payload.roomId, roomToken, "", roomConfig);
 
         let msgOut = new RoomTerminateMsg();
         msgOut.data.roomId = room.id;

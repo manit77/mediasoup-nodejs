@@ -6,7 +6,7 @@ import {
   AuthUserNewTokenMsg, payloadTypeServer, RegisterPeerMsg, RegisterPeerResultMsg
   , RoomConfig, RoomJoinMsg, RoomLeaveMsg, RoomNewMsg, RoomNewTokenMsg, RoomNewTokenResultMsg
 } from "@rooms/rooms-models";
-// import { MockWorker } from '../test/mediasoupMock.js';
+import { MockWorker } from '../test/mediasoupMock.js';
 import { Room } from '../roomServer/room.js';
 import { Peer } from '../roomServer/peer.js';
 import { checkKeysExist } from '../utils/utils.js';
@@ -18,7 +18,7 @@ vi.mock('mediasoup', () => ({
   createWorker: vi.fn().mockImplementation(() => {
     console.log("mock createWorker");
     // Return a Promise that resolves with an instance of your MockWorker
-    return Promise.resolve({});
+    return Promise.resolve(new MockWorker());
   })
 }));
 
@@ -84,7 +84,7 @@ describe('RoomPeerSocketServer', () => {
         const authUserNewTokenResult = await roomServer.onAuthUserNewTokenMsg(authUserNewTokenMsg);
         console.log(authUserNewTokenResult.data.expiresIn);
 
-        authToken = authUserNewTokenResult.data.authToken!;
+        authToken = authUserNewTokenResult.data.authToken;
         // Create and send register message
         const registerMsg = new RegisterPeerMsg();
         registerMsg.data.authToken = authToken;
@@ -102,7 +102,7 @@ describe('RoomPeerSocketServer', () => {
 
             let registerPeerResultMsg = msgIn as RegisterPeerResultMsg;
             console.log(`registerResult peerId: ${registerPeerResultMsg.data.peerId} `);
-            peerId = registerPeerResultMsg.data.peerId!;
+            peerId = registerPeerResultMsg.data.peerId;
 
             //create new room token
             let roomNewTokenMsg = new RoomNewTokenMsg();
@@ -118,8 +118,8 @@ describe('RoomPeerSocketServer', () => {
             testResults[payloadTypeServer.roomNewTokenResult] = true;
 
             let msg = msgIn as RoomNewTokenResultMsg;
-            roomId = msg.data.roomId!;
-            roomToken = msg.data.roomToken!;
+            roomId = msg.data.roomId;
+            roomToken = msg.data.roomToken;
 
             console.log(`roomNewTokenResult ${roomId} ${roomToken} `);
 
@@ -159,7 +159,7 @@ describe('RoomPeerSocketServer', () => {
             console.log("joined room");
             expect(room.getPeerCount()).toBeGreaterThan(0);
 
-            peer = room.getPeer(peerId)!;
+            peer = room.getPeer(peerId);
             expect(peer).toBeTruthy();
 
             //leave room

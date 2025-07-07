@@ -35,6 +35,11 @@ defaultPeerSocketServerSecurityMap[payloadTypeClient.roomNewToken] = [AuthUserRo
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomTerminate] = [AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.terminatePeer] = [AuthUserRoles.user];
 
+defaultPeerSocketServerSecurityMap[payloadTypeClient.rtc_offer] = [AuthUserRoles.user];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.rtc_answer] = [AuthUserRoles.user];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.rtc_ice] = [AuthUserRoles.user];
+
+
 export class RoomPeerSocketServer {
 
     webSocketServer: WebSocketServer;
