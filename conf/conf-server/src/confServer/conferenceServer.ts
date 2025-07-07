@@ -274,12 +274,14 @@ export class ConferenceServer {
         this.send(ws, msg);
 
         this.broadCastContacts();
+
         return msg;
 
     }
 
     async broadCastContacts() {
 
+        console.log("broadCastContacts");
         //broadcast to all participants of contacts
         let contactsMsg = new GetContactsResultsMsg();
         contactsMsg.data = [...this.participants.values()].map(p => ({
@@ -288,14 +290,17 @@ export class ConferenceServer {
         }) as Contact);
 
         for (let [socket, p] of this.participants.entries()) {
-            if (p.role !== "guest") {
+            //if (p.role !== "guest") {
                 this.send(socket, contactsMsg);
-            }
+            //}
         }
 
     }
 
     async onGetContacts(ws: WebSocket, msgIn?: any) {
+        
+        console.log("onGetContacts");
+
         let partcipant = this.getParticipantByWS(ws);
         if (!partcipant) {
             console.error("participant not registered");

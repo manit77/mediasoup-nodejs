@@ -481,7 +481,7 @@ export class RoomsClient {
     console.log(DSTR, `Camera ${!this.videoEnabled ? 'enabled' : 'disabled'}`);
   };
 
-  addLocalTracks = async (tracks: MediaStream) => {
+  publishTracks = async (tracks: MediaStream) => {
     console.log(DSTR, "addLocalTrack() ");
     console.log(DSTR, `current tracks=${this.localPeer.tracks.getTracks().length}`);
 
@@ -526,7 +526,7 @@ export class RoomsClient {
 
   };
 
-  removeLocalTracks = async (tracks: MediaStream) => {
+  unPublishTracks = async (tracks: MediaStream) => {
     console.log(`removeLocalTracks`);
 
     let localTracks = this.localPeer.tracks.getTracks();

@@ -25,7 +25,7 @@ interface CallContextType {
     isCallActive: boolean;
     inviteInfo: InviteInfo | null;
     setInviteInfo: React.Dispatch<React.SetStateAction<InviteInfo | null>>;
-    inviteContact: Contact | null; // Contact being called
+    inviteContact: Contact | null;
     setInviteContact: React.Dispatch<React.SetStateAction<Contact | null>>;
 
     createConference : (trackingId: string) => void;
@@ -34,6 +34,10 @@ interface CallContextType {
     availableDevices: { video: Device[]; audioIn: Device[]; audioOut: Device[] };
     selectedDevices: { videoId?: string; audioInId?: string; audioOutId?: string };
     setSelectedDevices: React.Dispatch<React.SetStateAction<{ videoId?: string; audioInId?: string; audioOutId?: string }>>;
+    micEnabled : boolean;
+    setMicEnabled : React.Dispatch<React.SetStateAction<boolean>>;
+    cameraEnabled : boolean;
+    setCameraEnabled : React.Dispatch<React.SetStateAction<boolean>>;
 
     isScreenSharing: boolean;
 
@@ -68,10 +72,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [participants, setParticipants] = useState<CallParticipant[]>([]);
     const [isCallActive, setIsCallActive] = useState<boolean>(false);
     const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
-    const [inviteContact, setInviteContact] = useState<Contact | null>(null); // For outgoing call popup
+    const [inviteContact, setInviteContact] = useState<Contact | null>(null);
 
     const [availableDevices, setAvailableDevices] = useState<{ video: Device[]; audioIn: Device[]; audioOut: Device[] }>({ video: [], audioIn: [], audioOut: [] });
     const [selectedDevices, setSelectedDevices] = useState<{ videoId?: string; audioInId?: string; audioOutId?: string }>({});
+    const [micEnabled, setMicEnabled] = useState<boolean>(true);
+    const [cameraEnabled, setCameraEnabled] = useState<boolean>(true);
+
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [originalVideoTrack, setOriginalVideoTrack] = useState<MediaStreamTrack | null>(null);
     const [popUpMessage, setPopUpMessage] = useState("");
@@ -314,6 +321,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return constraints;
     }
     const getSetLocalStream = async () => {
+        console.log("getSetLocalStream");
         let stream: MediaStream;
         stream = await webRTCService.getUserMedia(getMediaContraints());
         setLocalStream(stream);
@@ -512,7 +520,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const switchDevices = async (videoId: string, audioId: string, speakerId: string) => {
-        console.log(`switchDevices videoId:${videoId}, audioId:${audioId}, speakerId:${speakerId}`);
+        console.log(`switchDevices videoId:${videoId}, audioId:${audioId}, speakerId:${speakerId}, micEnabled:${micEnabled}, cameraEnabled:${cameraEnabled}`);
 
         //set selected devices
         if (selectedDevices.videoId !== videoId) {
@@ -534,6 +542,16 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         //get new stream based on devices
         let newstream = await webRTCService.getNewStream(constraints);
+
+        let videoTrack = newstream.getVideoTracks()[0];
+        if(videoTrack) {
+            videoTrack.enabled = cameraEnabled;
+        }
+
+        let audioTrack = newstream.getAudioTracks()[0];
+        if(audioTrack) {
+            audioTrack.enabled = micEnabled;
+        }
 
         //replace the stream
         await webRTCService.replaceStream(newstream);
@@ -628,6 +646,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             inviteInfo, setInviteInfo,
             inviteContact, setInviteContact,
             availableDevices, selectedDevices, setSelectedDevices, isScreenSharing,
+            cameraEnabled, setCameraEnabled, micEnabled, setMicEnabled,
             sendInvite, acceptInvite, declineInvite, cancelInvite,
             endCurrentCall,
             toggleMuteAudio, toggleMuteVideo, startScreenShare, stopScreenShare, updateMediaDevices,

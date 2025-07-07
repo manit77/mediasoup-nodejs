@@ -42,7 +42,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
 
         if (localParticipant) {
             if (participant.stream == null) {
-                //get user media
+                console.log("participant stream is null, get user media");
                 participant.stream = await getSetLocalStream();
                 participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;
                 participant.isMuted = !participant.stream.getAudioTracks()[0]?.enabled;
@@ -52,6 +52,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
 
             } else {
                 //toggle
+                console.log("toggle video");
                 if (participant.stream.getVideoTracks()[0]) {
                     participant.stream.getVideoTracks()[0].enabled = !participant.stream.getVideoTracks()[0]?.enabled;
                     participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;

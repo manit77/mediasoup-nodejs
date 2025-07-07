@@ -8,7 +8,8 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         selectedDevices,
         updateMediaDevices,
         switchDevices,
-        startScreenShare, // For screen selection part
+        cameraEnabled, setCameraEnabled,
+        micEnabled, setMicEnabled,
     } = useCall();
 
     const [audioId, setaudioId] = useState("true");
@@ -25,7 +26,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
             setspeakerId(selectedDevices.audioOutId);
 
         }
-    }, [show, updateMediaDevices]);
+    }, [selectedDevices.audioInId, selectedDevices.audioOutId, selectedDevices.videoId, show, updateMediaDevices]);
 
     const handleDeviceChange = (type: 'video' | 'audioIn' | 'audioOut', deviceId: string) => {
         if (type === "video") {
@@ -35,11 +36,6 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         } else {
             setspeakerId(deviceId);
         }
-    };
-
-    const handleScreenShareSelect = async () => {
-        await startScreenShare();
-        handleClose();
     };
 
     const closeButtonClick = async () => {
@@ -81,7 +77,8 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                                 <option key={device.id} value={device.id}>{device.label}</option>
                                             ))}
                                         </Form.Select>
-                                    ) : <p>No cameras found.</p>}
+                                    ) : <p>No cameras found.</p>}                                   
+                                    <Form.Check label="Camera enabled" checked={cameraEnabled} onChange={(e) => setCameraEnabled(e.target.checked)}></Form.Check>
 
                                     <h5>Microphone</h5>
                                     {availableDevices.audioIn.length > 0 ? (
@@ -95,7 +92,8 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                                 <option key={device.id} value={device.id}>{device.label}</option>
                                             ))}
                                         </Form.Select>
-                                    ) : <p>No microphones found.</p>}
+                                    ) : <p>No microphones found.</p>}                                    
+                                    <Form.Check label="Mic enabled" checked={micEnabled} onChange={(e) => setMicEnabled(e.target.checked)}></Form.Check>
 
                                     <h5>Speaker</h5>
                                     {availableDevices.audioOut.length > 0 ? (
@@ -126,7 +124,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
             </Modal.Body>
             <Modal.Footer>
                 <Button variant="secondary" onClick={closeButtonClick}>
-                    Close
+                    Apply
                 </Button>
             </Modal.Footer>
         </Modal>

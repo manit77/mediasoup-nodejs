@@ -76,14 +76,16 @@ export class ConferenceClient {
     }
 
     publishTracks(tracks: MediaStream) {
+        console.log(`publishTracks`);
         if (this.roomsClient) {
-            this.roomsClient.addLocalTracks(tracks);
+            this.roomsClient.publishTracks(tracks);
         }
     }
 
     unpublishTracks(tracks: MediaStream) {
+        console.log(`unpublishTracks`);
         if (this.roomsClient) {
-            this.roomsClient.removeLocalTracks(tracks);
+            this.roomsClient.unPublishTracks(tracks);
         }
     }
 
@@ -122,7 +124,7 @@ export class ConferenceClient {
                 console.log(`existingTrack found ${existingTrack.kind} ${existingTrack.id}`);
                 this.roomsClient.replaceTrack(existingTrack, videoTrack);
             } else {
-                this.roomsClient.addLocalTracks(new MediaStream([videoTrack]));
+                this.roomsClient.publishTracks(new MediaStream([videoTrack]));
             }
 
             return screenStream;
@@ -133,6 +135,9 @@ export class ConferenceClient {
     }
 
     async stopScreenShare(screenStream: MediaStream) {
+
+        console.log(this.DSTR, "stopScreenShare");
+
         let videoTrack = screenStream.getVideoTracks()[0];
         if (videoTrack) {
             videoTrack.stop();

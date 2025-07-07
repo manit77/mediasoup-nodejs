@@ -134,6 +134,7 @@ class WebRTCService {
     }
 
     public async getUserMedia(constraints?: MediaStreamConstraints): Promise<MediaStream> {
+        console.log("getUserMedia");
         this.localStream = await getUserMedia(constraints);
         if (this.confClient) {
             this.confClient.publishTracks(this.localStream);
@@ -214,6 +215,10 @@ class WebRTCService {
         }
 
         this.confClient.leave();
+        
+        //reset tracks
+        this.localStream = new MediaStream();
+
     }
 
     public toggleAudioMute(): boolean {
