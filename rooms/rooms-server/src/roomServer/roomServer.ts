@@ -174,22 +174,22 @@ export class RoomServer {
                 return this.onRoomTerminate(peerId, msgIn);
             }
             case payloadTypeClient.createProducerTransport: {
-                return this.onMediasoup_CreateProducerTransport(peerId, msgIn);
+                return this.onCreateProducerTransport(peerId, msgIn);
             }
             case payloadTypeClient.createConsumerTransport: {
-                return this.onMediasoup_CreateConsumerTransport(peerId, msgIn);
+                return this.onCreateConsumerTransport(peerId, msgIn);
             }
             case payloadTypeClient.connectProducerTransport: {
-                return this.onMediasoup_ConnectProducerTransport(peerId, msgIn);
+                return this.onConnectProducerTransport(peerId, msgIn);
             }
             case payloadTypeClient.connectConsumerTransport: {
-                return this.onMediasoup_ConnectConsumerTransport(peerId, msgIn);
+                return this.onConnectConsumerTransport(peerId, msgIn);
             }
             case payloadTypeClient.produce: {
-                return this.onMediasoup_Produce(peerId, msgIn);
+                return this.onProduce(peerId, msgIn);
             }
             case payloadTypeClient.consume: {
-                return this.onMediasoup_Consume(peerId, msgIn);
+                return this.onConsume(peerId, msgIn);
             }
         }
         return null;
@@ -444,7 +444,7 @@ export class RoomServer {
         return msg;
     }
 
-    async onMediasoup_CreateProducerTransport(peerId: string, msgIn: CreateProducerTransportMsg): Promise<IMsg> {
+    async onCreateProducerTransport(peerId: string, msgIn: CreateProducerTransportMsg): Promise<IMsg> {
         console.log("onCreateProducerTransport");
         let peer = this.peers.get(peerId);
         if (!peer) {
@@ -457,7 +457,7 @@ export class RoomServer {
             return new ErrorMsg("peer is not in a room");
         }
 
-        await peer!.createProducerTransport()
+        await peer!.createProducerTransport();
 
         let producerTransportCreated = new ProducerTransportCreatedMsg();
         producerTransportCreated.data = {
@@ -472,7 +472,7 @@ export class RoomServer {
         return producerTransportCreated;
     }
 
-    async onMediasoup_CreateConsumerTransport(peerId: string, msgIn: CreateProducerTransportMsg): Promise<IMsg> {
+    async onCreateConsumerTransport(peerId: string, msgIn: CreateProducerTransportMsg): Promise<IMsg> {
         console.log("onCreateConsumerTransport");
 
         //client requests to create a consumer transport to receive data
@@ -489,7 +489,7 @@ export class RoomServer {
             return new ErrorMsg("peer is not in a room");
         }
 
-        await peer.createConsumerTransport()
+        await peer.createConsumerTransport();
 
         let consumerTransportCreated = new ConsumerTransportCreatedMsg();
         consumerTransportCreated.data = {
@@ -504,7 +504,7 @@ export class RoomServer {
         return consumerTransportCreated;
     }
 
-    async onMediasoup_ConnectProducerTransport(peerId: string, msgIn: ConnectProducerTransportMsg): Promise<IMsg> {
+    async onConnectProducerTransport(peerId: string, msgIn: ConnectProducerTransportMsg): Promise<IMsg> {
 
         console.log("onConnectProducerTransport");
 
@@ -531,7 +531,7 @@ export class RoomServer {
         return new OkMsg(msgIn.type);
     }
 
-    async onMediasoup_ConnectConsumerTransport(peerId: string, msgIn: ConnectConsumerTransportMsg): Promise<IMsg> {
+    async onConnectConsumerTransport(peerId: string, msgIn: ConnectConsumerTransportMsg): Promise<IMsg> {
         console.log("onConnectConsumerTransport");
 
         let peer = this.peers.get(peerId);
@@ -838,7 +838,7 @@ export class RoomServer {
 
     }
 
-    private async onMediasoup_Produce(peerId: string, msgIn: ProduceMsg): Promise<IMsg> {
+    private async onProduce(peerId: string, msgIn: ProduceMsg): Promise<IMsg> {
         console.log("onProduce");
 
         //client is requesting to produce/send audio or video
@@ -853,7 +853,7 @@ export class RoomServer {
         if (!peer.room) {
             console.error('peer is not in a room', peer.id);
             return new ErrorMsg("peer is not in a room.");
-        }      
+        }
 
         //requires a producerTransport
         if (!peer.producerTransport) {
@@ -890,7 +890,7 @@ export class RoomServer {
         return producedMsg;
     }
 
-    private async onMediasoup_Consume(peerId: string, msgIn: ConsumeMsg): Promise<IMsg> {
+    private async onConsume(peerId: string, msgIn: ConsumeMsg): Promise<IMsg> {
         console.log("onConsume");
         //client is requesting to consume a producer
 

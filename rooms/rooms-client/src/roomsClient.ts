@@ -114,7 +114,7 @@ export class RoomsClient {
     wsURI: "wss://localhost:3000",
   }
 
-  private sfu_onTransportsReadyEvent: (transport: mediasoupClient.types.Transport) => void;
+  private onTransportsReadyEvent: (transport: mediasoupClient.types.Transport) => void;
 
   onRoomJoinedEvent: (roomId: string) => void;
   onRoomPeerJoinedEvent: (roomId: string, peer: Peer) => void;
@@ -681,10 +681,10 @@ export class RoomsClient {
           this.onRegisterResult(msgIn);
           break;
         case payloadTypeServer.producerTransportCreated:
-          this.sfu_onProducerTransportCreated(msgIn);
+          this.onProducerTransportCreated(msgIn);
           break;
         case payloadTypeServer.consumerTransportCreated:
-          this.sfu_onConsumerTransportCreated(msgIn);
+          this.onConsumerTransportCreated(msgIn);
           break;
         case payloadTypeServer.roomNewTokenResult:
           this.onRoomNewTokenResult(msgIn);
@@ -699,16 +699,16 @@ export class RoomsClient {
           this.onRoomNewPeer(msgIn);
           break;
         case payloadTypeServer.roomNewProducer:
-          this.sfu_onRoomNewProducer(msgIn);
+          this.onRoomNewProducer(msgIn);
           break;
         case payloadTypeServer.roomPeerLeft:
           this.onRoomPeerLeft(msgIn);
           break;
         case payloadTypeServer.produced:
-          this.sfu_onProduced(msgIn);
+          this.onProduced(msgIn);
           break;
         case payloadTypeServer.consumed:
-          this.sfu_onConsumed(msgIn);
+          this.onConsumed(msgIn);
           break;
         case payloadTypeServer.roomClosed:
           this.onRoomClosed(msgIn);
@@ -760,7 +760,7 @@ export class RoomsClient {
    * if rtc, publish local streams to the remote peerConnection
    * @returns 
    */
-  private sfu_publishLocalStream = async () => {
+  private publishLocalStream = async () => {
     console.log(`publishLocalStream()`);
 
     if (!this.localPeer.roomId) {
@@ -829,7 +829,7 @@ export class RoomsClient {
 
   };
 
-  private sfu_createProducerTransport = (): boolean => {
+  private createProducerTransport = (): boolean => {
     console.log(DSTR, "-- createProducerTransport");
 
     let msg = new CreateProducerTransportMsg();
@@ -837,7 +837,7 @@ export class RoomsClient {
     return true;
   };
 
-  private sfu_createConsumerTransport = (): boolean => {
+  private createConsumerTransport = (): boolean => {
     console.log(DSTR, "-- createConsumerTransport");
 
     let msg = new CreateConsumerTransportMsg();
@@ -890,7 +890,7 @@ export class RoomsClient {
     console.log(DSTR, `-- onRoomJoinResult() peers : ${msgIn.data?.peers.length}`);
 
 
-    let transports = await this.sfu_waitForRoomTransports();
+    let transports = await this.waitForRoomTransports();
 
     if (transports.data.error) {
       console.log("unable to create transports");
@@ -899,7 +899,7 @@ export class RoomsClient {
 
     console.log("transports created.");
 
-    await this.sfu_publishLocalStream();
+    await this.publishLocalStream();
 
 
     if (this.onRoomJoinedEvent) {
@@ -922,7 +922,7 @@ export class RoomsClient {
 
     for (let peer of this.peers) {
 
-      this.sfu_consumePeerProducers(peer);
+      this.consumePeerProducers(peer);
 
       if (this.onRoomPeerJoinedEvent) {
         this.onRoomPeerJoinedEvent(this.localPeer.roomId, peer);
@@ -948,11 +948,11 @@ export class RoomsClient {
 
     let newpeer: Peer = this.createPeer(msgIn.data.peerId, msgIn.data.peerTrackingId, msgIn.data.displayName);
 
-    await this.sfu_publishLocalStream();
+    await this.publishLocalStream();
 
     if (msgIn.data?.producers) {
       for (let producer of msgIn.data.producers) {
-        this.sfu_consumeProducer(msgIn.data.peerId, producer.producerId);
+        this.consumeProducer(msgIn.data.peerId, producer.producerId);
       }
     }
 
@@ -1030,7 +1030,7 @@ export class RoomsClient {
   /**
    * when you join a room transports need be created and published to a room
    */
-  private sfu_waitForRoomTransports = async (): Promise<IMsg> => {
+  private waitForRoomTransports = async (): Promise<IMsg> => {
 
     if (!this.localPeer.roomId) {
       console.log(DSTR, "room is required for creating transports");
@@ -1046,7 +1046,7 @@ export class RoomsClient {
           resolve(new ErrorMsg("transport timeout"));
         }, 5000);
 
-        this.sfu_onTransportsReadyEvent = (transport: Transport) => {
+        this.onTransportsReadyEvent = (transport: Transport) => {
 
           try {
 
@@ -1066,8 +1066,8 @@ export class RoomsClient {
           }
         }
 
-        this.sfu_createConsumerTransport();
-        this.sfu_createProducerTransport();
+        this.createConsumerTransport();
+        this.createProducerTransport();
       });
     };
 
@@ -1076,7 +1076,7 @@ export class RoomsClient {
 
   };
 
-  private sfu_waitForTransportConnected = async (transport: mediasoupClient.types.Transport): Promise<IMsg> => {
+  private waitForTransportConnected = async (transport: mediasoupClient.types.Transport): Promise<IMsg> => {
     console.log(DSTR, "-- waitForTransportConnected created " + transport.direction)
     return new Promise<IMsg>((resolve, reject) => {
 
@@ -1118,7 +1118,7 @@ export class RoomsClient {
    * @param peer
    * @returns 
    */
-  async sfu_consumePeerProducers(peer: Peer) {
+  async consumePeerProducers(peer: Peer) {
     console.log(DSTR, `connectToPeer() ${peer.peerId}`);
 
     if (!this.localPeer.roomId) {
@@ -1137,13 +1137,13 @@ export class RoomsClient {
     }
 
     peer.producers.forEach(p => {
-      this.sfu_consumeProducer(peer.peerId, p.id);
+      this.consumeProducer(peer.peerId, p.id);
     });
 
 
   }
 
-  private sfu_onConsumerTransportCreated = async (msgIn: ConsumerTransportCreatedMsg) => {
+  private onConsumerTransportCreated = async (msgIn: ConsumerTransportCreatedMsg) => {
     console.log(DSTR, "-- onConsumerTransportCreated");
 
     this.localPeer.transportReceive = this.device.createRecvTransport({
@@ -1164,12 +1164,12 @@ export class RoomsClient {
       callback();
     });
 
-    if (this.sfu_onTransportsReadyEvent) {
-      this.sfu_onTransportsReadyEvent(this.localPeer.transportReceive);
+    if (this.onTransportsReadyEvent) {
+      this.onTransportsReadyEvent(this.localPeer.transportReceive);
     }
   }
 
-  private sfu_onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
+  private onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
     console.log(DSTR, "-- onProducerTransportCreated");
 
     //the server has created a transport
@@ -1212,18 +1212,18 @@ export class RoomsClient {
       callback({ id: 'placeholder' });
     });
 
-    if (this.sfu_onTransportsReadyEvent) {
-      this.sfu_onTransportsReadyEvent(this.localPeer.transportSend);
+    if (this.onTransportsReadyEvent) {
+      this.onTransportsReadyEvent(this.localPeer.transportSend);
     }
 
   }
 
-  private sfu_onRoomNewProducer = async (msgIn: RoomNewProducerMsg) => {
+  private onRoomNewProducer = async (msgIn: RoomNewProducerMsg) => {
     console.log(DSTR, "onRoomNewProducer: " + msgIn.data.kind);
-    this.sfu_consumeProducer(msgIn.data.peerId!, msgIn.data.producerId!);
+    this.consumeProducer(msgIn.data.peerId!, msgIn.data.producerId!);
   }
 
-  private sfu_consumeProducer = async (remotePeerId: string, producerId: string) => {
+  private consumeProducer = async (remotePeerId: string, producerId: string) => {
     console.log(DSTR, "consumeProducer() :" + remotePeerId, producerId);
     if (remotePeerId === this.localPeer.peerId) {
       console.error("consumeProducer() - you can't consume yourself.");
@@ -1245,7 +1245,7 @@ export class RoomsClient {
     this.send(msg);
   };
 
-  private sfu_onConsumed = async (msgIn: ConsumedMsg) => {
+  private onConsumed = async (msgIn: ConsumedMsg) => {
     console.log(DSTR, "onConsumed() " + msgIn.data?.kind);
     const consumer = await this.localPeer.transportReceive.consume({
       id: msgIn.data!.consumerId,
@@ -1256,7 +1256,7 @@ export class RoomsClient {
     this.addRemoteTrack(msgIn.data!.peerId, consumer.track);
   };
 
-  private sfu_onProduced = async (msgIn: ProducedMsg) => {
+  private onProduced = async (msgIn: ProducedMsg) => {
     console.log(DSTR, "onProduced " + msgIn.data?.kind);
   };
 }

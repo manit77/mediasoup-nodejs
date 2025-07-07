@@ -53,6 +53,8 @@ export class Peer {
             }
         });
 
+        return true;
+
 
     }
 
@@ -86,6 +88,8 @@ export class Peer {
                 console.log(`Consumer transport DTLS state: ${dtlsState} for peer ${this.id}`);
             }
         });
+
+        return true;
 
     }
 
