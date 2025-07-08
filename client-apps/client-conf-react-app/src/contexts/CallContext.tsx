@@ -506,18 +506,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         let cameraTrack = localStream.getVideoTracks()[0];
-
-        // cameraTrack.addEventListener("ended", () => {
-        //     console.log(`*** camera track ended.`);
-        // });
-
-        // console.log(`before camera track stopped ${cameraTrack.readyState}.`);
-        // setTimeout(() => {
-        //     cameraTrack.stop();
-        //     console.log(`camera track stopped ${cameraTrack.readyState}.`);
-        // }, 1000);
-        // console.log(`camera track stopped ${cameraTrack.readyState}.`);
-
         setOriginalVideoTrack(cameraTrack);
         console.log(`setOriginalVideoTrack ${cameraTrack.id}`);
 
@@ -544,38 +532,53 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const stopScreenShare = async () => {
-        console.log(`stopScreenShare`);
+        console.log("stopScreenShare");
 
-        let cameraTrack = originalVideoTrack;
+        try {
+            // Get the current local stream
+            const localStream = webRTCService.localStream;
+            let cameraTrack = originalVideoTrack;
 
-        if (cameraTrack) {
-            console.log(`cameraTrack: readyState ${cameraTrack.readyState} ${cameraTrack.id}`);
-        }
+            const screenTrack = localStream.getVideoTracks().find(
+                (track) => track !== cameraTrack
+            );
 
-        if (!cameraTrack || cameraTrack.readyState === "ended") {
-            console.log(`getting new camera track the old camera track ended, cameraTrack readyState:${cameraTrack.readyState} `);
-            await webRTCService.getNewTracks(getMediaContraints());
-            cameraTrack = webRTCService.localStream.getVideoTracks()[0];
-        }
-
-        if (cameraTrack) {
-            console.log(`add cameraTrack: ${cameraTrack.readyState} ${cameraTrack.kind} ${cameraTrack.id}`);
-
-            webRTCService.replaceTracks(new MediaStream([cameraTrack]));
-
-            let screenTrack = localStream.getVideoTracks()[0];
             if (screenTrack) {
-                localStream.removeTrack(screenTrack);
+                console.log(`Stopping screenTrack: ${screenTrack.id}`);
+                screenTrack.stop(); // Stop the screen-sharing track
+                localStream.removeTrack(screenTrack); // Remove from local stream
+            } else {
+                console.error("screen track not found")
             }
-            localStream.addTrack(cameraTrack);
+
+            // Check if camera track is valid; if not, get a new one
+            if (!cameraTrack || cameraTrack.readyState === "ended") {
+                console.log(`Getting new camera track, cameraTrack readyState: ${cameraTrack?.readyState}`);
+                await webRTCService.getNewTracks(getMediaContraints());
+                cameraTrack = webRTCService.localStream.getVideoTracks()[0];
+            }
+
+            if (cameraTrack) {
+                console.log(`Using cameraTrack: ${cameraTrack.readyState} ${cameraTrack.kind} ${cameraTrack.id}`);
+                console.log("tracks:", localStream.getVideoTracks());
+
+                // Replace the track in the peer connection
+                await webRTCService.replaceTracks(new MediaStream([cameraTrack]));
+
+                // Ensure the local stream only contains the camera track
+                if (!localStream.getTracks().includes(cameraTrack)) {
+                    localStream.addTrack(cameraTrack);
+                }
+                // Update state
+                setIsScreenSharing(false);
+                setOriginalVideoTrack(null);
+                setIsLocalStreamUpdated(true);
+            }
+        } catch (error) {
+            console.error("Error stopping screen share:", error);
         }
-
-
-        setIsScreenSharing(false);
-        setOriginalVideoTrack(null);
-        setIsLocalStreamUpdated(true);
-
     };
+
 
     const switchDevices = async (videoId: string, audioId: string, speakerId: string) => {
         console.log(`switchDevices videoId:${videoId}, audioId:${audioId}, speakerId:${speakerId}, micEnabled:${micEnabled}, cameraEnabled:${cameraEnabled}`);
