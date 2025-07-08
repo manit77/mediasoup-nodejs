@@ -7,17 +7,18 @@
     "shared/*",
     "rooms/*",
     "conf/*",
-    "client-apps/*"    
+    "client-apps/*"
   ],
   "scripts": {
     "build": "npm run --workspace=packages build && npm run --workspace=shared build && npm run --workspace=rooms build && npm run --workspace=conf build && npm run --workspace=client-apps build ",
-    "start-room": "ts-node --project rooms/rooms-server/src/index.ts ",
+    "start": "concurrently --kill-others-on-fail \"npm run start --workspace=rooms/rooms-server\" \"npm run start --workspace=conf/conf-server\" \"npm run start --workspace=client-apps/client-conf-react-app\"",
     "delete-node_modules": "find . -type d -name \"node_modules\" -exec rm -rf {} +",
     "delete-dist": "find . -type d -name \"dist\" -exec rm -rf {} +",
     "delete-tsbuildinfo": "find . -type f -name \"tsconfig.tsbuildinfo\" -delete ",
     "delete-package-lock": "find . -type f -name \"package-lock.json\" -delete "
   },
   "devDependencies": {
+    "concurrently": "^9.2.0",
     "typescript": "^5.8.3"
   }
 }
