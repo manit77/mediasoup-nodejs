@@ -56,13 +56,13 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
                 if (participant.stream.getVideoTracks()[0]) {
                     participant.stream.getVideoTracks()[0].enabled = !participant.stream.getVideoTracks()[0]?.enabled;
                     participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;
-                    setVideoOff(participant.isVideoOff);                    
+                    setVideoOff(participant.isVideoOff);
                 }
             }
         } else {
             //remote user
         }
-        
+
         console.log("micOff", participant.isMuted, "videoOff", participant.isVideoOff);
     }
 
@@ -90,7 +90,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         } else {
             //remote user
         }
-        
+
         console.log("micOff", participant.isMuted, "videoOff", participant.isVideoOff);
     }
 
@@ -106,7 +106,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
                 ) : null}
                 <div className="position-absolute bottom-0 start-0 bg-dark bg-opacity-50 text-white px-2 py-1 w-100">
                     <small>{displayName} {isLocal && "(You)"}</small>
-                    <span className="ms-1"  onClick={() => onAudioClick()}>
+                    <span className="ms-1" onClick={() => onAudioClick()}>
                         {micOff ? <MicMuteFill color="red" /> : <MicFill color="lightgreen" />}
                     </span>
                     <span className="ms-1" onClick={() => onVideoClick()}>
@@ -125,21 +125,21 @@ interface ParticipantsPaneProps {
 }
 
 const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, currentMainUserId }) => {
-    const { participants, localStream } = useCall();
+    const { callParticipants, localStream } = useCall();
     const { getCurrentUser } = useAuth();
-    const [currentUser, setCurrentUser ] = useState<User| null>(null);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
 
 
-    useEffect(()=>{
+    useEffect(() => {
         setCurrentUser(getCurrentUser());
     }, [getCurrentUser])
 
     // Find local participant data from the participants list
-    const localParticipant = participants.find(p => p.id === currentUser?.id);
+    const localParticipant = callParticipants.find(p => p.id === currentUser?.id);
 
     return (
         <div>
-            <h5 className="mb-3">Participants ({participants.length})</h5>
+            <h5 className="mb-3">Participants ({callParticipants.length})</h5>
             {/* Local User Preview First */}
             {currentUser && localParticipant && (
                 <ParticipantVideoPreview
@@ -156,7 +156,7 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, curr
             )}
 
             {/* Remote Participants */}
-            {participants
+            {callParticipants
                 .filter(p => p.id !== currentUser?.id) // Filter out local user
                 .map((participant) => (
                     <ParticipantVideoPreview

@@ -1,7 +1,7 @@
 import {
     AcceptMsg,
-    CallMessageType, ConferenceReadyMsg, ConferenceRoomConfig, CreateConfMsg, CreateConfResultMsg, GetContactsMsg, GetContactsResultsMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg
-    , JoinConfMsg, JoinConfResultMsg, LeaveMsg, RegisterMsg, RegisterResultMsg, RejectMsg
+    CallMessageType, ConferenceReadyMsg, ConferenceRoomConfig, CreateConfMsg, CreateConfResultMsg, GetParticipantsMsg, GetParticipantsResultMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg
+    , JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo, RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient, Peer } from "@rooms/rooms-client";
@@ -22,12 +22,6 @@ class Conference {
     participants: Map<string, Participant> = new Map();
 }
 
-interface Contact {
-    participantId: string,
-    displayName: string,
-    status: string
-}
-
 export enum EventTypes {
 
     connected = "connected",
@@ -35,7 +29,7 @@ export enum EventTypes {
 
     registerResult = "registerResult",
 
-    contactsReceived = "contactsReceived",
+    participantsReceived = "participantsReceived",
 
     inviteResult = "inviteResult",
     inviteReceived = "inviteReceived",
@@ -60,7 +54,7 @@ export class ConferenceClient {
     participantId: string = '';
     userName: string = "";
     conferenceRoom: Conference = new Conference();
-    public contacts: Contact[] = [];
+    public participants: ParticipantInfo[] = [];
     private roomsClient: RoomsClient;
     isConnected = false;
 
@@ -187,8 +181,8 @@ export class ConferenceClient {
                 case CallMessageType.registerResult:
                     await this.onRegisterResult(message);
                     break;
-                case CallMessageType.getContactsResult:
-                    await this.onContactsReceived(message);
+                case CallMessageType.getParticipantsResult:
+                    await this.onParticipantsReceived(message);
                     break;
                 case CallMessageType.invite:
                     await this.onInviteReceived(message);
@@ -237,15 +231,15 @@ export class ConferenceClient {
         this.sendToServer(registerMsg);
     }
 
-    getContacts() {
-        console.log(this.DSTR, "getContacts");
-        const contactsMsg = new GetContactsMsg();
-        this.sendToServer(contactsMsg);
+    getParticipantsOnline() {
+        console.log(this.DSTR, "getParticipantsOnline");
+        const getParticipantsMsg = new GetParticipantsMsg();
+        this.sendToServer(getParticipantsMsg);
     }
 
     /**
-     * send an invite to a contact that is onlin
-     * @param contact 
+     * send an invite to a participant that is online
+     * @param participantId 
      */
     invite(participantId: string): InviteMsg {
         console.log(this.DSTR, "invite()");
@@ -435,10 +429,10 @@ export class ConferenceClient {
         }
     }
 
-    private async onContactsReceived(message: GetContactsResultsMsg) {
-        console.log(this.DSTR, "onContactsReceived");
-        this.contacts = message.data.filter(c => c.participantId !== this.participantId);
-        await this.onEvent(EventTypes.contactsReceived, message);
+    private async onParticipantsReceived(message: GetParticipantsResultMsg) {
+        console.log(this.DSTR, "onParticipantsReceived");
+        this.participants = message.data.filter(c => c.participantId !== this.participantId);
+        await this.onEvent(EventTypes.participantsReceived, message);
     }
 
     private async onRejectReceived(message: InviteResultMsg) {

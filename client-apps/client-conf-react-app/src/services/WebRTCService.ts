@@ -1,6 +1,6 @@
 import { ConferenceClient, EventTypes } from '@conf/conf-client';
 import { User } from '../types';
-import { Contact, CreateConfResultMsg, InviteMsg, InviteResultMsg } from '@conf/conf-models';
+import { CreateConfResultMsg, InviteMsg, InviteResultMsg, ParticipantInfo } from '@conf/conf-models';
 import { getUserMedia } from '@rooms/webrtc-client';
 
 const confServerURI = 'https://localhost:3100'; // conference
@@ -8,7 +8,7 @@ const confServerURI = 'https://localhost:3100'; // conference
 class WebRTCService {
     localStream: MediaStream = new MediaStream();
     confClient: ConferenceClient;
-    contacts: Contact[] = [];
+    participants: ParticipantInfo[] = [];
     inviteMsg: InviteMsg;
 
     public onServerConnected: () => Promise<void> = async () => { };
@@ -16,7 +16,7 @@ class WebRTCService {
 
     public onRegistered: (participantId: string) => Promise<void> = async () => { };
     public onRegisterFailed: (error: string) => Promise<void> = async () => { };
-    public onContactsReceived: (contacts: Contact[]) => Promise<void> = async () => { };
+    public onParticipantsReceived: (participants: ParticipantInfo[]) => Promise<void> = async () => { };
 
     //public onLocalStreamReady: (stream: MediaStream) => void = () => { };
 
@@ -36,7 +36,7 @@ class WebRTCService {
         this.onServerDisconnected = null;
         this.onRegistered = null;
         this.onRegisterFailed = null;
-        this.onContactsReceived = null;
+        this.onParticipantsReceived = null;
         //this.onLocalStreamReady = null;
         this.onInviteReceived = null;
         //this.onConferenceCreated = null;
@@ -74,8 +74,8 @@ class WebRTCService {
                     await this.eventRegisterResult(payload);
                     break;
                 }
-                case EventTypes.contactsReceived: {
-                    await this.eventContactsReceived(payload as Contact[]);
+                case EventTypes.participantsReceived: {
+                    await this.eventParticipantsReceived(payload as ParticipantInfo[]);
                     break;
                 }
                 case EventTypes.inviteReceived: {
@@ -127,9 +127,9 @@ class WebRTCService {
         };
     }
 
-    public getContacts() {
+    public getParticipantsOnline() {
         if (this.confClient) {
-            this.confClient.getContacts();
+            this.confClient.getParticipantsOnline();
         }
     }
 
@@ -256,11 +256,11 @@ class WebRTCService {
         }
     }
 
-    private async eventContactsReceived(msg: any) {
-        console.log("eventContactsReceived", msg);
-        this.contacts = (msg.data as Contact[]).filter(c => c.participantId !== this.confClient.participantId)
-        console.log("eventContactsReceived", msg.data);
-        await this.onContactsReceived(this.contacts);
+    private async eventParticipantsReceived(msg: any) {
+        console.log("eventParticipantsReceived", msg);
+        this.participants = (msg.data as ParticipantInfo[]).filter(c => c.participantId !== this.confClient.participantId)
+        console.log("eventParticipantsReceived", msg.data);
+        await this.onParticipantsReceived(this.participants);
     }
 
     private async eventInviteReceived(msg: any) {

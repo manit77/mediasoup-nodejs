@@ -11,11 +11,11 @@ import { Navigate } from 'react-router-dom';
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
     const [showInvite, setShowInvite] = useState(false);
-    const { isCallActive, localStream, participants } = useCall();
+    const { isCallActive, localStream, callParticipants } = useCall();
     const [mainStream, setMainStream] = useState<MediaStream | null>(null); // Could be local or a remote stream
     const [mainStreamUserId, setMainStreamUserId] = useState<string | null>(null); // ID of user in main view
 
-    useEffect(() => {        
+    useEffect(() => {
         if (localStream && !mainStream) {
             setMainStream(localStream);
         }
@@ -31,7 +31,7 @@ const OnCallScreen: React.FC = () => {
         }
     };
 
-    if (!isCallActive && !localStream && participants.length === 0) { // Check if call ended/not properly started
+    if (!isCallActive && !localStream && callParticipants.length === 0) { // Check if call ended/not properly started
         console.log("OnCallScreen: No active call, redirecting.");
         return <Navigate to="/app" />;
     }

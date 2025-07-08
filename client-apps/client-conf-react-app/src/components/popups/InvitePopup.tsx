@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, ListGroup } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
-import { Contact } from '@conf/conf-models';
+import { ParticipantInfo } from '@conf/conf-models';
 
 
 const InvitePopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ show, handleClose }) => {
-    const {contacts, sendInvite, participants } = useCall()
+    const { participantsOnline, sendInvite, callParticipants } = useCall()
 
-    const handleInviteClick = (contact: Contact) => {
-        sendInvite(contact);     
+    const handleInviteClick = (participantInfo: ParticipantInfo) => {
+        sendInvite(participantInfo);
     };
 
     // Filter out contacts already in the call and offline contacts
-    const availableToInvite = contacts.filter(contact =>
-        contact.participantId && !participants.some(p => p.id === contact.participantId)
+    const availableToInvite = participantsOnline.filter(participant =>
+        participant.participantId && !callParticipants.some(p => p.id === participant.participantId)
     );
 
     return (
@@ -21,14 +21,14 @@ const InvitePopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ sho
             <Modal.Header closeButton>
                 <Modal.Title>Invite to Call</Modal.Title>
             </Modal.Header>
-            <Modal.Body>                
+            <Modal.Body>
                 {availableToInvite.length === 0 && <p>No online contacts available to invite.</p>}
                 {availableToInvite.length > 0 && (
                     <ListGroup>
-                        {availableToInvite.map(contact => (
-                            <ListGroup.Item key={contact.participantId} className="d-flex justify-content-between align-items-center">
-                                {contact.displayName}
-                                <Button variant="primary" size="sm" onClick={() => handleInviteClick(contact)}>
+                        {availableToInvite.map(participant => (
+                            <ListGroup.Item key={participant.participantId} className="d-flex justify-content-between align-items-center">
+                                {participant.displayName}
+                                <Button variant="primary" size="sm" onClick={() => handleInviteClick(participant)}>
                                     Invite
                                 </Button>
                             </ListGroup.Item>

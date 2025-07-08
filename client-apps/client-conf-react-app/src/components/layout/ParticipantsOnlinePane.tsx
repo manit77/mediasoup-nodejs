@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
-import { Contact } from '@conf/conf-models';
+import { ParticipantInfo } from '@conf/conf-models';
 
 const OnlineIndicator: React.FC<{ isOnline: boolean }> = ({ isOnline }) => (
     <Badge pill bg={isOnline ? 'success' : 'secondary'} className="ms-2">
@@ -9,23 +9,23 @@ const OnlineIndicator: React.FC<{ isOnline: boolean }> = ({ isOnline }) => (
     </Badge>
 );
 
-const ContactsPane: React.FC = () => {
-    
-    const { contacts, getContacts, sendInvite, isCallActive, inviteContact, inviteInfo, localParticipantId } = useCall();
+const ParticipantsOnlinePane: React.FC = () => {
+
+    const { participantsOnline, getParticipantsOnline, sendInvite, isCallActive, inviteContact, inviteInfo, localParticipantId } = useCall();
     const [loading, setLoading] = useState(true);
 
     // Handle initial loading state
     useEffect(() => {
-        if (contacts.length > 0 || localParticipantId) {
+        if (participantsOnline.length > 0 || localParticipantId) {
             setLoading(false);
         }
-    }, [contacts, localParticipantId]);
+    }, [participantsOnline, localParticipantId]);
 
     // Optional: Function to manually refresh contacts
-    const handleRefreshContacts = async () => {
+    const handleRefreshParticipants = async () => {
         setLoading(true);
         try {
-            getContacts();           
+            getParticipantsOnline();
         } catch (error) {
             console.error('Failed to refresh contacts:', error);
         } finally {
@@ -33,9 +33,9 @@ const ContactsPane: React.FC = () => {
         }
     };
 
-    const handleContactClick = (contact: Contact) => {
+    const handleContactClick = (participant: ParticipantInfo) => {
         if (!isCallActive && !inviteContact && !inviteInfo) {
-            sendInvite(contact);
+            sendInvite(participant);
         }
     };
 
@@ -43,25 +43,25 @@ const ContactsPane: React.FC = () => {
         <div>
             <div className="d-flex justify-content-between align-items-center mb-2">
                 <h5>Contacts</h5>
-                <Button variant="outline-primary" size="sm" onClick={handleRefreshContacts} disabled={loading}>
+                <Button variant="outline-primary" size="sm" onClick={handleRefreshParticipants} disabled={loading}>
                     Refresh
                 </Button>
             </div>
             {loading ? (
                 <p>Loading contacts...</p>
-            ) : contacts.length === 0 ? (
+            ) : participantsOnline.length === 0 ? (
                 <p>No contacts found.</p>
             ) : (
                 <ListGroup>
-                    {contacts.map((contact) => (
+                    {participantsOnline.map((participantInfo) => (
                         <ListGroup.Item
-                            key={contact.participantId}
+                            key={participantInfo.participantId}
                             action
-                            onClick={() => handleContactClick(contact)}
+                            onClick={() => handleContactClick(participantInfo)}
                             className="d-flex justify-content-between align-items-center"
                             disabled={isCallActive || !!inviteContact || !!inviteInfo}
                         >
-                            {contact.displayName}
+                            {participantInfo.displayName}
                             <OnlineIndicator isOnline={true} />
                         </ListGroup.Item>
                     ))}
@@ -71,4 +71,4 @@ const ContactsPane: React.FC = () => {
     );
 };
 
-export default ContactsPane;
+export default ParticipantsOnlinePane;

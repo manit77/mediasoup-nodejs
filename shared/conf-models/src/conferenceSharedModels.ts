@@ -19,8 +19,8 @@ export enum CallMessageType {
     leave = "leave", //participant signals to leave the room
     conferenceReady = "conferenceReady",
 
-    getContacts = "getContacts",
-    getContactsResult = "getContactsResult",
+    getParticipants = "getParticipants",
+    getParticipantsResult = "getParticipantsResult",
 
 }
 export enum WebRoutes {
@@ -48,16 +48,16 @@ export class AuthenticateResultMsg {
     } = {}
 }
 
-export interface Contact {
+export interface ParticipantInfo {
     participantId: string,
     displayName: string,
     status: "online" | "offline" | "reconnecting",
 }
 
-export interface IParticipant {
-    participantId: string;
-    displayName: string
-}
+// export interface IParticipant {
+//     participantId: string;
+//     displayName: string
+// }
 
 export class RegisterMsg {
     type = CallMessageType.register;
@@ -80,14 +80,14 @@ export class RegisterResultMsg {
         }
 }
 
-export class GetContactsMsg {
-    type = CallMessageType.getContacts;
+export class GetParticipantsMsg {
+    type = CallMessageType.getParticipants;
     data: {}
 }
 
-export class GetContactsResultsMsg {
-    type = CallMessageType.getContactsResult;
-    data: Contact[] = [];
+export class GetParticipantsResultMsg {
+    type = CallMessageType.getParticipantsResult;
+    data: ParticipantInfo[] = [];
 }
 
 export class CreateConfMsg {

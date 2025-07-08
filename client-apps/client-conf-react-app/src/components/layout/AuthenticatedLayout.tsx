@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import TopMenu from './TopMenu';
-import ContactsPane from './ContactsPane';
+import ContactsPane from './ParticipantsOnlinePane';
 import SettingsPopup from '../popups/SettingsPopup';
 import MainVideo from '../call/MainVideo';
 import { useCall } from '../../hooks/useCall';
@@ -23,7 +23,7 @@ const AuthenticatedLayout: React.FC = () => {
 
     const previewClick = async () => {
         let videoTrack = localStream.getVideoTracks()[0];
-        if (!videoTrack) {            
+        if (!videoTrack) {
             await getLocalMedia();
             videoTrack = localStream.getVideoTracks()[0];
         } else {

@@ -2,10 +2,10 @@ import https from 'https';
 import { WebSocket, WebSocketServer } from 'ws';
 import { randomUUID } from 'crypto';
 import {
-    CallMessageType, GetContactsResultsMsg
-    , InviteMsg, InviteResultMsg
-    , RegisterMsg, RegisterResultMsg, RejectMsg
-    , Contact, AcceptMsg,
+    CallMessageType,
+    InviteMsg, InviteResultMsg,
+    RegisterMsg, RegisterResultMsg, RejectMsg,
+    AcceptMsg,
     ConferenceReadyMsg,
     WebRoutes,
     AcceptResultMsg,
@@ -15,7 +15,9 @@ import {
     CreateConfResultMsg,
     JoinConfMsg,
     JoinConfResultMsg,
-    ConferenceRoomConfig
+    ConferenceRoomConfig,
+    GetParticipantsResultMsg,
+    ParticipantInfo
 } from '@conf/conf-models';
 import { ConferenceRoom, IAuthPayload, Participant } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
@@ -105,8 +107,8 @@ export class ConferenceServer {
                         case CallMessageType.register:
                             await this.onRegister(ws, msgIn);
                             break;
-                        case CallMessageType.getContacts:
-                            await this.onGetContacts(ws, msgIn);
+                        case CallMessageType.getParticipants:
+                            await this.onGetParticipants(ws, msgIn);
                             break;
                         case CallMessageType.createConf:
                             await this.onCreateConference(ws, msgIn);
@@ -149,7 +151,7 @@ export class ConferenceServer {
                     console.log(`participant ${participant.participantId} disconnected. participants: ${this.participants.size} rooms: ${this.conferences.size}`);
 
                     //update contacts
-                    await this.broadCastContacts();
+                    await this.broadCastParticipants();
                 }
             }
 
@@ -273,21 +275,22 @@ export class ConferenceServer {
 
         this.send(ws, msg);
 
-        this.broadCastContacts();
+        this.broadCastParticipants();
 
         return msg;
 
     }
 
-    async broadCastContacts() {
+    async broadCastParticipants() {
 
-        console.log("broadCastContacts");
+        console.log("broadCastParticipants");
         //broadcast to all participants of contacts
-        let contactsMsg = new GetContactsResultsMsg();
+        let contactsMsg = new GetParticipantsResultMsg();
         contactsMsg.data = [...this.participants.values()].map(p => ({
             participantId: p.participantId,
-            displayName: p.displayName
-        }) as Contact);
+            displayName: p.displayName,
+            status: "online"
+        }) as ParticipantInfo);
 
         for (let [socket, p] of this.participants.entries()) {
             //if (p.role !== "guest") {
@@ -297,9 +300,9 @@ export class ConferenceServer {
 
     }
 
-    async onGetContacts(ws: WebSocket, msgIn?: any) {
+    async onGetParticipants(ws: WebSocket, msgIn?: any) {
 
-        console.log("onGetContacts");
+        console.log("onGetParticipants");
 
         let partcipant = this.getParticipantByWS(ws);
         if (!partcipant) {
@@ -312,7 +315,7 @@ export class ConferenceServer {
         //     return;
         // }
 
-        let msg = new GetContactsResultsMsg();
+        let msg = new GetParticipantsResultMsg();
         this.getParticipantsExcept(ws).forEach((p) => {
             msg.data.push({
                 displayName: p.displayName,
@@ -721,6 +724,10 @@ export class ConferenceServer {
             this.send(p.socket, msg);
         }
 
+    }
+
+    async getConferences() {
+        [...this.conferences.values()].filter(c => c.status === "ready").map(c => { c.id });
     }
 
     /**
