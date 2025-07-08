@@ -56,7 +56,6 @@ export enum payloadTypeServer {
     ok = "ok",
     unauthorized = "",
 
-
 }
 
 export interface IMsg {
@@ -127,7 +126,8 @@ export class PeerTerminatedMsg implements IMsg {
 export class CreateProducerTransportMsg implements IMsg {
     type = payloadTypeClient.createProducerTransport;
     data: {
-        authToken?: string
+        authToken?: string,
+        roomId?: string,
     } = {}
 }
 
@@ -155,6 +155,7 @@ export class ConnectProducerTransportMsg implements IMsg {
     type = payloadTypeClient.connectProducerTransport;
     data: {
         authToken?: string,
+        roomId?: string,
         dtlsParameters?: any
     } = {}
 }
@@ -162,7 +163,8 @@ export class ConnectProducerTransportMsg implements IMsg {
 export class CreateConsumerTransportMsg implements IMsg {
     type = payloadTypeClient.createConsumerTransport;
     data: {
-        authToken?: string
+        authToken?: string,
+        roomId?: string,
     } = {}
 }
 
@@ -193,7 +195,6 @@ export class ConnectConsumerTransportMsg implements IMsg {
         dtlsParameters?: any
     } = {};
 }
-
 
 export class RoomNewMsg implements IMsg {
     type = payloadTypeClient.roomNew;
@@ -334,6 +335,7 @@ export class RoomNewProducerMsg implements IMsg {
     type = payloadTypeServer.roomNewProducer;
     data: {
         authToken?: string,
+        roomId?: string,
         peerId?: string,
         producerId?: string,
         kind?: string,
@@ -358,35 +360,39 @@ export class RoomTerminateResultMsg implements IMsg {
     } = {}
 }
 
-export class ProduceMsg implements IMsg {
+export class RoomProduceMsg implements IMsg {
     type = payloadTypeClient.produce;
     data: {
         authToken?: string,
+        roomId?: string,
         kind?: "audio" | "video",
         rtpParameters?: any
     } = {};
 }
 
-export class ProducedMsg implements IMsg {
+export class RoomProducedMsg implements IMsg {
     type = payloadTypeServer.produced;
     data: {
+        roomId?: string,
         kind?: "audio" | "video"
     } = {};
 }
 
-export class ConsumeMsg implements IMsg {
+export class RoomConsumeMsg implements IMsg {
     type = payloadTypeClient.consume;
     data: {
         authToken?: string,
+        roomId?: string,
         remotePeerId?: string,
         producerId?: string,
         rtpCapabilities?: any
     } = {};
 }
 
-export class ConsumedMsg implements IMsg {
+export class RoomConsumedMsg implements IMsg {
     type = payloadTypeServer.consumed;
     data: {
+        roomId?: string,
         peerId?: string
         consumerId?: string,
         producerId?: string,
@@ -423,7 +429,6 @@ export class RoomConfig {
     callBackURL_OnPeerLeft: string;
     callBackURL_OnPeerJoined: string;
 }
-
 
 export interface RoomPeerCallBackData {
     peerId: string;

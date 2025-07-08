@@ -4,9 +4,9 @@ import { Room } from './room.js';
 import {
     AuthUserNewTokenMsg
     , AuthUserNewTokenResultMsg
-    , ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg
+    , ConnectConsumerTransportMsg, ConnectProducerTransportMsg, RoomConsumedMsg, RoomConsumeMsg
     , ConsumerTransportConnectedMsg, ConsumerTransportCreatedMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient
-    , PeerTerminatedMsg, ProducedMsg, ProduceMsg, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg
+    , PeerTerminatedMsg, RoomProducedMsg, RoomProduceMsg, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg
     , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomGetLogsMsg, RoomJoinMsg
     , RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
     , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg
@@ -20,7 +20,8 @@ import { AuthUserRoles, AuthUserTokenPayload } from '../models/tokenPayloads.js'
 import { setTimeout, setInterval } from 'node:timers';
 import { RoomLogAdapterInMemory } from './roomLogsAdapter.js';
 
-type outMessage = (peerId: string, msg: any) => void;
+type outMessageEventListener = (peerId: string, msg: any) => void;
+
 export interface RoomServerConfig {
     room_server_ip: string,
     room_server_port: number,
@@ -42,7 +43,7 @@ export class RoomServer {
     private peers = new Map<string, Peer>();
     private rooms = new Map<string, Room>();
 
-    private eventListeners: outMessage[] = [];
+    private eventListeners: outMessageEventListener[] = [];
     private config: RoomServerConfig;
     private timerIdResourceInterval: any;
     private roomLogAdapter = new RoomLogAdapterInMemory();
@@ -120,12 +121,12 @@ export class RoomServer {
         return worker;
     }
 
-    addEventListner(event: outMessage) {
-        this.eventListeners.push(event);
+    addEventListner(eventListener: outMessageEventListener) {
+        this.eventListeners.push(eventListener);
     }
 
-    removeEventListner(event: outMessage) {
-        let idx = this.eventListeners.findIndex((f) => f === event);
+    removeEventListner(eventListener: outMessageEventListener) {
+        let idx = this.eventListeners.findIndex((l) => l === eventListener);
         if (idx > -1) {
             this.eventListeners.splice(idx, 1);
         }
@@ -399,11 +400,11 @@ export class RoomServer {
         this.rooms.delete(room.id);
     }
 
-    private async send(peerId: string, msg: any) {
+    private send(peerId: string, msg: any) {
         console.log('send() ', msg.type);
-        this.eventListeners.forEach(event => {
-            event(peerId, msg);
-        });
+        for (let eventListener of this.eventListeners) {
+            eventListener(peerId, msg);
+        }
     }
 
     private async broadCastExcept(room: Room, except: Peer, msg: any) {
@@ -846,7 +847,7 @@ export class RoomServer {
 
     }
 
-    private async onProduce(peerId: string, msgIn: ProduceMsg): Promise<IMsg> {
+    private async onProduce(peerId: string, msgIn: RoomProduceMsg): Promise<IMsg> {
         console.log("onProduce");
 
         //client is requesting to produce/send audio or video
@@ -863,12 +864,18 @@ export class RoomServer {
             return new ErrorMsg("peer is not in a room.");
         }
 
+        if (peer.room.id !== msgIn.data.roomId) {
+            console.error('invalid roomid', msgIn.data.roomId);
+            return new ErrorMsg("invalid roomid.");
+        }
+
         //requires a producerTransport
         if (!peer.producerTransport) {
             console.error('Transport not found for peer', peer.id);
             return new ErrorMsg("transport not found for peer.");
         }
 
+        let room = peer.room;
         //init a producer with rtpParameters
         const producer = await peer.producerTransport.produce({
             kind: msgIn.data.kind,
@@ -883,6 +890,7 @@ export class RoomServer {
         if (peer.room) {
             let newProducerMsg = new RoomNewProducerMsg();
             newProducerMsg.data = {
+                roomId: room.id,
                 peerId: peer.id,
                 producerId: producer.id,
                 kind: producer.kind
@@ -890,15 +898,16 @@ export class RoomServer {
             this.broadCastExcept(peer.room, peer, newProducerMsg)
         }
 
-        //send the client the producer info
-        let producedMsg = new ProducedMsg();
+        let producedMsg = new RoomProducedMsg();
         producedMsg.data = {
+            roomId: room.id,
             kind: msgIn.data.kind
         };
+        this.send(peer.id, producedMsg);
         return producedMsg;
     }
 
-    private async onConsume(peerId: string, msgIn: ConsumeMsg): Promise<IMsg> {
+    private async onConsume(peerId: string, msgIn: RoomConsumeMsg): Promise<IMsg> {
         console.log("onConsume");
         //client is requesting to consume a producer
 
@@ -920,6 +929,12 @@ export class RoomServer {
             return new ErrorMsg("peer not in room.");
         }
 
+        if (peer.room.id !== msgIn.data.roomId) {
+            console.error("invalid roomid");
+            return new ErrorMsg("invalid room id");
+        }
+
+        let room = peer.room;
         let consumeMsg = msgIn;
 
         if (!consumeMsg.data?.producerId) {
@@ -960,8 +975,9 @@ export class RoomServer {
         peer.addConsumer(consumer);
 
         //send the consumer data back to the client
-        let consumed = new ConsumedMsg();
-        consumed.data = {
+        let consumedMsg = new RoomConsumedMsg();
+        consumedMsg.data = {
+            roomId: room.id,
             peerId: remotePeer.id,
             consumerId: consumer.id,
             producerId: remoteProducer.id,
@@ -969,7 +985,7 @@ export class RoomServer {
             rtpParameters: consumer.rtpParameters,
         };
 
-        return consumed;
+        return consumedMsg;
     }
 
     async printStats() {
