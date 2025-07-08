@@ -1,0 +1,20 @@
+{
+  "name": "@rooms/rooms-client",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc --build --force"
+  },
+  "dependencies": {
+    "@rooms/rooms-models": "1.0.0",
+    "@rooms/webrtc-client": "1.0.0",
+    "@rooms/websocket-client": "1.0.0",
+    "mediasoup-client": "^3.11.0",
+    "tsconfig-paths": "^4.2.0"
+  }
+}

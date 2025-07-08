@@ -1,0 +1,19 @@
+{
+  "name": "@conf/conf-client",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc --build --force"
+  },
+  "dependencies": {
+    "@conf/conf-models": "1.0.0",
+    "@rooms/rooms-client": "1.0.0",
+    "@rooms/rooms-models": "1.0.0",
+    "tsconfig-paths": "^4.2.0"
+  }
+}

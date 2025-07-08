@@ -1,0 +1,14 @@
+{
+  "name": "@rooms/rooms-models",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "manit chanthavong",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc --build --force",
+    "tscversion": "tsc --version"
+  }
+}

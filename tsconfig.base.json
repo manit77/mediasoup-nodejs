@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "target": "es2024",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "strict": false,
+    "baseUrl": ".",    
+    // "paths": {
+    //   "@conf-client/*": [
+    //     "packages/client-libs/conf-client/src/*"
+    //   ],
+    //   "@rooms-client/*": [
+    //     "packages/client-libs/rooms-client/src/*"
+    //   ],
+    //   "@websocket-client/*": [
+    //     "packages/client-libs/websocket-client/src/*"
+    //   ],
+    //   "@webrtc-client/*": [
+    //     "packages/client-libs/webrtc-client/src/*"
+    //   ],
+    //   "@conf-models/*": [
+    //     "packages/shared-models/conf-models/src/*"
+    //   ],
+    //   "@rooms-models/*": [
+    //     "packages/shared-models/rooms-models/src/*"
+    //   ]
+    // }
+  },
+  "exclude": ["**/*_test.ts"]
+}

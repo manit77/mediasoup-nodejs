@@ -1,0 +1,13 @@
+{
+  "name": "@rooms/webrtc-client",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc --build --force"
+  }
+}

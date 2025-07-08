@@ -1,0 +1,34 @@
+{
+	"folders": [
+		{
+			"path": "client-apps/client-room-app"
+		},
+		{
+			"path": "client-apps/client-webrtc-app"
+		},
+		{
+			"path": "packages/client-libs/conf-client"
+		},
+		{
+			"path": "packages/client-libs/rooms-client"
+		},
+		{
+			"path": "packages/client-libs/websocket-client"
+		},
+		{
+			"path": "packages/client-libs/webrtc-client"
+		},
+		{
+			"path": "packages/shared-models/conf-models"
+		},
+		{
+			"path": "packages/shared-models/rooms-models"
+		},
+		{
+			"path": "client-apps/client-conf-react-app"
+		}
+	],
+	"settings": {
+		"editor.formatOnSave": true,
+	}
+}
