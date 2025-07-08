@@ -291,6 +291,7 @@ class WebRTCService {
     private async eventInviteResult(msg: InviteResultMsg) {
         console.log("eventInviteResult", msg);
         if (msg.data.error) {
+            console.error("eventInviteResult failed", msg.data.error);
             await this.onConferenceEnded(msg.data.conferenceRoomId, msg.data.error);
             this.inviteMsg = null;
             return;

@@ -299,16 +299,16 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         };
 
-        webRTCService.onConferenceEnded = async (reason: string) => {
-            console.log(`CallContext: conference ended: ${reason}`);
+        webRTCService.onConferenceEnded = async (conferenceId: string, reason: string) => {
+            console.log(`CallContext: conference ended: conferenceId: ${conferenceId} reason: ${reason}`);
             resetCallState();
+
+            hidePopUp();
 
             if (reason) {
                 showPopUp(reason, 3);
                 return;
             }
-
-            hidePopUp();
 
         };
 

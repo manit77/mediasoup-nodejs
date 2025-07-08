@@ -9,7 +9,7 @@ import {
   , RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
 } from "@rooms/rooms-models";
 import { WebSocketClient } from "@rooms/websocket-client";
-import { WebRTCClient, ConnectionInfo } from "@rooms/webrtc-client";
+import { WebRTCClient } from "@rooms/webrtc-client";
 import { Consumer, Producer, Transport } from 'mediasoup-client/types';
 
 export interface JoinInfo { roomId: string, roomToken: string };
@@ -72,7 +72,6 @@ export class Peer {
   displayName: string = "";
 
   stream?: MediaStream;
-  rtc_Connection?: ConnectionInfo;
 
   producers: {
     id: string, kind: "audio" | "video"
@@ -460,9 +459,6 @@ export class RoomsClient {
 
   disconnect = () => {
     console.log(DSTR, "disconnect");
-    for (let peer of this.peers) {
-      peer.rtc_Connection?.pc.close();
-    }
 
     this.localPeer.getConsumers().forEach(c => c.close());
     this.localPeer.getProducers().forEach(c => c.close());
@@ -740,7 +736,7 @@ export class RoomsClient {
     console.log(DSTR, `addPeer() ${peer.peerId} ${peer.trackingId}`);
 
     if (this.peers.find(p => p.peerId === peer.peerId)) {
-      console.log(DSTR, "peer already exists");
+      console.error(DSTR, "peer already exists");
       return;
     }
 
@@ -800,7 +796,7 @@ export class RoomsClient {
 
     let peer = this.peers.find(p => p.peerId === peerId);
     if (!peer) {
-      console.log(DSTR, `addRemoteTrack() - peer not found, peerId: ${peerId}`);
+      console.error(DSTR, `addRemoteTrack() - peer not found, peerId: ${peerId}`);
       return;
     }
 
@@ -860,7 +856,7 @@ export class RoomsClient {
 
     console.log(DSTR, "-- onRoomNewTokenResult()");
     if (msgIn.data.error) {
-      console.log(DSTR, msgIn.data.error);
+      console.error(DSTR, msgIn.data.error);
       return;
     }
 
@@ -875,7 +871,7 @@ export class RoomsClient {
     console.log(DSTR, "-- onRoomNewResult()");
 
     if (!msgIn.data.roomRtpCapabilities) {
-      console.log(DSTR, "ERROR: not  rtpCapabilities received.");
+      console.error(DSTR, "ERROR: not  rtpCapabilities received.");
       return;
     }
 
@@ -891,7 +887,7 @@ export class RoomsClient {
 
     console.log(DSTR, "-- onRoomJoinResult()");
     if (msgIn.data.error) {
-      console.log(DSTR, msgIn.data.error);
+      console.error(DSTR, msgIn.data.error);
       return;
     }
 
@@ -910,10 +906,6 @@ export class RoomsClient {
 
     console.log("transports created.");
 
-    // await this.publishLocalStream();   
-    await this.eventOnRoomJoined(this.localPeer.roomId);
-
-
     //connect to existing peers  
     if (msgIn.data && msgIn.data.peers) {
       for (let p of msgIn.data.peers) {
@@ -927,15 +919,17 @@ export class RoomsClient {
       }
     }
 
-
     for (let peer of this.peers) {
-      this.consumePeerProducers(peer);
+      await this.consumePeerProducers(peer);
       await this.eventOnRoomPeerJoined(this.localPeer.roomId, peer);
     }
+
+    await this.eventOnRoomJoined(this.localPeer.roomId);
 
   }
 
   private createPeer(peerId: string, trackingId: string, displayName: string) {
+    console.log(DSTR, `createPeer peerId:${peerId}, trackingId:${trackingId} `);
     let newpeer: Peer = new Peer();
     newpeer.peerId = peerId;
     newpeer.trackingId = trackingId;
@@ -951,12 +945,9 @@ export class RoomsClient {
     console.log(DSTR, `new PeeerJoined ${msgIn.data?.peerId} `);
 
     let newpeer: Peer = this.createPeer(msgIn.data.peerId, msgIn.data.peerTrackingId, msgIn.data.displayName);
-
-    //await this.publishLocalStream();
-
     if (msgIn.data?.producers) {
       for (let producer of msgIn.data.producers) {
-        this.consumeProducer(msgIn.data.peerId, producer.producerId);
+        await this.consumeProducer(msgIn.data.peerId, producer.producerId);
       }
     }
 
@@ -969,7 +960,7 @@ export class RoomsClient {
 
     let peer = this.peers.find(p => p.peerId === msgIn.data.peerId);
     if (!peer) {
-      console.log(DSTR, `peer not found ${msgIn.data.peerId}`);
+      console.error(DSTR, `peer not found ${msgIn.data.peerId}`);
       return;
     }
 
@@ -981,7 +972,7 @@ export class RoomsClient {
 
     this.removePeer(peer);
     let roomid = msgIn.data.roomId;
-    this.eventOnRoomPeerLeft(roomid, peer);
+    await this.eventOnRoomPeerLeft(roomid, peer);
 
   }
 
@@ -989,18 +980,14 @@ export class RoomsClient {
     console.log(DSTR, "onRoomClosed:" + msgIn.data.roomId);
     let peers = [...this.peers];
     this.roomClose();
-    this.eventOnRoomClosed(msgIn.data.roomId, peers);
+    await this.eventOnRoomClosed(msgIn.data.roomId, peers);
   }
 
   private roomClose() {
     if (!this.localPeer.roomId) {
-      console.log(DSTR, "not in a room.")
+      console.error(DSTR, "not in a room.")
       return;
     }
-
-    this.peers.forEach(p => {
-      p.rtc_Connection?.pc?.close();
-    });
 
     this.localPeer.getProducers().forEach(p => {
       p.close();
@@ -1029,7 +1016,7 @@ export class RoomsClient {
   private waitForRoomTransports = async (): Promise<IMsg> => {
 
     if (!this.localPeer.roomId) {
-      console.log(DSTR, "room is required for creating transports");
+      console.error(DSTR, "room is required for creating transports");
       return new ErrorMsg("cannot create transports before joining a room.");
     }
 
@@ -1039,7 +1026,7 @@ export class RoomsClient {
           let transTrack = { recv: false, send: false };
 
           let timerid = setTimeout(() => {
-            console.log("transport timed out.");
+            console.error("transport timed out.");
             resolve(new ErrorMsg("transport timeout"));
           }, 5000);
 
@@ -1121,18 +1108,18 @@ export class RoomsClient {
     console.log(DSTR, `connectToPeer() ${peer.peerId}`);
 
     if (!this.localPeer.roomId) {
-      console.log(DSTR, "cannot connect to a peer. not in a room.");
+      console.error(DSTR, "cannot connect to a peer. not in a room.");
       return;
     }
 
     if (!this.localPeer.transportReceive || !this.localPeer.transportSend) {
-      console.log(DSTR, "transports have not been created.");
+      console.error(DSTR, "transports have not been created.");
       return;
     }
 
     //consume transports
     if (peer.producers && peer.producers.length > 0) {
-      console.log(DSTR, "peer has no producers");
+      console.warn(DSTR, "peer has no producers");
     }
 
     peer.producers.forEach(p => {
