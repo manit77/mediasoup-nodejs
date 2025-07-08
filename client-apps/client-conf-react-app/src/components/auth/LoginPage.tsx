@@ -5,6 +5,7 @@ import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
 
 const LoginPage: React.FC = () => {
     const [displayName, setDisplayName] = useState('');
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const auth = useAuth();
@@ -19,7 +20,7 @@ const LoginPage: React.FC = () => {
         }
         setLoading(true);
         try {
-            await auth.login(displayName);
+            await auth.login(displayName, password);
             navigate('/app'); // Navigate to authenticated area
         } catch (err: any) {
             setError(err.message || 'Login failed. Please try again.');

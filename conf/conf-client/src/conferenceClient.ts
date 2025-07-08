@@ -52,7 +52,7 @@ export enum EventTypes {
     participantLeft = "participantLeft",
 
 }
-type ConferenceEvent = (eventType: EventTypes, payload?: any) => void;
+type ConferenceEvent = (eventType: EventTypes, payload?: any) => Promise<void>;
 
 export class ConferenceClient {
     private DSTR = "ConferenceCallManager";
@@ -160,56 +160,56 @@ export class ConferenceClient {
         // Connect to WebSocket server
         this.socket = new WebSocketClient();
 
-        this.socket.addEventHandler("onopen", () => {
+        this.socket.addEventHandler("onopen", async () => {
 
             this.isConnected = true;
-            this.onEvent(EventTypes.connected);
+            await this.onEvent(EventTypes.connected);
 
         });
 
-        this.socket.addEventHandler("onclose", () => {
+        this.socket.addEventHandler("onclose", async () => {
             this.isConnected = false;
             //fire event onclose       
-            this.onEvent(EventTypes.disconnected);
+            await this.onEvent(EventTypes.disconnected);
         });
 
-        this.socket.addEventHandler("onerror", (error: any) => {
+        this.socket.addEventHandler("onerror", async (error: any) => {
             console.error('WebSocket Error:', error);
             //fire event on disconnected
-            this.onEvent(EventTypes.disconnected);
+            await this.onEvent(EventTypes.disconnected);
         });
 
-        this.socket.addEventHandler("onmessage", (event: any) => {
+        this.socket.addEventHandler("onmessage", async (event: any) => {
             const message = JSON.parse(event.data);
             console.log(this.DSTR, 'Received message ' + message.type, message);
 
             switch (message.type) {
                 case CallMessageType.registerResult:
-                    this.onRegisterResult(message);
+                    await this.onRegisterResult(message);
                     break;
                 case CallMessageType.getContactsResult:
-                    this.onContactsReceived(message);
+                    await this.onContactsReceived(message);
                     break;
                 case CallMessageType.invite:
-                    this.onInviteReceived(message);
+                    await this.onInviteReceived(message);
                     break;
                 case CallMessageType.reject:
-                    this.onRejectReceived(message);
+                    await this.onRejectReceived(message);
                     break;
                 case CallMessageType.inviteResult:
-                    this.onInviteResult(message);
+                    await this.onInviteResult(message);
                     break;
                 case CallMessageType.inviteCancelled:
-                    this.onInviteCancelled(message);
+                    await this.onInviteCancelled(message);
                     break;
                 case CallMessageType.createConfResult:
-                    this.onCreateConfResult(message);
+                    await this.onCreateConfResult(message);
                     break;
                 case CallMessageType.joinConfResult:
-                    this.onJoinConfResult(message);
+                    await this.onJoinConfResult(message);
                     break;
                 case CallMessageType.conferenceReady:
-                    this.onConferenceReady(message);
+                    await this.onConferenceReady(message);
                     break;
 
             }
@@ -293,7 +293,7 @@ export class ConferenceClient {
         //the conferenceRoomId must be empty or it must match
 
         if (message.data.error) {
-            this.onEvent(EventTypes.inviteResult, message);
+            await this.onEvent(EventTypes.inviteResult, message);
             return;
         }
 
@@ -320,7 +320,7 @@ export class ConferenceClient {
         console.log(this.DSTR, `onInviteResult() - received a new conferenceRoomId ${message.data.conferenceRoomId}`);
         this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
 
-        this.onEvent(EventTypes.inviteResult, message);
+        await this.onEvent(EventTypes.inviteResult, message);
     }
 
     async onInviteReceived(message: InviteMsg) {
@@ -331,7 +331,7 @@ export class ConferenceClient {
         }
         this.inviteMsg = message;
         this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
-        this.onEvent(EventTypes.inviteReceived, message);
+        await this.onEvent(EventTypes.inviteReceived, message);
 
     }
 
@@ -341,7 +341,7 @@ export class ConferenceClient {
             console.log(this.DSTR, "onInviteCancelled() - not the same conferenceRoomId.");
             return;
         }
-        this.onEvent(EventTypes.inviteCancelled, message);
+        await this.onEvent(EventTypes.inviteCancelled, message);
 
         this.conferenceRoom.conferenceRoomId = "";
         this.inviteMsg = null;
@@ -422,39 +422,39 @@ export class ConferenceClient {
         }
     }
 
-    private onRegisterResult(message: RegisterResultMsg) {
+    private async onRegisterResult(message: RegisterResultMsg) {
         console.log(this.DSTR, "onRegisterResult");
         if (message.data.error) {
             console.error(message.data.error);
-            this.onEvent(EventTypes.registerResult, message);
+            await this.onEvent(EventTypes.registerResult, message);
         } else {
             this.participantId = message.data.participantId;
             this.userName = message.data.userName;
             console.log(this.DSTR, 'Registered with participantId:', this.participantId, this.userName);
-            this.onEvent(EventTypes.registerResult, message);
+            await this.onEvent(EventTypes.registerResult, message);
         }
     }
 
-    private onContactsReceived(message: GetContactsResultsMsg) {
+    private async onContactsReceived(message: GetContactsResultsMsg) {
         console.log(this.DSTR, "onContactsReceived");
         this.contacts = message.data.filter(c => c.participantId !== this.participantId);
-        this.onEvent(EventTypes.contactsReceived, message);
+        await this.onEvent(EventTypes.contactsReceived, message);
     }
 
-    private onRejectReceived(message: InviteResultMsg) {
+    private async onRejectReceived(message: InviteResultMsg) {
         console.log(this.DSTR, "onRejectReceived");
-        this.onEvent(EventTypes.rejectReceived, message);
+        await this.onEvent(EventTypes.rejectReceived, message);
 
         this.conferenceRoom.conferenceRoomId = "";
         this.inviteMsg = null;
     }
 
-    private onCreateConfResult(message: CreateConfResultMsg) {
+    private async onCreateConfResult(message: CreateConfResultMsg) {
         console.log(this.DSTR, "onCreateConfResult");
-        this.onEvent(EventTypes.conferenceCreatedResult, message);
+        await this.onEvent(EventTypes.conferenceCreatedResult, message);
     }
 
-    private onJoinConfResult(message: JoinConfResultMsg) {
+    private async onJoinConfResult(message: JoinConfResultMsg) {
         console.log(this.DSTR, "onJoinConfResult");
         if (message.data.error) {
             this.conferenceRoom.conferenceRoomId = "";
@@ -463,7 +463,7 @@ export class ConferenceClient {
         }
 
         this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
-        this.onEvent(EventTypes.conferenceJoined, message);
+        await this.onEvent(EventTypes.conferenceJoined, message);
     }
 
     private async onConferenceReady(message: ConferenceReadyMsg) {
@@ -507,7 +507,7 @@ export class ConferenceClient {
         this.roomsClient = new RoomsClient();
 
 
-        this.roomsClient.onRoomJoinedEvent = (roomId: string) => {
+        this.roomsClient.eventOnRoomJoined = async (roomId: string) => {
             //confirmation for local user has joined a room
             console.log(this.DSTR, "onRoomJoinedEvent");
             let msg = {
@@ -516,10 +516,10 @@ export class ConferenceClient {
                     conferenceRoomId: this.conferenceRoom.conferenceRoomId
                 }
             }
-            this.onEvent(EventTypes.conferenceJoined, msg);
+            await this.onEvent(EventTypes.conferenceJoined, msg);
         };
 
-        this.roomsClient.onRoomClosedEvent = (roomId: string, peers: Peer[]) => {
+        this.roomsClient.eventOnRoomClosed = async (roomId: string, peers: Peer[]) => {
             console.log(this.DSTR, "onRoomClosedEvent");
             this.roomsClient.disconnect();
             this.roomsClient.dispose();
@@ -528,11 +528,11 @@ export class ConferenceClient {
                 type: EventTypes.conferenceClosed,
                 data: { roomId: this.conferenceRoom.roomId }
             }
-            this.onEvent(EventTypes.conferenceClosed, msg);
+            await this.onEvent(EventTypes.conferenceClosed, msg);
             this.conferenceRoom = new Conference();
         };
 
-        this.roomsClient.onRoomPeerJoinedEvent = (roomId: string, peer: Peer) => {
+        this.roomsClient.eventOnRoomPeerJoined = async (roomId: string, peer: Peer) => {
             console.log(this.DSTR, "onRoomPeerJoinedEvent");
             let participant = this.conferenceRoom.participants.get(peer.trackingId);
             if (!participant) {
@@ -558,7 +558,7 @@ export class ConferenceClient {
             if (!participant.displayName) {
                 console.error("no displayName");
                 return;
-            }            
+            }
 
             let msg = {
                 type: EventTypes.participantJoined,
@@ -568,10 +568,10 @@ export class ConferenceClient {
                     conferenceRoomId: this.conferenceRoom.conferenceRoomId
                 }
             }
-            this.onEvent(EventTypes.participantJoined, msg);
+            await this.onEvent(EventTypes.participantJoined, msg);
         };
 
-        this.roomsClient.onPeerNewTrackEvent = (peer: Peer, track: MediaStreamTrack) => {
+        this.roomsClient.eventOnPeerNewTrack = async (peer: Peer, track: MediaStreamTrack) => {
             console.log(this.DSTR, "onPeerNewTrackEvent");
             let participant = this.conferenceRoom.participants.get(peer.trackingId);
             if (!participant) {
@@ -586,11 +586,11 @@ export class ConferenceClient {
                     track: track
                 }
             }
-            this.onEvent(EventTypes.participantNewTrack, msg);
+            await this.onEvent(EventTypes.participantNewTrack, msg);
 
         };
 
-        this.roomsClient.onRoomPeerLeftEvent = (roomId: string, peer: Peer) => {
+        this.roomsClient.eventOnRoomPeerLeft = async (roomId: string, peer: Peer) => {
             let participant = this.conferenceRoom.participants.get(peer.trackingId);
             if (!participant) {
                 console.error("participant not found.");
@@ -605,13 +605,13 @@ export class ConferenceClient {
                     participantId: participant.participantId
                 }
             }
-            this.onEvent(EventTypes.participantLeft, msg);
+            await this.onEvent(EventTypes.participantLeft, msg);
 
         };
 
         await this.roomsClient.init(message.data.roomURI, message.data.roomRtpCapabilities);
         let connectResult = await this.roomsClient.waitForConnect();
-        let registerResult = await this.roomsClient.waitForRegister(this.conferenceRoom.roomAuthToken, this.participantId, this.userName);        
+        let registerResult = await this.roomsClient.waitForRegister(this.conferenceRoom.roomAuthToken, this.participantId, this.userName);
         let roomJoinResult = connectResult = await this.roomsClient.waitForRoomJoin(this.conferenceRoom.roomId, this.conferenceRoom.roomToken);
 
         if (connectResult.data.error || roomJoinResult.data.error) {
@@ -622,7 +622,7 @@ export class ConferenceClient {
                     conferenceRoomId: this.conferenceRoom.conferenceRoomId
                 }
             };
-            this.onEvent(EventTypes.conferenceFailed, msg);
+            await this.onEvent(EventTypes.conferenceFailed, msg);
 
             this.conferenceRoom = new Conference();
             this.roomsClient.disconnect();

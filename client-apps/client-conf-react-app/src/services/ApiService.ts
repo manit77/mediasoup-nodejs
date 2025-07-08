@@ -8,7 +8,7 @@ interface LoginResponse {
 }
 
 export const ApiService = {
-    login: async (displayName: string): Promise<LoginResponse> => {
+    login: async (displayName: string, password: string): Promise<LoginResponse> => {
         // Simulate API call
         console.log(`ApiService: Logging in user ${displayName}`);
         if (!displayName.trim()) {

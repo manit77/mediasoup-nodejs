@@ -71,7 +71,7 @@ export class RoomPeerSocketServer {
 
             ws.on('message', async (message) => {
                 try {
-                    this.onMessage(ws, message);
+                    await this.onMessage(ws, message);
                 } catch (err) {
                     console.error("ERROR PROCESSING MSG");
                     console.error(err);

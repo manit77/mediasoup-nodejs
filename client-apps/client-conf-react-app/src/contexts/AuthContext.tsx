@@ -1,53 +1,45 @@
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, ReactNode, useEffect } from 'react';
 import { Conference, User } from '../types';
 import { webRTCService } from '../services/WebRTCService';
 import { ApiService } from '../services/ApiService';
 
 interface AuthContextType {
-    currentUser: User | null;
     isAuthenticated: boolean;
     isLoading: boolean;
-    login: (displayName: string) => Promise<void>;
+    login: (displayName: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
-    getConferences: () =>  Promise<Conference[]>;
+    getConferences: () => Promise<Conference[]>;
+    getCurrentUser: () => User | null;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-    const [isLoading, setIsLoading] = useState<boolean>(true); // Check for existing session
+    const [isLoading, setIsLoading] = useState<boolean>(false);
 
     useEffect(() => {
-        console.log("** AuthProvider created");
 
-        //Check for existing session on load (e.g., from localStorage)
-        const storedUser = localStorage.getItem('user');
-        const token = localStorage.getItem('authToken');
-        if (storedUser && token) {
-            try {
-                const user = JSON.parse(storedUser) as User;
-                setCurrentUser(user);
-                setIsAuthenticated(true);
-                // Re-connect to signaling if authenticated
-                webRTCService.connectSignaling(user);
-            } catch (error) {
-                console.error("Failed to parse stored user", error);
-                localStorage.removeItem('user');
-                localStorage.removeItem('authToken');
-            }
+        console.log("AuthProvider triggered.");
+        let currentUser = getCurrentUser();
+        if (currentUser) {
+            console.log("user found.");
+            setIsAuthenticated(true);
+            webRTCService.connectSignaling(currentUser);
+            return;
+        } else {
+            console.log("user not found. ");
         }
-        setIsLoading(false);
+        setIsAuthenticated(false);
+
     }, []);
 
-    const login = async (displayName: string) => {
+    const login = async (displayName: string, password: string) => {
         try {
             setIsLoading(true);
-            const { user } = await ApiService.login(displayName);
-            setCurrentUser(user);
+            const { user } = await ApiService.login(displayName, password);
             setIsAuthenticated(true);
-            webRTCService.connectSignaling(user); // Connect signaling on login
+            webRTCService.connectSignaling(user);
             setIsLoading(false);
         } catch (error) {
             setIsLoading(false);
@@ -62,7 +54,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             webRTCService.disconnectSignaling(); // Disconnect signaling on logout
             webRTCService.dispose();
             await ApiService.logout();
-            setCurrentUser(null);
             setIsAuthenticated(false);
             localStorage.removeItem('user');
             localStorage.removeItem('authToken');
@@ -70,8 +61,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } catch (error) {
             setIsLoading(false);
             console.error('Logout failed:', error);
-            // Still clear client-side state
-            setCurrentUser(null);
             setIsAuthenticated(false);
             localStorage.removeItem('user');
             localStorage.removeItem('authToken');
@@ -80,12 +69,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const getConferences = async (): Promise<Conference[]> => {
-        let conferences =  await ApiService.getConferences();
+        let conferences = await ApiService.getConferences();
         return conferences;
     }
 
+    const getCurrentUser = (): User | null => {
+        const storedUser = localStorage.getItem('user');
+        const token = localStorage.getItem('authToken');
+        if (storedUser && token) {
+            try {
+                const user = JSON.parse(storedUser) as User;
+                return user;
+            } catch (error) {
+                console.error("Failed to parse stored user", error);
+            }
+        }
+        return null;
+    }
+
     return (
-        <AuthContext.Provider value={{ currentUser, isAuthenticated, isLoading, login, logout, getConferences }}>
+        <AuthContext.Provider value={{ getCurrentUser, isAuthenticated, isLoading, login, logout, getConferences }}>
             {children}
         </AuthContext.Provider>
     );

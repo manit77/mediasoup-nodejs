@@ -8,7 +8,7 @@ interface TopMenuProps {
 }
 
 const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
-    const { currentUser, logout } = useAuth();
+    const { getCurrentUser, logout } = useAuth();
     const navigate = useNavigate();
 
     const handleLogout = async () => {
@@ -28,8 +28,8 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
                 <Navbar.Toggle aria-controls="basic-navbar-nav" />
                 <Navbar.Collapse id="basic-navbar-nav">
                     <Nav className="ms-auto">
-                        {currentUser && (
-                            <NavDropdown title={currentUser.displayName} id="user-nav-dropdown">
+                        {(
+                            <NavDropdown title={getCurrentUser()?.displayName} id="user-nav-dropdown">
                                 <NavDropdown.Item onClick={onShowSettings}>Settings</NavDropdown.Item>
                                 <NavDropdown.Divider />
                                 <NavDropdown.Item onClick={handleLogout}>Logout</NavDropdown.Item>

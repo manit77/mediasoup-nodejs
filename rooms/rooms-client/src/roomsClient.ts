@@ -116,11 +116,11 @@ export class RoomsClient {
 
   private onTransportsReadyEvent: (transport: mediasoupClient.types.Transport) => void;
 
-  onRoomJoinedEvent: (roomId: string) => void;
-  onRoomPeerJoinedEvent: (roomId: string, peer: Peer) => void;
-  onPeerNewTrackEvent: (peer: Peer, track: MediaStreamTrack) => void;
-  onRoomPeerLeftEvent: (roomId: string, peer: Peer) => void;
-  onRoomClosedEvent: (roomId: string, peers: Peer[]) => void;
+  eventOnRoomJoined: (roomId: string) => Promise<void> = async () => { };
+  eventOnRoomPeerJoined: (roomId: string, peer: Peer) => Promise<void> = async () => { };
+  eventOnPeerNewTrack: (peer: Peer, track: MediaStreamTrack) => Promise<void> = async () => { };
+  eventOnRoomPeerLeft: (roomId: string, peer: Peer) => Promise<void> = async () => { };
+  eventOnRoomClosed: (roomId: string, peers: Peer[]) => Promise<void> = async () => { };
 
   init = async (websocketURI: string, rtpCapabilities?: any) => {
 
@@ -190,7 +190,7 @@ export class RoomsClient {
   * @param wsURI 
   * @returns 
   */
-  waitForConnect = async (wsURI: string = ""): Promise<IMsg> => {
+  waitForConnect = (wsURI: string = ""): Promise<IMsg> => {
     console.log(DSTR, `waitForConnect() ${wsURI}`);
     return new Promise<IMsg>((resolve, reject) => {
 
@@ -285,7 +285,7 @@ export class RoomsClient {
    * @param displayName 
    * @returns 
    */
-  waitForRegister = async (authToken: string, trackingId: string, displayName: string): Promise<IMsg> => {
+  waitForRegister = (authToken: string, trackingId: string, displayName: string): Promise<IMsg> => {
     return new Promise<IMsg>(async (resolve, reject) => {
       try {
         let timerid = setTimeout(() => reject("failed to register"), 5000);
@@ -320,7 +320,7 @@ export class RoomsClient {
     });
   };
 
-  waitForNewRoomToken = async (expiresInMin: number): Promise<IMsg> => {
+  waitForNewRoomToken = (expiresInMin: number): Promise<IMsg> => {
     return new Promise<IMsg>((resolve, reject) => {
       try {
         let timerid = setTimeout(() => reject("failed to create new room token"), 5000);
@@ -349,7 +349,7 @@ export class RoomsClient {
     });
   };
 
-  waitForNewRoom = async (maxPeers: number, maxRoomDurationMinutes: number): Promise<IMsg> => {
+  waitForNewRoom = (maxPeers: number, maxRoomDurationMinutes: number): Promise<IMsg> => {
     return new Promise<IMsg>((resolve, reject) => {
       try {
         let timerid = setTimeout(() => reject("failed to create new room"), 5000);
@@ -385,7 +385,7 @@ export class RoomsClient {
    * @param roomToken 
    * @returns 
    */
-  waitForRoomJoin = async (roomid: string, roomToken: string): Promise<IMsg> => {
+  waitForRoomJoin = (roomid: string, roomToken: string): Promise<IMsg> => {
 
     //remove the old event hanlder    
     return new Promise<IMsg>((resolve, reject) => {
@@ -793,7 +793,7 @@ export class RoomsClient {
 
   };
 
-  private addRemoteTrack = (peerId: string, track: MediaStreamTrack) => {
+  private addRemoteTrack = async (peerId: string, track: MediaStreamTrack) => {
     console.log(DSTR, "addRemoteTrack()");
 
     track.enabled = true;
@@ -804,8 +804,8 @@ export class RoomsClient {
       return;
     }
 
-    if (this.onPeerNewTrackEvent) {
-      this.onPeerNewTrackEvent(peer, track);
+    if (this.eventOnPeerNewTrack) {
+      await this.eventOnPeerNewTrack(peer, track);
     } else {
       if (!peer.stream) {
         peer.stream = new MediaStream();
@@ -910,11 +910,9 @@ export class RoomsClient {
 
     console.log("transports created.");
 
-    // await this.publishLocalStream();
+    // await this.publishLocalStream();   
+    await this.eventOnRoomJoined(this.localPeer.roomId);
 
-    if (this.onRoomJoinedEvent) {
-      this.onRoomJoinedEvent(this.localPeer.roomId);
-    }
 
     //connect to existing peers  
     if (msgIn.data && msgIn.data.peers) {
@@ -931,12 +929,8 @@ export class RoomsClient {
 
 
     for (let peer of this.peers) {
-
       this.consumePeerProducers(peer);
-
-      if (this.onRoomPeerJoinedEvent) {
-        this.onRoomPeerJoinedEvent(this.localPeer.roomId, peer);
-      }
+      await this.eventOnRoomPeerJoined(this.localPeer.roomId, peer);
     }
 
   }
@@ -966,9 +960,7 @@ export class RoomsClient {
       }
     }
 
-    if (this.onRoomPeerJoinedEvent) {
-      this.onRoomPeerJoinedEvent(msgIn.data.roomId, newpeer);
-    }
+    await this.eventOnRoomPeerJoined(msgIn.data.roomId, newpeer);
 
   }
 
@@ -988,11 +980,8 @@ export class RoomsClient {
     }
 
     this.removePeer(peer);
-
-    if (this.onRoomPeerLeftEvent) {
-      let roomid = msgIn.data.roomId;
-      this.onRoomPeerLeftEvent(roomid, peer);
-    }
+    let roomid = msgIn.data.roomId;
+    this.eventOnRoomPeerLeft(roomid, peer);
 
   }
 
@@ -1000,10 +989,7 @@ export class RoomsClient {
     console.log(DSTR, "onRoomClosed:" + msgIn.data.roomId);
     let peers = [...this.peers];
     this.roomClose();
-
-    if (this.onRoomClosedEvent) {
-      this.onRoomClosedEvent(msgIn.data.roomId, peers);
-    }
+    this.eventOnRoomClosed(msgIn.data.roomId, peers);
   }
 
   private roomClose() {

@@ -103,31 +103,31 @@ export class ConferenceServer {
                     switch (msgIn.type) {
 
                         case CallMessageType.register:
-                            this.onRegister(ws, msgIn);
+                            await this.onRegister(ws, msgIn);
                             break;
                         case CallMessageType.getContacts:
-                            this.onGetContacts(ws, msgIn);
+                            await this.onGetContacts(ws, msgIn);
                             break;
                         case CallMessageType.createConf:
-                            this.onCreateConference(ws, msgIn);
+                            await this.onCreateConference(ws, msgIn);
                             break;
                         case CallMessageType.joinConf:
-                            this.onJoinConference(ws, msgIn);
+                            await this.onJoinConference(ws, msgIn);
                             break;
                         case CallMessageType.invite:
-                            this.onInvite(ws, msgIn);
+                            await this.onInvite(ws, msgIn);
                             break;
                         case CallMessageType.inviteCancelled:
-                            this.onInviteCancelled(ws, msgIn);
+                            await this.onInviteCancelled(ws, msgIn);
                             break;
                         case CallMessageType.reject:
-                            this.onReject(ws, msgIn);
+                            await this.onReject(ws, msgIn);
                             break;
                         case CallMessageType.accept:
-                            this.onAccept(ws, msgIn);
+                            await this.onAccept(ws, msgIn);
                             break;
                         case CallMessageType.leave:
-                            this.onLeave(ws, msgIn);
+                            await this.onLeave(ws, msgIn);
                             break;
 
                     }
@@ -136,7 +136,7 @@ export class ConferenceServer {
                 }
             };
 
-            ws.onclose = () => {
+            ws.onclose = async () => {
                 const participant = this.participants.get(ws);
                 if (participant) {
                     // Remove from active participants map
@@ -149,7 +149,7 @@ export class ConferenceServer {
                     console.log(`participant ${participant.participantId} disconnected. participants: ${this.participants.size} rooms: ${this.conferences.size}`);
 
                     //update contacts
-                    this.broadCastContacts();
+                    await this.broadCastContacts();
                 }
             }
 
@@ -291,14 +291,14 @@ export class ConferenceServer {
 
         for (let [socket, p] of this.participants.entries()) {
             //if (p.role !== "guest") {
-                this.send(socket, contactsMsg);
+            this.send(socket, contactsMsg);
             //}
         }
 
     }
 
     async onGetContacts(ws: WebSocket, msgIn?: any) {
-        
+
         console.log("onGetContacts");
 
         let partcipant = this.getParticipantByWS(ws);
@@ -519,7 +519,7 @@ export class ConferenceServer {
             clearTimeout(timeoutid);
         });
 
-        if (conference.status == "none") {            
+        if (conference.status == "none") {
             if (await this.startConference(conference)) {
                 for (let p of conference.participants.values()) {
                     this.sendConferenceReady(conference, p);

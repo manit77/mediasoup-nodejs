@@ -1,6 +1,6 @@
 import {
     payloadTypeServer
-    
+
 } from "@rooms/rooms-models";
 import * as rooms from "@rooms/rooms-client";
 import { getUserMedia } from "@rooms/webrtc-client";
@@ -34,7 +34,7 @@ import { getUserMedia } from "@rooms/webrtc-client";
 
         writeLog("-- initMediaSoupDevice");
 
-        roomsClient.onRoomClosedEvent = (roomId: string, peers: rooms.Peer[]) => {
+        roomsClient.eventOnRoomClosed = async (roomId: string, peers: rooms.Peer[]) => {
             writeLog("room closed");
             peers.forEach((p) => {
                 destroyRemoteVideo(p.peerId);
@@ -42,21 +42,21 @@ import { getUserMedia } from "@rooms/webrtc-client";
             disconnectRooms();
         };
 
-        roomsClient.onRoomJoinedEvent = (roomId: string) => {
+        roomsClient.eventOnRoomJoined = async (roomId: string) => {
             writeLog("* onRoomJoinedEvent");
             // roomsClient.publishLocalStream();
         };
 
-        roomsClient.onRoomPeerJoinedEvent = (roomid: string, peer: rooms.Peer) => {
-            writeLog("* onRoomPeerJoinedEvent");            
+        roomsClient.eventOnRoomPeerJoined = async (roomid: string, peer: rooms.Peer) => {
+            writeLog("* onRoomPeerJoinedEvent");
         };
 
-        roomsClient.onRoomPeerLeftEvent = (roomid: string, peer: rooms.Peer) => {
+        roomsClient.eventOnRoomPeerLeft = async (roomid: string, peer: rooms.Peer) => {
             writeLog(`* onRoomPeerLeftEvent ${roomid} ${peer.peerId}`);
             destroyRemoteVideo(peer.peerId);
         };
 
-        roomsClient.onPeerNewTrackEvent = (peer: rooms.Peer, track: MediaStreamTrack) => {
+        roomsClient.eventOnPeerNewTrack = async (peer: rooms.Peer, track: MediaStreamTrack) => {
             writeLog("* onPeerNewTrackEvent");
             addTrackToRemoteVideo(peer.peerId, track);
         };

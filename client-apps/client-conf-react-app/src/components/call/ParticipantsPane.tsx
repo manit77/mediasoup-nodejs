@@ -3,7 +3,7 @@ import { Card, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { useAuth } from '../../hooks/useAuth';
 import { MicFill, MicMuteFill, CameraVideoFill, CameraVideoOffFill } from 'react-bootstrap-icons';
-import { CallParticipant } from '../../types';
+import { CallParticipant, User } from '../../types';
 
 
 interface ParticipantVideoPreviewProps {
@@ -19,7 +19,7 @@ interface ParticipantVideoPreviewProps {
 
 const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, stream, displayName, isLocal, onClick, isMuted, isVideoOff, isSelected }) => {
     const { localStream, getLocalMedia } = useCall();
-    const { currentUser } = useAuth();
+    const { getCurrentUser } = useAuth();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [videoOff, setVideoOff] = useState(isVideoOff);
     const [micOff, setMicOff] = useState(isMuted);
@@ -38,7 +38,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
 
     const onVideoClick = async () => {
         console.log("onVideoClick ", participant);
-        const localParticipant = participant.id === currentUser?.id;
+        const localParticipant = participant.id === getCurrentUser()?.id;
 
         if (localParticipant) {
             if (participant.stream == null) {
@@ -68,7 +68,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
 
     const onAudioClick = async () => {
         console.log("onVideoClick ", participant);
-        const localParticipant = participant.id === currentUser?.id;
+        const localParticipant = participant.id === getCurrentUser()?.id;
 
         if (localParticipant) {
             if (participant.stream == null) {
@@ -126,7 +126,13 @@ interface ParticipantsPaneProps {
 
 const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, currentMainUserId }) => {
     const { participants, localStream } = useCall();
-    const { currentUser } = useAuth();
+    const { getCurrentUser } = useAuth();
+    const [currentUser, setCurrentUser ] = useState<User| null>(null);
+
+
+    useEffect(()=>{
+        setCurrentUser(getCurrentUser());
+    }, [getCurrentUser])
 
     // Find local participant data from the participants list
     const localParticipant = participants.find(p => p.id === currentUser?.id);

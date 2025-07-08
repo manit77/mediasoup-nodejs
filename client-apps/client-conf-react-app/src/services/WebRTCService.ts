@@ -11,24 +11,24 @@ class WebRTCService {
     contacts: Contact[] = [];
     inviteMsg: InviteMsg;
 
-    public onServerConnected: (() => void) = () => { };
-    public onServerDisconnected: (() => void) = () => { };
+    public onServerConnected: () => Promise<void> = async () => { };
+    public onServerDisconnected: () => Promise<void> = async () => { };
 
-    public onRegistered: (participantId: string) => void = () => { };
-    public onRegisterFailed: (error: string) => void = () => { };
-    public onContactsReceived: (contacts: Contact[]) => void = () => { };
+    public onRegistered: (participantId: string) => Promise<void> = async () => { };
+    public onRegisterFailed: (error: string) => Promise<void> = async () => { };
+    public onContactsReceived: (contacts: Contact[]) => Promise<void> = async () => { };
 
     //public onLocalStreamReady: (stream: MediaStream) => void = () => { };
 
-    public onInviteReceived: ((participantId: string, displayName: string) => void) = () => { };
+    public onInviteReceived: (participantId: string, displayName: string) => Promise<void> = async () => { };
 
     //public onConferenceCreated: (conferenceId: string, trackingId: string) => void = () => { };
-    public onConferenceJoined: () => void = () => { };
-    public onConferenceEnded: (conferenceId: string, reason: string) => void = () => { };
+    public onConferenceJoined: () => Promise<void> = async () => { };
+    public onConferenceEnded: (conferenceId: string, reason: string) => Promise<void> = async () => { };
 
-    public onParticipantTrack: ((participantId: string, track: MediaStreamTrack) => void) | null = () => { };
-    public onParticipantJoined: ((participantId: string, displayName: string) => void) | null = () => { };
-    public onParticipantLeft: ((participantId: string) => void) | null = () => { };
+    public onParticipantTrack: (participantId: string, track: MediaStreamTrack) => Promise<void> = async () => { };
+    public onParticipantJoined: (participantId: string, displayName: string) => Promise<void> = async () => { };
+    public onParticipantLeft: (participantId: string) => Promise<void> = async () => { };
 
     public dispose() {
         console.log("dispose");
@@ -58,7 +58,7 @@ class WebRTCService {
         this.confClient = new ConferenceClient();
         this.confClient.connect(true, confServerURI);
 
-        this.confClient.onEvent = (eventType: EventTypes, payload?: any) => {
+        this.confClient.onEvent = async (eventType: EventTypes, payload?: any) => {
             console.log("** onEvent", eventType, payload);
 
             switch (eventType) {
@@ -67,59 +67,59 @@ class WebRTCService {
                     break;
                 }
                 case EventTypes.disconnected: {
-                    this.eventSignalingDisconnected();
+                    await this.eventSignalingDisconnected();
                     break;
                 }
                 case EventTypes.registerResult: {
-                    this.eventRegisterResult(payload);
+                    await this.eventRegisterResult(payload);
                     break;
                 }
                 case EventTypes.contactsReceived: {
-                    this.eventContactsReceived(payload as Contact[]);
+                    await this.eventContactsReceived(payload as Contact[]);
                     break;
                 }
                 case EventTypes.inviteReceived: {
-                    this.eventInviteReceived(payload);
+                    await this.eventInviteReceived(payload);
                     break;
                 }
                 case EventTypes.rejectReceived: {
-                    this.eventRejectReceived(payload);
+                    await this.eventRejectReceived(payload);
                     break;
                 }
                 case EventTypes.inviteResult: {
-                    this.eventInviteResult(payload);
+                    await this.eventInviteResult(payload);
                     break;
                 }
                 case EventTypes.inviteCancelled: {
-                    this.eventInviteCancelled(payload);
+                    await this.eventInviteCancelled(payload);
                     break;
                 }
                 case EventTypes.conferenceCreatedResult: {
-                    this.eventConferenceCreatedResult(payload);
+                    await this.eventConferenceCreatedResult(payload);
                     break;
                 }
                 case EventTypes.conferenceJoined: {
-                    this.eventConferenceJoined(payload);
+                    await this.eventConferenceJoined(payload);
                     break;
                 }
                 case EventTypes.conferenceFailed: {
-                    this.eventConferenceFailed(payload);
+                    await this.eventConferenceFailed(payload);
                     break;
                 }
                 case EventTypes.conferenceClosed: {
-                    this.eventConferenceClosed(payload);
+                    await this.eventConferenceClosed(payload);
                     break;
                 }
                 case EventTypes.participantJoined: {
-                    this.eventParticipantJoined(payload);
+                    await this.eventParticipantJoined(payload);
                     break;
                 }
                 case EventTypes.participantLeft: {
-                    this.eventParticipantLeft(payload);
+                    await this.eventParticipantLeft(payload);
                     break;
                 }
                 case EventTypes.participantNewTrack: {
-                    this.eventParticipantNewTrack(payload);
+                    await this.eventParticipantNewTrack(payload);
                     break;
                 }
             }
@@ -240,39 +240,39 @@ class WebRTCService {
         this.confClient = null;
     }
 
-    private eventSignalingDisconnected() {
+    private async eventSignalingDisconnected() {
         console.log("eventSignalingDisconnected");
         if (this.onServerDisconnected) {
-            this.onServerDisconnected();
+            await this.onServerDisconnected();
         }
     }
 
-    private eventRegisterResult(msg: any) {
+    private async eventRegisterResult(msg: any) {
         console.log("eventRegisterResult", msg);
         if (msg.data.error) {
-            this.onRegisterFailed(msg.data.error);
+            await this.onRegisterFailed(msg.data.error);
         } else {
-            this.onRegistered(msg.data.participantId);
+            await this.onRegistered(msg.data.participantId);
         }
     }
 
-    private eventContactsReceived(msg: any) {
+    private async eventContactsReceived(msg: any) {
         console.log("eventContactsReceived", msg);
         this.contacts = (msg.data as Contact[]).filter(c => c.participantId !== this.confClient.participantId)
         console.log("eventContactsReceived", msg.data);
-        this.onContactsReceived(this.contacts);
+        await this.onContactsReceived(this.contacts);
     }
 
-    private eventInviteReceived(msg: any) {
+    private async eventInviteReceived(msg: any) {
         console.log("eventInviteReceived", msg);
         this.inviteMsg = msg;
-        this.onInviteReceived(msg.data.participantId, msg.data.displayName);
+        await this.onInviteReceived(msg.data.participantId, msg.data.displayName);
     }
 
-    private eventInviteResult(msg: InviteResultMsg) {
+    private async eventInviteResult(msg: InviteResultMsg) {
         console.log("eventInviteResult", msg);
         if (msg.data.error) {
-            this.onConferenceEnded(msg.data.conferenceRoomId, msg.data.error);
+            await this.onConferenceEnded(msg.data.conferenceRoomId, msg.data.error);
             this.inviteMsg = null;
             return;
         }
@@ -282,63 +282,63 @@ class WebRTCService {
         }
     }
 
-    private eventInviteCancelled(msg: any) {
+    private async eventInviteCancelled(msg: any) {
         console.log("eventInviteCancelled", msg);
-        this.onConferenceEnded(msg.data.conferenceRoomId, "call cancelled");
+        await this.onConferenceEnded(msg.data.conferenceRoomId, "call cancelled");
         this.inviteMsg = null;
     }
 
-    private eventRejectReceived(msg: any) {
+    private async eventRejectReceived(msg: any) {
         console.log("eventRejectReceived", msg);
-        this.onConferenceEnded(msg.data.conferenceRoomId, "call rejected");
+        await this.onConferenceEnded(msg.data.conferenceRoomId, "call rejected");
         this.inviteMsg = null;
     }
 
-    private eventConferenceCreatedResult(msg: CreateConfResultMsg) {
+    private async eventConferenceCreatedResult(msg: CreateConfResultMsg) {
         console.log("eventConferenceCreatedResult", msg);
         if (msg.data.error) {
             console.error("failed to create conference.");
-            this.onConferenceEnded(msg.data.trackingId, "failed to create conference");
+            await this.onConferenceEnded(msg.data.trackingId, "failed to create conference");
             return;
         }
         //this.onConferenceCreated(msg.data.conferenceRoomId, msg.data.trackingId);
         this.joinConferenceRoom(msg.data.conferenceRoomId);
     }
 
-    private eventConferenceJoined(msg: any) {
+    private async eventConferenceJoined(msg: any) {
         console.log("eventConferenceJoined", msg);
         if (this.localStream) {
             this.confClient.publishTracks(this.localStream);
         }
         this.inviteMsg = null;
-        this.onConferenceJoined();
+        await this.onConferenceJoined();
     }
 
-    private eventConferenceFailed(msg: any) {
+    private async eventConferenceFailed(msg: any) {
         console.log("eventConferenceFailed", msg);
-        this.onConferenceEnded(msg.data.conferenceRoomId, "system error");
+        await this.onConferenceEnded(msg.data.conferenceRoomId, "system error");
         this.inviteMsg = null;
     }
 
-    private eventConferenceClosed(msg: any) {
+    private async eventConferenceClosed(msg: any) {
         console.log("eventConferenceClosed", msg);
-        this.onConferenceEnded(msg.data.conferenceRoomId, "call ended.");
+        await this.onConferenceEnded(msg.data.conferenceRoomId, "call ended.");
         this.inviteMsg = null;
     }
 
-    private eventParticipantJoined(msg: any) {
+    private async eventParticipantJoined(msg: any) {
         console.log("eventParticipantJoined", msg);
-        this.onParticipantJoined(msg.data.participantId, msg.data.displayName);
+        await this.onParticipantJoined(msg.data.participantId, msg.data.displayName);
     }
 
-    private eventParticipantLeft(msg: any) {
+    private async eventParticipantLeft(msg: any) {
         console.log("eventParticipantLeft", msg.data);
-        this.onParticipantLeft(msg.data.participantId);
+        await this.onParticipantLeft(msg.data.participantId);
     }
 
-    private eventParticipantNewTrack(msg: any) {
+    private async eventParticipantNewTrack(msg: any) {
         console.log("eventParticipantNewTrack", msg.data);
-        this.onParticipantTrack(msg.data.participantId, msg.data.track)
+        await this.onParticipantTrack(msg.data.participantId, msg.data.track)
     }
 }
 

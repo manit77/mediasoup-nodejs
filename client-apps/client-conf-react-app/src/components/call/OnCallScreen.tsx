@@ -15,11 +15,9 @@ const OnCallScreen: React.FC = () => {
     const [mainStream, setMainStream] = useState<MediaStream | null>(null); // Could be local or a remote stream
     const [mainStreamUserId, setMainStreamUserId] = useState<string | null>(null); // ID of user in main view
 
-    useEffect(() => {
-        // Initially set local stream to main view if available
+    useEffect(() => {        
         if (localStream && !mainStream) {
             setMainStream(localStream);
-            // Assuming currentUser's ID is available, e.g., from useAuth() or participants list
         }
     }, [localStream, mainStream]);
 
