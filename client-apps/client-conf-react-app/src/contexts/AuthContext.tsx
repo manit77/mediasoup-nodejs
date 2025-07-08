@@ -8,7 +8,7 @@ interface AuthContextType {
     isLoading: boolean;
     login: (displayName: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
-    getConferences: () => Promise<Conference[]>;
+    getConferencesScheduled: () => Promise<Conference[]>;
     getCurrentUser: () => User | null;
 }
 
@@ -68,8 +68,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const getConferences = async (): Promise<Conference[]> => {
-        let conferences = await ApiService.getConferences();
+    const getConferencesScheduled = async (): Promise<Conference[]> => {
+        console.log("getConferencesScheduled");
+        let conferences = await ApiService.getConferencesScheduled();
         return conferences;
     }
 
@@ -88,7 +89,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     return (
-        <AuthContext.Provider value={{ getCurrentUser, isAuthenticated, isLoading, login, logout, getConferences }}>
+        <AuthContext.Provider value={{ getCurrentUser, isAuthenticated, isLoading, login, logout, getConferencesScheduled }}>
             {children}
         </AuthContext.Provider>
     );

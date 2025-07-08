@@ -17,7 +17,10 @@ import {
     JoinConfResultMsg,
     ConferenceRoomConfig,
     GetParticipantsResultMsg,
-    ParticipantInfo
+    ParticipantInfo,
+    ConferenceRoomInfo,
+    GetConferencesMsg,
+    GetConferencesResultMsg
 } from '@conf/conf-models';
 import { ConferenceRoom, IAuthPayload, Participant } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
@@ -110,6 +113,9 @@ export class ConferenceServer {
                         case CallMessageType.getParticipants:
                             await this.onGetParticipants(ws, msgIn);
                             break;
+                        case CallMessageType.getConferences:
+                            await this.onGetConferences(ws, msgIn);
+                            break;
                         case CallMessageType.createConf:
                             await this.onCreateConference(ws, msgIn);
                             break;
@@ -186,7 +192,7 @@ export class ConferenceServer {
         return part;
     }
 
-    getOrCreateConference(conferenceId?: string, trackingId?: string, config?: ConferenceRoomConfig) {
+    getOrCreateConference(conferenceId?: string, trackingId?: string, roomName?: string, config?: ConferenceRoomConfig) {
 
         //find room by tracking id
         let conference: ConferenceRoom;
@@ -208,6 +214,7 @@ export class ConferenceServer {
         conference = new ConferenceRoom();
         conference.id = conferenceId ?? this.generateConferenceId();
         conference.trackingId = trackingId;
+        conference.roomName = roomName;
         if (config) {
             conference.config = config;
         }
@@ -224,6 +231,7 @@ export class ConferenceServer {
         conference.onClose = (conf: ConferenceRoom) => {
             this.conferences.delete(conf.id);
             console.log(`conference removed. ${conf.id}`);
+            this.broadCastConferenceRooms();
         };
 
         console.log(`conference created.`);
@@ -295,6 +303,26 @@ export class ConferenceServer {
         for (let [socket, p] of this.participants.entries()) {
             //if (p.role !== "guest") {
             this.send(socket, contactsMsg);
+            //}
+        }
+
+    }
+
+    async broadCastConferenceRooms() {
+
+        console.log("broadCastConferenceRooms");
+        //broadcast to all participants of contacts
+        let msg = new GetConferencesResultMsg();
+        msg.data = [...this.conferences.values()].map(c => ({
+            conferenceRoomId: c.id,
+            roomName: c.roomName,
+            roomStatus: c.status,
+            roomTrackingId: c.trackingId
+        }) as ConferenceRoomInfo);
+
+        for (let [socket, p] of this.participants.entries()) {
+            //if (p.role !== "guest") {
+            this.send(socket, msg);
             //}
         }
 
@@ -552,7 +580,7 @@ export class ConferenceServer {
         if (conference) {
             console.log("conference already created");
         } else {
-            conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomTrackingId, msgIn.data.conferenceRoomConfig);
+            conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomTrackingId, msgIn.data.roomName, msgIn.data.conferenceRoomConfig);
             if (!await this.startConference(conference)) {
                 console.error("unable to start a conference");
                 let errorMsg = new CreateConfResultMsg();
@@ -565,6 +593,7 @@ export class ConferenceServer {
         let resultMsg = new CreateConfResultMsg();
         resultMsg.data.conferenceRoomId = conference.id;
         resultMsg.data.trackingId = conference.trackingId;
+        resultMsg.data.roomName = conference.roomName;
 
         this.send(ws, resultMsg);
     }
@@ -683,7 +712,7 @@ export class ConferenceServer {
         roomConfig.maxPeers = conference.config.maxGuests;
         roomConfig.maxRoomDurationMinutes = Math.ceil(conference.timeoutSecs / 60);
 
-        let roomNewResult = await roomsAPI.newRoom(roomId, roomToken, conference.id, roomConfig);
+        let roomNewResult = await roomsAPI.newRoom(roomId, roomToken, conference.roomName, conference.id, roomConfig);
         if (!roomNewResult || roomNewResult?.data?.error) {
             console.error("failed to create new room");
             return false;
@@ -696,8 +725,9 @@ export class ConferenceServer {
         conference.timeoutId = setTimeout(() => { conference.close(); }, conference.config.roomTimeoutSecs * 1000);
 
         conference.updateStatus("ready");
-        return true;
 
+        await this.broadCastConferenceRooms();
+        return true;
     }
 
     async onLeave(ws: WebSocket, msgIn: LeaveMsg) {
@@ -726,8 +756,17 @@ export class ConferenceServer {
 
     }
 
-    async getConferences() {
-        [...this.conferences.values()].filter(c => c.status === "ready").map(c => { c.id });
+    async onGetConferences(ws: WebSocket, msgIn: GetConferencesMsg) {
+        let returnMsg = new GetConferencesResultMsg();
+        returnMsg.data = await this.getConferences();
+        this.send(ws, returnMsg);
+    }
+
+    async getConferences(): Promise<ConferenceRoomInfo[]> {
+        return [...this.conferences.values()]
+            .map(c => {
+                return { conferenceRoomId: c.id, roomName: c.roomName, roomStatus: c.status, roomTrackingId: c.trackingId };
+            });
     }
 
     /**

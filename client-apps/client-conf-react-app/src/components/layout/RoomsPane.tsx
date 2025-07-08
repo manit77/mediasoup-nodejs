@@ -4,46 +4,54 @@ import { useCall } from '../../hooks/useCall';
 import { useAuth } from '../../hooks/useAuth';
 import { Conference } from '../../types';
 
-const OnlineIndicator: React.FC<{ isOnline: boolean }> = ({ isOnline }) => (
-    <Badge pill bg={isOnline ? 'success' : 'secondary'} className="ms-2">
-        {isOnline ? 'Online' : 'Offline'}
-    </Badge>
-);
-
 
 const RoomsPane: React.FC = () => {
 
-    const { joinConference, createConference, isCallActive, inviteContact, inviteInfo } = useCall();
-    const { getConferences } = useAuth();
+    const { joinConference, createConference, conferences, getConferenceRooms, isCallActive, inviteContact, inviteInfo } = useCall();
+    const { getConferencesScheduled } = useAuth();
 
-    const [loading, setLoading] = useState(true);
-    const [conferences, setConferences] = useState<Conference[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [conferencesScheduled, setConferencesScheduled] = useState<Conference[]>([]);
 
     // Handle initial loading state
 
-    const handleRefreshRooms = useCallback(async () => {
-        setLoading(true);
+    const handleRefreshRooms = async () => {
         try {
-            setConferences(await getConferences());
+            setLoading(true);
+            let scheduled = await getConferencesScheduled();
+            console.log("handleRefreshRooms conferencesScheduled", scheduled);
+            setConferencesScheduled(scheduled);
+            getConferenceRooms();
+            setLoading(false);
         } catch (error) {
             console.error('Failed to refresh rooms:', error);
-        } finally {
-            setLoading(false);
         }
-    }, [getConferences]);
-    
+    };
+
     useEffect(() => {
         handleRefreshRooms();
-    }, [handleRefreshRooms]);
-    
+    }, []);
+
+    useEffect(() => {
+        //update from conf server
+        console.log("conferences updated ", conferences, conferencesScheduled);
+        conferencesScheduled.forEach(scheduled => {
+            let conf = conferences.find(c => scheduled.id === c.roomTrackingId);
+            if (conf) {
+                scheduled.status = conf.roomStatus;
+            } else {
+                scheduled.status = "";
+            }
+        });
+
+        setConferencesScheduled([...conferencesScheduled])
+
+    }, [conferences]);
+
     const handleConferenceClick = async (conference: Conference) => {
         setLoading(true);
         try {
-            if (conference.id) {
-                joinConference(conference.id);
-            } else {                
-                createConference(conference.trackingId);
-            }
+            createConference(conference.id, conference.name);
         } catch (error) {
             console.error('Failed to refresh contacts:', error);
         } finally {
@@ -61,20 +69,23 @@ const RoomsPane: React.FC = () => {
             </div>
             {loading ? (
                 <p>Loading rooms...</p>
-            ) : conferences.length === 0 ? (
+            ) : conferencesScheduled.length === 0 ? (
                 <p>No rooms found.</p>
             ) : (
                 <ListGroup>
-                    {conferences.map((conference) => (
+                    {conferencesScheduled.map((conference) => (
                         <ListGroup.Item
-                            key={conference.trackingId}
+                            key={conference.id}
                             action
                             onClick={() => handleConferenceClick(conference)}
                             className="d-flex justify-content-between align-items-center"
                             disabled={isCallActive || !!inviteContact || !!inviteInfo}
                         >
                             {conference.name}
-                            <OnlineIndicator isOnline={conference.id ? true : false} />
+                            <Badge pill bg={conference.status ? 'success' : 'secondary'} className="ms-2">
+                                {conference.status ? 'Active' : 'Offline'}
+                            </Badge>
+
                         </ListGroup.Item>
                     ))}
                 </ListGroup>

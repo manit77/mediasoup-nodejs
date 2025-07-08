@@ -1,6 +1,6 @@
 import { ConferenceClient, EventTypes } from '@conf/conf-client';
 import { User } from '../types';
-import { CreateConfResultMsg, InviteMsg, InviteResultMsg, ParticipantInfo } from '@conf/conf-models';
+import { ConferenceRoomInfo, CreateConfResultMsg, InviteMsg, InviteResultMsg, ParticipantInfo } from '@conf/conf-models';
 import { getUserMedia } from '@rooms/webrtc-client';
 
 const confServerURI = 'https://localhost:3100'; // conference
@@ -9,6 +9,7 @@ class WebRTCService {
     localStream: MediaStream = new MediaStream();
     confClient: ConferenceClient;
     participants: ParticipantInfo[] = [];
+    conferences: ConferenceRoomInfo[] = [];
     inviteMsg: InviteMsg;
 
     public onServerConnected: () => Promise<void> = async () => { };
@@ -17,6 +18,7 @@ class WebRTCService {
     public onRegistered: (participantId: string) => Promise<void> = async () => { };
     public onRegisterFailed: (error: string) => Promise<void> = async () => { };
     public onParticipantsReceived: (participants: ParticipantInfo[]) => Promise<void> = async () => { };
+    public onConferencesReceived: (conferences: ConferenceRoomInfo[]) => Promise<void> = async () => { };
 
     //public onLocalStreamReady: (stream: MediaStream) => void = () => { };
 
@@ -37,6 +39,7 @@ class WebRTCService {
         this.onRegistered = null;
         this.onRegisterFailed = null;
         this.onParticipantsReceived = null;
+        this.onConferencesReceived = null;
         //this.onLocalStreamReady = null;
         this.onInviteReceived = null;
         //this.onConferenceCreated = null;
@@ -75,7 +78,11 @@ class WebRTCService {
                     break;
                 }
                 case EventTypes.participantsReceived: {
-                    await this.eventParticipantsReceived(payload as ParticipantInfo[]);
+                    await this.eventParticipantsReceived(payload);
+                    break;
+                }
+                case EventTypes.conferencesReceived: {
+                    await this.eventConferencesReceived(payload);
                     break;
                 }
                 case EventTypes.inviteReceived: {
@@ -133,6 +140,12 @@ class WebRTCService {
         }
     }
 
+    public getConferenceRooms() {
+        if (this.confClient) {
+            this.confClient.getConferenceRooms();
+        }
+    }
+
     public async getNewTracks(constraints?: MediaStreamConstraints) {
         console.log("getNewTracks");
         let tracks = await getUserMedia(constraints);
@@ -176,8 +189,8 @@ class WebRTCService {
         return this.confClient && this.confClient.isInConference();
     }
 
-    public createConferenceRoom(trackingId: string) {
-        this.confClient.createConferenceRoom(trackingId);
+    public createConferenceRoom(trackingId: string, roomName: string) {
+        this.confClient.createConferenceRoom(trackingId, roomName);
     }
 
     public joinConferenceRoom(conferenceRoomId: string) {
@@ -253,14 +266,20 @@ class WebRTCService {
             await this.onRegisterFailed(msg.data.error);
         } else {
             await this.onRegistered(msg.data.participantId);
+            this.getConferenceRooms();
         }
     }
 
     private async eventParticipantsReceived(msg: any) {
         console.log("eventParticipantsReceived", msg);
         this.participants = (msg.data as ParticipantInfo[]).filter(c => c.participantId !== this.confClient.participantId)
-        console.log("eventParticipantsReceived", msg.data);
         await this.onParticipantsReceived(this.participants);
+    }
+
+    private async eventConferencesReceived(msg: any) {
+        console.log("eventConferencesReceived", msg);
+        this.conferences = msg.data;
+        await this.onConferencesReceived(this.conferences);
     }
 
     private async eventInviteReceived(msg: any) {

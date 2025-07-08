@@ -16,7 +16,7 @@ export class Participant {
     displayName: string = ""; //display name for the user
     socket?: WebSocket = undefined; //websocket connection
     conferenceRoom?: ConferenceRoom = undefined; //reference to a conf room
-    role: "admin" | "user" | "guest" = "guest" ;
+    role: "admin" | "user" | "guest" = "guest";
 }
 
 type conferenceStatus = "none" | "initializing" | "ready" | "closed";
@@ -25,6 +25,7 @@ export class ConferenceRoom {
     trackingId: string;
     timeoutId: any;
     timeoutSecs: number;
+    roomName: string;
     roomURI: string;
     roomId: string;
     roomToken: string;
@@ -32,7 +33,7 @@ export class ConferenceRoom {
     participants: Map<string, Participant> = new Map();
     status: conferenceStatus = "none";
     config = new ConferenceRoomConfig();
-    
+
     onReadyListeners: (() => void)[] = [];
     onClose: (conf: ConferenceRoom) => void;
 
@@ -50,7 +51,7 @@ export class ConferenceRoom {
 
     updateStatus(status: conferenceStatus) {
         this.status = status;
-        
+
         if (status == "ready") {
             for (let cb of this.onReadyListeners) {
                 cb();
@@ -78,7 +79,7 @@ export class ConferenceRoom {
 
         this.participants.set(part.participantId, part);
         part.conferenceRoom = this;
-        
+
     }
 
     close() {
@@ -90,7 +91,7 @@ export class ConferenceRoom {
         this.participants.clear();
 
         this.onReadyListeners = [];
-        if(this.timeoutId) {
+        if (this.timeoutId) {
             clearTimeout(this.timeoutId);
         }
 

@@ -51,16 +51,17 @@ export const ApiService = {
         return Promise.resolve();
     },
 
-    getConferences: async (): Promise<Conference[]> => {
+    getConferencesScheduled: async (): Promise<Conference[]> => {
+        console.log("getConferencesScheduled");
         //get rooms from API
         let conferences: Conference[] = [{
-            id: "",
-            trackingId: "1",
-            name: "room1"
+            id: "1",
+            name: "room1",
+            status: ""
         }, {
-            id: "",
-            trackingId: "2",
-            name: "room2"
+            id: "2",
+            name: "room2",
+            status: ""
         }];
         return conferences;
     }

@@ -21,6 +21,9 @@ export enum CallMessageType {
 
     getParticipants = "getParticipants",
     getParticipantsResult = "getParticipantsResult",
+    getConferences = "getConferences",
+    getConferencesResult = "getConferencesResult",
+
 
 }
 export enum WebRoutes {
@@ -82,7 +85,7 @@ export class RegisterResultMsg {
 
 export class GetParticipantsMsg {
     type = CallMessageType.getParticipants;
-    data: {}
+    data = {}
 }
 
 export class GetParticipantsResultMsg {
@@ -90,11 +93,22 @@ export class GetParticipantsResultMsg {
     data: ParticipantInfo[] = [];
 }
 
+export class GetConferencesMsg {
+    type = CallMessageType.getConferences;
+    data = {}
+}
+
+export class GetConferencesResultMsg {
+    type = CallMessageType.getConferencesResult;
+    data: ConferenceRoomInfo[] = [];
+}
+
 export class CreateConfMsg {
     type = CallMessageType.createConf;
     data: {
         conferenceRoomTrackingId?: string,
         conferenceRoomConfig?: ConferenceRoomConfig,
+        roomName?: string,
         error?: string
     } = {
         }
@@ -105,6 +119,7 @@ export class CreateConfResultMsg {
     data: {
         conferenceRoomId?: string,
         trackingId?: string,
+        roomName?: string,
         error?: string
     } = {
         }
@@ -212,5 +227,12 @@ export class ConferenceRoomConfig {
     maxGuests: number = 99;
     guestAllowMic: boolean = true;
     guestAllowCamera: boolean = true;
+}
+
+export class ConferenceRoomInfo {
+    conferenceRoomId: string = "";
+    roomTrackingId: string = "";
+    roomName: string = "";
+    roomStatus: string = "";
 }
 

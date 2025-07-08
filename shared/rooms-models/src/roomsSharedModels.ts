@@ -202,6 +202,7 @@ export class RoomNewMsg implements IMsg {
         peerId?: string,
         roomId?: string,
         roomToken?: string,
+        roomName?: string,
         trackingId?: string,
         ownerTrackingId?: string,
         roomConfig?: RoomConfig;

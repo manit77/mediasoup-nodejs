@@ -2,7 +2,7 @@ import React, { createContext, useState, ReactNode, useContext, useEffect, useCa
 import { CallParticipant, Device } from '../types';
 import { webRTCService } from '../services/WebRTCService';
 import { AuthContext } from './AuthContext';
-import { ParticipantInfo } from '@conf/conf-models';
+import { ConferenceRoomInfo, ParticipantInfo } from '@conf/conf-models';
 
 interface InviteInfo {
     participantId: string;
@@ -20,6 +20,10 @@ interface CallContextType {
     participantsOnline: ParticipantInfo[];
     setParticipantsOnline: React.Dispatch<React.SetStateAction<ParticipantInfo[]>>;
 
+    getConferenceRooms: () => void;
+    conferences: ConferenceRoomInfo[];
+    setConferences: React.Dispatch<React.SetStateAction<ConferenceRoomInfo[]>>;
+
     callParticipants: CallParticipant[];
     setCallParticipants: React.Dispatch<React.SetStateAction<CallParticipant[]>>;
 
@@ -29,7 +33,7 @@ interface CallContextType {
     inviteContact: ParticipantInfo | null;
     setInviteContact: React.Dispatch<React.SetStateAction<ParticipantInfo | null>>;
 
-    createConference: (trackingId: string) => void;
+    createConference: (trackingId: string, roomName: string) => void;
     joinConference: (conferenceRoomId: string) => void;
 
     availableDevices: { video: Device[]; audioIn: Device[]; audioOut: Device[] };
@@ -70,7 +74,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [localStream] = useState<MediaStream>(webRTCService.localStream);
     const [isLocalStreamUpdated, setIsLocalStreamUpdated] = useState<boolean>(false);
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
+
     const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>([]);
+    const [conferences, setConferences] = useState<ConferenceRoomInfo[]>([]);
+
     const [callParticipants, setCallParticipants] = useState<CallParticipant[]>([]);
     const [isCallActive, setIsCallActive] = useState<boolean>(false);
     const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
@@ -188,9 +195,14 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             showPopUp("disconnected from server. trying to reconnect...");
         }
 
-        webRTCService.onParticipantsReceived = async (contacts) => {
-            console.log("CallContext: onContactsReceived", contacts);
-            setParticipantsOnline(contacts);
+        webRTCService.onParticipantsReceived = async (participants) => {
+            console.log("CallContext: onContactsReceived", participants);
+            setParticipantsOnline(participants);
+        };
+
+        webRTCService.onConferencesReceived = async (conferenceRooms) => {
+            console.log("CallContext: onConferencesReceived", conferenceRooms);
+            setConferences(conferenceRooms);
         };
 
         webRTCService.onParticipantTrack = async (participantId, track) => {
@@ -244,6 +256,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setPopUpMessage("");
             setInviteInfo({ participantId, displayName });
         };
+
 
         webRTCService.onConferenceJoined = async () => {
             console.log(`CallContext: onConferenceJoined`);
@@ -387,6 +400,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         webRTCService.getParticipantsOnline();
     }
 
+    const getConferenceRooms = () => {
+        webRTCService.getConferenceRooms();
+    }
+
     const getMediaContraints = () => {
         const constraints = {
             audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
@@ -463,8 +480,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         resetCallState();
     };
 
-    const createConference = (trackingId: string) => {
-        webRTCService.createConferenceRoom(trackingId);
+    const createConference = (trackingId: string, roomName: string) => {
+        webRTCService.createConferenceRoom(trackingId, roomName);
     }
 
     const joinConference = (conferenceRoomId: string) => {
@@ -690,6 +707,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         <CallContext.Provider value={{
             localParticipantId,
             participantsOnline, setParticipantsOnline, getParticipantsOnline,
+            conferences, setConferences, getConferenceRooms,
             getLocalMedia,
             hidePopUp,
             showPopUp,

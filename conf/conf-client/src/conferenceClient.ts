@@ -1,6 +1,6 @@
 import {
     AcceptMsg,
-    CallMessageType, ConferenceReadyMsg, ConferenceRoomConfig, CreateConfMsg, CreateConfResultMsg, GetParticipantsMsg, GetParticipantsResultMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg
+    CallMessageType, ConferenceReadyMsg, ConferenceRoomConfig, ConferenceRoomInfo, CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg, GetParticipantsResultMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg
     , JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo, RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
@@ -30,6 +30,7 @@ export enum EventTypes {
     registerResult = "registerResult",
 
     participantsReceived = "participantsReceived",
+    conferencesReceived = "conferencesReceived",
 
     inviteResult = "inviteResult",
     inviteReceived = "inviteReceived",
@@ -55,6 +56,7 @@ export class ConferenceClient {
     userName: string = "";
     conferenceRoom: Conference = new Conference();
     public participants: ParticipantInfo[] = [];
+    public conferences: ConferenceRoomInfo[] = [];
     private roomsClient: RoomsClient;
     isConnected = false;
 
@@ -184,6 +186,9 @@ export class ConferenceClient {
                 case CallMessageType.getParticipantsResult:
                     await this.onParticipantsReceived(message);
                     break;
+                case CallMessageType.getConferencesResult:
+                    await this.onConferencesReceived(message);
+                    break;
                 case CallMessageType.invite:
                     await this.onInviteReceived(message);
                     break;
@@ -237,6 +242,12 @@ export class ConferenceClient {
         this.sendToServer(getParticipantsMsg);
     }
 
+    getConferenceRooms() {
+        console.log(this.DSTR, "getConferenceRooms");
+        const msg = new GetConferencesMsg();
+        this.sendToServer(msg);
+    }
+
     /**
      * send an invite to a participant that is online
      * @param participantId 
@@ -260,9 +271,10 @@ export class ConferenceClient {
         this.conferenceRoom.conferenceRoomId = "";
     }
 
-    createConferenceRoom(trackingId: string) {
+    createConferenceRoom(trackingId: string, roomName: string) {
         const msg = new CreateConfMsg();
         msg.data.conferenceRoomTrackingId = trackingId;
+        msg.data.roomName = roomName;
         msg.data.conferenceRoomConfig = new ConferenceRoomConfig();
         this.sendToServer(msg);
     }
@@ -433,6 +445,12 @@ export class ConferenceClient {
         console.log(this.DSTR, "onParticipantsReceived");
         this.participants = message.data.filter(c => c.participantId !== this.participantId);
         await this.onEvent(EventTypes.participantsReceived, message);
+    }
+
+    private async onConferencesReceived(message: GetConferencesResultMsg) {
+        console.log(this.DSTR, "onConferencesReceived");
+        this.conferences = message.data;
+        await this.onEvent(EventTypes.conferencesReceived, message);
     }
 
     private async onRejectReceived(message: InviteResultMsg) {

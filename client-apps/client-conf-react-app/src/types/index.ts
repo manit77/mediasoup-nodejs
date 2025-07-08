@@ -5,8 +5,8 @@ export interface User {
 
 export interface Conference {
     id: string;
-    trackingId: string;
     name: string;
+    status: string;
 }
 
 export interface Device {

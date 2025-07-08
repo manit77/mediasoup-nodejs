@@ -37,10 +37,11 @@ export class RoomsAPI {
         return await this.post(RoomServerAPIRoutes.newAuthUserToken, msgIn) as AuthUserNewTokenResultMsg;
     }
 
-    async newRoom(roomId: string, roomToken: string, trackingId: string, config: RoomConfig) {
+    async newRoom(roomId: string, roomToken: string, roomName: string, trackingId: string, config: RoomConfig) {
         let msgIn = new RoomNewMsg();
-        msgIn.data.roomToken = roomToken;
         msgIn.data.roomId = roomId;
+        msgIn.data.roomToken = roomToken;
+        msgIn.data.roomName = roomName;
         msgIn.data.trackingId = trackingId;
         msgIn.data.roomConfig = config;
 
