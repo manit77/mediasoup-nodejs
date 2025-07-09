@@ -41,6 +41,11 @@ export class WebSocketClient {
     connect = async (uri: string, autoReconnect = false) => {
         this.writeLog(`connect ${uri}`);
 
+        if (this.socket) {
+            this.writeLog("socket already created.");
+            return;
+        }
+
         this.autoReconnect = autoReconnect;
         this.socket = new WebSocket(`${uri}`);
         this.state = "connecting";
@@ -143,8 +148,13 @@ export class WebSocketClient {
         if (!this.callbacks.has(type)) {
             this.callbacks.set(type, []);
         }
-        this.callbacks.get(type)!.push(callback);
-        this.writeLog(`Added event handler for ${type}`);
+        let arrCallBacks = this.callbacks.get(type);
+        if (!arrCallBacks.includes(callback)) {
+            this.callbacks.get(type)!.push(callback);
+            this.writeLog(`Added event handler for ${type}`);
+        } else {
+            this.writeLog(`event handler already exists ${type}`);
+        }
     }
 
     // Remove the event handler

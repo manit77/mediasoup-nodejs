@@ -192,6 +192,7 @@ export class ConnectConsumerTransportMsg implements IMsg {
     type = payloadTypeClient.connectConsumerTransport;
     data: {
         authToken?: string,
+        roomId?: string,
         dtlsParameters?: any
     } = {};
 }

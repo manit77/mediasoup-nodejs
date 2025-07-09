@@ -285,6 +285,8 @@ export class RoomsClient {
    * @returns 
    */
   waitForRegister = (authToken: string, trackingId: string, displayName: string): Promise<IMsg> => {
+    console.log(DSTR, "waitForRegister");
+
     return new Promise<IMsg>(async (resolve, reject) => {
       try {
         let timerid = setTimeout(() => reject("failed to register"), 5000);
@@ -311,7 +313,12 @@ export class RoomsClient {
           this.localPeer.authToken = authToken;
         }
 
-        this.register(this.localPeer.authToken, trackingId, displayName);
+        let registerSent = this.register(this.localPeer.authToken, trackingId, displayName);
+        if (registerSent) {
+          resolve(new OkMsg("register sent."));
+        } else {
+          reject("register failed to send.");
+        }
       } catch (err: any) {
         console.error(err);
         reject("failed to register");
@@ -434,7 +441,7 @@ export class RoomsClient {
 
     if (this.localPeer.peerId) {
       console.log(DSTR, `-- register, already registered. ${this.localPeer.peerId}`);
-      return false;
+      return true;
     }
 
     if (!authToken) {
@@ -622,6 +629,12 @@ export class RoomsClient {
   };
 
   roomLeave = async () => {
+    console.log(DSTR, "roomLeave");
+    if (!this.localPeer.roomId) {
+      console.error(DSTR, "not in room");
+      return;
+    }
+
     let msg = new RoomLeaveMsg();
     msg.data = {
       roomId: this.localPeer.roomId,
@@ -1142,6 +1155,7 @@ export class RoomsClient {
     this.localPeer.transportReceive.on('connect', ({ dtlsParameters }, callback) => {
       let msg = new ConnectConsumerTransportMsg();
       msg.data = {
+        roomId: this.localPeer.roomId,
         dtlsParameters: dtlsParameters
       }
       this.send(msg);
