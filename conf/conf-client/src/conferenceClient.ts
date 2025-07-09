@@ -79,10 +79,15 @@ export class ConferenceClient {
     }
 
     startCallConnectTimer() {
-        console.log("startCallConnectTimer");
+        console.warn("startCallConnectTimer");
+
+        if (this.CallConnectTimeoutTimerId) {
+            clearTimeout(this.CallConnectTimeoutTimerId);
+            this.CallConnectTimeoutTimerId = null;
+        }
 
         this.CallConnectTimeoutTimerId = setTimeout(async () => {
-            console.error("CallConnectTimer executed");
+            console.error(`CallConnectTimer executed conferenceRoom ${this.conferenceRoom.conferenceRoomId}`);
             if (this.conferenceRoom.conferenceRoomId) {
                 this.conferenceRoom = new Conference();
 
@@ -95,7 +100,7 @@ export class ConferenceClient {
     }
 
     clearCallConnectTimer() {
-        console.log("clearCallConnectTimer");
+        console.warn("clearCallConnectTimer");
         if (this.CallConnectTimeoutTimerId) {
             clearTimeout(this.CallConnectTimeoutTimerId);
             this.CallConnectTimeoutTimerId = null;
@@ -332,9 +337,9 @@ export class ConferenceClient {
         const msg = new JoinConfMsg();
         msg.data.conferenceRoomId = conferenceRoomId;
         this.conferenceRoom.conferenceRoomId = conferenceRoomId;
-        this.sendToServer(msg);
-
         this.startCallConnectTimer();
+
+        this.sendToServer(msg);
     }
 
     /*
@@ -370,8 +375,10 @@ export class ConferenceClient {
         }
 
         console.log(this.DSTR, `onInviteResult() - received a new conferenceRoomId ${message.data.conferenceRoomId}`);
-        this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
         console.log(`set conferenceRoomId ${message.data.conferenceRoomId}`);
+
+        this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
+        this.startCallConnectTimer();
 
         await this.onEvent(EventTypes.inviteResult, message);
     }
@@ -384,6 +391,8 @@ export class ConferenceClient {
         }
         this.inviteMsg = message;
         this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
+        this.startCallConnectTimer();
+
         console.log(`set conferenceRoomId ${message.data.conferenceRoomId}`);
         await this.onEvent(EventTypes.inviteReceived, message);
         this.startCallConnectTimer();
@@ -399,8 +408,10 @@ export class ConferenceClient {
         await this.onEvent(EventTypes.inviteCancelled, message);
 
         this.conferenceRoom.conferenceRoomId = "";
-        this.inviteMsg = null;
         this.clearCallConnectTimer();
+
+        this.inviteMsg = null;
+
     }
 
     acceptInvite(message: InviteMsg) {
@@ -479,8 +490,9 @@ export class ConferenceClient {
         this.sendToServer(msg);
 
         this.conferenceRoom.conferenceRoomId = "";
-        this.inviteMsg = null;
         this.clearCallConnectTimer();
+        this.inviteMsg = null;
+
     }
 
     getParticipant(participantId: string): Participant {
@@ -530,8 +542,8 @@ export class ConferenceClient {
         await this.onEvent(EventTypes.rejectReceived, message);
 
         this.conferenceRoom.conferenceRoomId = "";
-        this.inviteMsg = null;
         this.clearCallConnectTimer();
+        this.inviteMsg = null;
 
         this.disconnectRoomsClient("onRejectReceived");
     }
@@ -550,8 +562,10 @@ export class ConferenceClient {
     private async onJoinConfResult(message: JoinConfResultMsg) {
         console.log(this.DSTR, "onJoinConfResult");
         if (message.data.error) {
+
             this.conferenceRoom.conferenceRoomId = "";
             this.clearCallConnectTimer();
+
             console.error(this.DSTR, message.data.error);
             await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: "failed to join conference." } });
             this.disconnectRoomsClient("onJoinConfResult");
@@ -559,8 +573,9 @@ export class ConferenceClient {
         }
 
         this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
-        await this.onEvent(EventTypes.conferenceJoined, message);
         this.clearCallConnectTimer();
+        await this.onEvent(EventTypes.conferenceJoined, message);
+
     }
 
     private async onConferenceReady(message: ConferenceReadyMsg) {
