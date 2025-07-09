@@ -4,7 +4,8 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || '/api'; // Configure your 
 
 interface LoginResponse {
     user: User;
-    token: string; // Auth token
+    token: string; 
+    role: string;
 }
 
 export const ApiService = {
@@ -29,10 +30,39 @@ export const ApiService = {
         // Mock implementation:
         return new Promise((resolve) => {
             setTimeout(() => {
-                const user = { id: Date.now().toString(), displayName };
+                const user : User = { id: Date.now().toString(), displayName, role: "admin" };
                 localStorage.setItem('authToken', `fake-jwt-token-for-${user.id}`);
                 localStorage.setItem('user', JSON.stringify(user));
-                resolve({ user, token: `fake-jwt-token-for-${user.id}` });
+                resolve({ user, token: `fake-jwt-token-for-${user.id}`, role: user.role });
+            }, 500);
+        });
+    },
+
+    loginGuest: async (displayName: string): Promise<LoginResponse> => {
+        // Simulate API call
+        console.log(`ApiService: Logging in user ${displayName}`);
+        if (!displayName.trim()) {
+            throw new Error('Display name cannot be empty.');
+        }
+        // Replace with actual fetch call
+        // const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        //   method: 'POST',
+        //   headers: { 'Content-Type': 'application/json' },
+        //   body: JSON.stringify({ displayName }),
+        // });
+        // if (!response.ok) {
+        //   const errorData = await response.json();
+        //   throw new Error(errorData.message || 'Login failed');
+        // }
+        // return response.json() as Promise<LoginResponse>;
+
+        // Mock implementation:
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const user: User = { id: Date.now().toString(), displayName, role: "guest" };
+                localStorage.setItem('authToken', `fake-jwt-token-for-${user.id}`);
+                localStorage.setItem('user', JSON.stringify(user));
+                resolve({ user, token: `fake-jwt-token-for-${user.id}`, role: user.role });
             }, 500);
         });
     },

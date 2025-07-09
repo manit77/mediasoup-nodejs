@@ -17,7 +17,7 @@ import {
     RoomProduceStreamMsg,
     RoomProduceStreamResultMsg,
     RoomConsumeStreamMsg,
-    RoomConsumeStreamResultMsg
+    RoomConsumeStreamResultMsg    
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
@@ -198,6 +198,9 @@ export class RoomServer {
             case payloadTypeClient.roomConsumeStream: {
                 return this.onRoomConsumeStream(peerId, msgIn);
             }
+            // case payloadTypeClient.roomProducerStreamUpdated: {
+            //     return this.onRoomProducerStreamUpdated(peerId, msgIn);
+            // }
         }
         return null;
     }
@@ -983,6 +986,42 @@ export class RoomServer {
 
         return resultMsg;
     }
+
+    // private async onRoomProducerStreamUpdated(peerId: string, msgIn: RoomProducerStreamUpdatedMsg): Promise<IMsg> {
+    //     console.log("onRoomProducerStreamUpdated");
+    //     //client is updated enabled/disabled tracks
+
+    //     let peer = this.peers.get(peerId);
+    //     if (!peer) {
+    //         consoleError("peer not found: " + peerId);
+    //         return new ErrorMsg(payloadTypeServer.error, "peer not found.");
+    //     }
+
+    //     //the peer must have a consumer transport
+    //     if (!peer.consumerTransport) {
+    //         consoleError("no consumer transport for the peer");
+    //         return new ErrorMsg(payloadTypeServer.error, "no consumer transport for the peer");
+    //     }
+
+    //     //the peer must be in room
+    //     if (!peer.room) {
+    //         consoleError("peer not in room.");
+    //         return new ErrorMsg(payloadTypeServer.error, "peer not in room.");
+    //     }
+
+    //     if (peer.room.id !== msgIn.data.roomId) {
+    //         consoleError("invalid roomid");
+    //         return new ErrorMsg(payloadTypeServer.error, "invalid room id");
+    //     }
+
+    //     //override the peerid
+    //     msgIn.data.peerId = peer.id;
+    //     //send to all peers in the room
+    //     this.broadCastExcept(peer.room, peer, msgIn);
+
+    //     //don't return anything back to the peer
+    //     //return new OkMsg(payloadTypeServer.ok, "");
+    // }
 
     async printStats() {
         console.log("### STATS ###");

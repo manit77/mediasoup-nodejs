@@ -22,6 +22,8 @@ export enum payloadTypeClient {
 
     roomProduceStream = "roomProduceStream",
     roomConsumeStream = "roomConsumeStream",
+
+    //roomProducerStreamUpdated = "roomProducerStreamUpdated",
 }
 
 
@@ -387,7 +389,7 @@ export class RoomProduceStreamResultMsg implements IMsg {
 
 export class RoomConsumeStreamMsg implements IMsg {
     type = payloadTypeClient.roomConsumeStream;
-    data: {        
+    data: {
         authToken?: string,
         roomId?: string,
         remotePeerId?: string,
@@ -409,6 +411,18 @@ export class RoomConsumeStreamResultMsg implements IMsg {
         error?: string,
     } = {};
 }
+
+// export class RoomProducerStreamUpdatedMsg {
+//     type = payloadTypeClient.roomProducerStreamUpdated
+//     data: {
+//         roomId?: string,
+//         peerId?: string,
+//         producers?: {
+//             kind?: "audio" | "video" | string,
+//             enabled?: boolean
+//         }[];
+//     } = {}
+// }
 
 export class UnauthorizedMsg implements IMsg {
     type = payloadTypeServer.unauthorized;

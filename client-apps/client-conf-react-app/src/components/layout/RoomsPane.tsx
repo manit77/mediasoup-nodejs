@@ -3,12 +3,13 @@ import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { useAuth } from '../../hooks/useAuth';
 import { Conference } from '../../types';
+import { join } from 'path';
 
 
 const RoomsPane: React.FC = () => {
 
     const { joinConference, createConference, conferences, getConferenceRooms, isCallActive, inviteContact, inviteInfo } = useCall();
-    const { getConferencesScheduled } = useAuth();
+    const { getConferencesScheduled, getCurrentUser } = useAuth();
 
     const [loading, setLoading] = useState(false);
     const [conferencesScheduled, setConferencesScheduled] = useState<Conference[]>([]);
@@ -29,6 +30,8 @@ const RoomsPane: React.FC = () => {
     };
 
     useEffect(() => {
+        // Initial load of conference rooms
+        console.log("RoomsPane useEffect triggered.");
         handleRefreshRooms();
     }, []);
 
@@ -38,6 +41,7 @@ const RoomsPane: React.FC = () => {
         conferencesScheduled.forEach(scheduled => {
             let conf = conferences.find(c => scheduled.id === c.roomTrackingId);
             if (conf) {
+                scheduled.conferenceRoomId = conf.conferenceRoomId;
                 scheduled.status = conf.roomStatus;
             } else {
                 scheduled.status = "";
@@ -51,7 +55,12 @@ const RoomsPane: React.FC = () => {
     const handleConferenceClick = async (conference: Conference) => {
         setLoading(true);
         try {
-            createConference(conference.id, conference.name);
+            if(getCurrentUser()?.role === "admin") {
+                // Admin can create a new conference and join it
+                createConference(conference.id, conference.name);
+            } else {
+                joinConference(conference.conferenceRoomId);
+            }
         } catch (error) {
             console.error('Failed to refresh contacts:', error);
         } finally {
@@ -73,17 +82,17 @@ const RoomsPane: React.FC = () => {
                 <p>No rooms found.</p>
             ) : (
                 <ListGroup>
-                    {conferencesScheduled.map((conference) => (
+                    {conferencesScheduled.map((scheduled) => (
                         <ListGroup.Item
-                            key={conference.id}
+                            key={scheduled.id}
                             action
-                            onClick={() => handleConferenceClick(conference)}
+                            onClick={() => handleConferenceClick(scheduled)}
                             className="d-flex justify-content-between align-items-center"
                             disabled={isCallActive || !!inviteContact || !!inviteInfo}
                         >
-                            {conference.name}
-                            <Badge pill bg={conference.status ? 'success' : 'secondary'} className="ms-2">
-                                {conference.status ? 'Active' : 'Offline'}
+                            {scheduled.name}
+                            <Badge pill bg={scheduled.status ? 'success' : 'secondary'} className="ms-2">
+                                {scheduled.status ? 'Active' : 'Offline'}
                             </Badge>
 
                         </ListGroup.Item>

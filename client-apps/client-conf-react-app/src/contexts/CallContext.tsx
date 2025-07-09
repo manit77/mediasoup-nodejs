@@ -57,8 +57,8 @@ interface CallContextType {
     cancelInvite: () => void;
 
     endCurrentCall: () => void;
-    toggleMuteAudio: (isMuted: boolean) => void;
-    toggleMuteVideo: (isVideoOff: boolean) => void;
+    toggleMuteAudio: (participantId: string, isMuted: boolean) => void;
+    toggleMuteVideo: (participantId: string, isVideoOff: boolean) => void;
     startScreenShare: () => Promise<void>;
     stopScreenShare: () => void;
     updateMediaDevices: () => Promise<void>;
@@ -481,38 +481,65 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const createConference = (trackingId: string, roomName: string) => {
+        console.log("CallContext: createConference");
+
         webRTCService.createConferenceRoom(trackingId, roomName);
     }
 
     const joinConference = (conferenceRoomId: string) => {
+        console.log("CallContext: joinConference");
+
+        if(!conferenceRoomId) {
+            console.error("CallContext: joinConference: conferenceRoomId is required");
+            return;
+        }
         webRTCService.joinConferenceRoom(conferenceRoomId)
     }
 
-    const toggleMuteAudio = (micOn: boolean) => {
+    const toggleMuteAudio = (participantId: string, isMuted: boolean) => {
         console.log("CallContext: toggleMuteAudio");
-
-        let audioTrack = localStream.getAudioTracks()[0];
+        
+        let participant = callParticipants.find(p => p.id === participantId);
+        if (!participant) {
+            console.error(`participant not found ${participantId}`);
+            return;
+        }
+        let audioTrack = participant.stream.getAudioTracks()[0];
         if (audioTrack) {
-            audioTrack.enabled = micOn;
+            audioTrack.enabled = !isMuted;
+
+            //update the participant isMuted flag
+            setCallParticipants(prevParticipants => {
+                return [...prevParticipants.map(p => p.id === participantId ? { ...p, isMuted: isMuted } : p)];
+            });
+
+            // webRTCService.updateTracksStatus();
+        } else {
+            console.warn("CallContext: audioTrack not found");
         }
-
-        setCallParticipants(prevParticipants => {
-            return prevParticipants.map(p => p.id === auth?.getCurrentUser()?.id ? { ...p, isMuted: !micOn } : p);
-        });
-
     };
 
-    const toggleMuteVideo = (videoOn: boolean) => {
+    const toggleMuteVideo = (participantId: string, isMuted: boolean) => {
         console.log("CallContext: toggleMuteVideo");
-        let videoTrack = localStream.getVideoTracks()[0];
-        if (videoTrack) {
-            videoTrack.enabled = videoOn;
+        let participant = callParticipants.find(p => p.id === participantId);
+        if (!participant) {
+            console.error(`participant not found ${participantId}`);
+            return;
         }
 
-        setCallParticipants(prevParticipants => {
-            return prevParticipants.map(p => p.id === auth?.getCurrentUser()?.id ? { ...p, isVideoOff: !videoOn } : p);
-        });
+        let videoTrack = participant.stream.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.enabled = !isMuted;
+
+            setCallParticipants(prevParticipants => {
+                return [...prevParticipants.map(p => p.id === participantId ? { ...p, isVideoOff: isMuted } : p)];
+            });
+
+        } else {
+            console.warn("CallContext: videoTrack not found");
+        }
     };
+
 
     const startScreenShare = async () => {
         console.log(`startScreenShare`);

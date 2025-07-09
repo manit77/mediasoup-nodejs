@@ -2,11 +2,11 @@ import * as mediasoupClient from 'mediasoup-client';
 import {
   AuthUserNewTokenMsg,
   AuthUserNewTokenResultMsg,
-  ConnectConsumerTransportMsg, ConnectProducerTransportMsg
-  , ConsumerTransportCreatedMsg, CreateConsumerTransportMsg, CreateProducerTransportMsg
-  , ErrorMsg, IMsg, OkMsg, payloadTypeServer,  ProducerTransportConnectedMsg, ProducerTransportCreatedMsg
-  , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeStreamMsg, RoomConsumeStreamResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg
-  , RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
+  ConnectConsumerTransportMsg, ConnectProducerTransportMsg,
+  ConsumerTransportCreatedMsg, CreateConsumerTransportMsg, CreateProducerTransportMsg,
+  ErrorMsg, IMsg, OkMsg, payloadTypeServer, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg,
+  RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeStreamMsg, RoomConsumeStreamResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
+  RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
   RoomProduceStreamMsg,
   RoomProduceStreamResultMsg,
 } from "@rooms/rooms-models";
@@ -580,6 +580,24 @@ export class RoomsClient {
 
   };
 
+  // updateProducerTracksStatus = async () => {
+  //   console.log(DSTR, `updateProducerTracksStatus`);
+    
+  //   let msg = new RoomProducerStreamUpdatedMsg();
+  //   msg.data.peerId = this.localPeer.peerId;
+  //   msg.data.roomId = this.localPeer.roomId;
+  //   msg.data.producers = [];
+    
+  //   for(let p of this.localPeer.producers){
+  //     msg.data.producers.push({
+  //       enabled: p.track.enabled,
+  //       kind: p.track.kind
+  //     });
+  //   }
+
+  //   this.send(msg);
+  // }
+
   roomNewToken = (expiresInMin: number = 60) => {
     console.log(DSTR, `roomNewToken`);
 
@@ -593,7 +611,8 @@ export class RoomsClient {
   };
 
   roomNew = (maxPeers: number, maxRoomDurationMinutes: number) => {
-    console.log(DSTR, `${maxPeers} ${maxRoomDurationMinutes}`)
+    console.log(DSTR, `${maxPeers} ${maxRoomDurationMinutes}`);
+
     let config = new RoomConfig();
     config.maxPeers = maxPeers;
     config.maxRoomDurationMinutes = maxRoomDurationMinutes;

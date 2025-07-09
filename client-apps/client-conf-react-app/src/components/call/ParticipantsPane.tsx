@@ -7,40 +7,98 @@ import { CallParticipant, User } from '../../types';
 
 
 interface ParticipantVideoPreviewProps {
-    participant?: CallParticipant
-    stream?: MediaStream;
-    isMuted?: boolean;
-    isVideoOff?: boolean;
-    displayName: string;
-    isLocal: boolean;
+    participant?: CallParticipant   
     onClick: () => void;
     isSelected?: boolean;
 }
 
-const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, stream, displayName, isLocal, onClick, isMuted, isVideoOff, isSelected }) => {
-    const { localStream, getLocalMedia } = useCall();
+const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected }) => {
+    const { getLocalMedia, toggleMuteAudio, toggleMuteVideo } = useCall();
     const { getCurrentUser } = useAuth();
     const videoRef = React.useRef<HTMLVideoElement>(null);
-    const [videoOff, setVideoOff] = useState(isVideoOff);
-    const [micOff, setMicOff] = useState(isMuted);
+    const [videoOff, setVideoOff] = useState(participant.isVideoOff);
+    const [micOff, setMicOff] = useState(participant.isMuted);
+    const [isLocal, setIsLocal] = useState(true);
 
     useEffect(() => {
-        setVideoOff(isVideoOff);
-        setMicOff(isMuted);
-    }, [isMuted, isVideoOff]);
+        setVideoOff(participant.isVideoOff);
+        setMicOff(participant.isMuted);
+    }, [participant]);
 
     useEffect(() => {
-        console.log("set stream");
-        if (participant.stream) {
+        console.log("set video srcObject");
+        if (participant.stream && videoRef.current) {
             videoRef.current.srcObject = participant.stream;
         }
-    }, [participant.stream]);
+
+        setIsLocal(participant.id === getCurrentUser()?.id);
+
+    }, [participant]);
+
+    // no reliable across
+    // Add mute/unmute event listeners for tracks
+    // useEffect(() => {
+    //     console.log(`bind track events`);
+    //     if (!stream || !participant){
+    //         console.log(`no stream or participant`);
+    //         return;
+    //     } 
+
+    //     const audioTrack = stream.getAudioTracks()[0];
+    //     const videoTrack = stream.getVideoTracks()[0];
+
+    //     // Handle audio track mute/unmute
+    //     const handleAudioMute = () => {
+    //         console.log(`${displayName} audio track muted`);
+    //         setMicOff(true);
+    //         participant.isMuted = true;
+    //     };
+    //     const handleAudioUnmute = () => {
+    //         console.log(`${displayName} audio track unmuted`);
+    //         setMicOff(false);
+    //         participant.isMuted = false;
+    //     };
+
+    //     // Handle video track mute/unmute
+    //     const handleVideoMute = () => {
+    //         console.log(`${displayName} video track muted`);
+    //         setVideoOff(true);
+    //         participant.isVideoOff = true;
+    //     };
+    //     const handleVideoUnmute = () => {
+    //         console.log(`${displayName} video track unmuted`);
+    //         setVideoOff(false);
+    //         participant.isVideoOff = false;
+    //     };
+
+
+    //     // Attach listeners
+    //     if (audioTrack) {
+    //         audioTrack.addEventListener('mute', handleAudioMute);
+    //         audioTrack.addEventListener('unmute', handleAudioUnmute);
+    //     }
+    //     if (videoTrack) {
+    //         videoTrack.addEventListener('mute', handleVideoMute);
+    //         videoTrack.addEventListener('unmute', handleVideoUnmute);
+    //     }
+
+    //     // Cleanup listeners
+    //     return () => {
+    //         if (audioTrack) {
+    //             audioTrack.removeEventListener('mute', handleAudioMute);
+    //             audioTrack.removeEventListener('unmute', handleAudioUnmute);
+    //         }
+    //         if (videoTrack) {
+    //             videoTrack.removeEventListener('mute', handleVideoMute);
+    //             videoTrack.removeEventListener('unmute', handleVideoUnmute);
+    //         }
+    //     };
+    // }, [stream]);
 
     const onVideoClick = async () => {
         console.log("onVideoClick ", participant);
-        const localParticipant = participant.id === getCurrentUser()?.id;
-
-        if (localParticipant) {
+     
+        if (isLocal) {
             if (participant.stream == null) {
                 console.log("participant stream is null, get user media");
                 participant.stream = await getLocalMedia();
@@ -50,48 +108,71 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
                 setVideoOff(participant.isVideoOff);
                 setMicOff(participant.isMuted);
 
-            } else {
-                //toggle
-                console.log("toggle video");
-                if (participant.stream.getVideoTracks()[0]) {
-                    participant.stream.getVideoTracks()[0].enabled = !participant.stream.getVideoTracks()[0]?.enabled;
-                    participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;
-                    setVideoOff(participant.isVideoOff);
+                if (videoRef.current) {
+                    videoRef.current.srcObject = participant.stream;
                 }
+                return;
             }
-        } else {
-            //remote user
         }
+
+        //toggle video track
+        console.log(`toggle video track`);
+
+        let track = participant.stream.getVideoTracks()[0];
+        if (!track) {
+            console.warn(`no video track found.`);
+            return;
+        }
+        console.log(`audio video enabled: ${track.enabled}`);
+
+        let isVideoOff = participant.isVideoOff;
+        console.log(`isVideoOff ${isVideoOff} change to ${!isVideoOff}`);
+        participant.isVideoOff = !isVideoOff;
+        setVideoOff(!isVideoOff);
+        toggleMuteVideo(participant.id, !isVideoOff);
+        console.log("participant.isMuted", participant.isMuted);
 
         console.log("micOff", participant.isMuted, "videoOff", participant.isVideoOff);
     }
 
     const onAudioClick = async () => {
-        console.log("onVideoClick ", participant);
-        const localParticipant = participant.id === getCurrentUser()?.id;
+        console.log("onAudioClick ", participant);
 
-        if (localParticipant) {
+        if (isLocal) {
+            console.log(`localParticipant`);
             if (participant.stream == null) {
                 //get user media
+                console.log(`getting localMedia`);
                 participant.stream = await getLocalMedia();
                 participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;
                 participant.isMuted = !participant.stream.getAudioTracks()[0]?.enabled;
                 setVideoOff(participant.isVideoOff);
                 setMicOff(participant.isMuted);
 
-            } else {
-                //toggle               
-                if (participant.stream.getAudioTracks()[0]) {
-                    participant.stream.getAudioTracks()[0].enabled = !participant.stream.getAudioTracks()[0]?.enabled;
-                    participant.isMuted = !participant.stream.getAudioTracks()[0]?.enabled;
-                    setMicOff(participant.isMuted);
+                if (videoRef.current) {
+                    videoRef.current.srcObject = participant.stream;
                 }
+
+                return;
             }
-        } else {
-            //remote user
         }
 
-        console.log("micOff", participant.isMuted, "videoOff", participant.isVideoOff);
+        //toggle audio track
+        console.log(`toggle audio track`);
+
+        let track = participant.stream.getAudioTracks()[0];
+        if (!track) {
+            console.warn(`no audio track found.`);
+            return;
+        }
+        console.log(`audio track enabled: ${track.enabled}`);
+
+        let isMuted = participant.isMuted;
+        console.log(`isMuted ${isMuted} change to ${!isMuted}`);
+        participant.isMuted = !isMuted;
+        setMicOff(!isMuted);
+        toggleMuteAudio(participant.id, !isMuted);
+        console.log("participant.isMuted", participant.isMuted);
     }
 
     return (
@@ -105,7 +186,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
                     </div>
                 ) : null}
                 <div className="position-absolute bottom-0 start-0 bg-dark bg-opacity-50 text-white px-2 py-1 w-100">
-                    <small>{displayName} {isLocal && "(You)"}</small>
+                    <small>{participant.displayName} {isLocal && "(You)"}</small>
                     <span className="ms-1" onClick={() => onAudioClick()}>
                         {micOff ? <MicMuteFill color="red" /> : <MicFill color="lightgreen" />}
                     </span>
@@ -145,11 +226,6 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, curr
                 <ParticipantVideoPreview
                     key={currentUser.id}
                     participant={localParticipant}
-                    stream={localStream} // Always use the direct localStream from useCall for the local user's preview
-                    displayName={currentUser.displayName}
-                    isLocal={true}
-                    isMuted={localParticipant.isMuted}
-                    isVideoOff={localParticipant.isVideoOff}
                     onClick={() => onSelectVideo(currentUser.id, localStream)}
                     isSelected={currentMainUserId === currentUser.id || (currentMainUserId === 'local' && currentUser.id === localParticipant.id)}
                 />
@@ -161,12 +237,7 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, curr
                 .map((participant) => (
                     <ParticipantVideoPreview
                         key={participant.id}
-                        participant={participant}
-                        stream={participant.stream}
-                        displayName={participant.displayName}
-                        isLocal={false}
-                        isMuted={participant.isMuted}
-                        isVideoOff={participant.isVideoOff}
+                        participant={participant}                       
                         onClick={() => onSelectVideo(participant.id, participant.stream)}
                         isSelected={currentMainUserId === participant.id}
                     />

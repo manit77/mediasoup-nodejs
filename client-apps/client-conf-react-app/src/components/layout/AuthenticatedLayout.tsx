@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import TopMenu from './TopMenu';
 import ContactsPane from './ParticipantsOnlinePane';
 import SettingsPopup from '../popups/SettingsPopup';
@@ -7,8 +7,10 @@ import { useCall } from '../../hooks/useCall';
 import { Button } from 'react-bootstrap';
 import PopupMessage from '../popups/PopupMessage';
 import RoomsPane from './RoomsPane';
+import { AuthContext } from './../../contexts/AuthContext';
 
 const AuthenticatedLayout: React.FC = () => {
+    const auth = useContext(AuthContext);
     const [showSettings, setShowSettings] = useState(false);
     const { localStream, isLocalStreamUpdated, getLocalMedia, popUpMessage, hidePopUp } = useCall();
     const [showPreview, setShowPreview] = useState(false);
@@ -43,7 +45,9 @@ const AuthenticatedLayout: React.FC = () => {
             <TopMenu onShowSettings={() => setShowSettings(true)} />
             <div className="d-flex flex-grow-1" style={{ overflow: 'hidden' }}>
                 <div className="col-3 border-end p-3" style={{ overflowY: 'auto' }}>
-                    <ContactsPane />
+                    {
+                        auth.getCurrentUser().role === "admin" && <ContactsPane />
+                    }
                     <RoomsPane />
                 </div>
                 <div className="col-9 p-3" style={{ overflowY: 'auto' }}>

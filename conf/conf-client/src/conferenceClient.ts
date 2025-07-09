@@ -126,6 +126,12 @@ export class ConferenceClient {
         return [];
     }
 
+    // updateTracksStatus() {
+    //     if(this.roomsClient) {
+    //         this.roomsClient.updateProducerTracksStatus()
+    //     }       
+    // }
+
     async startScreenShare() {
         console.log(`startScreenShare`);
 

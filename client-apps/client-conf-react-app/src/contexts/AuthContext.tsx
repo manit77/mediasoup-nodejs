@@ -6,6 +6,7 @@ import { ApiService } from '../services/ApiService';
 interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
+    loginGuest: (displayName: string) => Promise<void>;
     login: (displayName: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
     getConferencesScheduled: () => Promise<Conference[]>;
@@ -21,7 +22,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
 
         console.log("AuthProvider triggered.");
-        let currentUser = getCurrentUser();
+        let currentUser = getCurrentUser();        
         if (currentUser) {
             console.log("user found.");
             setIsAuthenticated(true);
@@ -33,6 +34,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsAuthenticated(false);
 
     }, []);
+    
+    const loginGuest = async (displayName: string) => {
+        try {
+            setIsLoading(true);
+            const { user } = await ApiService.loginGuest(displayName);
+            setIsAuthenticated(true);
+            webRTCService.connectSignaling(user);
+            setIsLoading(false);
+        } catch (error) {
+            setIsLoading(false);
+            console.error('Login failed:', error);
+            throw error;
+        }
+    };
 
     const login = async (displayName: string, password: string) => {
         try {
@@ -89,7 +104,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     return (
-        <AuthContext.Provider value={{ getCurrentUser, isAuthenticated, isLoading, login, logout, getConferencesScheduled }}>
+        <AuthContext.Provider value={{ getCurrentUser, isAuthenticated, isLoading, loginGuest, login, logout, getConferencesScheduled }}>
             {children}
         </AuthContext.Provider>
     );

@@ -189,6 +189,16 @@ class WebRTCService {
         this.confClient.publishTracks(tracks);
     }
 
+    public toggleTrack(enabled: boolean, track: MediaStreamTrack) {
+        track.enabled = enabled;
+    }
+
+    // public updateTracksStatus() {
+    //     if(this.confClient) {
+    //         this.confClient.updateTracksStatus()
+    //     }
+    // }
+
     public isOnCall() {
         return this.confClient && this.confClient.isInConference();
     }

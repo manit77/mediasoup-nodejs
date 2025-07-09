@@ -28,6 +28,7 @@ defaultPeerSocketServerSecurityMap[payloadTypeClient.roomConsumeStream] = [AuthU
 defaultPeerSocketServerSecurityMap[payloadTypeClient.createConsumerTransport] = [AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.createProducerTransport] = [AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomProduceStream] = [AuthUserRoles.user];
+//defaultPeerSocketServerSecurityMap[payloadTypeClient.roomProducerStreamUpdated] = [AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomJoin] = [AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomLeave] = [AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomNew] = [AuthUserRoles.user];
