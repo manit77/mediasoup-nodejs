@@ -624,6 +624,8 @@ export class ConferenceServer {
         }
 
         if (!conference) {
+            console.error(`conference room not found ${conference.id}`);
+
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "conference room not found.";
             this.send(ws, errorMsg);
@@ -631,6 +633,8 @@ export class ConferenceServer {
         }
 
         if (conference.status !== "ready") {
+            console.error(`conference room not ready ${conference.id}`);
+
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "conference room not ready.";
             this.send(ws, errorMsg);
@@ -684,6 +688,13 @@ export class ConferenceServer {
             return true;
         }
 
+        //we have 5 seconds to init a room
+        let initTimerId = setTimeout(() => {
+            console.error("new room timeout, closing room");
+            conference.close();
+        }, 5000);
+
+
         conference.updateStatus("initializing");
         //caller sent an invite
         //receiver accepted the invite
@@ -694,10 +705,12 @@ export class ConferenceServer {
         let roomTokenResult = await roomsAPI.newRoomToken();
         if (!roomTokenResult || roomTokenResult?.data?.error) {
             console.error("failed to create new room token");
+            clearTimeout(initTimerId);
+            conference.close();
 
-            let errorMsg = new InviteResultMsg();
-            errorMsg.data.error = "error creating conference for room.";
-            conference.participants.forEach(p => this.send(p.socket, errorMsg));
+            // let errorMsg = new InviteResultMsg();
+            // errorMsg.data.error = "error creating conference for room.";
+            // conference.participants.forEach(p => this.send(p.socket, errorMsg));
 
             return false;
         }
@@ -712,9 +725,12 @@ export class ConferenceServer {
         if (!roomNewResult || roomNewResult?.data?.error) {
             console.error("failed to create new room");
 
-            let errorMsg = new InviteResultMsg();
-            errorMsg.data.error = "error creating room.";
-            conference.participants.forEach(p => this.send(p.socket, errorMsg));
+            clearTimeout(initTimerId);
+            conference.close();
+
+            // let errorMsg = new InviteResultMsg();
+            // errorMsg.data.error = "error creating room.";
+            // conference.participants.forEach(p => this.send(p.socket, errorMsg));
 
             return false;
         }
@@ -726,6 +742,7 @@ export class ConferenceServer {
         conference.startTimer(); //start timeout timer
 
         conference.updateStatus("ready");
+        clearTimeout(initTimerId);
 
         await this.broadCastConferenceRooms();
         return true;
