@@ -402,6 +402,12 @@ export class ConferenceClient {
     leave() {
         console.log(this.DSTR, "leave()");
 
+        if (this.roomsClient) {
+            this.roomsClient.roomLeave();
+        }
+
+        this.disconnectRoomsClient();
+
         if (!this.isInConference()) {
             console.log(this.DSTR, "leave() - failed, not in conference");
             return;
@@ -413,8 +419,6 @@ export class ConferenceClient {
 
         this.conferenceRoom.conferenceRoomId = "";
         this.inviteMsg = null;
-
-        this.disconnectRoomsClient();
     }
 
     getParticipant(participantId: string): Participant {
@@ -704,6 +708,7 @@ export class ConferenceClient {
             console.log(this.DSTR, "disconnectRoomsClient");
             if (this.roomsClient) {
                 this.roomsClientDisconnectTimerId = null;
+                this.roomsClient.roomLeave();
                 this.roomsClient.disconnect();
                 this.roomsClient.dispose();
                 this.roomsClient = null;

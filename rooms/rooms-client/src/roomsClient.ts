@@ -32,16 +32,9 @@ export class LocalPeer {
   transportSend: mediasoupClient.types.Transport;
   transportReceive: mediasoupClient.types.Transport;
   consumers: mediasoupClient.types.Consumer[] = [];
-  private producers: mediasoupClient.types.Producer[] = [];
+  producers: mediasoupClient.types.Producer[] = [];
 
   tracks: MediaStream = new MediaStream();
-
-  getProducers() {
-    return this.producers;
-  }
-  getConsumers() {
-    return this.consumers;
-  }
 
   removeConsumer(consumer: Consumer) {
     this.consumers = this.consumers.filter(c => c != consumer);
@@ -114,7 +107,7 @@ export class RoomsClient {
   }
 
   private onTransportsReadyEvent: (transport: mediasoupClient.types.Transport) => void;
-
+  eventOnRoomJoinFailed: (roomId: string) => Promise<void> = async () => { };
   eventOnRoomJoined: (roomId: string) => Promise<void> = async () => { };
   eventOnRoomPeerJoined: (roomId: string, peer: Peer) => Promise<void> = async () => { };
   eventOnPeerNewTrack: (peer: Peer, track: MediaStreamTrack) => Promise<void> = async () => { };
@@ -139,8 +132,8 @@ export class RoomsClient {
       track.stop();
     });
 
-    this.localPeer.getConsumers().forEach(c => c.close());
-    this.localPeer.getProducers().forEach(c => c.close());
+    this.localPeer.consumers.forEach(c => c.close());
+    this.localPeer.producers.forEach(c => c.close());
     this.localPeer.transportReceive?.close();
     this.localPeer.transportSend?.close();
 
@@ -467,8 +460,8 @@ export class RoomsClient {
   disconnect = () => {
     console.log(DSTR, "disconnect");
 
-    this.localPeer.getConsumers().forEach(c => c.close());
-    this.localPeer.getProducers().forEach(c => c.close());
+    this.localPeer.consumers.forEach(c => c.close());
+    this.localPeer.producers.forEach(c => c.close());
 
     this.localPeer.transportReceive?.close();
     this.localPeer.transportSend?.close();
@@ -513,7 +506,7 @@ export class RoomsClient {
       for (let track of tracks.getTracks()) {
         try {
           console.log(DSTR, `produce track ${track.kind}`);
-          let producer = this.localPeer.getProducers().find(p => p.track.id == track.id);
+          let producer = this.localPeer.producers.find(p => p.track.id == track.id);
           if (producer) {
             console.error(DSTR, "producer found with existing track.");
             return;
@@ -547,7 +540,7 @@ export class RoomsClient {
     });
 
     for (let track of tracks.getTracks()) {
-      let producer = this.localPeer.getProducers().find(p => p.track.id === track.id);
+      let producer = this.localPeer.producers.find(p => p.track.id === track.id);
       if (producer) {
         producer.close();
         this.localPeer.removeProducer(producer);
@@ -574,7 +567,7 @@ export class RoomsClient {
       return;
     }
 
-    let producer = this.localPeer.getProducers().find(p => p.track.id === existingTrack.id);
+    let producer = this.localPeer.producers.find(p => p.track.id === existingTrack.id);
     if (producer) {
       producer.replaceTrack({ track: newTrack })
       this.localPeer.tracks.removeTrack(existingTrack);
@@ -628,7 +621,7 @@ export class RoomsClient {
     this.send(msg);
   };
 
-  roomLeave = async () => {
+  roomLeave = () => {
     console.log(DSTR, "roomLeave");
     if (!this.localPeer.roomId) {
       console.error(DSTR, "not in room");
@@ -903,6 +896,7 @@ export class RoomsClient {
     console.log(DSTR, "-- onRoomJoinResult()");
     if (msgIn.data.error) {
       console.error(DSTR, msgIn.data.error);
+      await this.eventOnRoomJoinFailed(this.localPeer.roomId);
       return;
     }
 
@@ -1002,17 +996,21 @@ export class RoomsClient {
       return;
     }
 
-    this.localPeer.getProducers().forEach(p => {
+    this.localPeer.producers.forEach(p => {
       p.close();
     });
 
-    this.localPeer.consumers.forEach(p => {
-      p.close();
+    this.localPeer.consumers.forEach(c => {
+      c.close();
     });
+
+    this.localPeer.consumers = [];
+    this.localPeer.producers = [];
 
     this.localPeer.transportSend?.close();
     this.localPeer.transportReceive?.close();
-
+    this.localPeer.transportSend = null;
+    this.localPeer.transportReceive = null;
 
     for (let t of this.localPeer.tracks.getTracks()) {
       t.stop();

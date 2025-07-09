@@ -532,8 +532,6 @@ export class RoomServer {
         console.log("producerTransport connected.");
 
         let resultMsg = new ProducerTransportConnectedMsg();
-        this.send(peer.id, resultMsg);
-
         return resultMsg;
     }
 
@@ -560,10 +558,7 @@ export class RoomServer {
         await peer.consumerTransport!.connect({ dtlsParameters: msgIn.data.dtlsParameters });
 
         let resultMsg = new ConsumerTransportConnectedMsg();
-        this.send(peer.id, resultMsg);
-
         return resultMsg;
-
     }
 
     /***
@@ -733,41 +728,41 @@ export class RoomServer {
      * @returns 
      */
     async onRoomJoin(peerId: string, msgIn: RoomJoinMsg) {
-
         console.log("onRoomJoin()");
 
         let peer: Peer;
-
         if (peerId) {
             peer = this.peers.get(peerId);
         }
 
         if (!peer) {
+            console.error(`invalid peerid ${peerId}`);
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "invalid peerid";
             return msgError;
         }
 
         if (!msgIn.data.roomToken) {
+            console.error(`roomToken required.`);
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "token required";
             return msgError;
         }
 
-
         if (!peer) {
+            console.error(`peer not created.`);
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "peer not created";
             return msgError;
         }
 
         let room: Room = this.rooms.get(msgIn.data.roomId);
-
         if (room) {
             if (room.addPeer(peer, msgIn.data.roomToken)) {
                 console.log(`peer ${peer.id} added to room`);
             } else {
-                console.log(`error: could not add peer ${peer.id} room: ${room.id}`);
+                console.error(`error: could not add peer ${peer.id} room: ${room.id}`);
+
             }
         } else {
             let msgError = new RoomJoinResultMsg();
@@ -802,16 +797,13 @@ export class RoomServer {
             msg.data.peerId = peer.id;
             msg.data.peerTrackingId = peer.trackingId;
             msg.data.displayName = peer.displayName;
-            msg.data.producers = [...peer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }))
-
-
+            msg.data.producers = [...peer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }));
             this.send(otherPeer.id, msg);
         }
 
         this.printStats();
 
         return joinRoomResult;
-
     }
 
     async onRoomLeave(peerId: string, msgIn: RoomLeaveMsg): Promise<IMsg> {
@@ -829,8 +821,7 @@ export class RoomServer {
         }
 
         let room = peer.room;
-
-        this.closePeer(peer);
+        peer.close();
 
         //broadcast to all peers that the peer has left the room
         let msg = new RoomPeerLeftMsg();
@@ -903,7 +894,6 @@ export class RoomServer {
             roomId: room.id,
             kind: msgIn.data.kind
         };
-        this.send(peer.id, producedMsg);
         return producedMsg;
     }
 
