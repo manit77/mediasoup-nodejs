@@ -333,6 +333,8 @@ export class ConferenceClient {
         msg.data.conferenceRoomId = conferenceRoomId;
         this.conferenceRoom.conferenceRoomId = conferenceRoomId;
         this.sendToServer(msg);
+
+        this.startCallConnectTimer();
     }
 
     /*
@@ -398,6 +400,7 @@ export class ConferenceClient {
 
         this.conferenceRoom.conferenceRoomId = "";
         this.inviteMsg = null;
+        this.clearCallConnectTimer();
     }
 
     acceptInvite(message: InviteMsg) {
@@ -413,16 +416,24 @@ export class ConferenceClient {
             return false;
         }
 
-        const joinMsg = new AcceptMsg();
-        joinMsg.data.conferenceRoomId = message.data.conferenceRoomId;
-        this.sendToServer(joinMsg);
+        const acceptMsg = new AcceptMsg();
+        acceptMsg.data.conferenceRoomId = message.data.conferenceRoomId;
+        this.sendToServer(acceptMsg);
+
         this.inviteMsg = null;
+        this.startCallConnectTimer();
     }
 
     async onAcceptResult(message: AcceptResultMsg) {
         console.log(this.DSTR, "onAcceptResult()");
         await this.onEvent(EventTypes.acceptResult, message);
-        this.conferenceRoom.conferenceRoomId = "";
+
+        if (message.data.error) {
+            console.error(`accept results received with error`);
+            console.error(message.data.error);
+            this.conferenceRoom.conferenceRoomId = "";
+            this.clearCallConnectTimer();
+        }
     }
 
     rejectInvite(message: InviteMsg) {
@@ -446,6 +457,7 @@ export class ConferenceClient {
 
         this.inviteMsg = null;
         this.conferenceRoom.conferenceRoomId = "";
+        this.clearCallConnectTimer();
     }
 
     leave() {
@@ -468,6 +480,7 @@ export class ConferenceClient {
 
         this.conferenceRoom.conferenceRoomId = "";
         this.inviteMsg = null;
+        this.clearCallConnectTimer();
     }
 
     getParticipant(participantId: string): Participant {
@@ -518,6 +531,7 @@ export class ConferenceClient {
 
         this.conferenceRoom.conferenceRoomId = "";
         this.inviteMsg = null;
+        this.clearCallConnectTimer();
 
         this.disconnectRoomsClient("onRejectReceived");
     }
@@ -537,6 +551,7 @@ export class ConferenceClient {
         console.log(this.DSTR, "onJoinConfResult");
         if (message.data.error) {
             this.conferenceRoom.conferenceRoomId = "";
+            this.clearCallConnectTimer();
             console.error(this.DSTR, message.data.error);
             await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: "failed to join conference." } });
             this.disconnectRoomsClient("onJoinConfResult");
@@ -620,9 +635,11 @@ export class ConferenceClient {
                     }
                 };
 
+                this.clearCallConnectTimer();
                 this.conferenceRoom = new Conference();
                 this.disconnectRoomsClient("join conference failed.");
                 await this.onEvent(EventTypes.conferenceFailed, msg);
+
             }
         } catch (err) {
             console.error(this.DSTR, err);
@@ -660,6 +677,7 @@ export class ConferenceClient {
         this.roomsClient.eventOnRoomJoined = async (roomId: string) => {
             //confirmation for local user has joined a room
             console.log(this.DSTR, "onRoomJoinedEvent roomId:", roomId);
+            this.clearCallConnectTimer();
             let msg = {
                 type: EventTypes.conferenceJoined,
                 data: {
@@ -667,10 +685,13 @@ export class ConferenceClient {
                 }
             }
             await this.onEvent(EventTypes.conferenceJoined, msg);
+
         };
 
         this.roomsClient.eventOnRoomClosed = async (roomId: string, peers: Peer[]) => {
             console.log(this.DSTR, "onRoomClosedEvent roomId:", roomId);
+
+            this.clearCallConnectTimer();
             this.disconnectRoomsClient("onRoomClosedEvent");
 
             let msg = {
