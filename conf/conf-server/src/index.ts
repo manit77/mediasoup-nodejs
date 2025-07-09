@@ -4,8 +4,10 @@ import fs from 'fs';
 import cors from 'cors';
 import { ConferenceServer, ConferenceServerConfig } from './confServer/conferenceServer.js';
 import { getENV } from './utils/env.js';
+import { ConferenceAPI } from './confServer/conferenceAPI.js';
+import { AuthUtils } from './confServer/authUtils.js';
 
-let config: ConferenceServerConfig = await getENV() as any;
+const config: ConferenceServerConfig = await getENV() as any;
 
 const app = express();
 app.use(cors());
@@ -16,6 +18,16 @@ const certInfo = {
 };
 
 const server = https.createServer(certInfo, app);
-// app.use(express.static('client-webrtc'));
-let conferenceServer = new ConferenceServer(config, app, server);
-conferenceServer.start();
+
+server.listen(config.conf_server_port, async () => {
+  console.log(`Server running at https://0.0.0.0:${config.conf_server_port}`);
+
+  let conferenceServer = new ConferenceServer(config, app, server);
+  conferenceServer.start();
+
+  let apiServer = new ConferenceAPI(app, config, conferenceServer);
+  apiServer.start();
+
+});
+
+

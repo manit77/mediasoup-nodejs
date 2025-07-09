@@ -37,6 +37,10 @@ export enum payloadTypeServer {
     consumerTransportCreated = "consumerTransportCreated",
     producerTransportConnected = "producerTransportConnected",
     consumerTransportConnected = "consumerTransportConnected",
+    createProducerTransportResult = "createProducerTransportResult",
+    createConsumerTransportResult = "createConsumerTransportResult",
+    connectProducerTransportResult = "connectProducerTransportResult",
+    connectConsumerTransportResult = "connectConsumerTransportResult",
 
     produced = "produced",
     consumed = "consumed",
@@ -69,7 +73,8 @@ export class ErrorMsg implements IMsg {
         error: ""
     }
 
-    constructor(error: string) {
+    constructor(msgType: any, error: string) {
+        this.type = msgType;
         this.data.error = error;
     }
 }
@@ -80,7 +85,8 @@ export class OkMsg implements IMsg {
         payload: ""
     }
 
-    constructor(payload: any) {
+    constructor(msgType: any, payload: any) {
+        this.type = msgType;
         this.data.payload = payload;
     }
 }

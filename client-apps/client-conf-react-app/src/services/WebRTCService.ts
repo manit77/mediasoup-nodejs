@@ -1,6 +1,6 @@
 import { ConferenceClient, EventTypes } from '@conf/conf-client';
 import { User } from '../types';
-import { ConferenceRoomInfo, CreateConfResultMsg, InviteMsg, InviteResultMsg, ParticipantInfo } from '@conf/conf-models';
+import { AcceptResultMsg, ConferenceClosedMsg, ConferenceRoomInfo, CreateConfResultMsg, InviteMsg, InviteResultMsg, JoinConfResultMsg, ParticipantInfo } from '@conf/conf-models';
 import { getUserMedia } from '@rooms/webrtc-client';
 
 const confServerURI = 'https://localhost:3100'; // conference
@@ -25,7 +25,7 @@ class WebRTCService {
     public onInviteReceived: (participantId: string, displayName: string) => Promise<void> = async () => { };
 
     //public onConferenceCreated: (conferenceId: string, trackingId: string) => void = () => { };
-    public onConferenceJoined: () => Promise<void> = async () => { };
+    public onConferenceJoined: (conferenceId: string) => Promise<void> = async () => { };
     public onConferenceEnded: (conferenceId: string, reason: string) => Promise<void> = async () => { };
 
     public onParticipantTrack: (participantId: string, track: MediaStreamTrack) => Promise<void> = async () => { };
@@ -99,6 +99,10 @@ class WebRTCService {
                 }
                 case EventTypes.inviteCancelled: {
                     await this.eventInviteCancelled(payload);
+                    break;
+                }
+                case EventTypes.acceptResult: {
+                    await this.eventAcceptResult(payload);
                     break;
                 }
                 case EventTypes.conferenceCreatedResult: {
@@ -308,6 +312,16 @@ class WebRTCService {
         this.inviteMsg = null;
     }
 
+    private async eventAcceptResult(msg: AcceptResultMsg) {
+        console.log("eventAcceptResult", msg);
+        if (msg.data.error) {
+            console.error(msg.data.error);
+            await this.onConferenceEnded(msg.data.conferenceRoomId, "accept failed.");
+        } else {
+            await this.onConferenceJoined(msg.data.conferenceRoomId);
+        }
+    }
+
     private async eventRejectReceived(msg: any) {
         console.log("eventRejectReceived", msg);
         await this.onConferenceEnded(msg.data.conferenceRoomId, "call rejected");
@@ -325,13 +339,13 @@ class WebRTCService {
         this.joinConferenceRoom(msg.data.conferenceRoomId);
     }
 
-    private async eventConferenceJoined(msg: any) {
+    private async eventConferenceJoined(msg: JoinConfResultMsg) {
         console.log("eventConferenceJoined", msg);
         if (this.localStream) {
             this.confClient.publishTracks(this.localStream);
         }
         this.inviteMsg = null;
-        await this.onConferenceJoined();
+        await this.onConferenceJoined(msg.data.conferenceRoomId);
     }
 
     private async eventConferenceFailed(msg: any) {
@@ -340,9 +354,9 @@ class WebRTCService {
         this.inviteMsg = null;
     }
 
-    private async eventConferenceClosed(msg: any) {
+    private async eventConferenceClosed(msg: ConferenceClosedMsg) {
         console.log("eventConferenceClosed", msg);
-        await this.onConferenceEnded(msg.data.conferenceRoomId, "call ended.");
+        await this.onConferenceEnded(msg.data.conferenceRoomId, msg.data.reason ?? "call ended.");
         this.inviteMsg = null;
     }
 

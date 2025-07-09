@@ -24,7 +24,7 @@ export class ConferenceRoom {
     id: string;
     trackingId: string;
     timeoutId: any;
-    timeoutSecs: number;
+    timeoutSecs: number = 0;
     roomName: string;
     roomURI: string;
     roomId: string;
@@ -34,8 +34,11 @@ export class ConferenceRoom {
     status: conferenceStatus = "none";
     config = new ConferenceRoomConfig();
 
+    minParticipants = 0;
+    minParticipantsTimerId: any;
+
     onReadyListeners: (() => void)[] = [];
-    onClose: (conf: ConferenceRoom) => void;
+    onClose: (conf: ConferenceRoom, participants: Participant[]) => void;
 
     addOnReadyListener(cb: () => void) {
         if (this.status == "ready") {
@@ -50,6 +53,8 @@ export class ConferenceRoom {
     }
 
     updateStatus(status: conferenceStatus) {
+        console.log(`updateStatus ${status}`);
+
         this.status = status;
 
         if (status == "ready") {
@@ -61,6 +66,8 @@ export class ConferenceRoom {
     }
 
     removeParticipant(id: string) {
+        console.log("removeParticipant");
+
         let part = this.participants.get(id);
         if (part) {
             part.conferenceRoom = null;
@@ -73,17 +80,27 @@ export class ConferenceRoom {
     }
 
     addParticipant(part: Participant) {
+        console.log(`addParticipant. ${part.participantId} ${part.displayName}`);
+
         if (this.participants.has(part.participantId)) {
+            console.error("participant already exists");
             return;
         }
 
         this.participants.set(part.participantId, part);
         part.conferenceRoom = this;
 
+        if (this.minParticipants >= this.participants.size) {
+            if (this.minParticipantsTimerId) {
+                clearTimeout(this.minParticipantsTimerId);
+            }
+        }
     }
 
     close() {
         console.log(`conference close. ${this.id}`);
+
+        let existingParticipants = [...this.participants.values()];
 
         for (let part of this.participants.values()) {
             part.conferenceRoom = null;
@@ -93,10 +110,33 @@ export class ConferenceRoom {
         this.onReadyListeners = [];
         if (this.timeoutId) {
             clearTimeout(this.timeoutId);
+            this.timeoutId = null;
+        }
+
+        if (this.minParticipantsTimerId) {
+            clearTimeout(this.minParticipantsTimerId);
+            this.minParticipantsTimerId = null;
         }
 
         if (this.onClose) {
-            this.onClose(this);
+            this.onClose(this, existingParticipants);
+        }
+    }
+
+    startTimer() {
+        if (this.timeoutSecs > 0) {
+            this.timeoutId = setTimeout(() => { this.close(); }, this.timeoutSecs * 1000);
+        }
+    }
+
+    startTimerMinParticipants(timeoutSeconds: number) {
+        console.log("startTimerMinParticipants");
+        if (this.minParticipants > 0) {
+            console.log(`startTimerMinParticipants started ${this.minParticipants}`);
+            this.minParticipantsTimerId = setTimeout(() => {
+                console.log("TimerMinParticipants executed.");
+                this.close();
+            }, timeoutSeconds * 1000);
         }
     }
 

@@ -16,8 +16,10 @@ export enum CallMessageType {
 
     reject = "reject", //the receiver rejects
     accept = "accept", //participant requests to join the conference room
+    acceptResult = "acceptResult",
     leave = "leave", //participant signals to leave the room
     conferenceReady = "conferenceReady",
+    conferenceClosed = "conferenceClosed",
 
     getParticipants = "getParticipants",
     getParticipantsResult = "getParticipantsResult",
@@ -194,7 +196,7 @@ export class AcceptMsg {
 }
 
 export class AcceptResultMsg {
-    type = CallMessageType.accept;
+    type = CallMessageType.acceptResult;
     data: {
         conferenceRoomId?: string,
         error?: string
@@ -219,6 +221,14 @@ export class ConferenceReadyMsg {
         roomToken: "",
         roomURI: "",
         roomRtpCapabilities: undefined,
+    }
+}
+
+export class ConferenceClosedMsg {
+    type = CallMessageType.conferenceClosed;
+    data = {
+        conferenceRoomId: "",
+        reason: ""
     }
 }
 

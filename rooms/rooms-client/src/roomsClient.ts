@@ -198,7 +198,7 @@ export class RoomsClient {
 
         if (this.ws && ["connecting", "connected"].includes(this.ws.state)) {
           console.log(DSTR, "socket already created. current state: " + this.ws.state);
-          resolve(new OkMsg("already connecting"));
+          resolve(new OkMsg(payloadTypeServer.ok, "already connecting"));
           return;
         }
 
@@ -207,13 +207,13 @@ export class RoomsClient {
 
         const onOpen = async () => {
           console.log(DSTR, "websocket onOpen " + this.config.wsURI);
-          resolve(new OkMsg("socket opened."));
+          resolve(new OkMsg(payloadTypeServer.ok, "socket opened."));
           clearTimeout(timerid);
         };
 
         const onClose = async () => {
           console.log(DSTR, "websocket onClose");
-          resolve(new ErrorMsg("closed"));
+          resolve(new ErrorMsg(payloadTypeServer.error, "closed"));
         };
 
         this.ws.addEventHandler("onopen", onOpen);
@@ -248,14 +248,14 @@ export class RoomsClient {
               clearTimeout(timerid);
               this.ws.removeEventHandler("onmessage", onmessage);
               if (msgIn.data.authToken) {
-                resolve(new OkMsg("token received"));
+                resolve(new OkMsg(payloadTypeServer.ok, "token received"));
                 return;
               }
-              resolve(new ErrorMsg("failed to get token"));
+              resolve(new ErrorMsg(payloadTypeServer.ok, "failed to get token"));
             }
           } catch (err) {
             console.error(err);
-            resolve(new ErrorMsg("error getting token"));
+            resolve(new ErrorMsg(payloadTypeServer.ok, "error getting token"));
           }
 
         };
@@ -308,7 +308,7 @@ export class RoomsClient {
 
         let registerSent = this.register(this.localPeer.authToken, trackingId, displayName);
         if (registerSent) {
-          resolve(new OkMsg("register sent."));
+          resolve(new OkMsg(payloadTypeServer.ok, "register sent."));
         } else {
           reject("register failed to send.");
         }
@@ -1029,7 +1029,7 @@ export class RoomsClient {
 
     if (!this.localPeer.roomId) {
       console.error(DSTR, "room is required for creating transports");
-      return new ErrorMsg("cannot create transports before joining a room.");
+      return new ErrorMsg(payloadTypeServer.error, "cannot create transports before joining a room.");
     }
 
     let waitFunc = () => {
@@ -1039,7 +1039,7 @@ export class RoomsClient {
 
           let timerid = setTimeout(() => {
             console.error(DSTR, "transport timed out.");
-            resolve(new ErrorMsg("transport timeout"));
+            resolve(new ErrorMsg(payloadTypeServer.error, "transport timeout"));
           }, 5000);
 
           this.onTransportsReadyEvent = (transport: Transport) => {
@@ -1051,7 +1051,7 @@ export class RoomsClient {
               }
               if (transTrack.recv && transTrack.send) {
                 clearTimeout(timerid);
-                resolve(new OkMsg("transportCreated"));
+                resolve(new OkMsg(payloadTypeServer.ok, "transportCreated"));
               }
             } catch (err) {
               console.log(err);
@@ -1079,24 +1079,24 @@ export class RoomsClient {
 
       let timeoutId = setTimeout(() => {
         console.log("waitForTransportConnected timeout " + transport.direction);
-        resolve(new ErrorMsg("tranport timed out"));
+        resolve(new ErrorMsg(payloadTypeServer.error, "tranport timed out"));
       }, 5000);
 
       try {
         if (transport.connectionState === 'connected') {
           clearTimeout(timeoutId);
-          resolve(new OkMsg("connected"));
+          resolve(new OkMsg(payloadTypeServer.ok, "connected"));
           return;
         }
         const onStateChange = (state: string) => {
           console.log(DSTR, "connectionstatechange transport: " + state);
           if (state === 'connected') {
             clearTimeout(timeoutId);
-            resolve(new OkMsg("connected"));
+            resolve(new OkMsg(payloadTypeServer.ok, "connected"));
             transport.off('connectionstatechange', onStateChange);
           } else if (state === 'failed' || state === 'closed') {
             clearTimeout(timeoutId);
-            resolve(new ErrorMsg("failed to connect"));
+            resolve(new ErrorMsg(payloadTypeServer.error, "failed to connect"));
             transport.off('connectionstatechange', onStateChange);
           }
         };
