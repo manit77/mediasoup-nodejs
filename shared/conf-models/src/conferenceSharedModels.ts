@@ -234,5 +234,6 @@ export class ConferenceRoomInfo {
     roomTrackingId: string = "";
     roomName: string = "";
     roomStatus: string = "";
+    participantCount = 0;
 }
 

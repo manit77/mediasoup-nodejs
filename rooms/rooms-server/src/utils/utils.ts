@@ -1,6 +1,23 @@
 import dgram from 'dgram';
 import * as fsync from 'fs';
 import fs from 'fs/promises';
+import chalk from 'chalk';
+
+export function consoleError(...args: any) {
+  console.error(chalk.red('[ERROR]', ...args));
+}
+
+export function consoleWarn(...args: any) {
+  console.warn(chalk.yellow('[WARN]', ...args));
+}
+
+export function consoleInfo(...args: any) {
+  console.warn(chalk.green(...args));
+}
+
+export function consoleLog(...args: any) {
+  console.log(...args);
+}
 
 export function getFreeUDPPort(): Promise<number> {
   return new Promise((resolve, reject) => {

@@ -309,15 +309,16 @@ export class ConferenceServer {
     }
 
     async broadCastConferenceRooms() {
-
         console.log("broadCastConferenceRooms");
+
         //broadcast to all participants of contacts
         let msg = new GetConferencesResultMsg();
         msg.data = [...this.conferences.values()].map(c => ({
             conferenceRoomId: c.id,
             roomName: c.roomName,
             roomStatus: c.status,
-            roomTrackingId: c.trackingId
+            roomTrackingId: c.trackingId,
+            participantCount: c.participants.size
         }) as ConferenceRoomInfo);
 
         for (let [socket, p] of this.participants.entries()) {
@@ -325,11 +326,9 @@ export class ConferenceServer {
             this.send(socket, msg);
             //}
         }
-
     }
 
     async onGetParticipants(ws: WebSocket, msgIn?: any) {
-
         console.log("onGetParticipants");
 
         let partcipant = this.getParticipantByWS(ws);
@@ -442,7 +441,6 @@ export class ConferenceServer {
         msg.data.conferenceRoomConfig = conference.config;
 
         this.send(receiver.socket, msg);
-
     }
 
     async onInviteCancelled(ws: WebSocket, msgIn: InviteCancelledMsg) {
@@ -504,8 +502,8 @@ export class ConferenceServer {
     }
 
     async onAccept(ws: WebSocket, msgIn: AcceptMsg) {
-
         console.log("onAccept()");
+
         let conference = this.conferences.get(msgIn.data.conferenceRoomId);
 
         if (!conference) {
@@ -643,7 +641,6 @@ export class ConferenceServer {
 
         conference.addParticipant(partcipant);
         this.sendConferenceReady(conference, partcipant);
-
     }
 
     async sendConferenceReady(conference: ConferenceRoom, participant: Participant) {
@@ -682,7 +679,6 @@ export class ConferenceServer {
      * @returns 
      */
     async startConference(conference: ConferenceRoom) {
-
         console.log("startConference");
 
         if (conference.status != "none") {
@@ -731,6 +727,7 @@ export class ConferenceServer {
     }
 
     async onLeave(ws: WebSocket, msgIn: LeaveMsg) {
+        console.log("onLeave");
         let conf = this.conferences.get(msgIn.data.conferenceRoomId);
 
         if (!conf) {
@@ -765,7 +762,7 @@ export class ConferenceServer {
     async getConferences(): Promise<ConferenceRoomInfo[]> {
         return [...this.conferences.values()]
             .map(c => {
-                return { conferenceRoomId: c.id, roomName: c.roomName, roomStatus: c.status, roomTrackingId: c.trackingId };
+                return { conferenceRoomId: c.id, roomName: c.roomName, roomStatus: c.status, roomTrackingId: c.trackingId, participantCount: c.participants.size };
             });
     }
 
