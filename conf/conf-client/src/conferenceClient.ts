@@ -62,11 +62,11 @@ export class ConferenceClient {
     public conferences: ConferenceRoomInfo[] = [];
     private roomsClient: RoomsClient;
     private roomsClientDisconnectTimerId: any;
+
     isConnected = false;
 
     inviteMsg: InviteMsg; //you can only send one invite at a time
 
-    CallConnectTimeoutTimerId: any;
     CallConnectTimeoutSeconds = 5;
 
     config = {
@@ -78,30 +78,35 @@ export class ConferenceClient {
     constructor() {
     }
 
+    CallConnectTimeoutTimerIds = new Set<any>();
+
     startCallConnectTimer() {
         console.warn("startCallConnectTimer");
         this.clearCallConnectTimer();
 
-        this.CallConnectTimeoutTimerId = setTimeout(async () => {
+        const timerId = setTimeout(async () => {
             console.error(`CallConnectTimer executed conferenceRoom ${this.conferenceRoom.conferenceRoomId}`);
             if (this.conferenceRoom.conferenceRoomId) {
                 this.conferenceRoom = new Conference();
-
                 let msg = new ConferenceClosedMsg();
                 msg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
                 msg.data.reason = "call timed out";
-                await this.onEvent(EventTypes.conferenceClosed, msg)
+                await this.onEvent(EventTypes.conferenceClosed, msg);
             }
+            this.CallConnectTimeoutTimerIds.delete(timerId);
         }, this.CallConnectTimeoutSeconds * 1000);
+        this.CallConnectTimeoutTimerIds.add(timerId);
+        console.warn("startCallConnectTimer - Added Timer ID:", timerId);
     }
 
     clearCallConnectTimer() {
         console.warn("clearCallConnectTimer");
-        if (this.CallConnectTimeoutTimerId) {
-            clearTimeout(this.CallConnectTimeoutTimerId);
-            this.CallConnectTimeoutTimerId = null;
-            console.warn("clearCallConnectTimer cleared");
+        for (const timerId of this.CallConnectTimeoutTimerIds) {
+            clearTimeout(timerId as any);
+            console.warn("clearCallConnectTimer - Cleared Timer ID:", timerId);
         }
+        this.CallConnectTimeoutTimerIds.clear();
+        console.warn("clearCallConnectTimer - All timers cleared");
     }
 
     publishTracks(tracks: MediaStream) {
@@ -681,7 +686,7 @@ export class ConferenceClient {
         console.log(this.DSTR, "initRoomsClient");
 
         if (this.roomsClientDisconnectTimerId) {
-            console.log(this.DSTR, "clear roomsClientDisconnectTimer");
+            console.warn(this.DSTR, `clear roomsClientDisconnectTimer ${this.roomsClientDisconnectTimerId}`);
             clearTimeout(this.roomsClientDisconnectTimerId);
         }
 
@@ -806,6 +811,13 @@ export class ConferenceClient {
 
     private disconnectRoomsClient(reason: string) {
         console.log(this.DSTR, "disconnectRoomsClient in 30 seconds");
+
+        if (this.roomsClientDisconnectTimerId) {
+            console.warn(this.DSTR, `clear roomsClientDisconnectTimer ${this.roomsClientDisconnectTimerId}`);
+            clearTimeout(this.roomsClientDisconnectTimerId);
+            this.roomsClientDisconnectTimerId = null;
+        }
+
         this.roomsClientDisconnectTimerId = setTimeout(() => {
             console.log(this.DSTR, `disconnectRoomsClient timeout ${reason}`);
             if (this.roomsClient) {
@@ -816,6 +828,8 @@ export class ConferenceClient {
                 this.roomsClient = null;
             }
         }, 10000);
+        
+        console.warn(this.DSTR, `roomsClientDisconnectTimerId ${this.roomsClientDisconnectTimerId}`);
 
     }
 
