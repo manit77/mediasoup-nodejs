@@ -6,7 +6,6 @@ export interface IAuthPayload {
     role: ParticipantRole
 }
 
-
 /**
  * active participant
  */
@@ -18,8 +17,9 @@ export class Participant {
     conferenceRoom?: ConferenceRoom = undefined; //reference to a conf room
     role: "admin" | "user" | "guest" = "guest";
 }
+export type conferneceType = "p2p" | "room";
+export type conferenceStatus = "none" | "initializing" | "ready" | "closed";
 
-type conferenceStatus = "none" | "initializing" | "ready" | "closed";
 export class ConferenceRoom {
     id: string;
     trackingId: string;
@@ -33,6 +33,7 @@ export class ConferenceRoom {
     participants: Map<string, Participant> = new Map();
     status: conferenceStatus = "none";
     config = new ConferenceRoomConfig();
+    confType: conferneceType = "p2p"
 
     minParticipants = 0;
     minParticipantsTimerId: any;
@@ -72,9 +73,11 @@ export class ConferenceRoom {
         if (part) {
             part.conferenceRoom = null;
             this.participants.delete(id);
+            console.log("participant removed");
         }
 
         if (this.participants.size == 0) {
+            console.log("closing room, no participants.");
             this.close();
         }
     }
@@ -123,14 +126,26 @@ export class ConferenceRoom {
         }
     }
 
+    /**
+     * starts the room timer for max room duration
+     */
     startTimer() {
         if (this.timeoutSecs > 0) {
             this.timeoutId = setTimeout(() => { this.close(); }, this.timeoutSecs * 1000);
         }
     }
 
+    /**
+     * starts a timer for min participants
+     * @param timeoutSeconds 
+     */
     startTimerMinParticipants(timeoutSeconds: number) {
         console.log("startTimerMinParticipants");
+
+        if(this.minParticipantsTimerId) {
+            clearTimeout(this.minParticipantsTimerId);
+        }
+
         if (this.minParticipants > 0) {
             console.log(`startTimerMinParticipants started ${this.minParticipants}`);
             this.minParticipantsTimerId = setTimeout(() => {

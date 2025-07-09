@@ -356,7 +356,7 @@ export class ConferenceServer {
     }
 
     /**
-     * invite a peer, if not conference room is created create one.
+     * invite a peer to a p2p call
      * @param ws 
      * @param msgIn 
      * @returns 
@@ -406,9 +406,10 @@ export class ConferenceServer {
         }
 
         let conference = this.getOrCreateConference();
-        conference.addParticipant(caller);
+        conference.confType = "p2p";
+        conference.addParticipant(caller);        
         conference.minParticipants = 2;
-        conference.startTimerMinParticipants(10); //call will timeout in 30 seconds
+        conference.startTimerMinParticipants(10); //call will timeout if minParticipants not met 
 
         //forward the call to the receiver
         let msg = new InviteMsg();
@@ -478,6 +479,12 @@ export class ConferenceServer {
         this.send(receiver.socket, msg);
     }
 
+    /**
+     * the participant rejected an invite
+     * @param ws 
+     * @param msgIn 
+     * @returns 
+     */
     async onReject(ws: WebSocket, msgIn: RejectMsg) {
         console.log("onReject");
         let participant = this.getParticipant(msgIn.data.toParticipantId);
@@ -493,9 +500,20 @@ export class ConferenceServer {
             return;
         }
 
-        if (participant && participant.socket) {
-            this.send(participant.socket, msgIn);
+        //the participant is not in the same conference room as the reject message
+        if(conf !== participant.conferenceRoom) {
+            console.error("not the same confererence room");
+            return;
         }
+       
+        //send the reject to the client
+        this.send(participant.socket, msgIn);
+
+        //the room was p2p, remove the particpant
+        if(conf.confType == "p2p") {
+            conf.removeParticipant(participant.participantId);
+        }
+        
     }
 
     async onAccept(ws: WebSocket, msgIn: AcceptMsg) {
@@ -707,11 +725,6 @@ export class ConferenceServer {
             console.error("failed to create new room token");
             clearTimeout(initTimerId);
             conference.close();
-
-            // let errorMsg = new InviteResultMsg();
-            // errorMsg.data.error = "error creating conference for room.";
-            // conference.participants.forEach(p => this.send(p.socket, errorMsg));
-
             return false;
         }
         let roomToken = roomTokenResult.data.roomToken;
@@ -727,11 +740,6 @@ export class ConferenceServer {
 
             clearTimeout(initTimerId);
             conference.close();
-
-            // let errorMsg = new InviteResultMsg();
-            // errorMsg.data.error = "error creating room.";
-            // conference.participants.forEach(p => this.send(p.socket, errorMsg));
-
             return false;
         }
 

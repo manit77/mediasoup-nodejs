@@ -31,9 +31,9 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowInvite, onShowSettings 
             <Container fluid>
                 <Navbar.Brand href="#">In Call</Navbar.Brand>
                 <Nav className="ms-auto d-flex flex-row align-items-center">
-                    <Button variant="outline-light" className="me-2" onClick={onShowInvite} title="Invite">
+                    {/* <Button variant="outline-light" className="me-2" onClick={onShowInvite} title="Invite">
                         <PersonPlusFill size={20} /> <span className="d-none d-md-inline">Invite</span>
-                    </Button>
+                    </Button> */}
                     <Button variant={isScreenSharing ? "info" : "outline-light"} className="me-2" onClick={handleToggleScreenShare} title={isScreenSharing ? "Stop Sharing" : "Share Screen"}>
                         <DisplayFill size={20} /> <span className="d-none d-md-inline">{isScreenSharing ? "Stop Sharing" : "Share"}</span>
                     </Button>

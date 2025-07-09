@@ -2,11 +2,13 @@ import * as mediasoupClient from 'mediasoup-client';
 import {
   AuthUserNewTokenMsg,
   AuthUserNewTokenResultMsg,
-  ConnectConsumerTransportMsg, ConnectProducerTransportMsg, RoomConsumedMsg
-  , RoomConsumeMsg, ConsumerTransportCreatedMsg, CreateConsumerTransportMsg, CreateProducerTransportMsg
-  , ErrorMsg, IMsg, OkMsg, payloadTypeServer, RoomProducedMsg, RoomProduceMsg, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg
-  , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg
+  ConnectConsumerTransportMsg, ConnectProducerTransportMsg
+  , ConsumerTransportCreatedMsg, CreateConsumerTransportMsg, CreateProducerTransportMsg
+  , ErrorMsg, IMsg, OkMsg, payloadTypeServer,  ProducerTransportConnectedMsg, ProducerTransportCreatedMsg
+  , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeStreamMsg, RoomConsumeStreamResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg
   , RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
+  RoomProduceStreamMsg,
+  RoomProduceStreamResultMsg,
 } from "@rooms/rooms-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { WebRTCClient } from "@rooms/webrtc-client";
@@ -717,10 +719,10 @@ export class RoomsClient {
         case payloadTypeServer.roomPeerLeft:
           this.onRoomPeerLeft(msgIn);
           break;
-        case payloadTypeServer.produced:
+        case payloadTypeServer.roomProduceStreamResult:
           this.onProduced(msgIn);
           break;
-        case payloadTypeServer.consumed:
+        case payloadTypeServer.roomConsumeStreamResult:
           this.onConsumed(msgIn);
           break;
         case payloadTypeServer.roomClosed:
@@ -1203,7 +1205,7 @@ export class RoomsClient {
       console.log(DSTR, "-- sendTransport produce");
 
       //fires when we call produce with local tracks
-      let msg = new RoomProduceMsg();
+      let msg = new RoomProduceStreamMsg();
       msg.data = {
         roomId: this.localPeer.roomId,
         kind: kind,
@@ -1243,7 +1245,7 @@ export class RoomsClient {
 
     console.log(`** device loaded: ${this.device.loaded}`)
 
-    let msg = new RoomConsumeMsg();
+    let msg = new RoomConsumeStreamMsg();
     msg.data = {
       roomId: this.localPeer.roomId,
       remotePeerId: remotePeerId,
@@ -1253,7 +1255,7 @@ export class RoomsClient {
     this.send(msg);
   };
 
-  private onConsumed = async (msgIn: RoomConsumedMsg) => {
+  private onConsumed = async (msgIn: RoomConsumeStreamResultMsg) => {
     console.log(DSTR, "onConsumed() " + msgIn.data?.kind);
     const consumer = await this.localPeer.transportReceive.consume({
       id: msgIn.data!.consumerId,
@@ -1265,7 +1267,7 @@ export class RoomsClient {
     this.localPeer.addConsumer(consumer);
   };
 
-  private onProduced = async (msgIn: RoomProducedMsg) => {
+  private onProduced = async (msgIn: RoomProduceStreamResultMsg) => {
     console.log(DSTR, "onProduced " + msgIn.data?.kind);
   };
 }

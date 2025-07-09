@@ -20,8 +20,8 @@ export enum payloadTypeClient {
     roomTerminate = "roomTerminate",
     roomGetLogs = "roomGetLogs",
 
-    produce = "produce",
-    consume = "consume",
+    roomProduceStream = "roomProduceStream",
+    roomConsumeStream = "roomConsumeStream",
 }
 
 
@@ -42,8 +42,8 @@ export enum payloadTypeServer {
     connectProducerTransportResult = "connectProducerTransportResult",
     connectConsumerTransportResult = "connectConsumerTransportResult",
 
-    produced = "produced",
-    consumed = "consumed",
+    roomProduceStreamResult = "roomProduceStreamResult",
+    roomConsumeStreamResult = "roomConsumeStreamResult",
 
     roomNewResult = "roomNewResult",
     roomNewTokenResult = "roomNewTokenResult",
@@ -367,8 +367,8 @@ export class RoomTerminateResultMsg implements IMsg {
     } = {}
 }
 
-export class RoomProduceMsg implements IMsg {
-    type = payloadTypeClient.produce;
+export class RoomProduceStreamMsg implements IMsg {
+    type = payloadTypeClient.roomProduceStream;
     data: {
         authToken?: string,
         roomId?: string,
@@ -377,27 +377,28 @@ export class RoomProduceMsg implements IMsg {
     } = {};
 }
 
-export class RoomProducedMsg implements IMsg {
-    type = payloadTypeServer.produced;
+export class RoomProduceStreamResultMsg implements IMsg {
+    type = payloadTypeServer.roomProduceStreamResult;
     data: {
         roomId?: string,
         kind?: "audio" | "video"
     } = {};
 }
 
-export class RoomConsumeMsg implements IMsg {
-    type = payloadTypeClient.consume;
-    data: {
+export class RoomConsumeStreamMsg implements IMsg {
+    type = payloadTypeClient.roomConsumeStream;
+    data: {        
         authToken?: string,
         roomId?: string,
         remotePeerId?: string,
         producerId?: string,
         rtpCapabilities?: any
+        error?: string
     } = {};
 }
 
-export class RoomConsumedMsg implements IMsg {
-    type = payloadTypeServer.consumed;
+export class RoomConsumeStreamResultMsg implements IMsg {
+    type = payloadTypeServer.roomConsumeStreamResult;
     data: {
         roomId?: string,
         peerId?: string
@@ -405,6 +406,7 @@ export class RoomConsumedMsg implements IMsg {
         producerId?: string,
         kind?: "audio" | "video",
         rtpParameters?: any,
+        error?: string,
     } = {};
 }
 

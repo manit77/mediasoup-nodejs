@@ -5,7 +5,7 @@ import {
     , JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo, RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
-import { RoomsClient, Peer, LocalPeer } from "@rooms/rooms-client";
+import { RoomsClient, Peer } from "@rooms/rooms-client";
 
 class Participant {
     participantId: string;
@@ -80,11 +80,7 @@ export class ConferenceClient {
 
     startCallConnectTimer() {
         console.warn("startCallConnectTimer");
-
-        if (this.CallConnectTimeoutTimerId) {
-            clearTimeout(this.CallConnectTimeoutTimerId);
-            this.CallConnectTimeoutTimerId = null;
-        }
+        this.clearCallConnectTimer();
 
         this.CallConnectTimeoutTimerId = setTimeout(async () => {
             console.error(`CallConnectTimer executed conferenceRoom ${this.conferenceRoom.conferenceRoomId}`);
@@ -104,6 +100,7 @@ export class ConferenceClient {
         if (this.CallConnectTimeoutTimerId) {
             clearTimeout(this.CallConnectTimeoutTimerId);
             this.CallConnectTimeoutTimerId = null;
+            console.warn("clearCallConnectTimer cleared");
         }
     }
 
