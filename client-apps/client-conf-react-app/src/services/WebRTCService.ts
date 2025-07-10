@@ -55,7 +55,7 @@ class WebRTCService {
         }
 
         this.confClient = new ConferenceClient();
-        this.confClient.connect(true, confServerURI);
+        this.confClient.connect(confServerURI);
 
         this.confClient.onEvent = async (eventType: EventTypes, payload?: any) => {
             console.log("** onEvent", eventType, payload);

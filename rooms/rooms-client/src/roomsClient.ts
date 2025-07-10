@@ -91,17 +91,17 @@ export type MediaDeviceOptions = {
 
 export class RoomsClient {
 
-  ws: WebSocketClient;
-  rtcClient: WebRTCClient;
-  serviceToken: string = ""; //used to request an authtoken
-  localPeer: LocalPeer = new LocalPeer();
+  private ws: WebSocketClient;
+  //rtcClient: WebRTCClient;
+  private serviceToken: string = ""; //used to request an authtoken
+  private localPeer: LocalPeer = new LocalPeer();
 
   peers: Peer[] = [];
   audioEnabled = true;
   videoEnabled = true;
 
-  device: mediasoupClient.types.Device;
-  iceServers: RTCIceServer[] = [
+  private device: mediasoupClient.types.Device;
+  private iceServers: RTCIceServer[] = [
     { urls: 'stun:stun.l.google.com:19302' }
   ]
 
@@ -152,7 +152,7 @@ export class RoomsClient {
 
   };
 
-  connect = async (wsURI: string = "") => {
+  connect = async (wsURI: string = "", autoReconnect: boolean = true) => {
     if (wsURI) {
       this.config.wsURI = wsURI;
     }
@@ -165,23 +165,28 @@ export class RoomsClient {
     console.log(DSTR, "connect " + this.config.wsURI);
     this.ws = new WebSocketClient();
 
-    const onOpen = async () => {
-      console.log(DSTR, "websocket open " + this.config.wsURI);
-    };
-
-    const onClose = async () => {
-      console.log(DSTR, "websocket closed");
-    };
-
-    this.ws.addEventHandler("onopen", onOpen);
+    this.ws.addEventHandler("onopen", this.socketOnOpen);
     this.ws.addEventHandler("onmessage", this.onSocketEvent);
-    this.ws.addEventHandler("onclose", onClose);
-    this.ws.addEventHandler("onerror", onClose);
+    this.ws.addEventHandler("onclose", this.sockcketOnClose);
+    this.ws.addEventHandler("onerror", this.sockcketOnClose);
 
-    this.ws.connect(this.config.wsURI, true);
+    this.ws.connect(this.config.wsURI, autoReconnect);
 
   };
 
+  private socketOnOpen = async () => {
+    console.warn(DSTR, "websocket open " + this.config.wsURI);
+  };
+
+  private sockcketOnClose = async () => {
+    console.warn(DSTR, "sockcketOnClose closed");
+    let roomId = this.localPeer.roomId;
+    if (roomId) {
+      let copyPeers = [...this.peers];
+      this.roomClose();
+      await this.eventOnRoomClosed(roomId, copyPeers);
+    }
+  };
 
   /**
   * resolves when the socket is connected
@@ -213,12 +218,14 @@ export class RoomsClient {
 
         const onOpen = async () => {
           console.log(DSTR, "websocket onOpen " + this.config.wsURI);
+          this.socketOnOpen();
           resolve(new OkMsg(payloadTypeServer.ok, "socket opened."));
           clearTimeout(timerid);
         };
 
         const onClose = async () => {
           console.log(DSTR, "websocket onClose");
+          this.sockcketOnClose();
           resolve(new ErrorMsg(payloadTypeServer.error, "closed"));
         };
 
@@ -1023,8 +1030,8 @@ export class RoomsClient {
         this.eventOnPeerTrackToggled(peer, track, track.enabled);
       }
     }
-    
-  } 
+
+  }
 
   private onRoomClosed = async (msgIn: RoomClosedMsg) => {
     console.log(DSTR, "onRoomClosed:" + msgIn.data.roomId);

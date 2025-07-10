@@ -58,6 +58,8 @@ type ConferenceEvent = (eventType: EventTypes, payload?: any) => Promise<void>;
 export class ConferenceClient {
     private DSTR = "ConferenceClient";
     private socket: WebSocketClient;
+    socketAutoReconnect: boolean = true;
+
     participantId: string = '';
     userName: string = "";
     authToken: string = "";
@@ -88,21 +90,21 @@ export class ConferenceClient {
 
     startCallConnectTimer() {
         console.warn("startCallConnectTimer");
-        
+
         this.clearCallConnectTimer();
 
         const timerId = setTimeout(async () => {
             console.error(`CallConnectTimer executed conferenceRoom ${this.conferenceRoom.conferenceRoomId}`);
             if (this.conferenceRoom.conferenceRoomId) {
-                
 
-                
+
+
                 let msg = new ConferenceClosedMsg();
                 msg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
 
-                if(this.callState === "calling") {
+                if (this.callState === "calling") {
                     msg.data.reason = "no answer";
-                } else if(this.callState === "answering") {
+                } else if (this.callState === "answering") {
                     msg.data.reason = "answer failed";
                 } else {
                     msg.data.reason = "call timed out.";
@@ -153,7 +155,7 @@ export class ConferenceClient {
 
     updateTrackEnabled(participantId: string) {
         console.log(`toggleTrack participantId: ${participantId}`);
-        
+
         if (this.roomsClient) {
             this.roomsClient.roomProducerToggleStream(participantId);
         }
@@ -173,8 +175,8 @@ export class ConferenceClient {
         });
     }
 
-    connect(autoReconnect: boolean, conf_wsURIOverride: string = "") {
-        console.log(this.DSTR, `connect - autoReconnect: ${autoReconnect}, conf_wsURIOverride: ${conf_wsURIOverride}`);
+    connect(conf_wsURIOverride: string = "") {
+        console.log(this.DSTR, `connect - autoReconnect: ${this.socketAutoReconnect}, conf_wsURIOverride: ${conf_wsURIOverride}`);
         if (this.socket) {
             console.log(this.DSTR, "already connecting.");
             return;
@@ -192,81 +194,97 @@ export class ConferenceClient {
         this.socket.addEventHandler("onopen", async () => {
             console.log(this.DSTR, "onopen - socket opened");
             this.isConnected = true;
-            await this.onEvent(EventTypes.connected);
-
+            this.onSocketConnected();
         });
 
         this.socket.addEventHandler("onclose", async () => {
             this.isConnected = false;
-            //fire event onclose
-            setTimeout(() => {
-                console.log(this.DSTR, "onclose - reconnecting to socket in 1 second");
-                this.socket.connect(this.config.conf_wsURI, autoReconnect);
-            }, 1000);
-
-            await this.onEvent(EventTypes.disconnected);
+            this.onSocketClosed("WebSocket connection closed");
         });
 
         this.socket.addEventHandler("onerror", async (error: any) => {
             console.error('WebSocket Error:', error);
-            //fire event on disconnected
-            await this.onEvent(EventTypes.disconnected);
+            this.onSocketClosed("WebSocket error:" + error);
         });
 
         this.socket.addEventHandler("onmessage", async (event: any) => {
             const message = JSON.parse(event.data);
-            console.log(this.DSTR, 'Received message ' + message.type, message);
-
-            switch (message.type) {
-                case CallMessageType.registerResult:
-                    await this.onRegisterResult(message);
-                    break;
-                case CallMessageType.getParticipantsResult:
-                    await this.onParticipantsReceived(message);
-                    break;
-                case CallMessageType.getConferencesResult:
-                    await this.onConferencesReceived(message);
-                    break;
-                case CallMessageType.invite:
-                    await this.onInviteReceived(message);
-                    break;
-                case CallMessageType.reject:
-                    await this.onRejectReceived(message);
-                    break;
-                case CallMessageType.inviteResult:
-                    await this.onInviteResult(message);
-                    break;
-                case CallMessageType.inviteCancelled:
-                    await this.onInviteCancelled(message);
-                    break;
-                case CallMessageType.acceptResult: {
-                    await this.onAcceptResult(message);
-                    break;
-                }
-                case CallMessageType.createConfResult:
-                    await this.onCreateConfResult(message);
-                    break;
-                case CallMessageType.joinConfResult:
-                    await this.onJoinConfResult(message);
-                    break;
-                case CallMessageType.conferenceReady:
-                    await this.onConferenceReady(message);
-                    break;
-                case CallMessageType.conferenceClosed:
-                    await this.onConferenceClosed(message);
-                    break;
-
-            }
+            await this.onSocketMessage(message);
         });
 
-        this.socket.connect(this.config.conf_wsURI, autoReconnect);
+        this.socket.connect(this.config.conf_wsURI, this.socketAutoReconnect);
 
+    }
+
+    private async onSocketConnected() {
+        console.log(this.DSTR, "onSocketConnected()");
+
+        await this.onEvent(EventTypes.connected);
+    }
+
+    private async onSocketClosed(reason: string = "") {
+        console.log(this.DSTR, "onSocketClosed() - reason:", reason);
+
+        if (this.roomsClient) {
+            this.roomsClient.roomLeave();
+            this.roomsClient.disconnect();
+            this.roomsClient.dispose();
+            this.roomsClient = null;
+        }
+
+        await this.onEvent(EventTypes.disconnected);
+
+    }
+    private async onSocketMessage(message: { type: CallMessageType, data: any }) {
+        console.log(this.DSTR, 'onSocketMessage ' + message.type, message);
+
+        switch (message.type) {
+            case CallMessageType.registerResult:
+                await this.onRegisterResult(message);
+                break;
+            case CallMessageType.getParticipantsResult:
+                await this.onParticipantsReceived(message);
+                break;
+            case CallMessageType.getConferencesResult:
+                await this.onConferencesReceived(message);
+                break;
+            case CallMessageType.invite:
+                await this.onInviteReceived(message);
+                break;
+            case CallMessageType.reject:
+                await this.onRejectReceived(message);
+                break;
+            case CallMessageType.inviteResult:
+                await this.onInviteResult(message);
+                break;
+            case CallMessageType.inviteCancelled:
+                await this.onInviteCancelled(message);
+                break;
+            case CallMessageType.acceptResult: {
+                await this.onAcceptResult(message);
+                break;
+            }
+            case CallMessageType.createConfResult:
+                await this.onCreateConfResult(message);
+                break;
+            case CallMessageType.joinConfResult:
+                await this.onJoinConfResult(message);
+                break;
+            case CallMessageType.conferenceReady:
+                await this.onConferenceReady(message);
+                break;
+            case CallMessageType.conferenceClosed:
+                await this.onConferenceClosed(message);
+                break;
+
+        }
     }
 
     disconnect() {
         console.log(this.DSTR, "disconnect");
-
         this.disconnectRoomsClient("disconnect");
+
+        this.socketAutoReconnect = false;
         this.socket.disconnect();
         this.socket = null;
     }
@@ -356,6 +374,7 @@ export class ConferenceClient {
         this.sendToServer(msg);
     }
 
+
     /**
      * sent and invite and received a result
      */
@@ -389,7 +408,7 @@ export class ConferenceClient {
             this.callState = "disconnected";
         }
 
-        if (this.callState === "disconnected") {            
+        if (this.callState === "disconnected") {
             await this.onEvent(EventTypes.inviteResult, message);
             this.resetConferenceRoom();
             return;
@@ -500,7 +519,7 @@ export class ConferenceClient {
         msg.data.toParticipantId = message.data.participantId;
         this.sendToServer(msg);
 
-       this.resetConferenceRoom();
+        this.resetConferenceRoom();
     }
 
     /**
@@ -524,8 +543,8 @@ export class ConferenceClient {
         let msg = new LeaveMsg();
         msg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
         this.sendToServer(msg);
-        
-        this.resetConferenceRoom();        
+
+        this.resetConferenceRoom();
     }
 
     private resetConferenceRoom() {
@@ -784,11 +803,11 @@ export class ConferenceClient {
             return;
         }
 
-        this.roomsClient = new RoomsClient();
+        this.roomsClient = new RoomsClient();       
 
         this.roomsClient.eventOnRoomJoined = async (roomId: string) => {
             //confirmation for local user has joined a room
-            console.log(this.DSTR, "onRoomJoinedEvent roomId:", roomId);            
+            console.log(this.DSTR, "onRoomJoinedEvent roomId:", roomId);
             this.clearCallConnectTimer();
             this.callState = "connected";
 
@@ -922,8 +941,8 @@ export class ConferenceClient {
         await this.roomsClient.init(roomURI, roomRtpCapabilities);
     }
 
-    private disconnectRoomsClient(reason: string) {
-        console.log(this.DSTR, `disconnectRoomsClient in 30 seconds ${reason}`);
+    private disconnectRoomsClient(reason: string, inSeconds: number = 10) {
+        console.log(this.DSTR, `disconnectRoomsClient in ${inSeconds} seconds ${reason}`);
 
         if (this.roomsClientDisconnectTimerId) {
             console.warn(this.DSTR, `clear roomsClientDisconnectTimer ${this.roomsClientDisconnectTimerId}`);
@@ -940,10 +959,9 @@ export class ConferenceClient {
                 this.roomsClient.dispose();
                 this.roomsClient = null;
             }
-        }, 10000);
+        }, inSeconds * 1000);
 
         console.warn(this.DSTR, `roomsClientDisconnectTimerId ${this.roomsClientDisconnectTimerId}`);
-
     }
 
 }

@@ -40,7 +40,7 @@ export class WebSocketClient {
     }
 
     // Initialize WebSocket connection
-    connect = async (uri: string, autoReconnect = false) => {
+    connect = async (uri: string, autoReconnect = false, reconnectSecs: number = 3) => {
         this.writeLog(`connect ${uri}`);
 
         if (this.socket) {
@@ -76,7 +76,7 @@ export class WebSocketClient {
                 setTimeout(() => {
                     this.socket = null; // Reset socket                    
                     this.connect(uri, this.autoReconnect);
-                }, 1000);
+                }, reconnectSecs * 1000);
             } else {
                 this.state = "disconnected";
                 this.writeLog("socket server disconnected");
