@@ -129,6 +129,22 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [selectedDevices.videoId, selectedDevices.audioInId, selectedDevices.audioOutId]);
 
+    const getMediaContraints = useCallback(() => {
+        const constraints = {
+            audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
+            video: selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true
+        };
+        return constraints;
+    }, [selectedDevices.audioInId, selectedDevices.videoId]);
+
+    const getLocalMedia = useCallback(async () => {
+        console.log("getLocalMedia");
+        let tracks = await webRTCService.getNewTracks(getMediaContraints());
+        setIsLocalStreamUpdated(true);
+        console.log("setIsLocalStreamUpdated");
+        return tracks;
+    }, [getMediaContraints]);
+    
     useEffect(() => {
         updateMediaDevices();
         navigator.mediaDevices.addEventListener('devicechange', updateMediaDevices);
@@ -399,13 +415,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return () => { // Cleanup
             webRTCService.dispose();
         }
-    }, [hidePopUp, showPopUp, isCallActive, localStreamRef, callParticipants, resetCallState]);
+    }, [auth, getLocalMedia, hidePopUp, isCallActive, localStreamRef, resetCallState, showPopUp]);
 
     useEffect(() => {
         if (auth?.isAuthenticated && auth.getCurrentUser()) {
             setupWebRTCEvents();
         }
-    }, [auth?.isAuthenticated, auth.getCurrentUser(), setupWebRTCEvents]);
+    }, [auth, setupWebRTCEvents]);
 
     const getParticipantsOnline = () => {
         webRTCService.getParticipantsOnline();
@@ -413,23 +429,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const getConferenceRooms = () => {
         webRTCService.getConferenceRooms();
-    }
-
-    const getMediaContraints = () => {
-        const constraints = {
-            audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
-            video: selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true
-        };
-        return constraints;
-    }
-
-    const getLocalMedia = async () => {
-        console.log("getLocalMedia");
-        let tracks = await webRTCService.getNewTracks(getMediaContraints());
-        setIsLocalStreamUpdated(true);
-        console.log("setIsLocalStreamUpdated");
-        return tracks;
-    };
+    }    
 
     const sendInvite = async (contactToCall: ParticipantInfo) => {
         if (!auth?.getCurrentUser()) {
@@ -525,7 +525,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 return [...prevParticipants.map(p => p.id === participantId ? { ...p, isMuted: isMuted } : p)];
             });
 
-            // webRTCService.updateTracksStatus();
+            if (auth.getCurrentUser()?.role === "admin") {
+                webRTCService.updateTrackEnabled(participantId);
+            }
+            
         } else {
             console.warn("CallContext: audioTrack not found");
         }
@@ -549,7 +552,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             //if admin, send message to disable the video for the participant on the conference server
             if (auth.getCurrentUser()?.role === "admin") {
-                //webRTCService.updateTracksStatus(participantId, { video: !isMuted });
+                webRTCService.updateTrackEnabled(participantId);
             }
 
         } else {

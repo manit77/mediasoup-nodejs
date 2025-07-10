@@ -129,6 +129,13 @@ export class ConferenceClient {
         }
     }
 
+    updateTrackEnabled(participantId: string) {    
+        console.log(`toggleTrack participantId: ${participantId}`);
+        if (this.roomsClient) {
+            this.roomsClient.roomProducerToggleStream(participantId);
+        }
+    }
+
     async getDisplayMedia(): Promise<MediaStream | null> {
         console.log(`getDisplayMedia`);
 

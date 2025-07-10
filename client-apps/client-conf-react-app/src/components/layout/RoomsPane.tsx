@@ -16,7 +16,7 @@ const RoomsPane: React.FC = () => {
 
     // Handle initial loading state
 
-    const handleRefreshRooms = async () => {
+    const handleRefreshRooms = useCallback(async () => {
         try {
             setLoading(true);
             let scheduled = await getConferencesScheduled();
@@ -27,13 +27,14 @@ const RoomsPane: React.FC = () => {
         } catch (error) {
             console.error('Failed to refresh rooms:', error);
         }
-    };
+    //eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         // Initial load of conference rooms
         console.log("RoomsPane useEffect triggered.");
         handleRefreshRooms();
-    }, []);
+    }, [handleRefreshRooms]);
 
     useEffect(() => {
         //update from conf server
@@ -49,13 +50,13 @@ const RoomsPane: React.FC = () => {
         });
 
         setConferencesScheduled([...conferencesScheduled])
-
+    //eslint-disable-next-line react-hooks/exhaustive-deps
     }, [conferences]);
 
     const handleConferenceClick = async (conference: Conference) => {
         setLoading(true);
         try {
-            if(getCurrentUser()?.role === "admin") {
+            if (getCurrentUser()?.role === "admin") {
                 // Admin can create a new conference and join it
                 createConference(conference.id, conference.name);
             } else {

@@ -23,7 +23,7 @@ const AuthenticatedLayout: React.FC = () => {
             setShowPreview(videoTrack.enabled);
         }
 
-    }, [isLocalStreamUpdated]);
+    }, [isLocalStreamUpdated, localStreamRef]);
 
     const previewClick = async () => {
         let videoTrack = localStreamRef.getVideoTracks()[0];

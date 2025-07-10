@@ -208,11 +208,12 @@ class WebRTCService {
         });
     }
 
-    // public updateTracksStatus() {
-    //     if(this.confClient) {
-    //         this.confClient.updateTracksStatus()
-    //     }
-    // }
+    public updateTrackEnabled(participantId: string) {
+        console.log(`updateTracksStatus participantId: ${participantId}`);
+        if(this.confClient) {
+            this.confClient.updateTrackEnabled(participantId);
+        }
+    }
 
     public isOnCall() {
         return this.confClient && this.confClient.isInConference();
@@ -394,7 +395,6 @@ class WebRTCService {
         console.log("eventParticipantTrackToggled", msg.data);
         await this.onParticipantTrackToggled(msg.data.participantId, msg.data.track)
     }
-
     
 }
 
