@@ -364,7 +364,7 @@ class WebRTCService {
 
     private async eventConferenceFailed(msg: any) {
         console.log("eventConferenceFailed", msg);
-        await this.onConferenceEnded(msg.data.conferenceRoomId, "system error");
+        await this.onConferenceEnded(msg.data.conferenceRoomId, msg.data.error || "conference failed.");
         this.removeTracks();
         this.inviteMsg = null;
     }

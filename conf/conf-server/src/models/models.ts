@@ -39,7 +39,7 @@ export class ConferenceRoom {
     minParticipantsTimerId: any;
 
     onReadyListeners: (() => void)[] = [];
-    onClose: (conf: ConferenceRoom, participants: Participant[]) => void;
+    onClose: (conf: ConferenceRoom, participants: Participant[], reason: string) => void;
 
     addOnReadyListener(cb: () => void) {
         if (this.status == "ready") {
@@ -100,8 +100,8 @@ export class ConferenceRoom {
         }
     }
 
-    close() {
-        console.log(`conference close. ${this.id}`);
+    close(reason: string = "") {
+        console.log(`conference close. ${this.id} reason: ${reason}`);
 
         let existingParticipants = [...this.participants.values()];
 
@@ -122,7 +122,7 @@ export class ConferenceRoom {
         }
 
         if (this.onClose) {
-            this.onClose(this, existingParticipants);
+            this.onClose(this, existingParticipants, reason);
         }
     }
 

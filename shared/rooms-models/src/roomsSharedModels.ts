@@ -83,13 +83,11 @@ export class ErrorMsg implements IMsg {
 
 export class OkMsg implements IMsg {
     type = payloadTypeServer.ok;
-    data = {
-        payload: ""
-    }
+    data = {}
 
-    constructor(msgType: any, payload: any) {
+    constructor(msgType: any, data: {}) {
         this.type = msgType;
-        this.data.payload = payload;
+        this.data = data
     }
 }
 

@@ -14,11 +14,13 @@ export enum CallMessageType {
 
 interface CallMessage {
     type: CallMessageType;
-    [key: string]: any; // Flexible for additional fields
+    [key: string]: any;
 }
 
+const logPre = "WebSocketClient";
+
 export class WebSocketClient {
-    logPre = "WebSocketClient";
+    
     socket: WebSocket | null = null;
     callbacks: Map<eventsTypes, Function[]> = new Map();
     state: "" | "connecting" | "connected" | "disconnected" | "reconnecting" = "";
@@ -32,8 +34,8 @@ export class WebSocketClient {
     }
 
     writeLog(...params: any) {
-        if (this.enableLogs) {
-            console.log(this.logPre, ...params);
+        if (this.enableLogs) {            
+            console.log(logPre, ...params);
         }
     }
 
@@ -51,14 +53,16 @@ export class WebSocketClient {
         this.state = "connecting";
 
         this.socket.onopen = async () => {
-            this.state = "connected";
             this.writeLog("socket server connected");
+
+            this.state = "connected";            
             await this.fireEvent("onopen");
         };
 
         this.socket.onerror = async (error) => {
-            this.state = "disconnected";
             console.error("socket server error:", error);
+
+            this.state = "disconnected";            
             await this.fireEvent("onerror");
         };
 
@@ -66,10 +70,11 @@ export class WebSocketClient {
             this.writeLog("onclose");
 
             if (this.autoReconnect) {
-                this.writeLog("reconnecting");
+                this.writeLog("Attempting to reconnect...");
                 this.state = "reconnecting";
                 await this.fireEvent("onclose");
                 setTimeout(() => {
+                    this.socket = null; // Reset socket                    
                     this.connect(uri, this.autoReconnect);
                 }, 1000);
             } else {
@@ -86,7 +91,7 @@ export class WebSocketClient {
                 this.writeLog("event", message.type, message);
                 await this.enqueueMessage(message);
             } catch (error) {
-                console.error(this.logPre, "Error parsing message:", error);
+                console.error(logPre, "Error parsing message:", error);
             }
         };
     };
@@ -121,7 +126,7 @@ export class WebSocketClient {
                     }
                 }
             } catch (error) {
-                console.error(this.logPre, `Error processing message ${message.type}:`, error);
+                console.error(logPre, `Error processing message ${message.type}:`, error);
             } finally {
                 resolve();
             }
@@ -145,6 +150,8 @@ export class WebSocketClient {
 
     // Register a callback for a specific message type
     addEventHandler(type: eventsTypes, callback: Function) {
+        this.writeLog(`addEventHandler for ${type}`);
+
         if (!this.callbacks.has(type)) {
             this.callbacks.set(type, []);
         }
@@ -160,6 +167,7 @@ export class WebSocketClient {
     // Remove the event handler
     removeEventHandler(type: eventsTypes, callback: Function) {
         this.writeLog(`removeEventHandler ${type}`);
+
         const cbarr = this.callbacks.get(type);
         if (cbarr) {
             const idx = cbarr.findIndex((cb) => cb === callback);
@@ -173,6 +181,7 @@ export class WebSocketClient {
     // Send a message to the signaling server
     send(data: any) {
         this.writeLog("send", data);
+
         try {
             if (this.socket && this.socket.readyState === WebSocket.OPEN) {
                 this.socket.send(data);
@@ -187,6 +196,7 @@ export class WebSocketClient {
     // Close the connection
     disconnect() {
         this.writeLog("disconnect");
+
         this.autoReconnect = false;
         this.callbacks.clear();
         this.messageQueue = []; // Clear the queue
