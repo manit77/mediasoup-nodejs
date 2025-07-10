@@ -13,7 +13,7 @@ const IncomingCallPopup: React.FC = () => {
             navigate('/on-call'); // Navigate to call screen
         }
 
-    }, [isCallActive]);
+    }, [isCallActive, navigate]);
 
     const handleAccept = async () => {
         try {
@@ -29,12 +29,7 @@ const IncomingCallPopup: React.FC = () => {
     const handleDecline = () => {
         declineInvite(true); // true for isIncomingDecline
         setInviteInfo(null); // Clear the popup
-    };
-
-    // Only show modal if there’s an incoming call or the call is active/ended
-    if (!inviteInfo) {
-        return null;
-    }
+    }; 
 
     return (
         <Modal show={true} centered backdrop="static" keyboard={false}>

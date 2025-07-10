@@ -54,9 +54,7 @@ const OnCallScreen: React.FC = () => {
                     </Col>
                 </Row>
             </Container>
-
             <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />
-            <InvitePopup show={showInvite} handleClose={() => setShowInvite(false)} />
         </div>
     );
 };

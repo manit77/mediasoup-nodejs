@@ -35,6 +35,7 @@ export enum WebRoutes {
     onPeerLeft = "onPeerLeft"
 }
 
+export type conferenceType = "p2p" | "room";
 export type ParticipantRole = "admin" | "user" | "guest";
 
 export class AuthenticateMsg {
@@ -149,10 +150,12 @@ export class JoinConfResultMsg {
 export class InviteMsg {
     type = CallMessageType.invite;
     data: {
-        conferenceRoomId?: string,
         participantId?: string,
         displayName?: string,
-        conferenceRoomConfig?: ConferenceRoomConfig
+        conferenceRoomId?: string,
+        conferenceRoomName?: string,
+        conferenceRoomTrackingId?: string,
+        conferenceType?: conferenceType,
     } = {
         }
 }
@@ -169,8 +172,12 @@ export class InviteCancelledMsg {
 export class InviteResultMsg {
     type = CallMessageType.inviteResult;
     data: {
-        conferenceRoomId?: string,
         participantId?: string,
+        displayName?: string,
+        conferenceRoomId?: string,
+        conferenceRoomName?: string,
+        conferenceRoomTrackingId?: string,
+        conferenceType?: conferenceType,
         error?: string
     } = {
         }
@@ -214,22 +221,28 @@ export class LeaveMsg {
 
 export class ConferenceReadyMsg {
     type = CallMessageType.conferenceReady;
-    data = {
-        conferenceRoomId: "",
-        authToken: "",
-        roomId: "",
-        roomToken: "",
-        roomURI: "",
-        roomRtpCapabilities: undefined,
-    }
+    data: {
+        participantId?: string,
+        displayName?: string,
+        conferenceRoomId?: string,
+        conferenceRoomName?: string,
+        conferenceRoomTrackingId?: string,
+        conferenceType?: conferenceType,
+        conferenceRoomConfig?: ConferenceRoomConfig,
+        authToken?: string,
+        roomId?: string,
+        roomToken?: string,
+        roomURI?: string,
+        roomRtpCapabilities?: any,
+    } = {}
 }
 
 export class ConferenceClosedMsg {
     type = CallMessageType.conferenceClosed;
-    data = {
-        conferenceRoomId: "",
-        reason: ""
-    }
+    data: {
+        conferenceRoomId?: string,
+        reason?: string
+    } = {}
 }
 
 export class ConferenceRoomConfig {

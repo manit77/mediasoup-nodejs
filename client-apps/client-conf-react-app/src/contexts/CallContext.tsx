@@ -2,7 +2,7 @@ import React, { createContext, useState, ReactNode, useContext, useEffect, useCa
 import { CallParticipant, Device } from '../types';
 import { webRTCService } from '../services/WebRTCService';
 import { AuthContext } from './AuthContext';
-import { ConferenceRoomInfo, ParticipantInfo } from '@conf/conf-models';
+import { ConferenceRoomConfig, ConferenceRoomInfo, InviteMsg, ParticipantInfo } from '@conf/conf-models';
 
 interface InviteInfo {
     participantId: string;
@@ -27,8 +27,13 @@ interface CallContextType {
     setCallParticipants: React.Dispatch<React.SetStateAction<CallParticipant[]>>;
 
     isCallActive: boolean;
+    conferenceRoomName: string;
+    setConferenceRoomTitle: React.Dispatch<React.SetStateAction<string>>;
+
+    
     inviteInfo: InviteInfo | null;
     setInviteInfo: React.Dispatch<React.SetStateAction<InviteInfo | null>>;
+
     inviteContact: ParticipantInfo | null;
     setInviteContact: React.Dispatch<React.SetStateAction<ParticipantInfo | null>>;
 
@@ -78,6 +83,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const [callParticipants, setCallParticipants] = useState<CallParticipant[]>([]);
     const [isCallActive, setIsCallActive] = useState<boolean>(false);
+    const [conferenceRoomName, setConferenceRoomTitle] =useState<string>("");
+    
     const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
     const [inviteContact, setInviteContact] = useState<ParticipantInfo | null>(null);
 
@@ -284,23 +291,25 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         };
 
-        webRTCService.onInviteReceived = async (participantId: string, displayName: string) => {
-            console.log(`CallContext: onInviteReceived ${displayName} ${participantId}`);
+        webRTCService.onInviteReceived = async (inviteMsg : InviteMsg) => {
+            console.log(`CallContext: onInviteReceived ${inviteMsg.data.displayName} ${inviteMsg.data.participantId} ${inviteMsg.data.conferenceRoomName}`);
             // Auto-decline if already in a call
             if (isCallActive) {
+                console.warn("CallContext: already in a call, declining invite");
                 webRTCService.declineInvite();
                 return;
             }
+            
             setPopUpMessage("");
-            setInviteInfo({ participantId, displayName });
+            setInviteInfo({ participantId: inviteMsg.data.participantId, displayName: inviteMsg.data.displayName });
         };
 
 
-        webRTCService.onConferenceJoined = async () => {
-            console.log(`CallContext: onConferenceJoined`);
+        webRTCService.onConferenceJoined = async (conferenceId: string) => {
+            console.log(`CallContext: onConferenceJoined ${conferenceId}, conferenceRoomName:${webRTCService.getConferenceRoom()?.conferenceRoomName}`);
             setInviteContact(null);
             setIsCallActive(true);
-            // Add self to participants immediately
+            setConferenceRoomTitle(webRTCService.getConferenceRoom()?.conferenceRoomName);
 
             if (localStreamRef.getTracks().length === 0) {
                 await getLocalMedia();
@@ -737,7 +746,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             localStreamRef,
             isLocalStreamUpdated,
             callParticipants, setCallParticipants,
+            
             isCallActive,
+            conferenceRoomName, setConferenceRoomTitle,
+
             createConference, joinConference,
             inviteInfo, setInviteInfo,
             inviteContact, setInviteContact,

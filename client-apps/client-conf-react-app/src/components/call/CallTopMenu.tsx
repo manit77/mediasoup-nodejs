@@ -9,8 +9,8 @@ interface CallTopMenuProps {
     onShowSettings: () => void;
 }
 
-const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowInvite, onShowSettings }) => {
-    const { endCurrentCall, startScreenShare, stopScreenShare, isScreenSharing } = useCall();
+const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
+    const { conferenceRoomName, endCurrentCall, startScreenShare, stopScreenShare, isScreenSharing } = useCall();
     const navigate = useNavigate();
 
     const handleExitCall = () => {
@@ -29,7 +29,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowInvite, onShowSettings 
     return (
         <Navbar bg="dark" variant="dark" expand="lg" className="border-bottom border-secondary">
             <Container fluid>
-                <Navbar.Brand href="#">In Call</Navbar.Brand>
+                <Navbar.Brand href="#">{conferenceRoomName}</Navbar.Brand>
                 <Nav className="ms-auto d-flex flex-row align-items-center">
                     {/* <Button variant="outline-light" className="me-2" onClick={onShowInvite} title="Invite">
                         <PersonPlusFill size={20} /> <span className="d-none d-md-inline">Invite</span>

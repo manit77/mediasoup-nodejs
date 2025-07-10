@@ -212,7 +212,7 @@ export class ConferenceServer {
             this.broadCastConferenceRooms();
         };
 
-        console.log(`conference created.`);
+        console.log(`conference created: ${conference.id} ${conference.roomName} `);
 
         return conference;
     }
@@ -389,17 +389,17 @@ export class ConferenceServer {
         //     return;
         // }
 
-        let receiver = this.getParticipant(msgIn.data.participantId);
-        if (!receiver) {
-            console.error("receiver not found.");
+        let remote = this.getParticipant(msgIn.data.participantId);
+        if (!remote) {
+            console.error("remote participant not found.");
             let errorMsg = new InviteResultMsg();
             errorMsg.data.error = "remote party not found.";
             this.send(caller.socket, errorMsg);
             return;
         }
 
-        if (receiver.conferenceRoom) {
-            console.error(`receiver is in another conference room. ${receiver.conferenceRoom.id}`);
+        if (remote.conferenceRoom) {
+            console.error(`receiver is in another conference room. ${remote.conferenceRoom.id}`);
             let errorMsg = new InviteResultMsg();
             errorMsg.data.error = "remote party is on another call.";
             this.send(caller.socket, errorMsg);
@@ -417,9 +417,11 @@ export class ConferenceServer {
         msg.data.participantId = caller.participantId;
         msg.data.displayName = caller.displayName;
         msg.data.conferenceRoomId = conference.id;
-        msg.data.conferenceRoomConfig = conference.config;
+        msg.data.conferenceRoomName = conference.roomName;
+        msg.data.conferenceRoomTrackingId = conference.trackingId;
+        msg.data.conferenceType = conference.confType;
 
-        if (!this.send(receiver.socket, msg)) {
+        if (!this.send(remote.socket, msg)) {
             console.error("failed to send invite to receiver");
             conference.close("remote peer not available");
 
@@ -435,8 +437,12 @@ export class ConferenceServer {
 
         let inviteResultMsg = new InviteResultMsg();
         //send InviteResult back to the caller
-        inviteResultMsg.data.conferenceRoomId = conference.id;
-        inviteResultMsg.data.participantId = receiver.participantId;
+        inviteResultMsg.data.participantId = remote.participantId;
+        inviteResultMsg.data.displayName = remote.displayName;
+        inviteResultMsg.data.conferenceRoomId = conference.id;        
+        inviteResultMsg.data.conferenceRoomName = conference.roomName;
+        inviteResultMsg.data.conferenceRoomTrackingId = conference.trackingId;
+        inviteResultMsg.data.conferenceType = conference.confType;
 
         this.send(ws, inviteResultMsg);
 
@@ -596,7 +602,7 @@ export class ConferenceServer {
             console.log("conference already created");
         } else {
             conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomTrackingId, msgIn.data.roomName, msgIn.data.conferenceRoomConfig);
-            conference.confType = "room";            
+            conference.confType = "room";
             if (!await this.startConference(conference)) {
                 console.error("unable to start a conference");
                 let errorMsg = new CreateConfResultMsg();
@@ -695,6 +701,13 @@ export class ConferenceServer {
 
         let msg = new ConferenceReadyMsg()
         msg.data.conferenceRoomId = conference.id;
+        msg.data.conferenceRoomName = conference.roomName;
+        msg.data.conferenceRoomTrackingId = conference.trackingId;
+        msg.data.conferenceType = conference.confType;
+        msg.data.participantId = participant.participantId;
+        msg.data.displayName = participant.displayName;
+        msg.data.conferenceRoomConfig = conference.config;
+        
         msg.data.roomId = conference.roomId;
         msg.data.roomToken = conference.roomToken;
         msg.data.authToken = authUserTokenResult.data.authToken;

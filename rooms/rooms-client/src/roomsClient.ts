@@ -107,8 +107,13 @@ export class RoomsClient {
 
   config = {
     wsURI: "wss://localhost:3000",
+    socketAutoReconnect: true,
   }
 
+  constructor() {
+
+  }
+  
   private onTransportsReadyEvent: (transport: mediasoupClient.types.Transport) => void;
 
   eventOnRoomJoinFailed: (roomId: string) => Promise<void> = async () => { };
@@ -118,13 +123,14 @@ export class RoomsClient {
   eventOnRoomPeerLeft: (roomId: string, peer: Peer) => Promise<void> = async () => { };
   eventOnRoomClosed: (roomId: string, peers: Peer[]) => Promise<void> = async () => { };
   eventOnPeerTrackToggled: (peer: Peer, track: MediaStreamTrack, enabled: boolean) => Promise<void> = async () => { };
+  eventOnRoomSocketClosed: () => Promise<void> = async () => { };
+  
+  inititalize = async (conf: { socketAutoConnect: boolean, socketURI: string, rtpCapabilities?: any }) => {
+    console.log(DSTR, "inititalize");
 
-  init = async (websocketURI: string, rtpCapabilities?: any) => {
-
-    console.log(DSTR, "init");
-
-    this.config.wsURI = websocketURI;
-    await this.initMediaSoupDevice(rtpCapabilities);
+    this.config.wsURI = conf.socketURI;
+    this.config.socketAutoReconnect = conf.socketAutoConnect;
+    await this.initMediaSoupDevice(conf.rtpCapabilities);
     console.log(DSTR, "init complete");
 
   };
@@ -152,7 +158,8 @@ export class RoomsClient {
 
   };
 
-  connect = async (wsURI: string = "", autoReconnect: boolean = true) => {
+  connect = async (wsURI: string = "") => {
+    console.log(DSTR, `connect ${wsURI} autoReconnect: ${this.config.socketAutoReconnect}`);
     if (wsURI) {
       this.config.wsURI = wsURI;
     }
@@ -167,25 +174,27 @@ export class RoomsClient {
 
     this.ws.addEventHandler("onopen", this.socketOnOpen);
     this.ws.addEventHandler("onmessage", this.onSocketEvent);
-    this.ws.addEventHandler("onclose", this.sockcketOnClose);
-    this.ws.addEventHandler("onerror", this.sockcketOnClose);
+    this.ws.addEventHandler("onclose", this.socketOnClose);
+    this.ws.addEventHandler("onerror", this.socketOnClose);
 
-    this.ws.connect(this.config.wsURI, autoReconnect);
+    this.ws.connect(this.config.wsURI, this.config.socketAutoReconnect);
 
   };
 
   private socketOnOpen = async () => {
-    console.warn(DSTR, "websocket open " + this.config.wsURI);
+    console.info(DSTR, "websocket open " + this.config.wsURI);
   };
 
-  private sockcketOnClose = async () => {
-    console.warn(DSTR, "sockcketOnClose closed");
+  private socketOnClose = async () => {
+    console.error(DSTR, "socketOnClose closed");
     let roomId = this.localPeer.roomId;
     if (roomId) {
       let copyPeers = [...this.peers];
       this.roomClose();
       await this.eventOnRoomClosed(roomId, copyPeers);
     }
+
+    await this.eventOnRoomSocketClosed();
   };
 
   /**
@@ -225,7 +234,7 @@ export class RoomsClient {
 
         const onClose = async () => {
           console.log(DSTR, "websocket onClose");
-          this.sockcketOnClose();
+          this.socketOnClose();
           resolve(new ErrorMsg(payloadTypeServer.error, "closed"));
         };
 
@@ -234,7 +243,7 @@ export class RoomsClient {
         this.ws.addEventHandler("onclose", onClose);
         this.ws.addEventHandler("onerror", onClose);
 
-        this.ws.connect(this.config.wsURI, true);
+        this.ws.connect(this.config.wsURI, this.config.socketAutoReconnect);
       } catch (err: any) {
         console.error(err);
         reject("failed to connect");

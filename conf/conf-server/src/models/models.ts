@@ -1,4 +1,4 @@
-import { ConferenceRoomConfig, ParticipantRole } from "@conf/conf-models";
+import { ConferenceRoomConfig, conferenceType, ParticipantRole } from "@conf/conf-models";
 import { WebSocket } from "ws";
 
 export interface IAuthPayload {
@@ -17,7 +17,7 @@ export class Participant {
     conferenceRoom?: ConferenceRoom = undefined; //reference to a conf room
     role: "admin" | "user" | "guest" = "guest";
 }
-export type conferneceType = "p2p" | "room";
+
 export type conferenceStatus = "none" | "initializing" | "ready" | "closed";
 
 export class ConferenceRoom {
@@ -33,7 +33,7 @@ export class ConferenceRoom {
     participants: Map<string, Participant> = new Map();
     status: conferenceStatus = "none";
     config = new ConferenceRoomConfig();
-    confType: conferneceType = "p2p"
+    confType: conferenceType = "p2p"
 
     minParticipants = 0;
     minParticipantsTimerId: any;
