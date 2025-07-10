@@ -10,14 +10,11 @@ const MainVideo: React.FC<MainVideoProps> = ({ stream, userId }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const { selectedDevices } = useCall();
 
-    useEffect(() => {
+    useEffect(() => {        
+        console.log(`MainVideo: stream changed, videoId: ${selectedDevices.videoId}`);
         if (videoRef.current && stream) {
             try {              
-                videoRef.current.srcObject = stream;
-                // Set speaker if selected (for remote streams mainly, local stream audio output is system default)
-                // if (userId !== "local" && selectedDevices.audioOutId && typeof (videoRef.current as any).setSinkId === 'function') {
-                //     (videoRef.current as any).setSinkId(selectedDevices.audioOutId);
-                // }
+                videoRef.current.srcObject = stream;              
             }
             catch (error) {
                 console.error(error);
@@ -25,7 +22,7 @@ const MainVideo: React.FC<MainVideoProps> = ({ stream, userId }) => {
         } else if (videoRef.current) {
             videoRef.current.srcObject = null; // Clear if stream is removed
         }
-    }, [stream, selectedDevices.audioOutId, userId]);
+    }, [selectedDevices.videoId, stream, userId]);
 
     return (
         <div className="main-video-container bg-black flex-grow-1 d-flex align-items-center justify-content-center h-100">

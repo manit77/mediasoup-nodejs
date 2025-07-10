@@ -11,10 +11,9 @@ interface InviteInfo {
 
 interface CallContextType {
     localParticipantId: string;
-    localStream: MediaStream;
+    localStreamRef: MediaStream;
     isLocalStreamUpdated: boolean;
-    // setLocalStream: React.Dispatch<React.SetStateAction<MediaStream | null>>;
-    remoteStreams: Map<string, MediaStream>; // userId -> MediaStream
+    //remoteStreams: Map<string, MediaStream>;
 
     getParticipantsOnline: () => void;
     participantsOnline: ParticipantInfo[];
@@ -49,7 +48,7 @@ interface CallContextType {
     popUpMessage: string;
     hidePopUp: () => void;
     showPopUp: (message: string, timeoutSecs?: number) => void;
-    getLocalMedia: () => Promise<MediaStream>;
+    getLocalMedia: () => Promise<MediaStreamTrack[]>;
 
     sendInvite: (participantInfo: ParticipantInfo) => Promise<void>;
     acceptInvite: () => Promise<void>;
@@ -71,9 +70,8 @@ export const CallContext = createContext<CallContextType | undefined>(undefined)
 export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const auth = useContext(AuthContext);
     const [localParticipantId, setlocalParticipantId] = useState<string>("");
-    const [localStream] = useState<MediaStream>(webRTCService.localStream);
+    const [localStreamRef] = useState<MediaStream>(webRTCService.localStream);
     const [isLocalStreamUpdated, setIsLocalStreamUpdated] = useState<boolean>(false);
-    const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
 
     const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>([]);
     const [conferences, setConferences] = useState<ConferenceRoomInfo[]>([]);
@@ -89,27 +87,17 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [cameraEnabled, setCameraEnabled] = useState<boolean>(true);
 
     const [isScreenSharing, setIsScreenSharing] = useState(false);
-    const [originalVideoTrack, setOriginalVideoTrack] = useState<MediaStreamTrack | null>(null);
     const [popUpMessage, setPopUpMessage] = useState("");
     const [popUpTimerId, setPopUpTimerId] = useState(undefined);
 
     const resetCallState = useCallback(() => {
         console.log("Resetting call state");
-        if (localStream) {
-            localStream.getTracks().forEach(t => {
-                t.stop();
-            })
-        }
-        //setLocalStream(null);
-        setRemoteStreams(new Map());
         setCallParticipants([]);
         setIsCallActive(false);
         setInviteInfo(null);
         setInviteContact(null);
         setIsScreenSharing(false);
-        setOriginalVideoTrack(null);
-        // webRTCService.stopLocalStream(); // Ensure this is called
-    }, [localStream]);
+    }, []);
 
 
     const updateMediaDevices = useCallback(async () => {
@@ -264,16 +252,16 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsCallActive(true);
             // Add self to participants immediately
 
-            if (localStream.getTracks().length === 0) {
+            if (localStreamRef.getTracks().length === 0) {
                 await getLocalMedia();
             }
 
             let self: CallParticipant = {
                 displayName: auth.getCurrentUser()?.displayName,
                 id: auth.getCurrentUser()?.id,
-                isMuted: localStream ? !localStream.getAudioTracks()[0]?.enabled : true,
-                isVideoOff: localStream ? !localStream.getVideoTracks()[0]?.enabled : true,
-                stream: localStream
+                isMuted: localStreamRef ? !localStreamRef.getAudioTracks()[0]?.enabled : true,
+                isVideoOff: localStreamRef ? !localStreamRef.getVideoTracks()[0]?.enabled : true,
+                stream: localStreamRef
             };
 
             setCallParticipants((prevParticipants) => {
@@ -352,17 +340,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 return;
             }
 
-            setRemoteStreams((prev) => {
-                const newStreams = new Map(prev);
-                const stream = newStreams.get(participantId);
-                if (stream) {
-                    // Stop all tracks to free resources
-                    stream.getTracks().forEach((track) => track.stop());
-                    newStreams.delete(participantId);
-                }
-                return newStreams;
-            });
-
             setCallParticipants((prevParticipants) => {
                 // Check if participant exists
                 if (!prevParticipants.some((p) => p.id === participantId)) {
@@ -388,7 +365,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return () => { // Cleanup
             webRTCService.dispose();
         }
-    }, [hidePopUp, showPopUp, isCallActive, localStream, callParticipants, resetCallState]);
+    }, [hidePopUp, showPopUp, isCallActive, localStreamRef, callParticipants, resetCallState]);
 
     useEffect(() => {
         if (auth?.isAuthenticated && auth.getCurrentUser()) {
@@ -414,9 +391,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const getLocalMedia = async () => {
         console.log("getLocalMedia");
-        await webRTCService.getNewTracks(getMediaContraints());
+        let tracks = await webRTCService.getNewTracks(getMediaContraints());
         setIsLocalStreamUpdated(true);
-        return localStream;
+        console.log("setIsLocalStreamUpdated");
+        return tracks;
     };
 
     const sendInvite = async (contactToCall: ParticipantInfo) => {
@@ -489,7 +467,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const joinConference = (conferenceRoomId: string) => {
         console.log("CallContext: joinConference");
 
-        if(!conferenceRoomId) {
+        if (!conferenceRoomId) {
             console.error("CallContext: joinConference: conferenceRoomId is required");
             return;
         }
@@ -498,7 +476,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const toggleMuteAudio = (participantId: string, isMuted: boolean) => {
         console.log("CallContext: toggleMuteAudio");
-        
+
         let participant = callParticipants.find(p => p.id === participantId);
         if (!participant) {
             console.error(`participant not found ${participantId}`);
@@ -544,32 +522,25 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const startScreenShare = async () => {
         console.log(`startScreenShare`);
 
-        if (!localStream) {
+        if (!localStreamRef) {
             console.log(`no local stream initiated`)
             return;
         }
 
-        let cameraTrack = localStream.getVideoTracks()[0];
-        setOriginalVideoTrack(cameraTrack);
-        console.log(`setOriginalVideoTrack ${cameraTrack.id}`);
+        let cameraTrack = localStreamRef.getVideoTracks()[0];
+        if (cameraTrack) {
+            cameraTrack.enabled = false; // Disable the camera track if it exists
+        }
 
-        console.log(`before cameraTrack: readyState ${cameraTrack.readyState} ${cameraTrack.id}`);
-        const screenStream = await webRTCService.startScreenShare();
+        const screenTrack = await webRTCService.getScreenTrack();
         console.log(`after cameraTrack: readyState ${cameraTrack.readyState} ${cameraTrack.id}`);
 
-        if (screenStream) {
+        if (screenTrack) {
             setIsScreenSharing(true);
-
-            if (cameraTrack) {
-                localStream.removeTrack(cameraTrack);
-                console.log(`cameraTrack track removed`);
-            }
-
-            let screenTrack = screenStream.getVideoTracks()[0];
-            localStream.addTrack(screenTrack);
-            console.log(`screen track added to localStream`);
-
+            webRTCService.publishTracks([screenTrack]); // Replace the camera track with the screen track            
         }
+
+        //trigger a refresh of the local stream
         setIsLocalStreamUpdated(true);
 
         console.log(`end of function cameraTrack: readyState ${cameraTrack.readyState} ${cameraTrack.id}`);
@@ -579,43 +550,25 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log("stopScreenShare");
 
         try {
-            // Get the current local stream
-            const localStream = webRTCService.localStream;
-            let cameraTrack = originalVideoTrack;
-
-            const screenTrack = localStream.getVideoTracks().find(
-                (track) => track !== cameraTrack
-            );
+            
+            const screenTrack = localStreamRef.getVideoTracks().find(track => track.label === 'screen');
 
             if (screenTrack) {
                 console.log(`Stopping screenTrack: ${screenTrack.id}`);
                 screenTrack.stop(); // Stop the screen-sharing track
-                localStream.removeTrack(screenTrack); // Remove from local stream
+                webRTCService.unPublishTracks([screenTrack]); // Unpublish the screen track
             } else {
                 console.error("screen track not found")
             }
-
-            // Check if camera track is valid; if not, get a new one
-            if (!cameraTrack || cameraTrack.readyState === "ended") {
-                console.log(`Getting new camera track, cameraTrack readyState: ${cameraTrack?.readyState}`);
-                await webRTCService.getNewTracks(getMediaContraints());
-                cameraTrack = webRTCService.localStream.getVideoTracks()[0];
-            }
+            
+            await webRTCService.getNewTracks(getMediaContraints());
+            let cameraTrack = webRTCService.localStream.getVideoTracks()[0];            
 
             if (cameraTrack) {
                 console.log(`Using cameraTrack: ${cameraTrack.readyState} ${cameraTrack.kind} ${cameraTrack.id}`);
-                console.log("tracks:", localStream.getVideoTracks());
-
-                // Replace the track in the peer connection
-                await webRTCService.replaceTracks(new MediaStream([cameraTrack]));
-
-                // Ensure the local stream only contains the camera track
-                if (!localStream.getTracks().includes(cameraTrack)) {
-                    localStream.addTrack(cameraTrack);
-                }
+                console.log("tracks:", localStreamRef.getVideoTracks());             
                 // Update state
                 setIsScreenSharing(false);
-                setOriginalVideoTrack(null);
                 setIsLocalStreamUpdated(true);
             }
         } catch (error) {
@@ -739,10 +692,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             hidePopUp,
             showPopUp,
             popUpMessage,
-            localStream, //, setLocalStream
+            localStreamRef,
             isLocalStreamUpdated,
-
-            remoteStreams,
             callParticipants, setCallParticipants,
             isCallActive,
             createConference, joinConference,

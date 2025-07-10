@@ -84,7 +84,6 @@ export class RoomServer {
                 consoleError('Error closing worker:', error);
             }
         }
-
     }
 
     async init() {
@@ -277,7 +276,6 @@ export class RoomServer {
     }
 
     async createRoom(roomId: string, roomToken: string, trackingId: string, adminTrackingId: string, roomName: string, config: RoomConfig): Promise<Room> {
-
         console.log(`createRoom() - roomId:${roomId} roomToken: ${roomToken}`);
 
         if (!roomId) {
@@ -316,7 +314,6 @@ export class RoomServer {
         room.adminTrackingId = adminTrackingId;
         room.roomName = roomName;
 
-
         let worker = this.getNextWorker();
 
         let router = await worker.createRouter({
@@ -337,7 +334,6 @@ export class RoomServer {
 
         room.roomRouter = router;
         room.roomRtpCapabilities = router.rtpCapabilities;
-
 
         room.onClosedEvent = (r, peers) => {
             this.removeRoomGlobal(r);

@@ -595,6 +595,7 @@ export class ConferenceServer {
             console.log("conference already created");
         } else {
             conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomTrackingId, msgIn.data.roomName, msgIn.data.conferenceRoomConfig);
+            conference.confType = "room";            
             if (!await this.startConference(conference)) {
                 console.error("unable to start a conference");
                 let errorMsg = new CreateConfResultMsg();
@@ -771,7 +772,16 @@ export class ConferenceServer {
             return;
         }
 
-        conf.removeParticipant(participant.participantId);
+        conf.removeParticipant(participant.participantId);        
+
+        if(conf.confType == "p2p") {
+            //if the conference was p2p, close the room if only one participant left
+            if (conf.participants.size == 1) {
+                console.warn("closing conference room, no participants left.");
+                conf.close();
+                return
+            }
+        } 
 
         //forward leave to all other participants
         for (let p of conf.participants.values()) {
@@ -780,7 +790,6 @@ export class ConferenceServer {
             msg.data.participantId = participant.participantId;
             this.send(p.socket, msg);
         }
-
     }
 
     async onGetConferences(ws: WebSocket, msgIn: GetConferencesMsg) {

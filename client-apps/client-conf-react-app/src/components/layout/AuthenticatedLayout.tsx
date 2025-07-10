@@ -12,28 +12,30 @@ import { AuthContext } from './../../contexts/AuthContext';
 const AuthenticatedLayout: React.FC = () => {
     const auth = useContext(AuthContext);
     const [showSettings, setShowSettings] = useState(false);
-    const { localStream, isLocalStreamUpdated, getLocalMedia, popUpMessage, hidePopUp } = useCall();
+    const {localStreamRef, isLocalStreamUpdated, getLocalMedia, popUpMessage, hidePopUp } = useCall();
     const [showPreview, setShowPreview] = useState(false);
 
     useEffect(() => {
         console.log("localStream refresh triggered.");
-        let videoTrack = localStream.getVideoTracks()[0];
+        let videoTrack = localStreamRef.getVideoTracks()[0];
         if (videoTrack) {
+            console.log("videoTrack found, enabled: ", videoTrack.enabled);
             setShowPreview(videoTrack.enabled);
         }
-    }, [isLocalStreamUpdated, localStream]);
+
+    }, [isLocalStreamUpdated]);
 
     const previewClick = async () => {
-        let videoTrack = localStream.getVideoTracks()[0];
+        let videoTrack = localStreamRef.getVideoTracks()[0];
         if (!videoTrack) {
-            await getLocalMedia();
-            videoTrack = localStream.getVideoTracks()[0];
+            console.log(`get local media for preview.`);
+            let tracks = await getLocalMedia();
+            videoTrack = tracks.find(t => t.kind === 'video');
         } else {
-            console.log(`video track found.`)
+            console.log(`video track found.`);
             videoTrack.enabled = !videoTrack.enabled;
         }
-        setShowPreview(videoTrack.enabled);
-        console.log(`video track not found.`);
+        setShowPreview(videoTrack?.enabled);
     }
 
     const showDeviceSettingsClick = () => {
@@ -55,8 +57,8 @@ const AuthenticatedLayout: React.FC = () => {
                         {
                             !showPreview ? "Preview Video" : "Stop Preview"
                         }
-                    </Button>
-                    <MainVideo stream={localStream} />
+                    </Button>                  
+                    <MainVideo stream={localStreamRef} />
                 </div>
             </div>
             <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />

@@ -6,6 +6,9 @@ import { getUserMedia } from '@rooms/webrtc-client';
 const confServerURI = 'https://localhost:3100'; // conference
 
 class WebRTCService {
+    /**
+     * local MediaStream is managed here, no other streams will be used for presentation
+     */
     localStream: MediaStream = new MediaStream();
     confClient: ConferenceClient;
     participants: ParticipantInfo[] = [];
@@ -151,46 +154,57 @@ class WebRTCService {
     }
 
     public async getNewTracks(constraints?: MediaStreamConstraints) {
-        console.log("getNewTracks");
-        let tracks = await getUserMedia(constraints);
-        this.replaceTracks(tracks);
+        console.log(`getNewTracks constraints:`, constraints);
+        let stream = await this.confClient.getUserMedia(constraints);
+        this.publishTracks(stream.getTracks());
+        return stream.getTracks();
     }
 
-    public async replaceTracks(tracks: MediaStream) {
-        console.log(`replaceStream`);
+    public async publishTracks(tracks: MediaStreamTrack[]) {
+        console.log("publishTracks tracks:", tracks);
 
-        for (let track of tracks.getTracks()) {
-            let foundTrack = this.localStream.getTracks().find(t => t.kind === track.kind);
-            if (foundTrack) {
-                this.localStream.removeTrack(foundTrack);
-            }
+        let kinds = tracks.map(t => t.kind);
 
-            this.localStream.addTrack(track);
-        }
-
-        if (!this.confClient) {
-            console.log("client not ready");
-            return;
-        }
-
-        let existingTracks = this.confClient.getTracks();
-
-        //remove all tracks by kind: video, and audio
-        let tracksToRemove = new MediaStream();
-        tracks.getTracks().forEach(newTrack => {
-            let existingTrack = existingTracks.find(t => t.kind === newTrack.kind);
-            if (existingTrack) {
-                tracksToRemove.addTrack(existingTrack);
-            }
+        let tracksToRemove = this.localStream.getTracks().filter(t => kinds.includes(t.kind));
+        tracksToRemove.forEach(t => {
+            this.localStream.removeTrack(t);
         });
 
-        this.confClient.unpublishTracks(tracksToRemove);
-
+        this.confClient.unPublishTracks(tracksToRemove);
         this.confClient.publishTracks(tracks);
+
+        tracks.forEach(track => {
+            this.localStream.addTrack(track);
+        });
+
+        console.log("localStream tracks after publish:", this.localStream.getTracks());
+    }
+
+    public async unPublishTracks(tracks: MediaStreamTrack[]) {
+        console.log("unPublishTracks");
+
+        tracks.forEach(track => {
+            this.localStream.removeTrack(track);
+        });
+        this.confClient.unPublishTracks(tracks);
     }
 
     public toggleTrack(enabled: boolean, track: MediaStreamTrack) {
         track.enabled = enabled;
+    }
+
+    public async getScreenTrack(): Promise<MediaStreamTrack | null> {
+        console.log("getScreenShareTrack");
+        return (await this.confClient.getDisplayMedia()).getVideoTracks()[0] || null;
+    }
+
+    public removeTracks() {
+        console.warn("removeTracks");
+        this.localStream.getTracks().forEach(track => {
+            console.log("removing track", track.kind);
+            track.stop();
+            this.localStream.removeTrack(track);
+        });
     }
 
     // public updateTracksStatus() {
@@ -240,25 +254,8 @@ class WebRTCService {
         }
 
         this.confClient.leave();
+        this.removeTracks();
 
-        //reset tracks
-        for (let t of this.localStream.getTracks()) {
-            this.localStream.removeTrack(t);
-        }
-
-    }
-
-    public async startScreenShare(): Promise<MediaStream | null> {
-        if (!this.confClient) {
-            console.error(`conference not started`);
-            return;
-        }
-
-        return await this.confClient.startScreenShare();
-    }
-
-    public stopScreenShare(screenStream: MediaStream | null): void {
-        this.confClient.stopScreenShare(screenStream);
     }
 
     public disconnectSignaling(): void {
@@ -307,6 +304,7 @@ class WebRTCService {
         if (msg.data.error) {
             console.error("eventInviteResult failed", msg.data.error);
             await this.onConferenceEnded(msg.data.conferenceRoomId, msg.data.error);
+            this.removeTracks();
             this.inviteMsg = null;
             return;
         }
@@ -319,6 +317,7 @@ class WebRTCService {
     private async eventInviteCancelled(msg: any) {
         console.log("eventInviteCancelled", msg);
         await this.onConferenceEnded(msg.data.conferenceRoomId, "call cancelled");
+        this.removeTracks();
         this.inviteMsg = null;
     }
 
@@ -327,6 +326,7 @@ class WebRTCService {
         if (msg.data.error) {
             console.error(msg.data.error);
             await this.onConferenceEnded(msg.data.conferenceRoomId, "accept failed.");
+            this.removeTracks();
         } else {
             await this.onConferenceJoined(msg.data.conferenceRoomId);
         }
@@ -335,6 +335,7 @@ class WebRTCService {
     private async eventRejectReceived(msg: any) {
         console.log("eventRejectReceived", msg);
         await this.onConferenceEnded(msg.data.conferenceRoomId, "call rejected");
+        this.removeTracks();
         this.inviteMsg = null;
     }
 
@@ -343,6 +344,7 @@ class WebRTCService {
         if (msg.data.error) {
             console.error("failed to create conference.");
             await this.onConferenceEnded(msg.data.trackingId, "failed to create conference");
+            this.removeTracks();
             return;
         }
         //this.onConferenceCreated(msg.data.conferenceRoomId, msg.data.trackingId);
@@ -352,7 +354,7 @@ class WebRTCService {
     private async eventConferenceJoined(msg: JoinConfResultMsg) {
         console.log("eventConferenceJoined", msg);
         if (this.localStream) {
-            this.confClient.publishTracks(this.localStream);
+            this.confClient.publishTracks(this.localStream.getTracks());
         }
         this.inviteMsg = null;
         await this.onConferenceJoined(msg.data.conferenceRoomId);
@@ -361,12 +363,14 @@ class WebRTCService {
     private async eventConferenceFailed(msg: any) {
         console.log("eventConferenceFailed", msg);
         await this.onConferenceEnded(msg.data.conferenceRoomId, "system error");
+        this.removeTracks();
         this.inviteMsg = null;
     }
 
     private async eventConferenceClosed(msg: ConferenceClosedMsg) {
         console.log("eventConferenceClosed", msg);
         await this.onConferenceEnded(msg.data.conferenceRoomId, msg.data.reason ?? "call ended.");
+        this.removeTracks();
         this.inviteMsg = null;
     }
 

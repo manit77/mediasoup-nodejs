@@ -11,27 +11,27 @@ import { Navigate } from 'react-router-dom';
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
     const [showInvite, setShowInvite] = useState(false);
-    const { isCallActive, localStream, callParticipants } = useCall();
+    const { isCallActive, localStreamRef, callParticipants } = useCall();
     const [mainStream, setMainStream] = useState<MediaStream | null>(null); // Could be local or a remote stream
     const [mainStreamUserId, setMainStreamUserId] = useState<string | null>(null); // ID of user in main view
 
     useEffect(() => {
-        if (localStream && !mainStream) {
-            setMainStream(localStream);
+        if (localStreamRef && !mainStream) {
+            setMainStream(localStreamRef);
         }
-    }, [localStream, mainStream]);
+    }, [localStreamRef, mainStream]);
 
     const handleSelectParticipantVideo = (participantId: string, stream?: MediaStream) => {
         if (stream) {
             setMainStream(stream);
             setMainStreamUserId(participantId);
-        } else if (participantId === "local" && localStream) { // Special case for local user
-            setMainStream(localStream);
+        } else if (participantId === "local" && localStreamRef) { // Special case for local user
+            setMainStream(localStreamRef);
             setMainStreamUserId("local"); // Or current user ID
         }
     };
 
-    if (!isCallActive && !localStream && callParticipants.length === 0) { // Check if call ended/not properly started
+    if (!isCallActive && !localStreamRef && callParticipants.length === 0) { // Check if call ended/not properly started
         console.log("OnCallScreen: No active call, redirecting.");
         return <Navigate to="/app" />;
     }

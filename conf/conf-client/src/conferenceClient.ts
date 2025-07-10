@@ -52,7 +52,7 @@ export enum EventTypes {
 type ConferenceEvent = (eventType: EventTypes, payload?: any) => Promise<void>;
 
 export class ConferenceClient {
-    private DSTR = "ConferenceCallManager";
+    private DSTR = "ConferenceClient";
     private socket: WebSocketClient;
     participantId: string = '';
     userName: string = "";
@@ -109,80 +109,37 @@ export class ConferenceClient {
         console.warn("clearCallConnectTimer - All timers cleared");
     }
 
-    publishTracks(tracks: MediaStream) {
+    getUserMedia(constraints: MediaStreamConstraints = { video: true, audio: true }): Promise<MediaStream> {
+        console.log(`getUserMedia constraints:`, constraints);
+        return navigator.mediaDevices.getUserMedia(constraints);
+    }
+
+    publishTracks(tracks: MediaStreamTrack[]) {
         console.log(`publishTracks`);
         if (this.roomsClient) {
             this.roomsClient.publishTracks(tracks);
         }
     }
 
-    unpublishTracks(tracks: MediaStream) {
+    unPublishTracks(tracks: MediaStreamTrack[]) {
         console.log(`unpublishTracks`);
         if (this.roomsClient) {
             this.roomsClient.unPublishTracks(tracks);
         }
     }
 
-    getTracks() {
-        // if (this.roomsClient) {
-        //     this.roomsClient.getTracks();
-        // }
-
-        return [];
-    }
-
-    // updateTracksStatus() {
-    //     if(this.roomsClient) {
-    //         this.roomsClient.updateProducerTracksStatus()
-    //     }       
-    // }
-
-    async startScreenShare() {
-        console.log(`startScreenShare`);
+    async getDisplayMedia(): Promise<MediaStream | null> {
+        console.log(`getDisplayMedia`);
 
         if (!this.roomsClient) {
             console.error("roomsClient not initialized.");
-            return;
-        }
-
-        try {
-
-            const screenStream = await navigator.mediaDevices.getDisplayMedia({
-                video: true,
-                audio: false
-            });
-
-            let videoTrack = screenStream.getVideoTracks()[0];
-            videoTrack.onended = () => {
-                this.stopScreenShare(screenStream);
-            };
-
-            console.log(`screen videoTrack created ${videoTrack.kind} ${videoTrack.id}`);
-
-            let existingTrack = this.roomsClient.findTrack("video");
-            if (existingTrack) {
-                //replace the videoTrack with screen track
-                console.log(`existingTrack found ${existingTrack.kind} ${existingTrack.id}`);
-                this.roomsClient.replaceTrack(existingTrack, videoTrack);
-            } else {
-                this.roomsClient.publishTracks(new MediaStream([videoTrack]));
-            }
-
-            return screenStream;
-        } catch (error) {
-            console.error('Error starting screen share:', error);
             return null;
         }
-    }
 
-    async stopScreenShare(screenStream: MediaStream) {
-
-        console.log(this.DSTR, "stopScreenShare");
-
-        let videoTrack = screenStream.getVideoTracks()[0];
-        if (videoTrack) {
-            videoTrack.stop();
-        }
+        return await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: false
+        });
     }
 
     connect(autoReconnect: boolean, conf_wsURIOverride: string = "") {
@@ -677,6 +634,11 @@ export class ConferenceClient {
             console.error(this.DSTR, `onConferenceClosed() - conferenceRoomId does not match ${this.conferenceRoom.conferenceRoomId} ${message.data.conferenceRoomId}`);
             return;
         }
+
+        if (this.roomsClient) {
+            this.roomsClient.roomLeave();
+        }
+
         await this.onEvent(EventTypes.conferenceClosed, message);
         this.conferenceRoom.conferenceRoomId = "";
         this.clearCallConnectTimer();
@@ -828,7 +790,7 @@ export class ConferenceClient {
                 this.roomsClient = null;
             }
         }, 10000);
-        
+
         console.warn(this.DSTR, `roomsClientDisconnectTimerId ${this.roomsClientDisconnectTimerId}`);
 
     }

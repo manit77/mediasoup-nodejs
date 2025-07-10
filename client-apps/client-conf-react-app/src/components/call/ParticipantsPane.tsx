@@ -13,7 +13,7 @@ interface ParticipantVideoPreviewProps {
 }
 
 const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected }) => {
-    const { getLocalMedia, toggleMuteAudio, toggleMuteVideo } = useCall();
+    const { localStreamRef, getLocalMedia, toggleMuteAudio, toggleMuteVideo } = useCall();
     const { getCurrentUser } = useAuth();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [videoOff, setVideoOff] = useState(participant.isVideoOff);
@@ -101,7 +101,8 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         if (isLocal) {
             if (participant.stream == null) {
                 console.log("participant stream is null, get user media");
-                participant.stream = await getLocalMedia();
+                await getLocalMedia();
+                participant.stream = localStreamRef;
                 participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;
                 participant.isMuted = !participant.stream.getAudioTracks()[0]?.enabled;
 
@@ -143,7 +144,8 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
             if (participant.stream == null) {
                 //get user media
                 console.log(`getting localMedia`);
-                participant.stream = await getLocalMedia();
+                await getLocalMedia();
+                participant.stream = localStreamRef; 
                 participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;
                 participant.isMuted = !participant.stream.getAudioTracks()[0]?.enabled;
                 setVideoOff(participant.isVideoOff);
@@ -206,7 +208,7 @@ interface ParticipantsPaneProps {
 }
 
 const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, currentMainUserId }) => {
-    const { callParticipants, localStream } = useCall();
+    const { callParticipants, localStreamRef } = useCall();
     const { getCurrentUser } = useAuth();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
 
@@ -226,7 +228,7 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, curr
                 <ParticipantVideoPreview
                     key={currentUser.id}
                     participant={localParticipant}
-                    onClick={() => onSelectVideo(currentUser.id, localStream)}
+                    onClick={() => onSelectVideo(currentUser.id, localStreamRef)}
                     isSelected={currentMainUserId === currentUser.id || (currentMainUserId === 'local' && currentUser.id === localParticipant.id)}
                 />
             )}
