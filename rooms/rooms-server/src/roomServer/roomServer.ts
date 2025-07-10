@@ -17,7 +17,8 @@ import {
     RoomProduceStreamMsg,
     RoomProduceStreamResultMsg,
     RoomConsumeStreamMsg,
-    RoomConsumeStreamResultMsg    
+    RoomConsumeStreamResultMsg,
+    RoomProducerToggleStreamMsg
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
@@ -197,9 +198,9 @@ export class RoomServer {
             case payloadTypeClient.roomConsumeStream: {
                 return this.onRoomConsumeStream(peerId, msgIn);
             }
-            // case payloadTypeClient.roomProducerStreamUpdated: {
-            //     return this.onRoomProducerStreamUpdated(peerId, msgIn);
-            // }
+            case payloadTypeClient.roomProducerToggleStream: {
+                return this.onRoomToggleProducerStream(peerId, msgIn);
+            }
         }
         return null;
     }
@@ -983,41 +984,65 @@ export class RoomServer {
         return resultMsg;
     }
 
-    // private async onRoomProducerStreamUpdated(peerId: string, msgIn: RoomProducerStreamUpdatedMsg): Promise<IMsg> {
-    //     console.log("onRoomProducerStreamUpdated");
-    //     //client is updated enabled/disabled tracks
+    /**
+     * an admin of the room can toggle the stream of a producer    
+     */
+    private async onRoomToggleProducerStream(peerId: string, msgIn: RoomProducerToggleStreamMsg): Promise<IMsg> {
+        console.log("onRoomToggleProducerStream");
 
-    //     let peer = this.peers.get(peerId);
-    //     if (!peer) {
-    //         consoleError("peer not found: " + peerId);
-    //         return new ErrorMsg(payloadTypeServer.error, "peer not found.");
-    //     }
+        let peer = this.peers.get(peerId);
+        if (!peer) {
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeServer.error, "peer not found.");
+        }
 
-    //     //the peer must have a consumer transport
-    //     if (!peer.consumerTransport) {
-    //         consoleError("no consumer transport for the peer");
-    //         return new ErrorMsg(payloadTypeServer.error, "no consumer transport for the peer");
-    //     }
+        //the peer must have a consumer transport
+        if (!peer.consumerTransport) {
+            consoleError("no consumer transport for the peer");
+            return;
+        }
 
-    //     //the peer must be in room
-    //     if (!peer.room) {
-    //         consoleError("peer not in room.");
-    //         return new ErrorMsg(payloadTypeServer.error, "peer not in room.");
-    //     }
+        //the peer must be in room
+        if (!peer.room) {
+            consoleError("peer not in room.");
+            return;
+        }
 
-    //     if (peer.room.id !== msgIn.data.roomId) {
-    //         consoleError("invalid roomid");
-    //         return new ErrorMsg(payloadTypeServer.error, "invalid room id");
-    //     }
+        if (peer.room.id !== msgIn.data.roomId) {
+            consoleError("invalid roomid");
+            return;
+        }
 
-    //     //override the peerid
-    //     msgIn.data.peerId = peer.id;
-    //     //send to all peers in the room
-    //     this.broadCastExcept(peer.room, peer, msgIn);
+        let remotePeer = peer.room.getPeer(msgIn.data.peerId);
+        if (!remotePeer) {
+            consoleError("remote peer not found.");
+            return;
+        }
+        
+        if (msgIn.data.producers.length === 0) {
+            consoleError("no producers to toggle.");
+            return;
+        }
 
-    //     //don't return anything back to the peer
-    //     //return new OkMsg(payloadTypeServer.ok, "");
-    // }
+        for (let producer of remotePeer.producers.values()) {
+            let option = msgIn.data.producers.find(p => p.kind === producer.kind);
+            if (!option) {
+                consoleError(`producer kind ${producer.kind} not found in the request.`);
+                continue;
+            }
+            //toggle the producer track
+            if (option.enabled) {
+                await producer.resume();
+                console.log(`Producer ${producer.id} resumed.`);
+            } else {
+                await producer.pause();
+                console.log(`Producer ${producer.id} paused.`);
+            }
+        }
+
+        //send to all peers in the room
+        this.broadCastExcept(peer.room, peer, msgIn);        
+    }
 
     async printStats() {
         console.log("### STATS ###");

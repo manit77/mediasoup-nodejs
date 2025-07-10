@@ -198,10 +198,12 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             if (!participantId) {
                 console.error("CallContext: no userid");
+                return;
             }
 
             if (!track) {
                 console.error("CallContext: no track");
+                return;
             }
 
             console.log(`CallContext: Remote stream added for ${participantId}`);
@@ -231,6 +233,38 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     return p;
                 })
             );
+
+        };
+
+        webRTCService.onParticipantTrackToggled = async (participantId, track) => {
+            console.log('CallContext: onParticipantTrackToggled');
+
+            if (!participantId) {
+                console.error("CallContext: no userid");
+                return;
+            }
+
+            if (!track) {
+                console.error("CallContext: no track");
+                return;
+            }
+
+            setCallParticipants((prevParticipants) => {
+                return prevParticipants.map((p) => {
+                    if (p.id === participantId) {
+                        // Copy existing tracks except the one to toggle
+                        let existingTrack = p.stream.getTracks().find(t => t === track);
+                        if (existingTrack) {
+                            if (existingTrack.kind === "video") {
+                                return { ...p, isVideoOff: !existingTrack.enabled };
+                            } else if (existingTrack.kind === "audio") {
+                                return { ...p, isMuted: !existingTrack.enabled };
+                            }
+                        }
+                    }
+                    return p;
+                });
+            });
 
         };
 
@@ -513,6 +547,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 return [...prevParticipants.map(p => p.id === participantId ? { ...p, isVideoOff: isMuted } : p)];
             });
 
+            //if admin, send message to disable the video for the participant on the conference server
+            if (auth.getCurrentUser()?.role === "admin") {
+                //webRTCService.updateTracksStatus(participantId, { video: !isMuted });
+            }
+
         } else {
             console.warn("CallContext: videoTrack not found");
         }
@@ -550,7 +589,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log("stopScreenShare");
 
         try {
-            
+
             const screenTrack = localStreamRef.getVideoTracks().find(track => track.label === 'screen');
 
             if (screenTrack) {
@@ -560,13 +599,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             } else {
                 console.error("screen track not found")
             }
-            
+
             await webRTCService.getNewTracks(getMediaContraints());
-            let cameraTrack = webRTCService.localStream.getVideoTracks()[0];            
+            let cameraTrack = webRTCService.localStream.getVideoTracks()[0];
 
             if (cameraTrack) {
                 console.log(`Using cameraTrack: ${cameraTrack.readyState} ${cameraTrack.kind} ${cameraTrack.id}`);
-                console.log("tracks:", localStreamRef.getVideoTracks());             
+                console.log("tracks:", localStreamRef.getVideoTracks());
                 // Update state
                 setIsScreenSharing(false);
                 setIsLocalStreamUpdated(true);

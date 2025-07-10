@@ -7,7 +7,7 @@ import { CallParticipant, User } from '../../types';
 
 
 interface ParticipantVideoPreviewProps {
-    participant?: CallParticipant   
+    participant?: CallParticipant
     onClick: () => void;
     isSelected?: boolean;
 }
@@ -19,6 +19,11 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
     const [videoOff, setVideoOff] = useState(participant.isVideoOff);
     const [micOff, setMicOff] = useState(participant.isMuted);
     const [isLocal, setIsLocal] = useState(true);
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    useEffect(() => {
+        setIsAdmin(getCurrentUser()?.role === "admin");
+    }, []);
 
     useEffect(() => {
         setVideoOff(participant.isVideoOff);
@@ -97,7 +102,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
 
     const onVideoClick = async () => {
         console.log("onVideoClick ", participant);
-     
+
         if (isLocal) {
             if (participant.stream == null) {
                 console.log("participant stream is null, get user media");
@@ -145,7 +150,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
                 //get user media
                 console.log(`getting localMedia`);
                 await getLocalMedia();
-                participant.stream = localStreamRef; 
+                participant.stream = localStreamRef;
                 participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;
                 participant.isMuted = !participant.stream.getAudioTracks()[0]?.enabled;
                 setVideoOff(participant.isVideoOff);
@@ -188,13 +193,25 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
                     </div>
                 ) : null}
                 <div className="position-absolute bottom-0 start-0 bg-dark bg-opacity-50 text-white px-2 py-1 w-100">
-                    <small>{participant.displayName} {isLocal && "(You)"}</small>
-                    <span className="ms-1" onClick={() => onAudioClick()}>
-                        {micOff ? <MicMuteFill color="red" /> : <MicFill color="lightgreen" />}
-                    </span>
-                    <span className="ms-1" onClick={() => onVideoClick()}>
-                        {videoOff ? <CameraVideoOffFill color="red" /> : <CameraVideoFill color="lightgreen" />}
-                    </span>
+                    <small>{participant.displayName} {isLocal && "(You)"}</small>                    
+                        <>
+                            <span className="ms-1" onClick={() => onAudioClick()}>
+                                {micOff ? <MicMuteFill color="red" /> : <MicFill color="lightgreen" />}
+                            </span>
+                            <span className="ms-1" onClick={() => onVideoClick()}>
+                                {videoOff ? <CameraVideoOffFill color="red" /> : <CameraVideoFill color="lightgreen" />}
+                            </span>
+                        </>
+                    {/* {(isAdmin || isLocal) && (
+                        <>
+                            <span className="ms-1" onClick={() => onAudioClick()}>
+                                {micOff ? <MicMuteFill color="red" /> : <MicFill color="lightgreen" />}
+                            </span>
+                            <span className="ms-1" onClick={() => onVideoClick()}>
+                                {videoOff ? <CameraVideoOffFill color="red" /> : <CameraVideoFill color="lightgreen" />}
+                            </span>
+                        </>
+                    )} */}
                 </div>
             </div>
         </Card>
@@ -239,7 +256,7 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, curr
                 .map((participant) => (
                     <ParticipantVideoPreview
                         key={participant.id}
-                        participant={participant}                       
+                        participant={participant}
                         onClick={() => onSelectVideo(participant.id, participant.stream)}
                         isSelected={currentMainUserId === participant.id}
                     />

@@ -43,7 +43,6 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         handleClose();
     };
 
-
     return (
         <Modal show={show} onHide={handleClose} size="lg">
             <Modal.Header closeButton>

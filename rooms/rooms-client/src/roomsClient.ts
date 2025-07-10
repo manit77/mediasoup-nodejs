@@ -7,6 +7,7 @@ import {
   ErrorMsg, IMsg, OkMsg, payloadTypeServer, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg,
   RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeStreamMsg, RoomConsumeStreamResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
   RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
+  RoomProducerToggleStreamMsg,
   RoomProduceStreamMsg,
   RoomProduceStreamResultMsg,
 } from "@rooms/rooms-models";
@@ -109,12 +110,14 @@ export class RoomsClient {
   }
 
   private onTransportsReadyEvent: (transport: mediasoupClient.types.Transport) => void;
+
   eventOnRoomJoinFailed: (roomId: string) => Promise<void> = async () => { };
   eventOnRoomJoined: (roomId: string) => Promise<void> = async () => { };
   eventOnRoomPeerJoined: (roomId: string, peer: Peer) => Promise<void> = async () => { };
   eventOnPeerNewTrack: (peer: Peer, track: MediaStreamTrack) => Promise<void> = async () => { };
   eventOnRoomPeerLeft: (roomId: string, peer: Peer) => Promise<void> = async () => { };
   eventOnRoomClosed: (roomId: string, peers: Peer[]) => Promise<void> = async () => { };
+  eventOnPeerTrackToggled: (peer: Peer, track: MediaStreamTrack, enabled: boolean) => Promise<void> = async () => { };
 
   init = async (websocketURI: string, rtpCapabilities?: any) => {
 
@@ -580,23 +583,23 @@ export class RoomsClient {
 
   };
 
-  // updateProducerTracksStatus = async () => {
-  //   console.log(DSTR, `updateProducerTracksStatus`);
+  roomProducerToggleStream = async (peerId: string) => {
+    console.log(DSTR, `roomProducerToggleStream`);
 
-  //   let msg = new RoomProducerStreamUpdatedMsg();
-  //   msg.data.peerId = this.localPeer.peerId;
-  //   msg.data.roomId = this.localPeer.roomId;
-  //   msg.data.producers = [];
+    let msg = new RoomProducerToggleStreamMsg();
+    msg.data.peerId = peerId;
+    msg.data.roomId = this.localPeer.roomId;
+    msg.data.producers = [];
 
-  //   for(let p of this.localPeer.producers){
-  //     msg.data.producers.push({
-  //       enabled: p.track.enabled,
-  //       kind: p.track.kind
-  //     });
-  //   }
+    for (let p of this.localPeer.producers) {
+      msg.data.producers.push({
+        enabled: p.track.enabled,
+        kind: p.track.kind
+      });
+    }
 
-  //   this.send(msg);
-  // }
+    this.send(msg);
+  }
 
   roomNewToken = (expiresInMin: number = 60) => {
     console.log(DSTR, `roomNewToken`);
@@ -781,13 +784,13 @@ export class RoomsClient {
 
     peer.tracks.forEach((track) => track.stop());
     peer.tracks = [];
-    peer.producers = [];    
-    
+    peer.producers = [];
+
     let idx = this.peers.findIndex(p => p == peer);
     if (idx > -1) {
       this.peers.splice(idx, 1);
     }
-    
+
   };
 
   private getPeer = (peerId: string) => {
@@ -998,6 +1001,31 @@ export class RoomsClient {
     await this.eventOnRoomPeerLeft(roomid, peer);
   }
 
+  private onRoomProducerToggleStream(msgIn: RoomProducerToggleStreamMsg) {
+    console.log(DSTR, "onRoomProducerToggleStream");
+
+    if (!this.localPeer.roomId) {
+      console.error(DSTR, "not in a room.");
+      return;
+    }
+
+    let peer = this.peers.find(p => p.peerId === msgIn.data.peerId);
+    if (!peer) {
+      console.error(DSTR, `peer not found ${msgIn.data.peerId}`);
+      return;
+    }
+
+    for (let producer of peer.producers) {
+      let track = this.localPeer.tracks.find(t => t.id === producer.id);
+      if (track) {
+        track.enabled = msgIn.data.producers.find(p => p.kind === track.kind)?.enabled ?? true;
+        console.log(DSTR, `producer toggled ${track.kind} enabled: ${track.enabled}`);
+        this.eventOnPeerTrackToggled(peer, track, track.enabled);
+      }
+    }
+    
+  } 
+
   private onRoomClosed = async (msgIn: RoomClosedMsg) => {
     console.log(DSTR, "onRoomClosed:" + msgIn.data.roomId);
 
@@ -1035,7 +1063,7 @@ export class RoomsClient {
       t.stop();
     }
 
-    for( let p of this.peers) {
+    for (let p of this.peers) {
       p.tracks.forEach(t => t.stop());
       p.tracks = [];
       p.producers = [];

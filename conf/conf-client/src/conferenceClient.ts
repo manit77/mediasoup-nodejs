@@ -45,6 +45,7 @@ export enum EventTypes {
     conferenceFailed = "conferenceFailed",
 
     participantNewTrack = "participantNewTrack",
+    participantTrackToggled = "participantTrackToggled",
     participantJoined = "participantJoined",
     participantLeft = "participantLeft",
 
@@ -766,6 +767,26 @@ export class ConferenceClient {
             }
             await this.onEvent(EventTypes.participantLeft, msg);
 
+        };
+
+        this.roomsClient.eventOnPeerTrackToggled = async (peer: Peer, track: MediaStreamTrack, enabled: boolean) => {
+            console.log(this.DSTR, "eventOnTrackToggled peerId:", peer.peerId);
+
+            let participant = this.conferenceRoom.participants.get(peer.trackingId);
+            if (!participant) {
+                console.error("participant not found.");
+                return;
+            }
+
+            let msg = {
+                type: EventTypes.participantTrackToggled,
+                data: {
+                    participantId: participant.participantId,
+                    track: track,
+                    enabled: enabled
+                }
+            }
+            await this.onEvent(EventTypes.participantTrackToggled, msg);
         };
 
         await this.roomsClient.init(roomURI, roomRtpCapabilities);

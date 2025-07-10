@@ -1,7 +1,6 @@
 import { ConferenceClient, EventTypes } from '@conf/conf-client';
 import { User } from '../types';
 import { AcceptResultMsg, ConferenceClosedMsg, ConferenceRoomInfo, CreateConfResultMsg, InviteMsg, InviteResultMsg, JoinConfResultMsg, ParticipantInfo } from '@conf/conf-models';
-import { getUserMedia } from '@rooms/webrtc-client';
 
 const confServerURI = 'https://localhost:3100'; // conference
 
@@ -17,21 +16,15 @@ class WebRTCService {
 
     public onServerConnected: () => Promise<void> = async () => { };
     public onServerDisconnected: () => Promise<void> = async () => { };
-
     public onRegistered: (participantId: string) => Promise<void> = async () => { };
     public onRegisterFailed: (error: string) => Promise<void> = async () => { };
     public onParticipantsReceived: (participants: ParticipantInfo[]) => Promise<void> = async () => { };
     public onConferencesReceived: (conferences: ConferenceRoomInfo[]) => Promise<void> = async () => { };
-
-    //public onLocalStreamReady: (stream: MediaStream) => void = () => { };
-
     public onInviteReceived: (participantId: string, displayName: string) => Promise<void> = async () => { };
-
-    //public onConferenceCreated: (conferenceId: string, trackingId: string) => void = () => { };
     public onConferenceJoined: (conferenceId: string) => Promise<void> = async () => { };
     public onConferenceEnded: (conferenceId: string, reason: string) => Promise<void> = async () => { };
-
     public onParticipantTrack: (participantId: string, track: MediaStreamTrack) => Promise<void> = async () => { };
+    public onParticipantTrackToggled: (participantId: string, track: MediaStreamTrack) => Promise<void> = async () => { };
     public onParticipantJoined: (participantId: string, displayName: string) => Promise<void> = async () => { };
     public onParticipantLeft: (participantId: string) => Promise<void> = async () => { };
 
@@ -134,6 +127,14 @@ class WebRTCService {
                 }
                 case EventTypes.participantNewTrack: {
                     await this.eventParticipantNewTrack(payload);
+                    break;
+                }
+                case EventTypes.participantTrackToggled: {
+                    await this.eventParticipantTrackToggled(payload);
+                    break;
+                }
+                default: {
+                    console.warn("Unknown event type:", eventType);
                     break;
                 }
             }
@@ -388,6 +389,13 @@ class WebRTCService {
         console.log("eventParticipantNewTrack", msg.data);
         await this.onParticipantTrack(msg.data.participantId, msg.data.track)
     }
+
+    private async eventParticipantTrackToggled(msg: any) {
+        console.log("eventParticipantTrackToggled", msg.data);
+        await this.onParticipantTrackToggled(msg.data.participantId, msg.data.track)
+    }
+
+    
 }
 
 export const webRTCService = new WebRTCService(); // Singleton instance
