@@ -19,7 +19,15 @@ const ParticipantsOnlinePane: React.FC = () => {
         if (participantsOnline.length > 0 || localParticipantId) {
             setLoading(false);
         }
+
+        console.warn(`localParticipantId: ${localParticipantId}`);
+
     }, [participantsOnline, localParticipantId]);
+
+     useEffect(() => {        
+        console.warn(`localParticipantId: ${localParticipantId}`);
+    }, [localParticipantId]);
+    
 
     // Optional: Function to manually refresh contacts
     const handleRefreshParticipants = async () => {

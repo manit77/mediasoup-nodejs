@@ -134,7 +134,7 @@ class WebRTCService {
                     break;
                 }
                 default: {
-                    console.warn("Unknown event type:", eventType);
+                    console.log("Unknown event type:", eventType);
                     break;
                 }
             }
@@ -200,7 +200,7 @@ class WebRTCService {
     }
 
     public removeTracks() {
-        console.warn("removeTracks");
+        console.log("removeTracks");
         this.localStream.getTracks().forEach(track => {
             console.log("removing track", track.kind);
             track.stop();
@@ -210,6 +210,8 @@ class WebRTCService {
 
     public updateTrackEnabled(participantId: string) {
         console.log(`updateTracksStatus participantId: ${participantId}`);
+        console.log(`localStream tracks:`, this.localStream.getTracks());
+
         if(this.confClient) {
             this.confClient.updateTrackEnabled(participantId);
         }
@@ -253,7 +255,7 @@ class WebRTCService {
     }
 
     public endCall(): void {
-        console.warn("** endCall()");
+        console.log("** endCall()");
 
         if (this.inviteMsg) {
             this.confClient.cancelInvite(this.inviteMsg);
@@ -265,7 +267,7 @@ class WebRTCService {
     }
 
     public disconnectSignaling(): void {
-        console.warn("disconnectSignaling");
+        console.log("disconnectSignaling");
 
         this.confClient.disconnect();
         this.confClient = null;
@@ -293,7 +295,7 @@ class WebRTCService {
     private async eventParticipantsReceived(msg: any) {
         console.log("eventParticipantsReceived", msg);
 
-        this.participants = (msg.data as ParticipantInfo[]).filter(c => c.participantId !== this.confClient.participantId)
+        this.participants = (msg.data as ParticipantInfo[]).filter(c => c.participantId !== this.confClient.localParticipant.participantId)
         await this.onParticipantsReceived(this.participants);
     }
 

@@ -63,7 +63,7 @@ export class WebRTCClient {
     if (typeof (video as any).setSinkId === "function") {
       await (video as any).setSinkId(speakerDeviceId);
     } else {
-      console.warn(DSTR, "setSinkId not supported in this browser.");
+      console.log(DSTR, "setSinkId not supported in this browser.");
     }
   }
 

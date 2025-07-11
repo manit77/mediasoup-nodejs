@@ -23,7 +23,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
 
     useEffect(() => {
         setIsAdmin(getCurrentUser()?.role === "admin");
-    }, []);
+    }, [getCurrentUser]);
 
     useEffect(() => {
         setVideoOff(participant.isVideoOff);
@@ -36,9 +36,9 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
             videoRef.current.srcObject = participant.stream;
         }
 
-        setIsLocal(participant.id === getCurrentUser()?.id);
+        setIsLocal(participant.participantId === getCurrentUser()?.id);
 
-    }, [participant]);
+    }, [getCurrentUser, participant]);
 
     // no reliable across
     // Add mute/unmute event listeners for tracks
@@ -126,7 +126,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
 
         let track = participant.stream.getVideoTracks()[0];
         if (!track) {
-            console.warn(`no video track found.`);
+            console.log(`no video track found.`);
             return;
         }
         console.log(`audio video enabled: ${track.enabled}`);
@@ -135,7 +135,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         console.log(`isVideoOff ${isVideoOff} change to ${!isVideoOff}`);
         participant.isVideoOff = !isVideoOff;
         setVideoOff(!isVideoOff);
-        toggleMuteVideo(participant.id, !isVideoOff);
+        toggleMuteVideo(participant.participantId, !isVideoOff);
         console.log("participant.isMuted", participant.isMuted);
 
         console.log("micOff", participant.isMuted, "videoOff", participant.isVideoOff);
@@ -169,7 +169,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
 
         let track = participant.stream.getAudioTracks()[0];
         if (!track) {
-            console.warn(`no audio track found.`);
+            console.log(`no audio track found.`);
             return;
         }
         console.log(`audio track enabled: ${track.enabled}`);
@@ -178,7 +178,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         console.log(`isMuted ${isMuted} change to ${!isMuted}`);
         participant.isMuted = !isMuted;
         setMicOff(!isMuted);
-        toggleMuteAudio(participant.id, !isMuted);
+        toggleMuteAudio(participant.participantId, !isMuted);
         console.log("participant.isMuted", participant.isMuted);
     }
 
@@ -235,7 +235,7 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, curr
     }, [getCurrentUser])
 
     // Find local participant data from the participants list
-    const localParticipant = callParticipants.find(p => p.id === currentUser?.id);
+    const localParticipant = callParticipants.find(p => p.participantId === currentUser?.id);
 
     return (
         <div>
@@ -243,22 +243,22 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, curr
             {/* Local User Preview First */}
             {currentUser && localParticipant && (
                 <ParticipantVideoPreview
-                    key={currentUser.id}
+                    key={localParticipant.participantId}
                     participant={localParticipant}
                     onClick={() => onSelectVideo(currentUser.id, localStreamRef)}
-                    isSelected={currentMainUserId === currentUser.id || (currentMainUserId === 'local' && currentUser.id === localParticipant.id)}
+                    isSelected={currentMainUserId === currentUser.id || (currentMainUserId === 'local' && currentUser.id === localParticipant.participantId)}
                 />
             )}
 
             {/* Remote Participants */}
             {callParticipants
-                .filter(p => p.id !== currentUser?.id) // Filter out local user
+                .filter(p => p.participantId !== currentUser?.id) // Filter out local user
                 .map((participant) => (
                     <ParticipantVideoPreview
-                        key={participant.id}
+                        key={participant.participantId}
                         participant={participant}
-                        onClick={() => onSelectVideo(participant.id, participant.stream)}
-                        isSelected={currentMainUserId === participant.id}
+                        onClick={() => onSelectVideo(participant.participantId, participant.stream)}
+                        isSelected={currentMainUserId === participant.participantId}
                     />
                 ))}
         </div>

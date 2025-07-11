@@ -415,7 +415,7 @@ export class RoomProducerToggleStreamMsg {
     data: {
         roomId?: string,
         peerId?: string,
-        producers?: {
+        tracksInfo?: {
             kind?: "audio" | "video" | string,
             enabled?: boolean
         }[];

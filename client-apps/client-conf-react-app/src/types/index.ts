@@ -24,12 +24,12 @@ export interface Device {
 }
 
 export class CallParticipant {
-    constructor(id: string, name: string) {
-        this.id = id;
+    constructor(participantId: string, name: string) {
+        this.participantId = participantId;
         this.displayName = name;
     }
 
-    id: string = "";
+    participantId: string = "";
     displayName: string = "";
     stream: MediaStream = new MediaStream();
     isMuted: boolean = false;

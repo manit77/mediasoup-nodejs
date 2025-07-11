@@ -25,7 +25,7 @@ import * as roomUtils from "./utils.js";
 import { AuthUserRoles, AuthUserTokenPayload } from '../models/tokenPayloads.js';
 import { setTimeout, setInterval } from 'node:timers';
 import { RoomLogAdapterInMemory } from './roomLogsAdapter.js';
-import { consoleError } from '../utils/utils.js';
+import { consoleError, consoleLog } from '../utils/utils.js';
 
 type outMessageEventListener = (peerId: string, msg: any) => void;
 
@@ -1018,30 +1018,40 @@ export class RoomServer {
             consoleError("remote peer not found.");
             return;
         }
-        
-        if (msgIn.data.producers.length === 0) {
-            consoleError("no producers to toggle.");
+
+        if (msgIn.data.tracksInfo.length === 0) {
+            consoleError("no tracksInfo received.");
             return;
         }
 
-        for (let producer of remotePeer.producers.values()) {
-            let option = msgIn.data.producers.find(p => p.kind === producer.kind);
-            if (!option) {
-                consoleError(`producer kind ${producer.kind} not found in the request.`);
-                continue;
-            }
-            //toggle the producer track
-            if (option.enabled) {
-                await producer.resume();
-                console.log(`Producer ${producer.id} resumed.`);
-            } else {
-                await producer.pause();
-                console.log(`Producer ${producer.id} paused.`);
+        //the peer, has update the peerid
+        if (peer == remotePeer) {
+            consoleLog(`updated self`);
+            //the peer has mute/unmute self
+            //the peer has stopped the local track, we don't need to mute the producer
+        } else {
+            consoleLog(`updated remote peerId ${remotePeer.id} ${remotePeer.displayName}`);
+            //the peer has mute/unmute a remotePeer
+            for (let producer of remotePeer.producers.values()) {
+                let trackInfo = msgIn.data.tracksInfo.find(p => p.kind === producer.kind);
+                if (!trackInfo) {
+                    consoleError(`producer kind ${producer.kind} not found in the request.`);
+                    continue;
+                }
+                //toggle the producer track
+                if (trackInfo.enabled) {
+                    await producer.resume();
+                    console.log(`Producer ${producer.id} resumed.`);
+                } else {
+                    await producer.pause();
+                    console.log(`Producer ${producer.id} paused.`);
+                }
             }
         }
 
         //send to all peers in the room
-        this.broadCastExcept(peer.room, peer, msgIn);        
+        this.broadCastExcept(peer.room, peer, msgIn);
+
     }
 
     async printStats() {

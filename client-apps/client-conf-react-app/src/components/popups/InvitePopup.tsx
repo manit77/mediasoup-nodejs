@@ -13,7 +13,7 @@ const InvitePopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ sho
 
     // Filter out contacts already in the call and offline contacts
     const availableToInvite = participantsOnline.filter(participant =>
-        participant.participantId && !callParticipants.some(p => p.id === participant.participantId)
+        participant.participantId && !callParticipants.some(p => p.participantId === participant.participantId)
     );
 
     return (

@@ -800,7 +800,7 @@ export class ConferenceServer {
         if(conf.confType == "p2p") {
             //if the conference was p2p, close the room if only one participant left
             if (conf.participants.size == 1) {
-                console.warn("closing conference room, no participants left.");
+                console.log("closing conference room, no participants left.");
                 conf.close("room closed.");
                 return
             }
