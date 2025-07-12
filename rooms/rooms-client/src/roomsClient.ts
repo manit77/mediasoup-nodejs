@@ -133,6 +133,7 @@ export class RoomsClient {
   config = {
     wsURI: "wss://localhost:3000",
     socketAutoReconnect: true,
+    socketEnableLogs: false
   }
 
   constructor() {
@@ -230,10 +231,7 @@ export class RoomsClient {
   waitForConnect = (wsURI: string = ""): Promise<IMsg> => {
     console.log(DSTR, `waitForConnect() ${wsURI}`);
     return new Promise<IMsg>((resolve, reject) => {
-
       try {
-
-        let timerid = setTimeout(() => reject("failed to connect"), 5000);
 
         if (wsURI) {
           this.config.wsURI = wsURI;
@@ -242,33 +240,43 @@ export class RoomsClient {
         console.log(DSTR, "config.wsURI:", this.config.wsURI);
 
         if (this.ws && ["connecting", "connected"].includes(this.ws.state)) {
-          console.log(DSTR, "socket already created. current state: " + this.ws.state);
+          console.warn(DSTR, "socket already created. current state: " + this.ws.state);
           resolve(new OkMsg(payloadTypeServer.ok, "already connecting"));
           return;
         }
 
-        this.ws = new WebSocketClient();
+        this.ws = new WebSocketClient({ enableLogs: this.config.socketEnableLogs });
         console.log(DSTR, "waitForConnect() - " + this.config.wsURI + " state:" + this.ws.state);
 
-        const onOpen = async () => {
+        const _onOpen = () => {
           console.log(DSTR, "websocket onOpen " + this.config.wsURI);
           this.socketOnOpen();
           resolve(new OkMsg(payloadTypeServer.ok, "socket opened."));
           clearTimeout(timerid);
         };
 
-        const onClose = async () => {
+        const _onClose = () => {
           console.log(DSTR, "websocket onClose");
           this.socketOnClose();
           resolve(new ErrorMsg(payloadTypeServer.error, "closed"));
         };
 
-        this.ws.addEventHandler("onopen", onOpen);
+        this.ws.addEventHandler("onopen", _onOpen);
         this.ws.addEventHandler("onmessage", this.onSocketEvent);
-        this.ws.addEventHandler("onclose", onClose);
-        this.ws.addEventHandler("onerror", onClose);
+        this.ws.addEventHandler("onclose", _onClose);
+        this.ws.addEventHandler("onerror", _onClose);
 
         this.ws.connect(this.config.wsURI, this.config.socketAutoReconnect);
+
+        let timerid = setTimeout(() => {
+
+          if (this.ws) {
+            this.ws.disconnect();
+          }
+
+          reject("failed to connect");
+        }, 5000);
+
       } catch (err: any) {
         console.error(err);
         reject("failed to connect");
@@ -280,12 +288,20 @@ export class RoomsClient {
   waitForGetAuthoken = (serviceToken: string): Promise<IMsg> => {
     console.log("waitForGetAuthoken()");
 
-    return new Promise<IMsg>(async (resolve, reject) => {
+    return new Promise<IMsg>((resolve, reject) => {
+
+      let _onmessage: (event: any) => void;
+
       try {
 
-        let timerid = setTimeout(() => reject("failed to get authtoken"), 5000);
+        let timerid = setTimeout(() => {
+          if (_onmessage) {
+            this.ws.removeEventHandler("onmessage", _onmessage);
+          }
+          reject("failed to get authtoken");
+        }, 5000);
 
-        const onmessage = (event: any) => {
+        _onmessage = (event: any) => {
 
           try {
             let msg = JSON.parse(event.data);
@@ -293,7 +309,7 @@ export class RoomsClient {
               console.log(DSTR, "-- waitForGetAuthoken() - onmessage", msg);
               let msgIn = msg as AuthUserNewTokenResultMsg;
               clearTimeout(timerid);
-              this.ws.removeEventHandler("onmessage", onmessage);
+              this.ws.removeEventHandler("onmessage", _onmessage);
               if (msgIn.data.authToken) {
                 resolve(new OkMsg(payloadTypeServer.ok, "token received"));
                 return;
@@ -307,10 +323,13 @@ export class RoomsClient {
 
         };
 
-        this.ws.addEventHandler("onmessage", onmessage);
+        this.ws.addEventHandler("onmessage", _onmessage);
 
         this.getAuthoken(serviceToken);
       } catch (err) {
+        if (_onmessage) {
+          this.ws.removeEventHandler("onmessage", _onmessage);
+        }
         reject(err);
         console.error(err);
       }
@@ -327,11 +346,28 @@ export class RoomsClient {
   waitForRegister = (authToken: string, trackingId: string, displayName: string): Promise<IMsg> => {
     console.log(DSTR, "waitForRegister");
 
-    return new Promise<IMsg>(async (resolve, reject) => {
-      try {
-        let timerid = setTimeout(() => reject("failed to register"), 5000);
+    return new Promise<IMsg>((resolve, reject) => {
 
-        const onmessage = (event: any) => {
+      if (!this.ws) {
+        reject("websocket not initialized");
+        return;
+      }
+
+      if (this.ws.state !== "connected") {
+        reject("websocket not connected");
+        return;
+      }
+
+      if (this.localPeer.peerId) {
+        console.warn(`"localPeer already authenticated"`);
+        resolve(new OkMsg(payloadTypeServer.ok, {}));
+        return;
+      }
+
+      let _onmessage: (event: any) => void;
+      try {
+
+        _onmessage = (event: any) => {
           let msg = JSON.parse(event.data);
           console.log(DSTR, "--waitForRegister() - onmessage", msg);
           if (msg.type == payloadTypeServer.registerPeerResult) {
@@ -342,25 +378,36 @@ export class RoomsClient {
             }
 
             clearTimeout(timerid);
-            this.ws.removeEventHandler("onmessage", onmessage);
+            this.ws.removeEventHandler("onmessage", _onmessage);
+            console.warn(`register result received, remove _onmessage`);
             resolve(msgIn);
 
           }
         };
-        this.ws.addEventHandler("onmessage", onmessage);
+        this.ws.addEventHandler("onmessage", _onmessage);
 
         if (authToken) {
           this.localPeer.authToken = authToken;
         }
 
+        let timerid = setTimeout(() => {
+          if (_onmessage) {
+            this.ws.removeEventHandler("onmessage", _onmessage);
+          }
+          reject("failed to register");
+        }, 5000);
+
         let registerSent = this.register(this.localPeer.authToken, trackingId, displayName);
-        if (registerSent) {
-          resolve(new OkMsg(payloadTypeServer.ok, "register sent."));
-        } else {
+
+        if (!registerSent) {
+          this.ws.removeEventHandler("onmessage", _onmessage);
           reject("register failed to send.");
         }
       } catch (err: any) {
         console.error(err);
+        if (_onmessage) {
+          this.ws.removeEventHandler("onmessage", _onmessage);
+        }
         reject("failed to register");
       }
     });
@@ -368,10 +415,16 @@ export class RoomsClient {
 
   waitForNewRoomToken = (expiresInMin: number): Promise<IMsg> => {
     return new Promise<IMsg>((resolve, reject) => {
+      let _onmessage: (event: any) => void;
       try {
-        let timerid = setTimeout(() => reject("failed to create new room token"), 5000);
+        let timerid = setTimeout(() => {
+          if (_onmessage) {
+            this.ws.removeEventHandler("onmessage", _onmessage);
+          }
+          reject("failed to create new room token");
+        }, 5000);
 
-        const onmessage = (event: any) => {
+        _onmessage = (event: any) => {
 
           let msg = JSON.parse(event.data);
           console.log(DSTR, "waitForNewRoomToken() -- onmessage", msg);
@@ -379,17 +432,20 @@ export class RoomsClient {
           if (msg.type == payloadTypeServer.roomNewTokenResult) {
             let msgIn: RoomNewTokenResultMsg = msg;
             clearTimeout(timerid);
-            this.ws.removeEventHandler("onmessage", onmessage);
+            this.ws.removeEventHandler("onmessage", _onmessage);
             resolve(msgIn);
           }
 
         };
 
-        this.ws.addEventHandler("onmessage", onmessage);
+        this.ws.addEventHandler("onmessage", _onmessage);
 
         this.roomNewToken(expiresInMin);
 
       } catch (err: any) {
+        if (_onmessage) {
+          this.ws.removeEventHandler("onmessage", _onmessage);
+        }
         reject("unable to get data");
       }
     });
@@ -397,10 +453,17 @@ export class RoomsClient {
 
   waitForNewRoom = (maxPeers: number, maxRoomDurationMinutes: number): Promise<IMsg> => {
     return new Promise<IMsg>((resolve, reject) => {
-      try {
-        let timerid = setTimeout(() => reject("failed to create new room"), 5000);
+      let _onmessage: (event: any) => void;
 
-        const onmessage = (event: any) => {
+      try {
+        let timerid = setTimeout(() => {
+          if (_onmessage) {
+            this.ws.removeEventHandler("onmessage", _onmessage);
+          }
+          reject("failed to create new room");
+        }, 5000);
+
+        _onmessage = (event: any) => {
 
           let msg = JSON.parse(event.data);
           console.log(DSTR, "waitForNewRoom() -- onmessage", msg);
@@ -408,18 +471,21 @@ export class RoomsClient {
           if (msg.type == payloadTypeServer.roomNewResult) {
             let msgIn: RoomNewResultMsg = msg;
             clearTimeout(timerid);
-            this.ws.removeEventHandler("onmessage", onmessage);
+            this.ws.removeEventHandler("onmessage", _onmessage);
             resolve(msgIn);
           }
 
         };
 
-        this.ws.addEventHandler("onmessage", onmessage);
+        this.ws.addEventHandler("onmessage", _onmessage);
 
         this.roomNew(maxPeers, maxRoomDurationMinutes);
 
       } catch (err: any) {
         console.error(err);
+        if (_onmessage) {
+          this.ws.removeEventHandler("onmessage", _onmessage);
+        }
         reject("failed to create new room");
       }
     });
@@ -432,28 +498,36 @@ export class RoomsClient {
    * @returns 
    */
   waitForRoomJoin = (roomid: string, roomToken: string): Promise<IMsg> => {
-
     //remove the old event hanlder    
     return new Promise<IMsg>((resolve, reject) => {
+      let _onmessage: (event: any) => void;
       try {
-        let timerid = setTimeout(() => reject("failed to join room"), 5000);
+        let timerid = setTimeout(() => {
+          if (_onmessage) {
+            this.ws.removeEventHandler("onmessage", _onmessage);
+          }
+          reject("failed to join room");
+        }, 5000);
 
-        const onmessage = (event: any) => {
+        _onmessage = (event: any) => {
           console.log(DSTR, "-- onmessage", event.data);
           let msg = JSON.parse(event.data);
 
           if (msg.type == payloadTypeServer.roomJoinResult) {
             clearTimeout(timerid);
-            this.ws.removeEventHandler("onmessage", onmessage);
+            this.ws.removeEventHandler("onmessage", _onmessage);
             let msgIn = msg as RoomJoinResultMsg;
             resolve(msgIn);
           }
         };
 
-        this.ws.addEventHandler("onmessage", onmessage);
+        this.ws.addEventHandler("onmessage", _onmessage);
         this.roomJoin(roomid, roomToken);
       } catch (err: any) {
         console.log(err);
+        if (_onmessage) {
+          this.ws.removeEventHandler("onmessage", _onmessage);
+        }
         reject("failed to join room");
       }
     });
@@ -631,14 +705,14 @@ export class RoomsClient {
 
     //local producers consumers
     tracks = this.localPeer.producers.map(p => p.track);
-    console.warn("local producer tracks", tracks);
-    console.warn("localPeer tracks", this.localPeer.tracks);
+    console.log("local producer tracks", tracks);
+    console.log("localPeer tracks", this.localPeer.tracks);
     tracks = this.localPeer.consumers.map(p => p.track);
-    console.warn("local consumer tracks", tracks);
+    console.log("local consumer tracks", tracks);
 
     //remote producers
     for (const peer of this.peers.values()) {
-      console.warn(`remtoe peer ${peer.peerId} ${peer.displayName} tracks:`, peer.tracks);
+      console.log(`remtoe peer ${peer.peerId} ${peer.displayName} tracks:`, peer.tracks);
     }
 
     if (peerId === this.localPeer.peerId) {
@@ -648,7 +722,7 @@ export class RoomsClient {
       // remote peer updated
       let remotePeer = [...this.peers.values()].find(p => p.peerId === peerId);
       if (!remotePeer) {
-        console.warn(`remote peer not found.`);
+        console.log(`remote peer not found.`);
         return;
       }
 
@@ -656,7 +730,7 @@ export class RoomsClient {
     }
 
     if (!tracks || tracks.length == 0) {
-      console.warn("no tracks found.");
+      console.log("no tracks found.");
       return;
     }
 
@@ -902,7 +976,7 @@ export class RoomsClient {
   // };
 
   private addRemoteTrack = async (peerId: string, track: MediaStreamTrack) => {
-    console.log(DSTR, "addRemoteTrack()");
+    console.log(DSTR, `addRemoteTrack() ${peerId} `);
 
     track.enabled = true;
 
@@ -911,7 +985,7 @@ export class RoomsClient {
       console.error(DSTR, `addRemoteTrack() - peer not found, peerId: ${peerId}`);
       return;
     }
-
+    console.log(`add track for ${peer.displayName} of type ${track.kind} `);
     peer.tracks.push(track);
 
     if (this.eventOnPeerNewTrack) {
@@ -1117,18 +1191,18 @@ export class RoomsClient {
     }
 
     for (const track of tracks) {
-      console.warn(`track found ${track.id} ${track.kind} ${track.enabled}`);
+      console.log(`track found ${track.id} ${track.kind} ${track.enabled}`);
       let info = msgIn.data.tracksInfo.find(i => i.kind === track.kind);
       if (!info) {
-        console.warn(`info not found for track of kind ${track.kind}`);
+        console.log(`info not found for track of kind ${track.kind}`);
         continue;
       }
       if (info.enabled !== track.enabled) {
         track.enabled = info.enabled;
-        console.warn(DSTR, `track toggled to: ${track.enabled}`);
+        console.log(DSTR, `track toggled to: ${track.enabled}`);
         this.eventOnPeerTrackToggled(peer, track, track.enabled);
       } else {
-        console.warn(DSTR, `track not toggled.`);
+        console.log(DSTR, `track not toggled.`);
       }
     }
   }

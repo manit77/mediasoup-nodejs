@@ -1,118 +1,86 @@
-import React, { createContext, useState, ReactNode, useContext, useEffect, useCallback, useRef, Ref } from 'react';
-import { CallParticipant, Device } from '../types';
+import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
+import { Device, SelectedDevices } from '../types';
 import { webRTCService } from '../services/WebRTCService';
-import { AuthContext } from './AuthContext';
-import { ConferenceRoomConfig, ConferenceRoomInfo, InviteMsg, ParticipantInfo } from '@conf/conf-models';
-
-interface InviteInfo {
-    participantId: string;
-    displayName: string;
-}
+import { ConferenceRoomInfo, InviteMsg, ParticipantInfo } from '@conf/conf-models';
+import { Conference, Participant } from '@conf/conf-client';
 
 interface CallContextType {
-    localParticipantId: Ref<string>;
-    localStreamRef: MediaStream;
+    isConnected: boolean;
+    isAuthenticated: boolean;
+    localParticipant: Participant;
     isLocalStreamUpdated: boolean;
-    //remoteStreams: Map<string, MediaStream>;
-
-    getParticipantsOnline: () => void;
-    participantsOnline: ParticipantInfo[];
-    setParticipantsOnline: React.Dispatch<React.SetStateAction<ParticipantInfo[]>>;
-
-    getConferenceRooms: () => void;
-    conferences: ConferenceRoomInfo[];
-    setConferences: React.Dispatch<React.SetStateAction<ConferenceRoomInfo[]>>;
-
-    callParticipants: CallParticipant[];
-    setCallParticipants: React.Dispatch<React.SetStateAction<CallParticipant[]>>;
-
     isCallActive: boolean;
-    conferenceRoomName: string;
-    setConferenceRoomTitle: React.Dispatch<React.SetStateAction<string>>;
+    conferenceRoom: Conference;
+    callParticipants: Map<string, Participant>;
 
+    isScreenSharing: boolean;
+    participantsOnline: ParticipantInfo[];
+    conferencesOnline: ConferenceRoomInfo[];
+    inviteInfoSend: InviteMsg;
+    inviteInfoReceived: InviteMsg;
+    setInviteInfoSend: React.Dispatch<React.SetStateAction<InviteMsg>>;
 
-    inviteInfo: InviteInfo | null;
-    setInviteInfo: React.Dispatch<React.SetStateAction<InviteInfo | null>>;
+    availableDevices: { video: Device[]; audioIn: Device[]; audioOut: Device[] };
+    selectedDevices: SelectedDevices;
+    popUpMessage: string;
 
-    inviteContact: ParticipantInfo | null;
-    setInviteContact: React.Dispatch<React.SetStateAction<ParticipantInfo | null>>;
+    getLocalMedia: () => Promise<MediaStreamTrack[]>;
+    getConferenceRoomsOnline: () => void;
+    getParticipantsOnline: () => void;
 
+    hidePopUp: () => void;
     createConference: (trackingId: string, roomName: string) => void;
     joinConference: (conferenceRoomId: string) => void;
 
-    availableDevices: { video: Device[]; audioIn: Device[]; audioOut: Device[] };
-    selectedDevices: { videoId?: string; audioInId?: string; audioOutId?: string };
-    setSelectedDevices: React.Dispatch<React.SetStateAction<{ videoId?: string; audioInId?: string; audioOutId?: string }>>;
-    micEnabled: boolean;
-    setMicEnabled: React.Dispatch<React.SetStateAction<boolean>>;
-    cameraEnabled: boolean;
-    setCameraEnabled: React.Dispatch<React.SetStateAction<boolean>>;
-
-    isScreenSharing: boolean;
-
-    popUpMessage: string;
-    hidePopUp: () => void;
-    showPopUp: (message: string, timeoutSecs?: number) => void;
-    getLocalMedia: () => Promise<MediaStreamTrack[]>;
 
     sendInvite: (participantInfo: ParticipantInfo) => Promise<void>;
     acceptInvite: () => Promise<void>;
-    declineInvite: (isIncomingDecline?: boolean) => void;
+    declineInvite: () => void;
     cancelInvite: () => void;
 
     endCurrentCall: () => void;
+
     toggleMuteAudio: (participantId: string, isMuted: boolean) => void;
     toggleMuteVideo: (participantId: string, isVideoOff: boolean) => void;
+
     startScreenShare: () => Promise<void>;
     stopScreenShare: () => void;
-    updateMediaDevices: () => Promise<void>;
-    //switchDevice: (type: 'video' | 'audioIn' | 'audioOut', deviceId: string) => Promise<void>;
+
+    getMediaDevices: () => Promise<void>;
     switchDevices: (videoId: string, audioId: string, audioOutId: string) => Promise<void>;
+
+
 }
 
-export const CallContext = createContext<CallContextType | undefined>(undefined);
+export const CallContext = createContext<CallContextType>(undefined);
 
 export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const auth = useContext(AuthContext);
-    const localParticipantId = useRef<string>("");
-    const [localStreamRef] = useState<MediaStream>(webRTCService.localStream);
+    
+    const [isConnected, setIsConnected] = useState<boolean>(webRTCService.isConnected);
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(webRTCService.isConnected && webRTCService.localParticipant.peerId ? true : false);
+    const localParticipant = useRef<Participant>(webRTCService.localParticipant);    
+    const [isCallActive, setIsCallActive] = useState<boolean>(webRTCService.isOnCall());
+    const conferenceRoom = useRef<Conference>(webRTCService.conferenceRoom);
+    const [callParticipants, setCallParticipants] = useState<Map<string, Participant>>(webRTCService.participants);
+    const isScreenSharing = useRef<boolean>(webRTCService.isScreenSharing);
+    const selectedDevices = useRef<SelectedDevices>(webRTCService.selectedDevices);
+
+    const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>(webRTCService.participantsOnline);
+    const [conferencesOnline, setConferencesOnline] = useState<ConferenceRoomInfo[]>(webRTCService.conferencesOnline);
+    const [inviteInfoSend, setInviteInfoSend] = useState<InviteMsg | null>(webRTCService.inviteSendMsg);
+    const [inviteInfoReceived, setInviteInfoReceived] = useState<InviteMsg | null>(webRTCService.inviteRecievedMsg);
+
     const [isLocalStreamUpdated, setIsLocalStreamUpdated] = useState<boolean>(false);
-
-    const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>([]);
-    const [conferences, setConferences] = useState<ConferenceRoomInfo[]>([]);
-
-    const [callParticipants, setCallParticipants] = useState<CallParticipant[]>([]);
-    const [isCallActive, setIsCallActive] = useState<boolean>(false);
-    const [conferenceRoomName, setConferenceRoomTitle] = useState<string>("");
-
-    const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
-    const [inviteContact, setInviteContact] = useState<ParticipantInfo | null>(null);
-
     const [availableDevices, setAvailableDevices] = useState<{ video: Device[]; audioIn: Device[]; audioOut: Device[] }>({ video: [], audioIn: [], audioOut: [] });
-    const [selectedDevices, setSelectedDevices] = useState<{ videoId?: string; audioInId?: string; audioOutId?: string }>({});
-    const [micEnabled, setMicEnabled] = useState<boolean>(true);
-    const [cameraEnabled, setCameraEnabled] = useState<boolean>(true);
-
-    const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [popUpMessage, setPopUpMessage] = useState("");
-    const [popUpTimerId, setPopUpTimerId] = useState(undefined);
+    const [popUpTimerId, setPopUpTimerId] = useState<NodeJS.Timeout | undefined>(undefined);
 
     useEffect(() => {
-        console.warn("CallProvider mounted");
-        return () => console.warn("CallProvider unmounted");
+        console.log("CallProvider mounted");
+        return () => console.log("CallProvider unmounted");
     }, []);
 
-    const resetCallState = useCallback(() => {
-        console.log("Resetting call state");
-        setCallParticipants([]);
-        setIsCallActive(false);
-        setInviteInfo(null);
-        setInviteContact(null);
-        setIsScreenSharing(false);
-    }, []);
-
-
-    const updateMediaDevices = useCallback(async () => {
+    const getMediaDevices = useCallback(async () => {
         try {
             const devices = await navigator.mediaDevices.enumerateDevices();
             const video: Device[] = [];
@@ -125,29 +93,29 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             });
             setAvailableDevices({ video, audioIn, audioOut });
 
-            // Set initial selected devices if not already set
-            if (!selectedDevices.videoId && video.length > 0) {
-                setSelectedDevices(prev => ({ ...prev, videoId: video[0].id }));
+            // Set defaults of selected devices if not already set
+            if (!selectedDevices.current.videoId && video.length > 0) {
+                selectedDevices.current.videoId = video[0].id;
             }
-            if (!selectedDevices.audioInId && audioIn.length > 0) {
-                setSelectedDevices(prev => ({ ...prev, audioInId: audioIn[0].id }));
+            if (!selectedDevices.current.audioInId && audioIn.length > 0) {
+                selectedDevices.current.audioInId = audioIn[0].id;
             }
-            if (!selectedDevices.audioOutId && audioOut.length > 0) {
-                setSelectedDevices(prev => ({ ...prev, audioOutId: audioOut[0].id }));
+            if (!selectedDevices.current.audioOutId && audioOut.length > 0) {
+                selectedDevices.current.audioOutId = audioOut[0].id;
             }
 
         } catch (error) {
             console.error('Error enumerating devices:', error);
         }
-    }, [selectedDevices.videoId, selectedDevices.audioInId, selectedDevices.audioOutId]);
+    }, []);
 
     const getMediaContraints = useCallback(() => {
         const constraints = {
-            audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
-            video: selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true
+            audio: selectedDevices.current.audioInId ? { deviceId: { exact: selectedDevices.current.audioInId } } : true,
+            video: selectedDevices.current.videoId ? { deviceId: { exact: selectedDevices.current.videoId } } : true
         };
         return constraints;
-    }, [selectedDevices.audioInId, selectedDevices.videoId]);
+    }, []);
 
     const getLocalMedia = useCallback(async () => {
         console.log("getLocalMedia");
@@ -158,12 +126,12 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [getMediaContraints]);
 
     useEffect(() => {
-        updateMediaDevices();
-        navigator.mediaDevices.addEventListener('devicechange', updateMediaDevices);
+        getMediaDevices();
+        navigator.mediaDevices.addEventListener('devicechange', getMediaDevices);
         return () => {
-            navigator.mediaDevices.removeEventListener('devicechange', updateMediaDevices);
+            navigator.mediaDevices.removeEventListener('devicechange', getMediaDevices);
         };
-    }, [updateMediaDevices]);
+    }, [getMediaDevices]);
 
     const hidePopUp = useCallback(() => {
         setPopUpMessage("");
@@ -196,18 +164,22 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const setupWebRTCEvents = useCallback(() => {
 
         webRTCService.onRegistered = async (participantId: string) => {
-            console.warn("CallContext: onRegistered: participantId", participantId);
-            localParticipantId.current = participantId;
+            console.log("CallContext: onRegistered: participantId", participantId);
+            setIsAuthenticated(true);
             hidePopUp();
         }
 
         webRTCService.onServerConnected = async () => {
             console.log("CallContext: server connected");
+            setIsConnected(true);
             hidePopUp();
         }
 
         webRTCService.onServerDisconnected = async () => {
             console.log("CallContext: disconnected from server");
+            setIsConnected(false);
+            setIsAuthenticated(false);
+            setIsCallActive(false);
             showPopUp("disconnected from server. trying to reconnect...");
         }
 
@@ -216,9 +188,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setParticipantsOnline(participants);
         };
 
-        webRTCService.onConferencesReceived = async (conferenceRooms) => {
-            console.log("CallContext: onConferencesReceived", conferenceRooms);
-            setConferences(conferenceRooms);
+        webRTCService.onConferencesReceived = async (confRoomsOnline) => {
+            console.log("CallContext: onConferencesReceived", confRoomsOnline);
+            setConferencesOnline(confRoomsOnline);
         };
 
         webRTCService.onParticipantTrack = async (participantId, track) => {
@@ -234,38 +206,12 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 return;
             }
 
-            console.log(`CallContext: Remote stream added for ${participantId}`);
-            //setRemoteStreams(prev => new Map(prev).set(userId, track));
-            // Participant should be added when 'user-joined-room' or call is established
-            // Here, we update the stream for an existing participant
-
-            setCallParticipants((prevParticipants) =>
-                prevParticipants.map((p) => {
-                    if (p.participantId === participantId) {
-                        // Create a new MediaStream to avoid mutating the existing one
-                        const newStream = new MediaStream();
-
-                        // Copy existing tracks except the one to replace
-                        p.stream.getTracks().forEach((existingTrack) => {
-                            if (existingTrack.kind !== track.kind) {
-                                newStream.addTrack(existingTrack);
-                            }
-                        });
-
-                        // Add the new track
-                        newStream.addTrack(track);
-
-                        // Return a new participant object with the updated stream
-                        return { ...p, stream: newStream };
-                    }
-                    return p;
-                })
-            );
+            console.log(`CallContext: Remote stream added for ${participantId}`);            
 
         };
 
         webRTCService.onParticipantTrackToggled = async (participantId, track) => {
-            console.warn(`CallContext: onParticipantTrackToggled ${participantId} ${track.kind}`);
+            console.log(`CallContext: onParticipantTrackToggled ${participantId} ${track.kind}`);
             console.log(`call participants: `, callParticipants);
 
             if (!participantId) {
@@ -276,92 +222,45 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (!track) {
                 console.error("CallContext: no track");
                 return;
-            }
-
-            setCallParticipants((prevParticipants) => {
-                return prevParticipants.map((p) => {
-                    if (p.participantId === participantId) {
-                        if (track.kind === "video") {
-                            console.warn(`isVideoOff ${track.enabled} `);
-                            return { ...p, isVideoOff: track.enabled };
-                        }
-                        else if (track.kind === "audio") {
-                            console.warn(`isMuted ${track.enabled} `);
-                            return { ...p, isMuted: track.enabled };
-                        }
-                    }
-                    return p;
-                });
-            });
-
+            }           
         };
 
-        webRTCService.onInviteReceived = async (inviteMsg: InviteMsg) => {
-            console.log(`CallContext: onInviteReceived ${inviteMsg.data.displayName} ${inviteMsg.data.participantId} ${inviteMsg.data.conferenceRoomName}`);
+        webRTCService.onInviteReceived = async (inviteReceivedMsg: InviteMsg) => {
+            console.log(`CallContext: onInviteReceived ${inviteReceivedMsg.data.displayName} ${inviteReceivedMsg.data.participantId} ${inviteReceivedMsg.data.conferenceRoomName}`);
             // Auto-decline if already in a call
             if (isCallActive) {
                 console.log("CallContext: already in a call, declining invite");
                 webRTCService.declineInvite();
                 return;
             }
-
             setPopUpMessage("");
-            setInviteInfo({ participantId: inviteMsg.data.participantId, displayName: inviteMsg.data.displayName });
+            setInviteInfoReceived(inviteReceivedMsg);
+            console.log("CallContext: setInviteInfoReceived ");
+
         };
 
 
         webRTCService.onConferenceJoined = async (conferenceId: string) => {
             console.log(`CallContext: onConferenceJoined ${conferenceId}, conferenceRoomName:${webRTCService.getConferenceRoom()?.conferenceRoomName}`);
-            setInviteContact(null);
-            setIsCallActive(true);
-            setConferenceRoomTitle(webRTCService.getConferenceRoom()?.conferenceRoomName);
 
-            if (localStreamRef.getTracks().length === 0) {
+            if (localParticipant.current.stream.getTracks().length === 0) {
                 await getLocalMedia();
             }
 
-            if (!localParticipantId.current) {
-                console.error(`localParticipantId not set: ${localParticipantId.current}`);
-                return;
-            }
+            console.log(`participants in room: ${callParticipants.size}`)
 
-            let self: CallParticipant = {
-                displayName: auth.getCurrentUser()?.displayName,
-                participantId: localParticipantId.current,
-                isMuted: localStreamRef ? !localStreamRef.getAudioTracks()[0]?.enabled : true,
-                isVideoOff: localStreamRef ? !localStreamRef.getVideoTracks()[0]?.enabled : true,
-                stream: localStreamRef
-            };
-
-            setCallParticipants((prev) => {
-                // // Check if participant with same ID already exists
-                // if (prevParticipants.some((p) => p.id === self.id)) {
-                //     console.log(`CallContext: Participant with ID ${self.id} already exists`);
-                //     // Optionally update existing participant instead
-                //     return prevParticipants.map((p) =>
-                //         p.id === self.id ? { ...p, ...self } : p
-                //     );
-                // }
-                return [...prev, self];
-            });
-
-            console.warn(`self added to call participants: `, self);
-
-            // setParticipants((prevParticipants) => {
-            //     return [...prevParticipants, self]
-            // });
-
-            // let newParticipants = [...participants];
-            // newParticipants.push(self);
-            // console.log("CallContext: newParticipants: add self:", newParticipants);
-            // setParticipants(newParticipants);
+            setIsCallActive(true);
+            setInviteInfoReceived(null);
+            setInviteInfoSend(null);
+            setCallParticipants(webRTCService.conferenceRoom.participants);           
 
         };
 
         webRTCService.onConferenceEnded = async (conferenceId: string, reason: string) => {
-            console.log(`CallContext: conference ended: conferenceId: ${conferenceId} reason: ${reason}`);
-            resetCallState();
-
+            console.log(`CallContext: onConferenceEnded: conferenceId: ${conferenceId} reason: ${reason}`);
+            setIsCallActive(false);
+            setInviteInfoSend(null);
+            setInviteInfoReceived(null);
             hidePopUp();
 
             if (reason) {
@@ -378,29 +277,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 return;
             }
 
-            const newParticipant = new CallParticipant(participantId, displayName);
-            setCallParticipants((prevParticipants) => {
-                // Check for duplicates
-                if (prevParticipants.some((p) => p.participantId === participantId)) {
-                    console.log(`CallContext: Participant with ID ${participantId} already exists`);
-                    return prevParticipants; // Skip adding duplicate
-                }
-
-                const updatedParticipants = [...prevParticipants, newParticipant];
-                console.log('CallContext: newParticipants: onParticipantJoined:', updatedParticipants);
-                return updatedParticipants;
-            });
-
-            // if (!participants.find(p => p.id === participantId)) {
-            //     console.log("add new participant", participantId, displayName, participants);
-
-            //     let newParticipants = [...participants, new CallParticipant(participantId, displayName)]
-            //     console.log("CallContext: newParticipants: onParticipantJoined:", newParticipants);
-            //     setParticipants(newParticipants);
-
-            // } else {
-            //     console.log("participant already exists", participantId, displayName);
-            // }
+            setCallParticipants(webRTCService.conferenceRoom.participants);            
 
         };
 
@@ -409,117 +286,72 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (!participantId) {
                 console.error('CallContext: Invalid participantId');
                 return;
-            }
-
-            setCallParticipants((prevParticipants) => {
-                // Check if participant exists
-                if (!prevParticipants.some((p) => p.participantId === participantId)) {
-                    console.log(`CallContext: Participant with ID ${participantId} not found`);
-                    return prevParticipants; // No update needed
-                }
-
-                const newParticipants = prevParticipants.filter((p) => p.participantId !== participantId);
-                console.log('CallContext: newParticipants: onParticipantLeft', newParticipants);
-                return newParticipants;
-            });
-
-            // setRemoteStreams(prev => {
-            //     const newStreams = new Map(prev);
-            //     newStreams.delete(participantId);
-            //     return newStreams;
-            // });
-            // let newParticipants = participants.filter(p => p.id !== participantId);
-            // console.log("CallContext: newParticipants: onParticipantLeft", newParticipants);
-            // setParticipants(newParticipants);
+            }           
         };
 
         return () => { // Cleanup
             webRTCService.dispose();
         }
-    }, [auth, getLocalMedia, hidePopUp, isCallActive, localStreamRef, resetCallState, showPopUp]);
+    }, [callParticipants, getLocalMedia, hidePopUp, isCallActive, showPopUp]);
 
-    useEffect(() => {
-        if (auth?.isAuthenticated && auth.getCurrentUser()) {
-            setupWebRTCEvents();
-        }
-    }, [auth, setupWebRTCEvents]);
-
-    const getParticipantsOnline = () => {
+    const getParticipantsOnline = useCallback(() => {
         webRTCService.getParticipantsOnline();
-    }
+    }, []);
 
-    const getConferenceRooms = () => {
-        webRTCService.getConferenceRooms();
-    }
+    const getConferenceRoomsOnline = useCallback(() => {
+        webRTCService.getConferenceRoomsOnline();
+    }, []);
 
-    const sendInvite = async (contactToCall: ParticipantInfo) => {
-        if (!auth?.getCurrentUser()) {
-            console.error("User not authenticated to initiate call");
-            return;
-        }
+    const sendInvite = useCallback(async (participantInfo: ParticipantInfo) => {
+        console.log(`sendInvite to ${participantInfo.participantId} ${participantInfo.displayName}`);
 
         try {
+            let inviteMsg = await webRTCService.sendInvite(participantInfo.participantId);
+            inviteMsg.data.displayName = participantInfo.displayName;
 
-            setInviteContact(contactToCall);
-            setIsCallActive(false); // Not fully active until accepted
-
-            await webRTCService.sendInvite(contactToCall.participantId);
-            console.log(`Call initiated to ${contactToCall.displayName}`);
-
+            setInviteInfoSend(inviteMsg);
+            console.log(`Call initiated to ${participantInfo.displayName}`);
         } catch (error) {
             console.error('Failed to initiate call:', error);
-            resetCallState();
         }
-    };
+    }, []);
 
-    const acceptInvite = async () => {
-        if (!inviteInfo || !auth?.getCurrentUser()) return;
+    const acceptInvite = useCallback(async () => {
         try {
-
             await webRTCService.acceptInvite();
-            setIsCallActive(true);
-            setInviteInfo(null); // Clear incoming call notification
-            console.log(`Call with ${inviteInfo.displayName} accepted in room ${inviteInfo}`);
+            console.log(`Call with ${inviteInfoReceived.data.displayName} accepted in room ${inviteInfoReceived.data.conferenceRoomName}`);
+            setInviteInfoReceived(null);
         } catch (error) {
-            console.error('Failed to accept call:', error);
-            resetCallState();
+            console.error('error" acceptInvite:', error);
         }
-    };
+    }, [inviteInfoReceived]);
 
-    const declineInvite = (isIncomingDecline: boolean = true) => {
-        if (isIncomingDecline && inviteInfo) {
-            webRTCService.declineInvite();
-            setInviteInfo(null);
-            setIsCallActive(false);
+    const declineInvite = useCallback(() => {
+        webRTCService.declineInvite();
+        setInviteInfoReceived(null);
+    }, []);
 
-        }
-    };
+    const cancelInvite = useCallback(() => {
+        console.log(`Call to ${webRTCService.inviteSendMsg?.data.displayName} cancelled.`);
+        webRTCService.endCall();
+        setInviteInfoSend(null);
+    }, []);
 
-    const cancelInvite = () => {
-        if (inviteContact) {
-            console.log(`Call to ${inviteContact.displayName} cancelled.`);
-            webRTCService.endCall();
-
-            setInviteContact(null);
-            if (callParticipants.length <= 1) {
-                resetCallState();
-            }
-        }
-    };
-
-    const endCurrentCall = () => {
+    const endCurrentCall = useCallback(() => {
         console.log("Ending current call context-wise.");
         webRTCService.endCall();
-        resetCallState();
-    };
+        setIsCallActive(false);
+        setInviteInfoSend(null);
+        setInviteInfoReceived(null);
+    }, []);
 
-    const createConference = (trackingId: string, roomName: string) => {
+    const createConference = useCallback((trackingId: string, roomName: string) => {
         console.log("CallContext: createConference");
 
         webRTCService.createConferenceRoom(trackingId, roomName);
-    }
+    }, []);
 
-    const joinConference = (conferenceRoomId: string) => {
+    const joinConference = useCallback((conferenceRoomId: string) => {
         console.log("CallContext: joinConference");
 
         if (!conferenceRoomId) {
@@ -527,12 +359,12 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return;
         }
         webRTCService.joinConferenceRoom(conferenceRoomId)
-    }
+    }, []);
 
-    const toggleMuteAudio = (participantId: string, isMuted: boolean) => {
+    const toggleMuteAudio = useCallback((participantId: string, isMuted: boolean) => {
         console.log("CallContext: toggleMuteAudio");
 
-        let participant = callParticipants.find(p => p.participantId === participantId);
+        let participant = webRTCService.participants.get(participantId);
         if (!participant) {
             console.error(`participant not found ${participantId}`);
             return;
@@ -543,9 +375,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log(`audioTrack.enabled: ${audioTrack.enabled} ${audioTrack.id}`);
 
             //update the participant isMuted flag
-            setCallParticipants(prevParticipants => {
-                return [...prevParticipants.map(p => p.participantId === participantId ? { ...p, isMuted: isMuted } : p)];
-            });
+            // setCallParticipants(prevParticipants => {
+            //     return [...prevParticipants.map(p => p.participantId === participantId ? { ...p, isMuted: isMuted } : p)];
+            // });
 
             // let isLocal = participantId === auth.getCurrentUser()?.id;
             // if(isLocal) {
@@ -553,18 +385,17 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             //     return;
             // }
 
-            if (auth.getCurrentUser()?.role === "admin") {
-                webRTCService.updateTrackEnabled(participantId);
-            }
+            webRTCService.updateTrackEnabled(participantId);
+
 
         } else {
             console.log("CallContext: audioTrack not found");
         }
-    };
+    }, []);
 
-    const toggleMuteVideo = (participantId: string, isMuted: boolean) => {
+    const toggleMuteVideo = useCallback((participantId: string, isMuted: boolean) => {
         console.log("CallContext: toggleMuteVideo");
-        let participant = callParticipants.find(p => p.participantId === participantId);
+        let participant = callParticipants.get(participantId);
         if (!participant) {
             console.error(`participant not found ${participantId}`);
             return;
@@ -574,37 +405,18 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (videoTrack) {
             videoTrack.enabled = !isMuted;
             console.log(`videoTrack.enabled: ${videoTrack.enabled} ${videoTrack.id}`);
+            webRTCService.updateTrackEnabled(participantId);
 
-            setCallParticipants(prevParticipants => {
-                return [...prevParticipants.map(p => p.participantId === participantId ? { ...p, isVideoOff: isMuted } : p)];
-            });
-
-            // let isLocal = participantId === auth.getCurrentUser()?.id;
-            // if(isLocal) {
-            //     console.log(`IsLocal participant`);
-            //     return;
-            // }
-
-            //if admin, send message to disable the video for the participant on the conference server
-            if (auth.getCurrentUser()?.role === "admin") {
-                webRTCService.updateTrackEnabled(participantId);
-            }
 
         } else {
             console.log("CallContext: videoTrack not found");
         }
-    };
+    }, [callParticipants]);
 
-
-    const startScreenShare = async () => {
+    const startScreenShare = useCallback(async () => {
         console.log(`startScreenShare`);
 
-        if (!localStreamRef) {
-            console.log(`no local stream initiated`)
-            return;
-        }
-
-        let cameraTrack = localStreamRef.getVideoTracks()[0];
+        let cameraTrack = localParticipant.current.stream.getVideoTracks()[0];
         if (cameraTrack) {
             cameraTrack.enabled = false; // Disable the camera track if it exists
         }
@@ -613,7 +425,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log(`after cameraTrack: readyState ${cameraTrack.readyState} ${cameraTrack.id}`);
 
         if (screenTrack) {
-            setIsScreenSharing(true);
+            isScreenSharing.current = true;
             webRTCService.publishTracks([screenTrack]); // Replace the camera track with the screen track            
         }
 
@@ -621,14 +433,14 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsLocalStreamUpdated(true);
 
         console.log(`end of function cameraTrack: readyState ${cameraTrack.readyState} ${cameraTrack.id}`);
-    };
+    }, []);
 
-    const stopScreenShare = async () => {
+    const stopScreenShare = useCallback(async () => {
         console.log("stopScreenShare");
 
         try {
 
-            const screenTrack = localStreamRef.getVideoTracks().find(track => track.label === 'screen');
+            const screenTrack = localParticipant.current.stream.getVideoTracks().find(track => track.label === 'screen');
 
             if (screenTrack) {
                 console.log(`Stopping screenTrack: ${screenTrack.id}`);
@@ -643,36 +455,35 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             if (cameraTrack) {
                 console.log(`Using cameraTrack: ${cameraTrack.readyState} ${cameraTrack.kind} ${cameraTrack.id}`);
-                console.log("tracks:", localStreamRef.getVideoTracks());
+                console.log("tracks:", localParticipant.current.stream.getVideoTracks());
                 // Update state
-                setIsScreenSharing(false);
+                isScreenSharing.current = false;
                 setIsLocalStreamUpdated(true);
             }
         } catch (error) {
             console.error("Error stopping screen share:", error);
         }
-    };
+    }, [getMediaContraints]);
 
-
-    const switchDevices = async (videoId: string, audioId: string, speakerId: string) => {
-        console.log(`switchDevices videoId:${videoId}, audioId:${audioId}, speakerId:${speakerId}, micEnabled:${micEnabled}, cameraEnabled:${cameraEnabled}`);
+    const switchDevices = useCallback(async (videoId: string, audioId: string, speakerId: string) => {
+        console.log(`switchDevices videoId:${videoId}, audioId:${audioId}, speakerId:${speakerId}, micEnabled:${selectedDevices.current.isAudioEnabled}, cameraEnabled:${selectedDevices.current.isVideoEnabled}`);
 
         //set selected devices
-        if (selectedDevices.videoId !== videoId) {
-            selectedDevices.videoId = videoId ?? selectedDevices.videoId;
+        if (selectedDevices.current.videoId !== videoId) {
+            selectedDevices.current.videoId = videoId ?? selectedDevices.current.videoId;
         }
 
-        if (selectedDevices.audioInId !== audioId) {
-            selectedDevices.audioInId = audioId ?? selectedDevices.audioInId;
+        if (selectedDevices.current.audioInId !== audioId) {
+            selectedDevices.current.audioInId = audioId ?? selectedDevices.current.audioInId;
         }
 
-        if (selectedDevices.audioOutId !== speakerId) {
-            selectedDevices.audioOutId = speakerId ?? selectedDevices.audioOutId;
+        if (selectedDevices.current.audioOutId !== speakerId) {
+            selectedDevices.current.audioOutId = speakerId ?? selectedDevices.current.audioOutId;
         }
 
         const constraints = {
-            audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
-            video: selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true
+            audio: selectedDevices.current.audioInId ? { deviceId: { exact: selectedDevices.current.audioInId } } : true,
+            video: selectedDevices.current.videoId ? { deviceId: { exact: selectedDevices.current.videoId } } : true
         };
 
         //get new stream based on devices
@@ -680,111 +491,64 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         let videoTrack = webRTCService.localStream.getVideoTracks()[0];
         if (videoTrack) {
-            videoTrack.enabled = cameraEnabled;
+            videoTrack.enabled = selectedDevices.current.isVideoEnabled;
         }
 
         let audioTrack = webRTCService.localStream.getAudioTracks()[0];
         if (audioTrack) {
-            audioTrack.enabled = micEnabled;
+            audioTrack.enabled = selectedDevices.current.isAudioEnabled;
         }
         setIsLocalStreamUpdated(true);
-    };
+    }, []);
 
-    // const switchDevice = async (type: 'video' | 'audioIn' | 'audioOut', deviceId: string) => {
-    //     if (type === 'audioOut') {
-    //         // For video elements: videoEl.setSinkId(deviceId)
-    //         // This needs to be applied to all <video> elements displaying remote/local streams.
-    //         // This is a UI concern, not directly a WebRTC stream manipulation for audio output.
-    //         console.log("Speaker selection (setSinkId) needs to be handled at the video element level.");
-    //         return;
-    //     }
-
-    //     //detect a change
-    //     let updateAudio = false;
-    //     let updateVideo = false;
-    //     if (type === "video") {
-    //         if (selectedDevices.videoId !== deviceId) {
-    //             //video has changed
-    //             updateVideo = true;
-    //         }
-    //     }
-
-    //     if (type === "audioIn") {
-    //         if (selectedDevices.audioInId !== deviceId) {
-    //             //video has changed
-    //             updateAudio = true;
-    //         }
-    //     }
-
-    //     setSelectedDevices(prev => ({ ...prev, [`${type === 'video' ? 'video' : type}Id`]: deviceId }));
-
-    //     if (webRTCService.isOnCall()) {
-
-    //         const constraints = {
-    //             audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
-    //             video: selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true
-    //         };
-
-    //         let newstream = await webRTCService.getNewStream(constraints);
-    //         console.log(newstream);
-
-    //         webRTCService.replaceStream(newstream);
-
-    //     }
-
-    //     // Get new stream with selected devices       
-    //     // type === 'audioIn' ? deviceId : selectedDevices.audioInId,
-    //     //   type === 'video' ? deviceId : selectedDevices.videoId
-    //     //const newStream = await webRTCService.getUserMedia();
-    //     //setLocalStream(newStream); // Update local stream in context
-
-    //     // Update tracks in existing peer connections
-    //     //const audioTrack = newStream.getAudioTracks()[0];
-    //     //const videoTrack = newStream.getVideoTracks()[0];
-
-
-    //     // webRTCService.getPeerConnectionsState().forEach(pc => {
-    //     //     pc.getSenders().forEach(sender => {
-    //     //         if (sender.track?.kind === 'audio' && audioTrack) {
-    //     //             sender.replaceTrack(audioTrack);
-    //     //         }
-    //     //         if (sender.track?.kind === 'video' && videoTrack) {
-    //     //             sender.replaceTrack(videoTrack);
-    //     //             if (type === 'video') setOriginalVideoTrack(videoTrack); // Update original if camera changes
-    //     //         }
-    //     //     });
-    //     // });
-    //     // if (auth?.getCurrentUser()) {
-    //     //     setParticipants(prev => prev.map(p => p.id === auth!.getCurrentUser()!.id ? { ...p, stream: newStream, isMuted: !audioTrack?.enabled, isVideoOff: !videoTrack?.enabled } : p));
-    //     // }
-
-    // };
+    useEffect(() => {
+        setupWebRTCEvents();
+    }, [setupWebRTCEvents]);
 
     return (
         <CallContext.Provider value={{
-            localParticipantId,
-            participantsOnline, setParticipantsOnline, getParticipantsOnline,
-            conferences, setConferences, getConferenceRooms,
-            getLocalMedia,
-            hidePopUp,
-            showPopUp,
-            popUpMessage,
-            localStreamRef,
+            isAuthenticated,
+            isConnected,
+            localParticipant: localParticipant.current,            
             isLocalStreamUpdated,
-            callParticipants, setCallParticipants,
+            isCallActive: isCallActive,
+            conferenceRoom: conferenceRoom.current,
+            callParticipants,
+            isScreenSharing: isScreenSharing.current,
+            participantsOnline: participantsOnline,
+            conferencesOnline: conferencesOnline,
+            inviteInfoSend,
+            inviteInfoReceived,
 
-            isCallActive,
-            conferenceRoomName, setConferenceRoomTitle,
+            setInviteInfoSend,
+            availableDevices: availableDevices,
+            selectedDevices: selectedDevices.current,
+            popUpMessage: popUpMessage,
+            hidePopUp,
 
-            createConference, joinConference,
-            inviteInfo, setInviteInfo,
-            inviteContact, setInviteContact,
-            availableDevices, selectedDevices, setSelectedDevices, isScreenSharing,
-            cameraEnabled, setCameraEnabled, micEnabled, setMicEnabled,
-            sendInvite, acceptInvite, declineInvite, cancelInvite,
+            getLocalMedia,
+
+            getConferenceRoomsOnline,
+            getParticipantsOnline,
+
+            createConference,
+            joinConference,
+
+            sendInvite,
+            acceptInvite,
+            declineInvite,
+            cancelInvite,
             endCurrentCall,
-            toggleMuteAudio, toggleMuteVideo, startScreenShare, stopScreenShare, updateMediaDevices,
-            switchDevices
+
+            toggleMuteAudio,
+            toggleMuteVideo,
+
+            startScreenShare,
+            stopScreenShare,
+
+            getMediaDevices,
+            switchDevices,
+
         }}>
             {children}
         </CallContext.Provider>

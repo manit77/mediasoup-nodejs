@@ -1,4 +1,4 @@
-import { User, Conference } from '../types';
+import { User, ConferenceRoomScheduled } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api'; // Configure your API base URL
 
@@ -8,8 +8,10 @@ interface LoginResponse {
     role: string;
 }
 
-export const ApiService = {
-    login: async (displayName: string, password: string): Promise<LoginResponse> => {
+class ApiService  {
+    conferencesScheduled: ConferenceRoomScheduled[] = [];
+
+    login = async (displayName: string, password: string): Promise<LoginResponse> => {
         // Simulate API call
         console.log(`ApiService: Logging in user ${displayName}`);
         if (!displayName.trim()) {
@@ -36,9 +38,9 @@ export const ApiService = {
                 resolve({ user, token: `fake-jwt-token-for-${user.id}`, role: user.role });
             }, 500);
         });
-    },
+    };
 
-    loginGuest: async (displayName: string): Promise<LoginResponse> => {
+    loginGuest = async (displayName: string): Promise<LoginResponse> => {
         // Simulate API call
         console.log(`ApiService: Logging in user ${displayName}`);
         if (!displayName.trim()) {
@@ -65,9 +67,9 @@ export const ApiService = {
                 resolve({ user, token: `fake-jwt-token-for-${user.id}`, role: user.role });
             }, 500);
         });
-    },
+    };
 
-    logout: async (): Promise<void> => {
+    logout = async (): Promise<void> => {
         // Simulate API call
         console.log('ApiService: Logging out user');
         // Replace with actual fetch call
@@ -79,21 +81,15 @@ export const ApiService = {
         localStorage.removeItem('authToken');
         localStorage.removeItem('user');
         return Promise.resolve();
-    },
+    };
 
-    getConferencesScheduled: async (): Promise<Conference[]> => {
-        console.log("getConferencesScheduled");
+    fetchConferencesScheduled = async (): Promise<ConferenceRoomScheduled[]> => {
+        console.log("fetchConferencesScheduled");
         //get rooms from API
-        let conferences: Conference[] = [{
-            id: "1",
-            name: "room1",
-            status: ""
-        }, {
-            id: "2",
-            name: "room2",
-            status: ""
-        }];
-        return conferences;
-    }
+        this.conferencesScheduled = [new ConferenceRoomScheduled("1", "Room 1"), new ConferenceRoomScheduled("2", "Room 2")];
+        return this.conferencesScheduled;
+    };
 
 };
+
+export const apiService = new ApiService(); // Singleton instance

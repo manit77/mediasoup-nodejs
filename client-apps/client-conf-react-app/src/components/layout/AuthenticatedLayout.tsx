@@ -8,25 +8,27 @@ import { Button } from 'react-bootstrap';
 import PopupMessage from '../popups/PopupMessage';
 import RoomsPane from './RoomsPane';
 import { AuthContext } from './../../contexts/AuthContext';
+import IncomingCallPopup from '../call/IncomingCallPopup';
+import CallingPopup from '../call/CallingPopup';
 
 const AuthenticatedLayout: React.FC = () => {
     const auth = useContext(AuthContext);
     const [showSettings, setShowSettings] = useState(false);
-    const {localStreamRef, isLocalStreamUpdated, getLocalMedia, popUpMessage, hidePopUp } = useCall();
+    const { localParticipant, inviteInfoSend, inviteInfoReceived, isLocalStreamUpdated, getLocalMedia, popUpMessage, hidePopUp } = useCall();
     const [showPreview, setShowPreview] = useState(false);
 
     useEffect(() => {
         console.log("localStream refresh triggered.");
-        let videoTrack = localStreamRef.getVideoTracks()[0];
+        let videoTrack = localParticipant.stream.getVideoTracks()[0];
         if (videoTrack) {
             console.log("videoTrack found, enabled: ", videoTrack.enabled);
             setShowPreview(videoTrack.enabled);
         }
 
-    }, [isLocalStreamUpdated, localStreamRef]);
+    }, [isLocalStreamUpdated, localParticipant]);
 
     const previewClick = async () => {
-        let videoTrack = localStreamRef.getVideoTracks()[0];
+        let videoTrack = localParticipant.stream.getVideoTracks()[0];
         if (!videoTrack) {
             console.log(`get local media for preview.`);
             let tracks = await getLocalMedia();
@@ -41,6 +43,13 @@ const AuthenticatedLayout: React.FC = () => {
     const showDeviceSettingsClick = () => {
         setShowSettings(true);
     }
+
+    useEffect(() => {
+
+        console.log("updated inviteInfoSend", inviteInfoSend);        
+        console.log("updated inviteInfoReceived", inviteInfoReceived);        
+
+    }, [inviteInfoSend, inviteInfoReceived]);
 
     return (
         <div className="d-flex flex-column vh-100">
@@ -57,12 +66,14 @@ const AuthenticatedLayout: React.FC = () => {
                         {
                             !showPreview ? "Preview Video" : "Stop Preview"
                         }
-                    </Button>                  
-                    <MainVideo stream={localStreamRef} />
+                    </Button>
+                    <MainVideo stream={localParticipant.stream} />
                 </div>
             </div>
             <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />
             <PopupMessage show={popUpMessage ? true : false} message={popUpMessage} handleClose={() => hidePopUp()} />
+            {inviteInfoReceived && <IncomingCallPopup />}
+            {inviteInfoSend && <CallingPopup />}
         </div>
     );
 };

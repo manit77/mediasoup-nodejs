@@ -4,7 +4,7 @@ import { useCall } from '../../hooks/useCall';
 import { useNavigate } from 'react-router-dom';
 
 const IncomingCallPopup: React.FC = () => {
-    const { isCallActive, inviteInfo, acceptInvite, declineInvite, setInviteInfo } = useCall();
+    const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite } = useCall();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -16,20 +16,16 @@ const IncomingCallPopup: React.FC = () => {
     }, [isCallActive, navigate]);
 
     const handleAccept = async () => {
-        try {
-            await acceptInvite();
-
-        } catch (error) {
-            console.error('Failed to accept call:', error);
-            alert('Failed to accept call. Please try again.');
-            setInviteInfo(null); // Clear the popup on error
-        }
+        await acceptInvite();
     };
 
     const handleDecline = () => {
-        declineInvite(true); // true for isIncomingDecline
-        setInviteInfo(null); // Clear the popup
-    }; 
+        declineInvite();
+    };
+
+    useEffect(() => {
+        console.log("updated inviteInfoReceived", inviteInfoReceived);
+    }, [inviteInfoReceived]);
 
     return (
         <Modal show={true} centered backdrop="static" keyboard={false}>
@@ -40,7 +36,7 @@ const IncomingCallPopup: React.FC = () => {
             </Modal.Header>
             <Modal.Body>
                 <p>
-                    <strong>{inviteInfo?.displayName}</strong> is calling you.
+                    <strong>{inviteInfoReceived?.data.displayName}</strong> is calling you.
                 </p>
             </Modal.Body>
             <Modal.Footer>

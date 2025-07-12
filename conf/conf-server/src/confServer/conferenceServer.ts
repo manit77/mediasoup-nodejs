@@ -408,7 +408,7 @@ export class ConferenceServer {
 
         let conference = this.getOrCreateConference();
         conference.confType = "p2p";
-        conference.addParticipant(caller);        
+        conference.addParticipant(caller);
         conference.minParticipants = 2;
         conference.startTimerMinParticipants(10); //call will timeout if minParticipants not met 
 
@@ -439,7 +439,7 @@ export class ConferenceServer {
         //send InviteResult back to the caller
         inviteResultMsg.data.participantId = remote.participantId;
         inviteResultMsg.data.displayName = remote.displayName;
-        inviteResultMsg.data.conferenceRoomId = conference.id;        
+        inviteResultMsg.data.conferenceRoomId = conference.id;
         inviteResultMsg.data.conferenceRoomName = conference.roomName;
         inviteResultMsg.data.conferenceRoomTrackingId = conference.trackingId;
         inviteResultMsg.data.conferenceType = conference.confType;
@@ -508,19 +508,19 @@ export class ConferenceServer {
         }
 
         //the participant is not in the same conference room as the reject message
-        if(conf !== participant.conferenceRoom) {
+        if (conf !== participant.conferenceRoom) {
             console.error("not the same confererence room");
             return;
         }
-       
+
         //send the reject to the client
         this.send(participant.socket, msgIn);
 
         //the room was p2p, remove the particpant
-        if(conf.confType == "p2p") {
+        if (conf.confType == "p2p") {
             conf.removeParticipant(participant.participantId);
         }
-        
+
     }
 
     private async onAccept(ws: WebSocket, msgIn: AcceptMsg) {
@@ -569,6 +569,11 @@ export class ConferenceServer {
             console.log(`conference room ready ${conference.id}`);
             conference.addParticipant(participant);
             clearTimeout(timeoutid);
+
+            //send the answer result back
+            let msg = new AcceptResultMsg();
+            msg.data.conferenceRoomId = msgIn.data.conferenceRoomId;
+            this.send(ws, msg);
         });
 
         if (conference.status == "none") {
@@ -580,7 +585,7 @@ export class ConferenceServer {
         }
     }
 
-   private async onCreateConference(ws: WebSocket, msgIn: CreateConfMsg) {
+    private async onCreateConference(ws: WebSocket, msgIn: CreateConfMsg) {
         console.log("onCreateConference");
 
         let caller = this.participants.get(ws);
@@ -620,13 +625,20 @@ export class ConferenceServer {
         this.send(ws, resultMsg);
     }
 
+    /**
+     * triggers when a particpants joins a conference
+     * adds a new particpant to the conference
+     * @param ws 
+     * @param msgIn 
+     * @returns 
+     */
     private async onJoinConference(ws: WebSocket, msgIn: JoinConfMsg) {
         console.log("onJoinConference");
 
         let partcipant = this.participants.get(ws);
         if (!partcipant) {
             console.error("partcipant not found.");
-            
+
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "failed to add you to the conference.";
             this.send(ws, errorMsg);
@@ -677,7 +689,13 @@ export class ConferenceServer {
         }
 
         conference.addParticipant(partcipant);
+
+        //do not send JoinConfResultMsg back, send the ConferenceReadyMsg
         this.sendConferenceReady(conference, partcipant);
+
+        let resultMsg = new JoinConfResultMsg();
+        resultMsg.data.conferenceRoomId = conference.roomId;
+        this.send(ws, resultMsg);
     }
 
     async sendConferenceReady(conference: ConferenceRoom, participant: Participant) {
@@ -707,7 +725,7 @@ export class ConferenceServer {
         msg.data.participantId = participant.participantId;
         msg.data.displayName = participant.displayName;
         msg.data.conferenceRoomConfig = conference.config;
-        
+
         msg.data.roomId = conference.roomId;
         msg.data.roomToken = conference.roomToken;
         msg.data.authToken = authUserTokenResult.data.authToken;
@@ -795,16 +813,16 @@ export class ConferenceServer {
             return;
         }
 
-        conf.removeParticipant(participant.participantId);        
+        conf.removeParticipant(participant.participantId);
 
-        if(conf.confType == "p2p") {
+        if (conf.confType == "p2p") {
             //if the conference was p2p, close the room if only one participant left
             if (conf.participants.size == 1) {
                 console.log("closing conference room, no participants left.");
                 conf.close("room closed.");
                 return
             }
-        } 
+        }
 
         //forward leave to all other participants
         for (let p of conf.participants.values()) {

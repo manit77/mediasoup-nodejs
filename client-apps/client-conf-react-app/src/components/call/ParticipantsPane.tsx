@@ -3,22 +3,21 @@ import { Card, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { useAuth } from '../../hooks/useAuth';
 import { MicFill, MicMuteFill, CameraVideoFill, CameraVideoOffFill } from 'react-bootstrap-icons';
-import { CallParticipant, User } from '../../types';
+import { Participant } from '@conf/conf-client';
 
 
 interface ParticipantVideoPreviewProps {
-    participant?: CallParticipant
+    participant?: Participant
     onClick: () => void;
     isSelected?: boolean;
 }
 
 const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected }) => {
-    const { localStreamRef, getLocalMedia, toggleMuteAudio, toggleMuteVideo } = useCall();
+    const { localParticipant, localStream, getLocalMedia, toggleMuteAudio, toggleMuteVideo } = useCall();
     const { getCurrentUser } = useAuth();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [videoOff, setVideoOff] = useState(participant.isVideoOff);
     const [micOff, setMicOff] = useState(participant.isMuted);
-    const [isLocal, setIsLocal] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
@@ -31,14 +30,13 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
     }, [participant]);
 
     useEffect(() => {
-        console.log("set video srcObject");
+        console.log(`set video srcObject ${participant.displayName}`);
         if (participant.stream && videoRef.current) {
             videoRef.current.srcObject = participant.stream;
+             console.log(`set srcObject ${participant.displayName}`);
         }
+    }, [participant]);
 
-        setIsLocal(participant.participantId === getCurrentUser()?.id);
-
-    }, [getCurrentUser, participant]);
 
     // no reliable across
     // Add mute/unmute event listeners for tracks
@@ -103,11 +101,11 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
     const onVideoClick = async () => {
         console.log("onVideoClick ", participant);
 
-        if (isLocal) {
+        if (localParticipant.participantId === participant.participantId) {
             if (participant.stream == null) {
                 console.log("participant stream is null, get user media");
                 await getLocalMedia();
-                participant.stream = localStreamRef;
+                participant.stream = localStream;
                 participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;
                 participant.isMuted = !participant.stream.getAudioTracks()[0]?.enabled;
 
@@ -144,13 +142,13 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
     const onAudioClick = async () => {
         console.log("onAudioClick ", participant);
 
-        if (isLocal) {
+        if (localParticipant.participantId === participant.participantId) {
             console.log(`localParticipant`);
             if (participant.stream == null) {
                 //get user media
                 console.log(`getting localMedia`);
                 await getLocalMedia();
-                participant.stream = localStreamRef;
+                participant.stream = localStream;
                 participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;
                 participant.isMuted = !participant.stream.getAudioTracks()[0]?.enabled;
                 setVideoOff(participant.isVideoOff);
@@ -185,7 +183,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
     return (
         <Card className={`mb-2 participant-preview ${isSelected ? 'border-primary' : ''}`} onClick={onClick} style={{ cursor: 'pointer' }}>
             <div style={{ position: 'relative', width: '100%', paddingTop: '75%' /* 4:3 Aspect Ratio */ }}>
-                <video ref={videoRef} autoPlay playsInline muted={isLocal} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#333' }} />
+                <video ref={videoRef} autoPlay playsInline muted={localParticipant.participantId === participant.participantId} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#333' }} />
                 {videoOff ? (
                     <div className="d-flex align-items-center justify-content-center" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: '#444' }}>
                         video is off
@@ -193,72 +191,54 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
                     </div>
                 ) : null}
                 <div className="position-absolute bottom-0 start-0 bg-dark bg-opacity-50 text-white px-2 py-1 w-100">
-                    <small>{participant.displayName} {isLocal && "(You)"}</small>                    
-                        <>
-                            <span className="ms-1" onClick={() => onAudioClick()}>
-                                {micOff ? <MicMuteFill color="red" /> : <MicFill color="lightgreen" />}
-                            </span>
-                            <span className="ms-1" onClick={() => onVideoClick()}>
-                                {videoOff ? <CameraVideoOffFill color="red" /> : <CameraVideoFill color="lightgreen" />}
-                            </span>
-                        </>
-                    {/* {(isAdmin || isLocal) && (
-                        <>
-                            <span className="ms-1" onClick={() => onAudioClick()}>
-                                {micOff ? <MicMuteFill color="red" /> : <MicFill color="lightgreen" />}
-                            </span>
-                            <span className="ms-1" onClick={() => onVideoClick()}>
-                                {videoOff ? <CameraVideoOffFill color="red" /> : <CameraVideoFill color="lightgreen" />}
-                            </span>
-                        </>
-                    )} */}
+                    <small>{participant.displayName} {localParticipant.participantId === participant.participantId && "(You)"}</small>
+                    <>
+                        <span className="ms-1" onClick={() => onAudioClick()}>
+                            {micOff ? <MicMuteFill color="red" /> : <MicFill color="lightgreen" />}
+                        </span>
+                        <span className="ms-1" onClick={() => onVideoClick()}>
+                            {videoOff ? <CameraVideoOffFill color="red" /> : <CameraVideoFill color="lightgreen" />}
+                        </span>
+                    </>                    
                 </div>
             </div>
         </Card>
     );
 };
 
-
 interface ParticipantsPaneProps {
     onSelectVideo: (userId: string, stream?: MediaStream) => void;
-    currentMainUserId: string | null;
 }
 
-const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, currentMainUserId }) => {
-    const { callParticipants, localStreamRef } = useCall();
+const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo }) => {
+    const { localParticipant, callParticipants, localStream } = useCall();
     const { getCurrentUser } = useAuth();
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
-
 
     useEffect(() => {
-        setCurrentUser(getCurrentUser());
     }, [getCurrentUser])
-
-    // Find local participant data from the participants list
-    const localParticipant = callParticipants.find(p => p.participantId === currentUser?.id);
 
     return (
         <div>
-            <h5 className="mb-3">Participants ({callParticipants.length})</h5>
+            <h5 className="mb-3">Participants ({callParticipants.size})</h5>
             {/* Local User Preview First */}
-            {currentUser && localParticipant && (
+            {localParticipant && (
                 <ParticipantVideoPreview
                     key={localParticipant.participantId}
                     participant={localParticipant}
-                    onClick={() => onSelectVideo(currentUser.id, localStreamRef)}
-                    isSelected={currentMainUserId === currentUser.id || (currentMainUserId === 'local' && currentUser.id === localParticipant.participantId)}
+                    onClick={() => onSelectVideo(localParticipant.participantId, localStream)}
+                    isSelected={callParticipants.size === 0}
                 />
             )}
 
             {/* Remote Participants */}
-            {callParticipants
-                .filter(p => p.participantId !== currentUser?.id) // Filter out local user
+            {[...callParticipants.values()]
+                .filter(p => p.participantId !== localParticipant.participantId)
                 .map((participant) => (
                     <ParticipantVideoPreview
                         key={participant.participantId}
                         participant={participant}
                         onClick={() => onSelectVideo(participant.participantId, participant.stream)}
-                        isSelected={currentMainUserId === participant.participantId}
+                        isSelected={false}
                     />
                 ))}
         </div>

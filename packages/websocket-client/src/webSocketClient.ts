@@ -165,7 +165,7 @@ export class WebSocketClient {
     }
 
     // Remove the event handler
-    removeEventHandler(type: eventsTypes, callback: Function) {
+    removeEventHandler(type: eventsTypes, callback: Function): boolean {
         this.writeLog(`removeEventHandler ${type}`);
 
         const cbarr = this.callbacks.get(type);
@@ -174,23 +174,28 @@ export class WebSocketClient {
             if (idx > -1) {
                 cbarr.splice(idx, 1);
                 this.writeLog(`eventHandler removed ${type}`);
+                console.log(logPre, `eventHandler removed ${type}`);
+                return true;
             }
         }
+        return false;
     }
 
     // Send a message to the signaling server
-    send(data: any) {
+    send(data: any): boolean {
         this.writeLog("send", data);
 
         try {
             if (this.socket && this.socket.readyState === WebSocket.OPEN) {
                 this.socket.send(data);
+                return true;
             } else {
                 console.error("socket not connected.");
             }
         } catch (err) {
             console.error(err);
         }
+        return false;
     }
 
     // Close the connection

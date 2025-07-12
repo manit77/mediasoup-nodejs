@@ -6,40 +6,43 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
     const {
         availableDevices,
         selectedDevices,
-        updateMediaDevices,
-        switchDevices,
-        cameraEnabled, setCameraEnabled,
-        micEnabled, setMicEnabled,
+        getMediaDevices,
+        switchDevices
     } = useCall();
 
-    const [audioId, setaudioId] = useState("true");
-    const [videoId, setvideoId] = useState("true");
-    const [speakerId, setspeakerId] = useState("true");
+    const [audioId, setAudioId] = useState("");
+    const [videoId, setVideoId] = useState("");
+    const [speakerId, setSpeakerId] = useState("");
+    const [isVideoEnabled, setIsVideoEnabled] = useState(false);
+    const [isAudioEnabled, setIsAudioEnabled] = useState(false);
 
 
     useEffect(() => {
         if (show) {
-            updateMediaDevices();
-
-            setaudioId(selectedDevices.audioInId);
-            setvideoId(selectedDevices.videoId);
-            setspeakerId(selectedDevices.audioOutId);
+            getMediaDevices();
+            setAudioId(selectedDevices.audioInId);
+            setVideoId(selectedDevices.videoId);
+            setSpeakerId(selectedDevices.audioOutId);
+            setIsVideoEnabled(selectedDevices.isVideoEnabled);
+            setIsAudioEnabled(selectedDevices.isAudioEnabled);
 
         }
-    }, [selectedDevices.audioInId, selectedDevices.audioOutId, selectedDevices.videoId, show, updateMediaDevices]);
+    }, [selectedDevices.audioInId, selectedDevices.audioOutId, selectedDevices.videoId, show, getMediaDevices]);
 
     const handleDeviceChange = (type: 'video' | 'audioIn' | 'audioOut', deviceId: string) => {
         if (type === "video") {
-            setvideoId(deviceId);
+            setVideoId(deviceId);
         } else if (type === "audioIn") {
-            setaudioId(deviceId);
+            setAudioId(deviceId);
         } else {
-            setspeakerId(deviceId);
+            setSpeakerId(deviceId);
         }
     };
 
     const closeButtonClick = async () => {
         switchDevices(videoId, audioId, speakerId);
+        selectedDevices.isAudioEnabled = isAudioEnabled;
+        selectedDevices.isVideoEnabled = isVideoEnabled;
         handleClose();
     };
 
@@ -76,8 +79,8 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                                 <option key={device.id} value={device.id}>{device.label}</option>
                                             ))}
                                         </Form.Select>
-                                    ) : <p>No cameras found.</p>}                                   
-                                    <Form.Check label="Camera enabled" checked={cameraEnabled} onChange={(e) => setCameraEnabled(e.target.checked)}></Form.Check>
+                                    ) : <p>No cameras found.</p>}
+                                    <Form.Check label="Camera enabled" checked={isVideoEnabled} onChange={(e) => setIsVideoEnabled(e.target.checked)}></Form.Check>
 
                                     <h5>Microphone</h5>
                                     {availableDevices.audioIn.length > 0 ? (
@@ -91,8 +94,8 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                                 <option key={device.id} value={device.id}>{device.label}</option>
                                             ))}
                                         </Form.Select>
-                                    ) : <p>No microphones found.</p>}                                    
-                                    <Form.Check label="Mic enabled" checked={micEnabled} onChange={(e) => setMicEnabled(e.target.checked)}></Form.Check>
+                                    ) : <p>No microphones found.</p>}
+                                    <Form.Check label="Mic enabled" checked={isAudioEnabled} onChange={(e) => setIsAudioEnabled(e.target.checked)}></Form.Check>
 
                                     <h5>Speaker</h5>
                                     {availableDevices.audioOut.length > 0 ? (

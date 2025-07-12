@@ -4,56 +4,51 @@ import CallTopMenu from './CallTopMenu';
 import ParticipantsPane from './ParticipantsPane';
 import MainVideo from './MainVideo';
 import SettingsPopup from '../popups/SettingsPopup';
-import InvitePopup from '../popups/InvitePopup';
 import { useCall } from '../../hooks/useCall';
 import { Navigate } from 'react-router-dom';
 
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
-    const [showInvite, setShowInvite] = useState(false);
-    const { isCallActive, localStreamRef, callParticipants } = useCall();
-    const [mainStream, setMainStream] = useState<MediaStream | null>(null); // Could be local or a remote stream
-    const [mainStreamUserId, setMainStreamUserId] = useState<string | null>(null); // ID of user in main view
+    const { localParticipant, isCallActive, callParticipants } = useCall();
+    const [mainStream, setMainStream] = useState<MediaStream | null>(null); 
 
     useEffect(() => {
-        if (localStreamRef && !mainStream) {
-            setMainStream(localStreamRef);
+        if (localParticipant.stream && !mainStream) {
+            setMainStream(localParticipant.stream);
         }
-    }, [localStreamRef, mainStream]);
+    }, [localParticipant.stream, mainStream]);
 
     const handleSelectParticipantVideo = (participantId: string, stream?: MediaStream) => {
         if (stream) {
             setMainStream(stream);
-            setMainStreamUserId(participantId);
-        } else if (participantId === "local" && localStreamRef) { // Special case for local user
-            setMainStream(localStreamRef);
-            setMainStreamUserId("local"); // Or current user ID
+        } else if (participantId === "local" && localParticipant.stream) { // Special case for local user
+            setMainStream(localParticipant.stream);
         }
     };
 
-    if (!isCallActive && !localStreamRef && callParticipants.length === 0) { // Check if call ended/not properly started
+    if (!isCallActive && !localParticipant.stream && callParticipants.size === 0) { // Check if call ended/not properly started
         console.log("OnCallScreen: No active call, redirecting.");
         return <Navigate to="/app" />;
     }
 
     return (
         <div className="d-flex flex-column vh-100 bg-dark text-light">
-            <CallTopMenu
-                onShowInvite={() => setShowInvite(true)}
+            <CallTopMenu               
                 onShowSettings={() => setShowSettings(true)}
             />
             <Container fluid className="flex-grow-1 p-0 m-0">
                 <Row className="g-0 h-100">
                     <Col md={9} className="d-flex flex-column p-1 h-100">
                         {/* Main Video Content */}
-                        <MainVideo stream={mainStream} userId={mainStreamUserId} />
+                        <MainVideo stream={mainStream} participantId={localParticipant.participantId} />
                     </Col>
                     <Col md={3} className="border-start border-secondary p-2 h-100" style={{ overflowY: 'auto', background: '#2a2f34' }}>
                         {/* Participants List */}
-                        <ParticipantsPane onSelectVideo={handleSelectParticipantVideo} currentMainUserId={mainStreamUserId} />
+                        <ParticipantsPane onSelectVideo={handleSelectParticipantVideo} />
                     </Col>
                 </Row>
             </Container>
+
             <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />
         </div>
     );
