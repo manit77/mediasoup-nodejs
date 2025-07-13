@@ -11,10 +11,13 @@ export interface Device {
 
 export class SelectedDevices {
     videoId?: string;
+    videoLabel?:string;
     audioInId?: string;
+    audioInLabel?:string;
     audioOutId?: string;
-    isVideoEnabled = false;
-    isAudioEnabled = false;
+    audioOutLabel?: string;
+    isVideoEnabled = true;
+    isAudioEnabled = true;
 }
 
 export class ConferenceRoomScheduled {

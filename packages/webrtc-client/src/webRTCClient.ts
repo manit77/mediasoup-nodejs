@@ -13,7 +13,7 @@ export async function getUserMedia(constraints?: MediaStreamConstraints): Promis
       , video: true
     }
   }
-  console.log(DSTR, "getUserMedia", constraints);
+  console.log("getUserMedia", constraints);
   return await navigator.mediaDevices.getUserMedia(constraints);
 }
 
@@ -63,7 +63,7 @@ export class WebRTCClient {
     if (typeof (video as any).setSinkId === "function") {
       await (video as any).setSinkId(speakerDeviceId);
     } else {
-      console.log(DSTR, "setSinkId not supported in this browser.");
+      console.log("setSinkId not supported in this browser.");
     }
   }
 
@@ -71,7 +71,7 @@ export class WebRTCClient {
     if (!this.localStream) {
       this.localStream = new MediaStream();
     }
-    console.log(DSTR, "addTrack");
+    console.log("addTrack");
     tracks.forEach(t => this.localStream.addTrack(t));
   }
 
@@ -91,14 +91,14 @@ export class WebRTCClient {
    * @returns 
    */
   getOrCreatePeerConnection(key: string, config?: RTCConfiguration): ConnectionInfo {
-    console.log(DSTR, "createPeerConnection");
+    console.log("createPeerConnection");
 
     if (this.peerConnections.has(key)) {
-      console.log(DSTR, "existing connnection.");
+      console.log("existing connnection.");
       return this.peerConnections.get(key);
     }
 
-    console.log(DSTR, "new peer connnection.");
+    console.log("new peer connnection.");
     if (!config) {
       //default configs 
       config = {
@@ -110,7 +110,7 @@ export class WebRTCClient {
     const remoteStream = new MediaStream();
 
     pc.ontrack = (event: RTCTrackEvent) => {
-      console.log(DSTR, `peer ${key} ontrack`);
+      console.log(`peer ${key} ontrack`);
       remoteStream.addTrack(event.track);
       if (this.onPeerTrack) {
         this.onPeerTrack(key, event.track)
@@ -119,7 +119,7 @@ export class WebRTCClient {
     };
 
     pc.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
-      console.log(DSTR, "onicecandidate");
+      console.log("onicecandidate");
       if (event.candidate && this.onIceCandidate) {
         this.onIceCandidate(key, event.candidate);
       }
@@ -132,7 +132,7 @@ export class WebRTCClient {
   }
 
   publishTracks(key: string) {
-    console.log(DSTR, `publishLocalStreamToPeer ${key}`);
+    console.log(`publishLocalStreamToPeer ${key}`);
 
     let conn = this.peerConnections.get(key);
     if (!conn) {
@@ -148,7 +148,7 @@ export class WebRTCClient {
     //publish the tracks to the peer
     this.localStream.getTracks().forEach(localTrack => {
       if (!conn.pc.getSenders().some(sender => sender.track === localTrack)) {
-        console.log(DSTR, `track added ${localTrack.kind} to ${key}`);
+        console.log(`track added ${localTrack.kind} to ${key}`);
         conn.pc.addTrack(localTrack, this.localStream);
       }
     });
@@ -159,7 +159,7 @@ export class WebRTCClient {
 
   //removes a peer connection
   removePeerConnection(key: string): void {
-    console.log(DSTR, "removePeerConnection");
+    console.log("removePeerConnection");
     const connInfo = this.peerConnections.get(key);
     if (connInfo) {
       connInfo.pc.close();
@@ -173,7 +173,7 @@ export class WebRTCClient {
    * @returns 
    */
   async createOffer(key: string): Promise<RTCSessionDescriptionInit> {
-    console.log(DSTR, `createOffer ${key}`);
+    console.log(`createOffer ${key}`);
     const connInfo = this.peerConnections.get(key);
     if (!connInfo) {
       throw new Error(`Peer ${key} not found`);
@@ -185,7 +185,7 @@ export class WebRTCClient {
 
     const offer = await connInfo.pc.createOffer();
     await connInfo.pc.setLocalDescription(offer);
-    console.log(DSTR, `LocalDescription set ${key}`);
+    console.log(`LocalDescription set ${key}`);
     return offer;
   }
 
@@ -195,7 +195,7 @@ export class WebRTCClient {
    * @returns 
    */
   async createAnswer(key: string): Promise<RTCSessionDescription> {
-    console.log(DSTR, `createAnswer ${key}`);
+    console.log(`createAnswer ${key}`);
 
     const connInfo = this.peerConnections.get(key);
     if (!connInfo) {
@@ -210,7 +210,7 @@ export class WebRTCClient {
 
     const answer = await connInfo.pc.createAnswer();
     await connInfo.pc.setLocalDescription(answer);
-    console.log(DSTR, `LocalDescription set ${key}`);
+    console.log(`LocalDescription set ${key}`);
     return connInfo.pc.localDescription;
   }
 
@@ -220,7 +220,7 @@ export class WebRTCClient {
    * @param desc 
    */
   async setRemoteDescription(key: string, desc: RTCSessionDescriptionInit): Promise<boolean> {
-    console.log(DSTR, `setRemoteDescription ${key}`);
+    console.log(`setRemoteDescription ${key}`);
     const connInfo = this.peerConnections.get(key);
     if (!connInfo) {
       console.error(`Peer ${key} not found`);
@@ -231,7 +231,7 @@ export class WebRTCClient {
     }
 
     await connInfo.pc.setRemoteDescription(new RTCSessionDescription(desc));
-    console.log(DSTR, `RemoteDescription set ${key}`);
+    console.log(`RemoteDescription set ${key}`);
     return true;
   }
 
@@ -239,14 +239,14 @@ export class WebRTCClient {
    * add ice candidate
    */
   async addIceCandidate(key: string, candidate: RTCIceCandidateInit): Promise<boolean> {
-    console.log(DSTR, `addIceCandidate ${key}`);
+    console.log(`addIceCandidate ${key}`);
     const connInfo = this.peerConnections.get(key);
     if (!connInfo) {
       console.error(`Peer ${key} not found`);
       return false;
     }
     await connInfo.pc.addIceCandidate(new RTCIceCandidate(candidate));
-    console.log(DSTR, `candidate added ${key}`);
+    console.log(`candidate added ${key}`);
     return true;
   }
 

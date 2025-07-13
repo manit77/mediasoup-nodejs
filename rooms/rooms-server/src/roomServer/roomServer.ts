@@ -350,7 +350,7 @@ export class RoomServer {
 
         room.onPeerRemovedEvent = (r, peer) => {
 
-            //alert all peers that the room is closed
+            //broad cast to all peers in the room the the peer has left the room
             let msg = new RoomPeerLeftMsg();
             msg.data.roomId = r.id;
             msg.data.peerId = peer.id;
@@ -408,7 +408,8 @@ export class RoomServer {
     }
 
     private send(peerId: string, msg: any) {
-        console.log('send() ', msg.type);
+        let peer = this.getPeer(peerId);
+        console.log(`send() - to: ${peer.displayName} `, msg.type);
         for (let eventListener of this.eventListeners) {
             eventListener(peerId, msg);
         }
@@ -828,15 +829,15 @@ export class RoomServer {
         }
 
         let room = peer.room;
+        //peer.close will broadcast to all peers that the peer has left the room, see onPeerRemovedEvent
         peer.close();
-
-        //broadcast to all peers that the peer has left the room
-        let msg = new RoomPeerLeftMsg();
-        msg.data = {
-            peerId: peer.id,
-            roomId: room.id
-        }
-        this.broadCastAll(room, msg);
+        
+        // let msg = new RoomPeerLeftMsg();
+        // msg.data = {
+        //     peerId: peer.id,
+        //     roomId: room.id
+        // }
+        // this.broadCastAll(room, msg);
         this.printStats();
 
         let roomLeaveResult = new RoomLeaveResultMsg();

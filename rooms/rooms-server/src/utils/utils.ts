@@ -8,7 +8,7 @@ export function consoleError(...args: any) {
 }
 
 export function consoleWarn(...args: any) {
-  console.warn(chalk.yellow('[WARN]', ...args));
+  console.log(chalk.yellow('[WARN]', ...args));
 }
 
 export function consoleInfo(...args: any) {

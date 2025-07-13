@@ -1,8 +1,7 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useRef } from 'react';
 import TopMenu from './TopMenu';
 import ContactsPane from './ParticipantsOnlinePane';
 import SettingsPopup from '../popups/SettingsPopup';
-import MainVideo from '../call/MainVideo';
 import { useCall } from '../../hooks/useCall';
 import { Button } from 'react-bootstrap';
 import PopupMessage from '../popups/PopupMessage';
@@ -12,70 +11,107 @@ import IncomingCallPopup from '../call/IncomingCallPopup';
 import CallingPopup from '../call/CallingPopup';
 
 const AuthenticatedLayout: React.FC = () => {
-    const auth = useContext(AuthContext);
-    const [showSettings, setShowSettings] = useState(false);
-    const { localParticipant, inviteInfoSend, inviteInfoReceived, isLocalStreamUpdated, getLocalMedia, popUpMessage, hidePopUp } = useCall();
-    const [showPreview, setShowPreview] = useState(false);
+  const auth = useContext(AuthContext);
+  const [showSettings, setShowSettings] = useState(false);
+  const { selectedDevices, getMediaConstraints, inviteInfoSend, inviteInfoReceived, popUpMessage, hidePopUp, showPopUp } = useCall();
+  const [showingPreview, setShowingPreview] = useState(false);
+  const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-    useEffect(() => {
-        console.log("localStream refresh triggered.");
-        let videoTrack = localParticipant.stream.getVideoTracks()[0];
-        if (videoTrack) {
-            console.log("videoTrack found, enabled: ", videoTrack.enabled);
-            setShowPreview(videoTrack.enabled);
+  // Effect to fetch/stop stream when previewing
+  useEffect(() => {
+    if (!showingPreview) {
+      setPreviewStream(null); // Trigger cleanup
+      return;
+    }
+
+    const constraints = getMediaConstraints();
+    console.log('Fetching preview with constraints:', constraints); // Debug log
+
+    navigator.mediaDevices.getUserMedia(constraints)
+      .then((stream) => {
+        // Mute audio
+        const audioTrack = stream.getAudioTracks()[0];
+        if (audioTrack) {
+          audioTrack.enabled = false;
         }
 
-    }, [isLocalStreamUpdated, localParticipant]);
-
-    const previewClick = async () => {
-        let videoTrack = localParticipant.stream.getVideoTracks()[0];
+        // Ensure video
+        const videoTrack = stream.getVideoTracks()[0];
         if (!videoTrack) {
-            console.log(`get local media for preview.`);
-            let tracks = await getLocalMedia();
-            videoTrack = tracks.find(t => t.kind === 'video');
+          showPopUp("No video devices available", 3);
+          stream.getTracks().forEach((track) => track.stop()); // Clean up failed stream
+          setShowingPreview(false);
+          return;
         } else {
-            console.log(`video track found.`);
-            videoTrack.enabled = !videoTrack.enabled;
+          videoTrack.enabled = true;
+          setPreviewStream(stream);
         }
-        setShowPreview(videoTrack?.enabled);
+      })
+      .catch((error) => {
+        console.error('Error getting preview stream:', error);
+        showPopUp("Failed to get camera. Check permissions.", 3);
+        setShowingPreview(false);
+      });
+
+    // Cleanup: This runs on next effect or unmount
+    return () => {
+      setPreviewStream(null);
+    };
+  }, [showingPreview, selectedDevices, getMediaConstraints, showPopUp]);
+
+  // Separate effect for stream changes: Assign srcObject and stop old tracks to release device
+  useEffect(() => {
+    if (previewStream && videoRef.current) {
+      videoRef.current.srcObject = previewStream;
     }
 
-    const showDeviceSettingsClick = () => {
-        setShowSettings(true);
-    }
+    return () => {
+      if (previewStream) {
+        console.log('Stopping old stream tracks');
+        previewStream.getTracks().forEach((track) => track.stop());
+        if (videoRef.current) {
+          videoRef.current.srcObject = null;
+        }
+      }
+    };
+  }, [previewStream]);
 
-    useEffect(() => {
+  const previewClick = () => {
+    setShowingPreview((prev) => !prev); // Just toggle, let effect handle fetch/stop
+  };
 
-        console.log("updated inviteInfoSend", inviteInfoSend);        
-        console.log("updated inviteInfoReceived", inviteInfoReceived);        
+  const handleShowSettingsClick = () => {
+    setShowSettings(true);
+  };
 
-    }, [inviteInfoSend, inviteInfoReceived]);
+  useEffect(() => {
+    console.log("updated inviteInfoSend", inviteInfoSend);
+    console.log("updated inviteInfoReceived", inviteInfoReceived);
+  }, [inviteInfoSend, inviteInfoReceived]);
 
-    return (
-        <div className="d-flex flex-column vh-100">
-            <TopMenu onShowSettings={() => setShowSettings(true)} />
-            <div className="d-flex flex-grow-1" style={{ overflow: 'hidden' }}>
-                <div className="col-3 border-end p-3" style={{ overflowY: 'auto' }}>
-                    {
-                        auth.getCurrentUser().role === "admin" && <ContactsPane />
-                    }
-                    <RoomsPane />
-                </div>
-                <div className="col-9 p-3" style={{ overflowY: 'auto' }}>
-                    <Button variant="primary" onClick={showDeviceSettingsClick}>Device Settings</Button> <Button variant="secondary" onClick={previewClick}>
-                        {
-                            !showPreview ? "Preview Video" : "Stop Preview"
-                        }
-                    </Button>
-                    <MainVideo stream={localParticipant.stream} />
-                </div>
-            </div>
-            <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />
-            <PopupMessage show={popUpMessage ? true : false} message={popUpMessage} handleClose={() => hidePopUp()} />
-            {inviteInfoReceived && <IncomingCallPopup />}
-            {inviteInfoSend && <CallingPopup />}
+  return (
+    <div className="d-flex flex-column vh-100">
+      <TopMenu onShowSettings={() => setShowSettings(true)} />
+      <div className="d-flex flex-grow-1" style={{ overflow: 'hidden' }}>
+        <div className="col-3 border-end p-3" style={{ overflowY: 'auto' }}>
+          {auth.getCurrentUser().role === "admin" && <ContactsPane />}
+          <RoomsPane />
         </div>
-    );
+        <div className="col-9 p-3" style={{ overflowY: 'auto' }}>
+          <Button variant="primary" onClick={handleShowSettingsClick}>Device Settings</Button>{' '}
+          <Button variant="secondary" onClick={previewClick}>
+            {!showingPreview ? "Preview Video" : "Stop Preview"}
+          </Button>
+          <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: 'auto' }} />
+        </div>
+      </div>
+      <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />
+      <PopupMessage show={popUpMessage ? true : false} message={popUpMessage} handleClose={() => hidePopUp()} />
+      {inviteInfoReceived && <IncomingCallPopup />}
+      {inviteInfoSend && <CallingPopup />}
+    </div>
+  );
 };
 
 export default AuthenticatedLayout;

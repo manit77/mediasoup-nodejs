@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Button, Form, ListGroup, Tab, Row, Col, Nav } from 'react-bootstrap';
+import { Modal, Button, Form, Tab, Row, Col, Nav } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall'; // Assuming settings are also relevant during a call
 
 const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ show, handleClose }) => {
@@ -7,7 +7,8 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         availableDevices,
         selectedDevices,
         getMediaDevices,
-        switchDevices
+        switchDevices,
+        setSelectedDevices
     } = useCall();
 
     const [audioId, setAudioId] = useState("");
@@ -15,7 +16,6 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
     const [speakerId, setSpeakerId] = useState("");
     const [isVideoEnabled, setIsVideoEnabled] = useState(false);
     const [isAudioEnabled, setIsAudioEnabled] = useState(false);
-
 
     useEffect(() => {
         if (show) {
@@ -27,7 +27,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
             setIsAudioEnabled(selectedDevices.isAudioEnabled);
 
         }
-    }, [selectedDevices.audioInId, selectedDevices.audioOutId, selectedDevices.videoId, show, getMediaDevices]);
+    }, [selectedDevices, show, getMediaDevices]);
 
     const handleDeviceChange = (type: 'video' | 'audioIn' | 'audioOut', deviceId: string) => {
         if (type === "video") {
@@ -41,8 +41,12 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
 
     const closeButtonClick = async () => {
         switchDevices(videoId, audioId, speakerId);
-        selectedDevices.isAudioEnabled = isAudioEnabled;
-        selectedDevices.isVideoEnabled = isVideoEnabled;
+        setSelectedDevices(prev => ({
+            ...prev,
+            videoId,
+            audioId,
+            speakerId
+        }));
         handleClose();
     };
 

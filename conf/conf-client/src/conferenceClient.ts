@@ -1015,9 +1015,9 @@ export class ConferenceClient {
         };
 
         this.roomsClient.eventOnPeerTrackToggled = async (peer: IPeer, track: MediaStreamTrack, enabled: boolean) => {
-            console.warn(this.DSTR, `eventOnTrackToggled peerId: ${peer.peerId} trackingId: ${peer.trackingId} displayName: ${peer.displayName}`);
+            console.log(this.DSTR, `eventOnTrackToggled peerId: ${peer.peerId} trackingId: ${peer.trackingId} displayName: ${peer.displayName}`);
 
-            console.warn(`participants:`, this.conferenceRoom.participants);
+            console.log(`participants:`, this.conferenceRoom.participants);
 
             let participant: Participant;
             if (this.localParticipant.participantId === peer.trackingId) {
@@ -1031,7 +1031,7 @@ export class ConferenceClient {
                 return;
             }
 
-            console.warn(`toggling track for: ${participant.displayName} kind: ${track.kind} ${track.id}`);
+            console.log(`toggling track for: ${participant.displayName} kind: ${track.kind} ${track.id}`);
 
             let existingTrack = participant.stream.getTracks().find(t => t === track);
             if (!existingTrack) {
@@ -1041,10 +1041,10 @@ export class ConferenceClient {
 
             if(track.kind === "video") {                
                 participant.isVideoOff = !track.enabled;
-                console.warn(`isVideoOff updated to ${participant.isVideoOff}`);
+                console.log(`isVideoOff updated to ${participant.isVideoOff}`);
             } else if(track.kind === "audio") {
                 participant.isMuted = !track.enabled;
-                console.warn(`isMuted updated to ${participant.isVideoOff}`);
+                console.log(`isMuted updated to ${participant.isVideoOff}`);
             }
 
             let msg = {

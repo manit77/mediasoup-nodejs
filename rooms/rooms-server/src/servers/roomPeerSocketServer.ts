@@ -55,7 +55,7 @@ export class RoomPeerSocketServer {
                 this.send(socket, msg);
 
             } else {
-                console.log(DSTR, "peer not found for message: " + msg.type);
+                console.log("peer not found for message: " + msg.type);
             }
         });
 
@@ -63,12 +63,12 @@ export class RoomPeerSocketServer {
 
     async init(socketServer: WebSocketServer) {
 
-        console.log(DSTR, "initWebSocket");
+        console.log("initWebSocket");
         this.webSocketServer = socketServer;
 
         this.webSocketServer.on('connection', (ws) => {
 
-            console.log(DSTR, "socket connected peers: " + this.peers.size);
+            console.log("socket connected peers: " + this.peers.size);
 
             ws.on('message', async (message) => {
                 try {
@@ -88,7 +88,7 @@ export class RoomPeerSocketServer {
     async onMessage(ws: WebSocket, message: any) {
         try {
 
-            console.log(DSTR, "msgIn, ", message.toString());
+            console.log("msgIn, ", message.toString());
             const msgIn = JSON.parse(message.toString());
 
             if (msgIn.type == payloadTypeClient.authUserNewToken) {
@@ -116,7 +116,7 @@ export class RoomPeerSocketServer {
                     //add the peer to peers
                     this.peers.set(registerResult.data.peerId, ws);
                     this.send(ws, registerResult);
-                    console.log(DSTR, "socket registered:" + registerResult.data.peerId);
+                    console.log("socket registered:" + registerResult.data.peerId);
                 } else {
                     console.error(DSTR, "register failed, no peerid for socket.");
                 }
@@ -139,8 +139,8 @@ export class RoomPeerSocketServer {
                     }
                     return resultMsg;
                 } else {
-                    console.log(DSTR, `${msgIn.type} peer not found by socket`);
-                    console.log(DSTR, this.peers);
+                    console.log(`${msgIn.type} peer not found by socket`);
+                    console.log(this.peers);
                 }
             }
         } catch (err) {
@@ -151,7 +151,7 @@ export class RoomPeerSocketServer {
 
     async onWebSocketClosed(ws: WebSocket) {
         //when the socket closes terminate the peers transports 
-        console.log(DSTR, "onWebSocketClosed");
+        console.log("onWebSocketClosed");
         let peerid = this.findPeerBySocket(ws);
         if (peerid) {
             this.peers.delete(peerid);
@@ -159,7 +159,7 @@ export class RoomPeerSocketServer {
             msg.data.peerId = peerid;
             this.roomServer.onTerminatePeer(peerid, msg);
         } else {
-            console.log(DSTR, `peer not found. ${peerid}`);
+            console.log(`peer not found. ${peerid}`);
         }
     }
 
@@ -173,7 +173,7 @@ export class RoomPeerSocketServer {
     }
 
     private async send(ws: WebSocket, msg: any) {
-        console.log(DSTR, 'send ', msg);
+        console.log('send ', msg);
         if (msg) {
             ws.send(JSON.stringify(msg));
         } else {

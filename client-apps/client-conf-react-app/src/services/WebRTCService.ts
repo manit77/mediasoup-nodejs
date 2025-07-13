@@ -188,12 +188,21 @@ class WebRTCService {
     public async getNewTracks(constraints?: MediaStreamConstraints) {
         console.log(`getNewTracks constraints:`, constraints);
         let stream = await this.confClient.getUserMedia(constraints);
-        this.publishTracks(stream.getTracks());
+
+        if(this.confClient.isInConference()) {
+            this.publishTracks(stream.getTracks());
+        }
+
         return stream.getTracks();
     }
 
-    public async publishTracks(tracks: MediaStreamTrack[]) {
+    async publishTracks(tracks: MediaStreamTrack[]) {
         console.log("publishTracks tracks:", tracks);
+
+        if(!this.confClient.isInConference()) {
+            console.log(`cannot publish tracks, not in a conference.`);
+            return;
+        }
 
         let kinds = tracks.map(t => t.kind);
 
