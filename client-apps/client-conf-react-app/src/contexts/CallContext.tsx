@@ -211,7 +211,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         webRTCService.onParticipantTrackToggled = async (participantId, track) => {
-            console.log(`CallContext: onParticipantTrackToggled ${participantId} ${track.kind}`);
+            console.warn(`CallContext: onParticipantTrackToggled ${participantId} ${track.kind}`);
             console.log(`call participants: `, callParticipants);
 
             if (!participantId) {
@@ -222,7 +222,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (!track) {
                 console.error("CallContext: no track");
                 return;
-            }           
+            }
+                       
+            setCallParticipants(prev => new Map(webRTCService.conferenceRoom.participants));
         };
 
         webRTCService.onInviteReceived = async (inviteReceivedMsg: InviteMsg) => {
@@ -252,7 +254,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsCallActive(true);
             setInviteInfoReceived(null);
             setInviteInfoSend(null);
-            setCallParticipants(webRTCService.conferenceRoom.participants);           
+            setCallParticipants(prev => new Map(webRTCService.conferenceRoom.participants));
 
         };
 
@@ -277,7 +279,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 return;
             }
 
-            setCallParticipants(webRTCService.conferenceRoom.participants);            
+            setCallParticipants(prev => new Map(webRTCService.conferenceRoom.participants));
 
         };
 
@@ -373,21 +375,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (audioTrack) {
             audioTrack.enabled = !isMuted;
             console.log(`audioTrack.enabled: ${audioTrack.enabled} ${audioTrack.id}`);
-
-            //update the participant isMuted flag
-            // setCallParticipants(prevParticipants => {
-            //     return [...prevParticipants.map(p => p.participantId === participantId ? { ...p, isMuted: isMuted } : p)];
-            // });
-
-            // let isLocal = participantId === auth.getCurrentUser()?.id;
-            // if(isLocal) {
-            //     console.log(`IsLocal participant`);
-            //     return;
-            // }
-
             webRTCService.updateTrackEnabled(participantId);
-
-
         } else {
             console.log("CallContext: audioTrack not found");
         }

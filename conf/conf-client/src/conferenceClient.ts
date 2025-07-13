@@ -941,7 +941,7 @@ export class ConferenceClient {
                 return;
             }
 
-            
+
             //this is a new peer get 
             participant = new Participant();
             participant.displayName = peer.displayName;
@@ -1029,6 +1029,22 @@ export class ConferenceClient {
             if (!participant) {
                 console.error("participant not found.");
                 return;
+            }
+
+            console.warn(`toggling track for: ${participant.displayName} kind: ${track.kind} ${track.id}`);
+
+            let existingTrack = participant.stream.getTracks().find(t => t === track);
+            if (!existingTrack) {
+                console.error(`not match track found. participant tracks:`, participant.stream.getTracks(), track);
+                return;
+            }
+
+            if(track.kind === "video") {                
+                participant.isVideoOff = !track.enabled;
+                console.warn(`isVideoOff updated to ${participant.isVideoOff}`);
+            } else if(track.kind === "audio") {
+                participant.isMuted = !track.enabled;
+                console.warn(`isMuted updated to ${participant.isVideoOff}`);
             }
 
             let msg = {

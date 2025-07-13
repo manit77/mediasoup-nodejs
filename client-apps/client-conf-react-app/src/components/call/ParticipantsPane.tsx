@@ -13,7 +13,7 @@ interface ParticipantVideoPreviewProps {
 }
 
 const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected }) => {
-    const { localParticipant, localStream, getLocalMedia, toggleMuteAudio, toggleMuteVideo } = useCall();
+    const { callParticipants, localParticipant, getLocalMedia, toggleMuteAudio, toggleMuteVideo } = useCall();
     const { getCurrentUser } = useAuth();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [videoOff, setVideoOff] = useState(participant.isVideoOff);
@@ -27,10 +27,10 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
     useEffect(() => {
         setVideoOff(participant.isVideoOff);
         setMicOff(participant.isMuted);
-    }, [participant]);
+    }, [participant, callParticipants]);
 
     useEffect(() => {
-        console.log(`set video srcObject ${participant.displayName}`);
+        console.log(`participant updated, set video srcObject ${participant.displayName}`);
         if (participant.stream && videoRef.current) {
             videoRef.current.srcObject = participant.stream;
              console.log(`set srcObject ${participant.displayName}`);
@@ -105,9 +105,9 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
             if (participant.stream == null) {
                 console.log("participant stream is null, get user media");
                 await getLocalMedia();
-                participant.stream = localStream;
-                participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;
-                participant.isMuted = !participant.stream.getAudioTracks()[0]?.enabled;
+                participant.stream = localParticipant.stream;
+                participant.isVideoOff = participant.stream.getVideoTracks()[0]?.enabled ?? false;
+                participant.isMuted = participant.stream.getAudioTracks()[0]?.enabled ?? false;
 
                 setVideoOff(participant.isVideoOff);
                 setMicOff(participant.isMuted);
@@ -148,7 +148,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
                 //get user media
                 console.log(`getting localMedia`);
                 await getLocalMedia();
-                participant.stream = localStream;
+                participant.stream = localParticipant.stream;
                 participant.isVideoOff = !participant.stream.getVideoTracks()[0]?.enabled;
                 participant.isMuted = !participant.stream.getAudioTracks()[0]?.enabled;
                 setVideoOff(participant.isVideoOff);
@@ -211,7 +211,7 @@ interface ParticipantsPaneProps {
 }
 
 const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo }) => {
-    const { localParticipant, callParticipants, localStream } = useCall();
+    const { localParticipant, callParticipants } = useCall();
     const { getCurrentUser } = useAuth();
 
     useEffect(() => {
@@ -225,7 +225,7 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo }) =>
                 <ParticipantVideoPreview
                     key={localParticipant.participantId}
                     participant={localParticipant}
-                    onClick={() => onSelectVideo(localParticipant.participantId, localStream)}
+                    onClick={() => onSelectVideo(localParticipant.participantId, localParticipant.stream)}
                     isSelected={callParticipants.size === 0}
                 />
             )}

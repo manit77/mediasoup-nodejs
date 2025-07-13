@@ -117,8 +117,6 @@ export type MediaDeviceOptions = {
 export class RoomsClient {
 
   private ws: WebSocketClient;
-  //rtcClient: WebRTCClient;
-  private serviceToken: string = ""; //used to request an authtoken
   public localPeer: LocalPeer = new LocalPeer();
 
   peers: Peer[] = [];
@@ -163,25 +161,18 @@ export class RoomsClient {
 
   dispose = () => {
 
-    console.log(DSTR, "disposeRoom()");
-
-    this.localPeer.tracks.forEach((track) => {
-      track.stop();
-    });
-
-    this.localPeer.tracks = [];
-    this.localPeer.consumers.forEach(c => c.close());
-    this.localPeer.producers.forEach(c => c.close());
-    this.localPeer.transportReceive?.close();
-    this.localPeer.transportSend?.close();
-
-    this.localPeer.transportReceive = null;
-    this.localPeer.transportSend = null;
-    this.peers = [];
-    this.localPeer = new LocalPeer();
-    this.ws.disconnect();
+    console.log(DSTR, "disposeRoom()");  
+    
+    this.disconnect();
+    this.eventOnRoomJoinFailed = null;
+    this.eventOnRoomJoined = null;
+    this.eventOnRoomPeerJoined = null;
+    this.eventOnPeerNewTrack = null;
+    this.eventOnRoomPeerLeft = null;
+    this.eventOnRoomClosed = null;
+    this.eventOnPeerTrackToggled = null;
+    this.eventOnRoomSocketClosed = null;
     console.log(DSTR, "dispose() - complete");
-
   };
 
   connect = async (wsURI: string = "") => {
@@ -206,6 +197,30 @@ export class RoomsClient {
     this.ws.connect(this.config.wsURI, this.config.socketAutoReconnect);
 
   };
+
+  disconnect = () => {
+    console.log(DSTR, "disconnect");
+    this.peers = [];
+
+    if(this.ws) {
+      this.ws.disconnect();
+    }
+    this.resetLocalPeer();
+  };
+
+  resetLocalPeer() {
+
+    this.localPeer.tracks = [];
+    this.localPeer.consumers.forEach(c => c.close());
+    this.localPeer.producers.forEach(c => c.close());
+    this.localPeer.transportReceive?.close();
+    this.localPeer.transportSend?.close();
+
+    this.localPeer.transportReceive = null;
+    this.localPeer.transportSend = null;
+    this.localPeer = new LocalPeer();
+
+  }
 
   private socketOnOpen = async () => {
     console.info(DSTR, "websocket open " + this.config.wsURI);
@@ -440,7 +455,10 @@ export class RoomsClient {
 
         this.ws.addEventHandler("onmessage", _onmessage);
 
-        this.roomNewToken(expiresInMin);
+        if (!this.roomNewToken(expiresInMin)) {
+          this.ws.removeEventHandler("onmessage", _onmessage);
+          reject("unable to request new token");
+        }
 
       } catch (err: any) {
         if (_onmessage) {
@@ -479,7 +497,10 @@ export class RoomsClient {
 
         this.ws.addEventHandler("onmessage", _onmessage);
 
-        this.roomNew(maxPeers, maxRoomDurationMinutes);
+        if (!this.roomNew(maxPeers, maxRoomDurationMinutes)) {
+          this.ws.removeEventHandler("onmessage", _onmessage);
+          reject("unable to reqeust new room");
+        }
 
       } catch (err: any) {
         console.error(err);
@@ -576,21 +597,6 @@ export class RoomsClient {
     this.send(msg);
 
     return true;
-  };
-
-  disconnect = () => {
-    console.log(DSTR, "disconnect");
-
-    this.localPeer.consumers.forEach(c => c.close());
-    this.localPeer.producers.forEach(c => c.close());
-
-    this.localPeer.transportReceive?.close();
-    this.localPeer.transportSend?.close();
-
-    this.ws.disconnect();
-
-    //reset the local peer
-    this.localPeer = new LocalPeer();
   };
 
   toggleAudio = () => {
@@ -758,7 +764,7 @@ export class RoomsClient {
       expiresInMin: expiresInMin
     };
 
-    this.send(msg);
+    return this.send(msg);
   };
 
   roomNew = (maxPeers: number, maxRoomDurationMinutes: number) => {
@@ -780,7 +786,7 @@ export class RoomsClient {
       roomConfig: config
     };
 
-    this.send(msg);
+    return this.send(msg);
   };
 
   roomJoin = (roomid: string, roomToken: string) => {
@@ -805,8 +811,9 @@ export class RoomsClient {
       roomId: this.localPeer.roomId,
       roomToken: ""
     };
-    this.send(msg);
+
     this.roomClose();
+    return this.send(msg);
   };
 
   isInRoom = () => {
@@ -908,9 +915,10 @@ export class RoomsClient {
 
   };
 
-  private send = (msg: any) => {
+  private send = (msg: any): boolean => {
     console.log(DSTR, "send", msg.type, msg);
-    this.ws.send(JSON.stringify(msg));
+
+    return this.ws.send(JSON.stringify(msg));
   };
 
   private addPeer = (peer: Peer) => {
@@ -918,16 +926,16 @@ export class RoomsClient {
 
     if (this.peers.find(p => p.peerId === peer.peerId)) {
       console.error(DSTR, "peer already exists");
-      return;
+      return false;
     }
 
     if (peer.peerId === this.localPeer.peerId) {
       console.log(DSTR, `cannot add yourself as a peerid: ${this.localPeer.peerId}`);
-      return;
+      return false;
     }
 
     this.peers.push(peer);
-
+    return true;
   };
 
   private removePeer = (peer: Peer) => {
@@ -940,40 +948,15 @@ export class RoomsClient {
     let idx = this.peers.findIndex(p => p == peer);
     if (idx > -1) {
       this.peers.splice(idx, 1);
+      return true;
     }
+    return false;
 
   };
 
   private getPeer = (peerId: string) => {
     return this.peers.find(p => p.peerId == peerId);
   };
-
-  /**
-   * if sfu, sends the localPeer tracks to the server 
-   * if rtc, publish local streams to the remote peerConnection
-   * @returns 
-   */
-  // private publishLocalStream = async () => {
-  //   console.log(`publishLocalStream()`);
-
-  //   if (!this.localPeer.roomId) {
-  //     console.log(DSTR, "not in a room.");
-  //     return;
-  //   }
-
-  //   if (!this.localPeer.transportSend) {
-  //     console.log(DSTR, "transportSend is required.");
-  //     return;
-  //   }
-
-  //   console.log("tracks=" + this.localPeer.tracks.getTracks().length);
-
-  //   for (const track of this.localPeer.tracks.getTracks()) {
-  //     let producer = await this.localPeer.transportSend.produce({ track: track });
-  //     this.localPeer.addProducer(producer);
-  //   };
-
-  // };
 
   private addRemoteTrack = async (peerId: string, track: MediaStreamTrack) => {
     console.log(DSTR, `addRemoteTrack() ${peerId} `);
@@ -1153,7 +1136,7 @@ export class RoomsClient {
   }
 
   private onRoomProducerToggleStream(msgIn: RoomProducerToggleStreamMsg) {
-    console.log(DSTR, "onRoomProducerToggleStream");
+    console.warn(DSTR, "onRoomProducerToggleStream");
 
     if (!this.localPeer.roomId) {
       console.error(DSTR, "not in a room.");
@@ -1186,12 +1169,12 @@ export class RoomsClient {
     }
 
     if (!tracks || tracks.length == 0) {
-      console.error(DSTR, `no tracks found.`);
+      console.error(DSTR, `no tracks found for kinds:`, kinds);
       return;
     }
 
     for (const track of tracks) {
-      console.log(`track found ${track.id} ${track.kind} ${track.enabled}`);
+      console.log(`track ${track.id} ${track.kind} ${track.enabled}`);
       let info = msgIn.data.tracksInfo.find(i => i.kind === track.kind);
       if (!info) {
         console.log(`info not found for track of kind ${track.kind}`);
