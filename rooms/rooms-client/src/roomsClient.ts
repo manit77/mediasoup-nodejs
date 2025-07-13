@@ -10,7 +10,7 @@ import {
   RoomProducerToggleStreamMsg,
   RoomProduceStreamMsg,
   RoomProduceStreamResultMsg,
-  UniqueTracks,
+  UniqueMap,
 } from "@rooms/rooms-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { Transport } from 'mediasoup-client/types';
@@ -21,7 +21,7 @@ export class RoomsClient {
   private ws: WebSocketClient;
   public localPeer: LocalPeer = new LocalPeer();
 
-  peers: Map<string, Peer> = new Map();
+  peers: UniqueMap<Peer> = new UniqueMap();
   audioEnabled = true;
   videoEnabled = true;
 
