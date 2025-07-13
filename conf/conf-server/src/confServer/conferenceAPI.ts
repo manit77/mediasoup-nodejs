@@ -1,23 +1,54 @@
 import express from 'express';
 import { AuthenticateMsg, AuthenticateResultMsg, WebRoutes } from '@conf/conf-models';
-import { ConferenceUtils } from './conferenceUtils.js';
+import { AuthUtils } from './authUtils.js';
+import { ConferenceServer, ConferenceServerConfig } from './conferenceServer.js';
+import { RoomCallBackData, RoomPeerCallBackData } from '@rooms/rooms-models';
 
 const DSTR = "ConferenceAPI";
 
 export class ConferenceAPI {
+    authUtils: AuthUtils;
 
-    constructor(private app: express.Express, private confUtils: ConferenceUtils) {
+    constructor(private app: express.Express, private config: ConferenceServerConfig, private confServer: ConferenceServer) {
+        this.authUtils = new AuthUtils(config);
+    }
 
-        app.get("/hello", (req, res) => {
+    start() {
+
+        console.log(`start ConferenceAPI`);
+
+        this.app.get("/hello", (req, res) => {
+            console.log("/hello");
+
             res.send("ConferenceAPI");
         });
 
-        app.post(WebRoutes.authenticate, async (req, res) => {
-            //conferencing server requests an authtoken to be created, doesnt create an actual room
-            //returns the auth token
-            //returns the signaling info
+        this.app.post(WebRoutes.onRoomClosed, (req, res) => {
+            console.log(WebRoutes.onRoomClosed);
+
+            let msg = req.body as RoomCallBackData;
+            console.log(`roomId: ${msg.roomId} roomTrackingId: ${msg.trackingId}`);
+        });
+
+        this.app.post(WebRoutes.onPeerJoined, (req, res) => {
+            console.log(WebRoutes.onPeerJoined);
+
+            let msg = req.body as RoomPeerCallBackData;
+            console.log(`peerId: ${msg.peerId} peerTrackingId: ${msg.peerTrackingId} roomId: ${msg.roomId} roomTrackingId: ${msg.roomTrackingId}`);
+        });
+
+        this.app.post(WebRoutes.onPeerLeft, (req, res) => {
+            console.log(WebRoutes.onPeerLeft);
+
+            let msg = req.body as RoomPeerCallBackData;
+            console.log(`peerId: ${msg.peerId} peerTrackingId: ${msg.peerTrackingId} roomId: ${msg.roomId} roomTrackingId: ${msg.roomTrackingId}`);
+        });
+
+        this.app.post(WebRoutes.authenticate, async (req, res) => {
+            console.log(WebRoutes.authenticate);
+
             let msgIn = req.body as AuthenticateMsg;
-            let loginResult: AuthenticateResultMsg = confUtils.authenticate(msgIn);
+            let loginResult: AuthenticateResultMsg = this.authUtils.authenticate(msgIn);
             res.send(loginResult);
         });
     }

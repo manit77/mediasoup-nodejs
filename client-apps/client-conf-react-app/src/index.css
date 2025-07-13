@@ -11,3 +11,9 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+.card-title-bg-orange {
+    background-color: #ff9800;
+    padding: 5px;
+}
+

@@ -7,6 +7,7 @@ import { defaultPeerSocketServerSecurityMap, RoomPeerSocketServer } from './serv
 import { defaultHTTPServerSecurityMap, RoomHTTPServer } from './servers/roomHttpServer.js';
 import { getENV } from './utils/env.js';
 import { WebSocketServer } from 'ws';
+import { consoleInfo, consoleWarn } from './utils/utils.js';
 
 (async () => {
 
@@ -30,7 +31,7 @@ import { WebSocketServer } from 'ws';
 
   server.listen(config.room_server_port, async () => {
 
-    console.log(`Server running at https://0.0.0.0:${config.room_server_port}`);
+    consoleInfo(`Server running at https://0.0.0.0:${config.room_server_port}`);
 
     //manager for media soup room server
     let roomServer = new RoomServer(config);

@@ -4,29 +4,28 @@ import { useCall } from '../../hooks/useCall';
 import { useNavigate } from 'react-router-dom';
 
 const IncomingCallPopup: React.FC = () => {
-    const { inviteInfo, acceptInvite, declineInvite, setInviteInfo } = useCall();
+    const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite } = useCall();
     const navigate = useNavigate();
 
-    const handleAccept = async () => {
-        try {
-            await acceptInvite();
+    useEffect(() => {
+        if (isCallActive) {
+            console.log("navigate to on-call");
             navigate('/on-call'); // Navigate to call screen
-        } catch (error) {
-            console.error('Failed to accept call:', error);
-            alert('Failed to accept call. Please try again.');
-            setInviteInfo(null); // Clear the popup on error
         }
+
+    }, [isCallActive, navigate]);
+
+    const handleAccept = async () => {
+        await acceptInvite();
     };
 
     const handleDecline = () => {
-        declineInvite(true); // true for isIncomingDecline
-        setInviteInfo(null); // Clear the popup
+        declineInvite();
     };
 
-    // Only show modal if there’s an incoming call or the call is active/ended
-    if (!inviteInfo) {
-        return null;
-    }
+    useEffect(() => {
+        console.log("updated inviteInfoReceived", inviteInfoReceived);
+    }, [inviteInfoReceived]);
 
     return (
         <Modal show={true} centered backdrop="static" keyboard={false}>
@@ -37,7 +36,7 @@ const IncomingCallPopup: React.FC = () => {
             </Modal.Header>
             <Modal.Body>
                 <p>
-                    <strong>{inviteInfo?.displayName}</strong> is calling you.
+                    <strong>{inviteInfoReceived?.data.displayName}</strong> is calling you.
                 </p>
             </Modal.Body>
             <Modal.Footer>

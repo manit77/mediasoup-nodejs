@@ -132,6 +132,8 @@ export class Peer {
 
         this.producerTransport?.close();
         this.consumerTransport?.close();
+        this.producerTransport = null;
+        this.consumerTransport = null;
 
         this.producers.forEach(p => {
             if (!p.closed) {
@@ -147,13 +149,12 @@ export class Peer {
 
         this.producers.clear()
         this.consumers.clear()
-        this.producerTransport = undefined;
-        this.consumerTransport = undefined;
-
 
         if (this.room) {
             this.room.removePeer(this.id);
         }
+
+        console.log(`peer close() - all room instances removed.`);
 
     }
 

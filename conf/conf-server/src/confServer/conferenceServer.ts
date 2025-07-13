@@ -7,7 +7,6 @@ import {
     RegisterMsg, RegisterResultMsg, RejectMsg,
     AcceptMsg,
     ConferenceReadyMsg,
-    WebRoutes,
     AcceptResultMsg,
     LeaveMsg,
     InviteCancelledMsg,
@@ -17,13 +16,17 @@ import {
     JoinConfResultMsg,
     ConferenceRoomConfig,
     GetParticipantsResultMsg,
-    ParticipantInfo
+    ParticipantInfo,
+    ConferenceRoomInfo,
+    GetConferencesMsg,
+    GetConferencesResultMsg,
+    ConferenceClosedMsg
 } from '@conf/conf-models';
 import { ConferenceRoom, IAuthPayload, Participant } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
-import { RoomCallBackData, RoomConfig, RoomPeerCallBackData } from '@rooms/rooms-models';
-import express, { NextFunction, Request, Response } from 'express';
+import { RoomConfig } from '@rooms/rooms-models';
+import express from 'express';
 
 export interface ConferenceServerConfig {
     conf_server_port: number,
@@ -55,36 +58,7 @@ export class ConferenceServer {
     }
 
     async start() {
-
-        this.app.post(WebRoutes.onRoomClosed, (req, res) => {
-            console.log(WebRoutes.onRoomClosed);
-
-            let msg = req.body as RoomCallBackData;
-            console.log(`roomId: ${msg.roomId} roomTrackingId: ${msg.trackingId}`);
-
-        });
-
-        this.app.post(WebRoutes.onPeerJoined, (req, res) => {
-            console.log(WebRoutes.onPeerJoined);
-
-            let msg = req.body as RoomPeerCallBackData;
-            console.log(`peerId: ${msg.peerId} peerTrackingId: ${msg.peerTrackingId} roomId: ${msg.roomId} roomTrackingId: ${msg.roomTrackingId}`);
-        });
-
-        this.app.post(WebRoutes.onPeerLeft, (req, res) => {
-            console.log(WebRoutes.onPeerLeft);
-            let msg = req.body as RoomPeerCallBackData;
-            console.log(`peerId: ${msg.peerId} peerTrackingId: ${msg.peerTrackingId} roomId: ${msg.roomId} roomTrackingId: ${msg.roomTrackingId}`);
-
-        });
-
-        this.httpServer.listen(this.config.conf_server_port, async () => {
-            console.log(`Server running at https://0.0.0.0:${this.config.conf_server_port}`);
-            this.initWebSocket();
-        });
-    }
-
-    async initWebSocket() {
+        console.log(`start ConferenceServer`);
 
         this.webSocketServer = new WebSocketServer({ server: this.httpServer });
         this.webSocketServer.on('connection', (ws) => {
@@ -96,19 +70,21 @@ export class ConferenceServer {
                 try {
                     const msgIn = JSON.parse(message.data.toString());
 
-                    console.log("msgIn, ", msgIn);
+                    console.log("msgIn: ", msgIn);
 
                     if (!msgIn.type) {
                         console.error("message has no type");
                     }
 
                     switch (msgIn.type) {
-
                         case CallMessageType.register:
                             await this.onRegister(ws, msgIn);
                             break;
                         case CallMessageType.getParticipants:
                             await this.onGetParticipants(ws, msgIn);
+                            break;
+                        case CallMessageType.getConferences:
+                            await this.onGetConferences(ws, msgIn);
                             break;
                         case CallMessageType.createConf:
                             await this.onCreateConference(ws, msgIn);
@@ -186,7 +162,7 @@ export class ConferenceServer {
         return part;
     }
 
-    getOrCreateConference(conferenceId?: string, trackingId?: string, config?: ConferenceRoomConfig) {
+    getOrCreateConference(conferenceId?: string, trackingId?: string, roomName?: string, config?: ConferenceRoomConfig) {
 
         //find room by tracking id
         let conference: ConferenceRoom;
@@ -208,6 +184,7 @@ export class ConferenceServer {
         conference = new ConferenceRoom();
         conference.id = conferenceId ?? this.generateConferenceId();
         conference.trackingId = trackingId;
+        conference.roomName = roomName;
         if (config) {
             conference.config = config;
         }
@@ -221,12 +198,21 @@ export class ConferenceServer {
 
         this.conferences.set(conference.id, conference);
 
-        conference.onClose = (conf: ConferenceRoom) => {
+        conference.onClose = (conf: ConferenceRoom, participants: Participant[], reason: string) => {
             this.conferences.delete(conf.id);
             console.log(`conference removed. ${conf.id}`);
+
+            //alert any existing participants the room is closed
+            let msgClosed = new ConferenceClosedMsg();
+            msgClosed.data.conferenceRoomId = conf.id;
+            msgClosed.data.reason = reason;
+            participants.forEach(p => this.send(p.socket, msgClosed));
+
+            //broadcast rooms to existing participants
+            this.broadCastConferenceRooms();
         };
 
-        console.log(`conference created.`);
+        console.log(`conference created: ${conference.id} ${conference.roomName} `);
 
         return conference;
     }
@@ -240,7 +226,7 @@ export class ConferenceServer {
      * @param ws 
      * @param msgIn 
      */
-    async onRegister(ws: WebSocket, msgIn: RegisterMsg) {
+    private async onRegister(ws: WebSocket, msgIn: RegisterMsg) {
         console.log("onRegister " + msgIn.data.userName);
 
         if (!msgIn.data.userName) {
@@ -300,8 +286,27 @@ export class ConferenceServer {
 
     }
 
-    async onGetParticipants(ws: WebSocket, msgIn?: any) {
+    async broadCastConferenceRooms() {
+        console.log("broadCastConferenceRooms");
 
+        //broadcast to all participants of conferences that have a trackingId
+        let msg = new GetConferencesResultMsg();
+        msg.data = [...this.conferences.values()].filter(c => c.trackingId).map(c => ({
+            conferenceRoomId: c.id,
+            roomName: c.roomName,
+            roomStatus: c.status,
+            roomTrackingId: c.trackingId,
+            participantCount: c.participants.size
+        }) as ConferenceRoomInfo);
+
+        for (let [socket, p] of this.participants.entries()) {
+            //if (p.role !== "guest") {
+            this.send(socket, msg);
+            //}
+        }
+    }
+
+    async onGetParticipants(ws: WebSocket, msgIn?: any) {
         console.log("onGetParticipants");
 
         let partcipant = this.getParticipantByWS(ws);
@@ -352,12 +357,12 @@ export class ConferenceServer {
     }
 
     /**
-     * invite a peer, if not conference room is created create one.
+     * invite a peer to a p2p call
      * @param ws 
      * @param msgIn 
      * @returns 
      */
-    async onInvite(ws: WebSocket, msgIn: InviteMsg) {
+    private async onInvite(ws: WebSocket, msgIn: InviteMsg) {
         console.log("onInvite");
 
         let caller = this.participants.get(ws);
@@ -370,54 +375,80 @@ export class ConferenceServer {
             return;
         }
 
+        if (caller.conferenceRoom) {
+            console.error("caller already in a conference room.");
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.conferenceRoomId = caller.conferenceRoom.id;
+            errorMsg.data.error = "already in a conference room.";
+            this.send(ws, errorMsg);
+            return;
+        }
+
         // if (caller.role === "guest") {
         //     console.error("guest cannot send an invite.");
         //     return;
         // }
 
-        let receiver = this.getParticipant(msgIn.data.participantId);
-        if (!receiver) {
-            console.error("receiver not found.");
+        let remote = this.getParticipant(msgIn.data.participantId);
+        if (!remote) {
+            console.error("remote participant not found.");
             let errorMsg = new InviteResultMsg();
             errorMsg.data.error = "remote party not found.";
             this.send(caller.socket, errorMsg);
             return;
         }
 
-        if (receiver.conferenceRoom) {
-            console.error("receiver is in another conference room.");
+        if (remote.conferenceRoom) {
+            console.error(`receiver is in another conference room. ${remote.conferenceRoom.id}`);
             let errorMsg = new InviteResultMsg();
-            errorMsg.data.error = "busy.";
+            errorMsg.data.error = "remote party is on another call.";
             this.send(caller.socket, errorMsg);
             return;
         }
 
-        let conference = caller.conferenceRoom;
-
-        if (!conference) {
-            conference = this.getOrCreateConference();
-            conference.addParticipant(caller);
-        }
-
-        let inviteResultMsg = new InviteResultMsg();
-        //send InviteResult back to the caller
-        inviteResultMsg.data.conferenceRoomId = conference.id;
-        inviteResultMsg.data.participantId = receiver.participantId;
-
-        this.send(ws, inviteResultMsg);
+        let conference = this.getOrCreateConference();
+        conference.confType = "p2p";
+        conference.addParticipant(caller);
+        conference.minParticipants = 2;
+        conference.startTimerMinParticipants(10); //call will timeout if minParticipants not met 
 
         //forward the call to the receiver
         let msg = new InviteMsg();
         msg.data.participantId = caller.participantId;
         msg.data.displayName = caller.displayName;
         msg.data.conferenceRoomId = conference.id;
-        msg.data.conferenceRoomConfig = conference.config;
+        msg.data.conferenceRoomName = conference.roomName;
+        msg.data.conferenceRoomTrackingId = conference.trackingId;
+        msg.data.conferenceType = conference.confType;
 
-        this.send(receiver.socket, msg);
+        if (!this.send(remote.socket, msg)) {
+            console.error("failed to send invite to receiver");
+            conference.close("remote peer not available");
+
+            let errorMsg = new InviteResultMsg();
+            //send InviteResult back to the caller
+            errorMsg.data.conferenceRoomId = conference.id;
+            errorMsg.data.error = "invite failed.";
+
+            this.send(ws, errorMsg);
+
+            return;
+        }
+
+        let inviteResultMsg = new InviteResultMsg();
+        //send InviteResult back to the caller
+        inviteResultMsg.data.participantId = remote.participantId;
+        inviteResultMsg.data.displayName = remote.displayName;
+        inviteResultMsg.data.conferenceRoomId = conference.id;
+        inviteResultMsg.data.conferenceRoomName = conference.roomName;
+        inviteResultMsg.data.conferenceRoomTrackingId = conference.trackingId;
+        inviteResultMsg.data.conferenceType = conference.confType;
+
+        this.send(ws, inviteResultMsg);
 
     }
 
-    async onInviteCancelled(ws: WebSocket, msgIn: InviteCancelledMsg) {
+    private async onInviteCancelled(ws: WebSocket, msgIn: InviteCancelledMsg) {
         console.log("onInviteCancel");
 
         let caller = this.participants.get(ws);
@@ -446,7 +477,7 @@ export class ConferenceServer {
 
         if (conf.participants.size == 1) {
             console.error("closing conference room");
-            conf.close();
+            conf.close("");
         }
 
         let msg = new InviteCancelledMsg();
@@ -455,7 +486,13 @@ export class ConferenceServer {
         this.send(receiver.socket, msg);
     }
 
-    async onReject(ws: WebSocket, msgIn: RejectMsg) {
+    /**
+     * the participant rejected an invite
+     * @param ws 
+     * @param msgIn 
+     * @returns 
+     */
+    private async onReject(ws: WebSocket, msgIn: RejectMsg) {
         console.log("onReject");
         let participant = this.getParticipant(msgIn.data.toParticipantId);
 
@@ -470,14 +507,25 @@ export class ConferenceServer {
             return;
         }
 
-        if (participant && participant.socket) {
-            this.send(participant.socket, msgIn);
+        //the participant is not in the same conference room as the reject message
+        if (conf !== participant.conferenceRoom) {
+            console.error("not the same confererence room");
+            return;
         }
+
+        //send the reject to the client
+        this.send(participant.socket, msgIn);
+
+        //the room was p2p, remove the particpant
+        if (conf.confType == "p2p") {
+            conf.removeParticipant(participant.participantId);
+        }
+
     }
 
-    async onAccept(ws: WebSocket, msgIn: AcceptMsg) {
-
+    private async onAccept(ws: WebSocket, msgIn: AcceptMsg) {
         console.log("onAccept()");
+
         let conference = this.conferences.get(msgIn.data.conferenceRoomId);
 
         if (!conference) {
@@ -518,8 +566,14 @@ export class ConferenceServer {
         }, 5000);
 
         conference.addOnReadyListener(() => {
+            console.log(`conference room ready ${conference.id}`);
             conference.addParticipant(participant);
             clearTimeout(timeoutid);
+
+            //send the answer result back
+            let msg = new AcceptResultMsg();
+            msg.data.conferenceRoomId = msgIn.data.conferenceRoomId;
+            this.send(ws, msg);
         });
 
         if (conference.status == "none") {
@@ -531,7 +585,7 @@ export class ConferenceServer {
         }
     }
 
-    async onCreateConference(ws: WebSocket, msgIn: CreateConfMsg) {
+    private async onCreateConference(ws: WebSocket, msgIn: CreateConfMsg) {
         console.log("onCreateConference");
 
         let caller = this.participants.get(ws);
@@ -552,7 +606,8 @@ export class ConferenceServer {
         if (conference) {
             console.log("conference already created");
         } else {
-            conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomTrackingId, msgIn.data.conferenceRoomConfig);
+            conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomTrackingId, msgIn.data.roomName, msgIn.data.conferenceRoomConfig);
+            conference.confType = "room";
             if (!await this.startConference(conference)) {
                 console.error("unable to start a conference");
                 let errorMsg = new CreateConfResultMsg();
@@ -565,16 +620,25 @@ export class ConferenceServer {
         let resultMsg = new CreateConfResultMsg();
         resultMsg.data.conferenceRoomId = conference.id;
         resultMsg.data.trackingId = conference.trackingId;
+        resultMsg.data.roomName = conference.roomName;
 
         this.send(ws, resultMsg);
     }
 
-    async onJoinConference(ws: WebSocket, msgIn: JoinConfMsg) {
+    /**
+     * triggers when a particpants joins a conference
+     * adds a new particpant to the conference
+     * @param ws 
+     * @param msgIn 
+     * @returns 
+     */
+    private async onJoinConference(ws: WebSocket, msgIn: JoinConfMsg) {
         console.log("onJoinConference");
 
         let partcipant = this.participants.get(ws);
         if (!partcipant) {
             console.error("partcipant not found.");
+
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "failed to add you to the conference.";
             this.send(ws, errorMsg);
@@ -583,11 +647,19 @@ export class ConferenceServer {
 
         if (!msgIn.data.conferenceRoomId && !msgIn.data.trackingId) {
             console.error("conferenceRoomId or trackingId is required.");
+
+            let errorMsg = new JoinConfResultMsg();
+            errorMsg.data.error = "invalid room data.";
+            this.send(ws, errorMsg);
             return;
         }
 
         if (partcipant.conferenceRoom) {
             console.error(`already in a conference room: ${partcipant.conferenceRoom.id}`);
+
+            let errorMsg = new JoinConfResultMsg();
+            errorMsg.data.error = "already in a room.";
+            this.send(ws, errorMsg);
             return;
         }
 
@@ -599,6 +671,8 @@ export class ConferenceServer {
         }
 
         if (!conference) {
+            console.error(`conference room not found ${conference.id}`);
+
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "conference room not found.";
             this.send(ws, errorMsg);
@@ -606,6 +680,8 @@ export class ConferenceServer {
         }
 
         if (conference.status !== "ready") {
+            console.error(`conference room not ready ${conference.id}`);
+
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "conference room not ready.";
             this.send(ws, errorMsg);
@@ -613,8 +689,13 @@ export class ConferenceServer {
         }
 
         conference.addParticipant(partcipant);
+
+        //do not send JoinConfResultMsg back, send the ConferenceReadyMsg
         this.sendConferenceReady(conference, partcipant);
 
+        let resultMsg = new JoinConfResultMsg();
+        resultMsg.data.conferenceRoomId = conference.roomId;
+        this.send(ws, resultMsg);
     }
 
     async sendConferenceReady(conference: ConferenceRoom, participant: Participant) {
@@ -638,6 +719,13 @@ export class ConferenceServer {
 
         let msg = new ConferenceReadyMsg()
         msg.data.conferenceRoomId = conference.id;
+        msg.data.conferenceRoomName = conference.roomName;
+        msg.data.conferenceRoomTrackingId = conference.trackingId;
+        msg.data.conferenceType = conference.confType;
+        msg.data.participantId = participant.participantId;
+        msg.data.displayName = participant.displayName;
+        msg.data.conferenceRoomConfig = conference.config;
+
         msg.data.roomId = conference.roomId;
         msg.data.roomToken = conference.roomToken;
         msg.data.authToken = authUserTokenResult.data.authToken;
@@ -653,13 +741,19 @@ export class ConferenceServer {
      * @returns 
      */
     async startConference(conference: ConferenceRoom) {
-
         console.log("startConference");
 
         if (conference.status != "none") {
             console.log("conference already started");
             return true;
         }
+
+        //we have 5 seconds to init a room
+        let initTimerId = setTimeout(() => {
+            console.error("new room timeout, closing room");
+            conference.close("room timed out");
+        }, 5000);
+
 
         conference.updateStatus("initializing");
         //caller sent an invite
@@ -671,9 +765,8 @@ export class ConferenceServer {
         let roomTokenResult = await roomsAPI.newRoomToken();
         if (!roomTokenResult || roomTokenResult?.data?.error) {
             console.error("failed to create new room token");
-            let errorMsg = new InviteResultMsg();
-            errorMsg.data.error = "error creating conference for room.";
-            conference.participants.forEach(p => this.send(p.socket, errorMsg));
+            clearTimeout(initTimerId);
+            conference.close("failed to init new room");
             return false;
         }
         let roomToken = roomTokenResult.data.roomToken;
@@ -683,9 +776,12 @@ export class ConferenceServer {
         roomConfig.maxPeers = conference.config.maxGuests;
         roomConfig.maxRoomDurationMinutes = Math.ceil(conference.timeoutSecs / 60);
 
-        let roomNewResult = await roomsAPI.newRoom(roomId, roomToken, conference.id, roomConfig);
+        let roomNewResult = await roomsAPI.newRoom(roomId, roomToken, conference.roomName, conference.id, roomConfig);
         if (!roomNewResult || roomNewResult?.data?.error) {
             console.error("failed to create new room");
+
+            clearTimeout(initTimerId);
+            conference.close("failed to create new room");
             return false;
         }
 
@@ -693,28 +789,40 @@ export class ConferenceServer {
         conference.roomToken = roomToken;
         conference.roomURI = roomURI;
         conference.roomRtpCapabilities = roomNewResult.data.roomRtpCapabilities;
-        conference.timeoutId = setTimeout(() => { conference.close(); }, conference.config.roomTimeoutSecs * 1000);
+        conference.startTimer(); //start timeout timer
 
         conference.updateStatus("ready");
-        return true;
+        clearTimeout(initTimerId);
 
+        await this.broadCastConferenceRooms();
+        return true;
     }
 
-    async onLeave(ws: WebSocket, msgIn: LeaveMsg) {
+    private async onLeave(ws: WebSocket, msgIn: LeaveMsg) {
+        console.log("onLeave");
         let conf = this.conferences.get(msgIn.data.conferenceRoomId);
 
         if (!conf) {
-            console.log("conference room not found.");
+            console.error("conference room not found.");
             return;
         }
         let participant = this.getParticipantByWS(ws);
 
         if (!conf.participants.get(participant.participantId)) {
-            console.log("participant not found.");
+            console.error(`participant not found. ${participant.participantId}`);
             return;
         }
 
         conf.removeParticipant(participant.participantId);
+
+        if (conf.confType == "p2p") {
+            //if the conference was p2p, close the room if only one participant left
+            if (conf.participants.size == 1) {
+                console.log("closing conference room, no participants left.");
+                conf.close("room closed.");
+                return
+            }
+        }
 
         //forward leave to all other participants
         for (let p of conf.participants.values()) {
@@ -723,11 +831,21 @@ export class ConferenceServer {
             msg.data.participantId = participant.participantId;
             this.send(p.socket, msg);
         }
-
     }
 
-    async getConferences() {
-        [...this.conferences.values()].filter(c => c.status === "ready").map(c => { c.id });
+    private async onGetConferences(ws: WebSocket, msgIn: GetConferencesMsg) {
+        console.log("onGetConferences");
+        let returnMsg = new GetConferencesResultMsg();
+        returnMsg.data = await this.getConferences();
+        this.send(ws, returnMsg);
+    }
+
+    async getConferences(): Promise<ConferenceRoomInfo[]> {
+        console.log("getConferences");
+        return [...this.conferences.values()]
+            .map(c => {
+                return { conferenceRoomId: c.id, roomName: c.roomName, roomStatus: c.status, roomTrackingId: c.trackingId, participantCount: c.participants.size };
+            });
     }
 
     /**
@@ -735,6 +853,7 @@ export class ConferenceServer {
      * @returns url of room server 
      */
     getNextRoomServerURI(): string {
+        console.log("getNextRoomServerURI");
         let uri = this.config.room_servers_uris[this.nextRoomURIIdx];
         this.nextRoomURIIdx++;
         if (this.nextRoomURIIdx >= this.config.room_servers_uris.length) {

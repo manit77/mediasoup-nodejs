@@ -11,6 +11,7 @@ export interface RoomLogAdapter {
 
 export class Room {
     id: string;
+    roomName: string;
     trackingId: string;
     adminTrackingId: string;
     admin: Peer;

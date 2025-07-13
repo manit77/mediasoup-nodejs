@@ -4,23 +4,31 @@ import { Room } from './room.js';
 import {
     AuthUserNewTokenMsg
     , AuthUserNewTokenResultMsg
-    , ConnectConsumerTransportMsg, ConnectProducerTransportMsg, ConsumedMsg, ConsumeMsg
+    , ConnectConsumerTransportMsg, ConnectProducerTransportMsg
     , ConsumerTransportConnectedMsg, ConsumerTransportCreatedMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient
-    , PeerTerminatedMsg, ProducedMsg, ProduceMsg, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg
+    , PeerTerminatedMsg, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg
     , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomGetLogsMsg, RoomJoinMsg
     , RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
     , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg
     , RoomTerminateMsg
     , RoomTerminateResultMsg
-    , TerminatePeerMsg
+    , TerminatePeerMsg,
+    payloadTypeServer,
+    RoomProduceStreamMsg,
+    RoomProduceStreamResultMsg,
+    RoomConsumeStreamMsg,
+    RoomConsumeStreamResultMsg,
+    RoomProducerToggleStreamMsg
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
 import { AuthUserRoles, AuthUserTokenPayload } from '../models/tokenPayloads.js';
 import { setTimeout, setInterval } from 'node:timers';
 import { RoomLogAdapterInMemory } from './roomLogsAdapter.js';
+import { consoleError, consoleLog } from '../utils/utils.js';
 
-type outMessage = (peerId: string, msg: any) => void;
+type outMessageEventListener = (peerId: string, msg: any) => void;
+
 export interface RoomServerConfig {
     room_server_ip: string,
     room_server_port: number,
@@ -42,7 +50,7 @@ export class RoomServer {
     private peers = new Map<string, Peer>();
     private rooms = new Map<string, Room>();
 
-    private eventListeners: outMessage[] = [];
+    private eventListeners: outMessageEventListener[] = [];
     private config: RoomServerConfig;
     private timerIdResourceInterval: any;
     private roomLogAdapter = new RoomLogAdapterInMemory();
@@ -74,10 +82,9 @@ export class RoomServer {
                 worker.close();
                 console.log(`Worker closed ${worker.pid}`);
             } catch (error) {
-                console.error('Error closing worker:', error);
+                consoleError('Error closing worker:', error);
             }
         }
-
     }
 
     async init() {
@@ -92,7 +99,7 @@ export class RoomServer {
                 });
 
             worker.on('died', () => {
-                console.error('Worker died, exiting  in 2 seconds... [pid:%d]', worker.pid);
+                consoleError('Worker died, exiting  in 2 seconds... [pid:%d]', worker.pid);
 
                 setTimeout(() => process.exit(1), 2000);
             });
@@ -120,12 +127,12 @@ export class RoomServer {
         return worker;
     }
 
-    addEventListner(event: outMessage) {
-        this.eventListeners.push(event);
+    addEventListner(eventListener: outMessageEventListener) {
+        this.eventListeners.push(eventListener);
     }
 
-    removeEventListner(event: outMessage) {
-        let idx = this.eventListeners.findIndex((f) => f === event);
+    removeEventListner(eventListener: outMessageEventListener) {
+        let idx = this.eventListeners.findIndex((l) => l === eventListener);
         if (idx > -1) {
             this.eventListeners.splice(idx, 1);
         }
@@ -136,12 +143,12 @@ export class RoomServer {
         console.log(`inMessage - type: ${msgIn.type}, peerId: ${peerId}`);
 
         if (!msgIn.type) {
-            console.error("message has no type");
+            consoleError("message has no type");
             return null;
         }
 
         if (!msgIn.data) {
-            console.error("message has no data");
+            consoleError("message has no data");
             return null;
         }
 
@@ -185,18 +192,21 @@ export class RoomServer {
             case payloadTypeClient.connectConsumerTransport: {
                 return this.onConnectConsumerTransport(peerId, msgIn);
             }
-            case payloadTypeClient.produce: {
-                return this.onProduce(peerId, msgIn);
+            case payloadTypeClient.roomProduceStream: {
+                return this.onRoomProduceStream(peerId, msgIn);
             }
-            case payloadTypeClient.consume: {
-                return this.onConsume(peerId, msgIn);
+            case payloadTypeClient.roomConsumeStream: {
+                return this.onRoomConsumeStream(peerId, msgIn);
+            }
+            case payloadTypeClient.roomProducerToggleStream: {
+                return this.onRoomToggleProducerStream(peerId, msgIn);
             }
         }
         return null;
     }
 
     async onTerminatePeer(peerId: string, msg: TerminatePeerMsg): Promise<IMsg> {
-        console.log(`onTerminatePeer() $peerId}`);
+        console.log(`onTerminatePeer() peerId: ${peerId}`);
         const peer = this.peers.get(peerId);
         if (peer) {
             this.closePeer(peer);
@@ -206,7 +216,7 @@ export class RoomServer {
 
             return peerTerminatedMsg;
         }
-        return new ErrorMsg("peer not found.");
+        return new ErrorMsg(payloadTypeServer.peerTerminated, "peer not found.");
     }
 
     onTerminatePeerMsg(msg: TerminatePeerMsg): PeerTerminatedMsg {
@@ -227,7 +237,7 @@ export class RoomServer {
         console.log("closePeer()");
 
         if (!peer) {
-            console.error("peer is required.");
+            consoleError("peer is required.");
             return;
         }
 
@@ -251,7 +261,7 @@ export class RoomServer {
         let payload: AuthUserTokenPayload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
 
         if (!payload) {
-            console.error("failed to validate validateAuthUserToken.")
+            consoleError("failed to validate validateAuthUserToken.")
             return null;
         }
 
@@ -266,8 +276,7 @@ export class RoomServer {
         return peer;
     }
 
-    async createRoom(roomId: string, roomToken: string, trackingId: string, adminTrackingId: string, config: RoomConfig): Promise<Room> {
-
+    async createRoom(roomId: string, roomToken: string, trackingId: string, adminTrackingId: string, roomName: string, config: RoomConfig): Promise<Room> {
         console.log(`createRoom() - roomId:${roomId} roomToken: ${roomToken}`);
 
         if (!roomId) {
@@ -275,23 +284,23 @@ export class RoomServer {
         }
 
         if (this.rooms.has(roomId)) {
-            console.error("room already exists");
+            consoleError("room already exists");
             return null;
         }
 
         if (!roomToken) {
-            console.error("roomToken is required.");
+            consoleError("roomToken is required.");
             return null;
         }
 
         let payload = roomUtils.validateRoomToken(this.config.room_secretKey, roomToken);
         if (!payload) {
-            console.error("invalid token while creating room.");
+            consoleError("invalid token while creating room.");
             return null;
         }
 
         if (roomId != payload.roomId) {
-            console.error("invalid roomId.");
+            consoleError("invalid roomId.");
             return null;
         }
 
@@ -304,7 +313,7 @@ export class RoomServer {
         room.trackingId = trackingId;
         room.config = config;
         room.adminTrackingId = adminTrackingId;
-
+        room.roomName = roomName;
 
         let worker = this.getNextWorker();
 
@@ -326,7 +335,6 @@ export class RoomServer {
 
         room.roomRouter = router;
         room.roomRtpCapabilities = router.rtpCapabilities;
-
 
         room.onClosedEvent = (r, peers) => {
             this.removeRoomGlobal(r);
@@ -398,11 +406,11 @@ export class RoomServer {
         this.rooms.delete(room.id);
     }
 
-    private async send(peerId: string, msg: any) {
+    private send(peerId: string, msg: any) {
         console.log('send() ', msg.type);
-        this.eventListeners.forEach(event => {
-            event(peerId, msg);
-        });
+        for (let eventListener of this.eventListeners) {
+            eventListener(peerId, msg);
+        }
     }
 
     private async broadCastExcept(room: Room, except: Peer, msg: any) {
@@ -448,13 +456,13 @@ export class RoomServer {
         console.log("onCreateProducerTransport");
         let peer = this.peers.get(peerId);
         if (!peer) {
-            console.error("peer not found: " + peerId);
-            return new ErrorMsg("peer not found");;
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeServer.createProducerTransportResult, "peer not found");;
         }
 
         if (!peer.room) {
-            console.error("peer is not in a room");
-            return new ErrorMsg("peer is not in a room");
+            consoleError("peer is not in a room");
+            return new ErrorMsg(payloadTypeServer.createProducerTransportResult, "peer is not in a room");
         }
 
         await peer!.createProducerTransport();
@@ -480,13 +488,13 @@ export class RoomServer {
 
         let peer = this.peers.get(peerId);
         if (!peer) {
-            console.error("peer not found: " + peerId);
-            return new ErrorMsg("peer not found.");
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeServer.createProducerTransportResult, "peer not found.");
         }
 
         if (!peer.room) {
-            console.error("peer is not in a room");
-            return new ErrorMsg("peer is not in a room");
+            consoleError("peer is not in a room");
+            return new ErrorMsg(payloadTypeServer.createProducerTransportResult, "peer is not in a room");
         }
 
         await peer.createConsumerTransport();
@@ -511,18 +519,18 @@ export class RoomServer {
         let peer = this.peers.get(peerId);
 
         if (!peer) {
-            console.error("peer not found: " + peerId);
-            return new ErrorMsg("peer not found.");
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeServer.connectProducerTransportResult, "peer not found.");
         }
 
         if (!peer.room) {
-            console.error("not in a room");
-            return new ErrorMsg("not in a room.");
+            consoleError("not in a room");
+            return new ErrorMsg(payloadTypeServer.connectProducerTransportResult, "not in a room.");
         }
 
         if (!peer.producerTransport) {
-            console.error("producerTransport not found.");
-            return new ErrorMsg("peer is not in a room");
+            consoleError("producerTransport not found.");
+            return new ErrorMsg(payloadTypeServer.connectProducerTransportResult, "peer is not in a room");
         }
 
         //producerTransport needs dtls params from the client, contains, ports, codecs, etc.
@@ -530,8 +538,6 @@ export class RoomServer {
         console.log("producerTransport connected.");
 
         let resultMsg = new ProducerTransportConnectedMsg();
-        this.send(peer.id, resultMsg);
-
         return resultMsg;
     }
 
@@ -540,28 +546,25 @@ export class RoomServer {
 
         let peer = this.peers.get(peerId);
         if (!peer) {
-            console.error("peer not found: " + peerId);
-            return new ErrorMsg("peer not found.");
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeServer.connectConsumerTransportResult, "peer not found.");
         }
 
         if (!peer.room) {
-            console.error("not in a room");
-            return new ErrorMsg("not in a room.");
+            consoleError("not in a room");
+            return new ErrorMsg(payloadTypeServer.connectConsumerTransportResult, "not in a room.");
         }
 
         if (!peer.consumerTransport) {
-            console.error("consumerTransport not found.");
-            return new ErrorMsg("consumerTransport not found.");
+            consoleError("consumerTransport not found.");
+            return new ErrorMsg(payloadTypeServer.connectConsumerTransportResult, "consumerTransport not found.");
         }
 
         //consumerTransport needs dtls params from the client, contains, ports, codecs, etc.
         await peer.consumerTransport!.connect({ dtlsParameters: msgIn.data.dtlsParameters });
 
         let resultMsg = new ConsumerTransportConnectedMsg();
-        this.send(peer.id, resultMsg);
-
         return resultMsg;
-
     }
 
     /***
@@ -648,7 +651,7 @@ export class RoomServer {
             return errorMsg;
         }
 
-        let room = await this.createRoom(msgIn.data.roomId, msgIn.data.roomToken, msgIn.data.trackingId, msgIn.data.ownerTrackingId, msgIn.data.roomConfig);
+        let room = await this.createRoom(msgIn.data.roomId, msgIn.data.roomToken, msgIn.data.trackingId, msgIn.data.ownerTrackingId, msgIn.data.roomName, msgIn.data.roomConfig);
         if (!room) {
             let errorMsg = new RoomNewResultMsg();
             errorMsg.data.error = "error creating room.";
@@ -667,7 +670,7 @@ export class RoomServer {
         console.log("roomTerminate()");
 
         if (!room) {
-            console.error("room is required.");
+            consoleError("room is required.");
             return;
         }
 
@@ -731,41 +734,41 @@ export class RoomServer {
      * @returns 
      */
     async onRoomJoin(peerId: string, msgIn: RoomJoinMsg) {
-
         console.log("onRoomJoin()");
 
         let peer: Peer;
-
         if (peerId) {
             peer = this.peers.get(peerId);
         }
 
         if (!peer) {
+            consoleError(`invalid peerid ${peerId}`);
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "invalid peerid";
             return msgError;
         }
 
         if (!msgIn.data.roomToken) {
+            consoleError(`roomToken required.`);
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "token required";
             return msgError;
         }
 
-
         if (!peer) {
+            consoleError(`peer not created.`);
             let msgError = new RoomJoinResultMsg();
             msgError.data.error = "peer not created";
             return msgError;
         }
 
         let room: Room = this.rooms.get(msgIn.data.roomId);
-
         if (room) {
             if (room.addPeer(peer, msgIn.data.roomToken)) {
                 console.log(`peer ${peer.id} added to room`);
             } else {
-                console.log(`error: could not add peer ${peer.id} room: ${room.id}`);
+                consoleError(`error: could not add peer ${peer.id} room: ${room.id}`);
+
             }
         } else {
             let msgError = new RoomJoinResultMsg();
@@ -800,16 +803,13 @@ export class RoomServer {
             msg.data.peerId = peer.id;
             msg.data.peerTrackingId = peer.trackingId;
             msg.data.displayName = peer.displayName;
-            msg.data.producers = [...peer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }))
-
-
+            msg.data.producers = [...peer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }));
             this.send(otherPeer.id, msg);
         }
 
         this.printStats();
 
         return joinRoomResult;
-
     }
 
     async onRoomLeave(peerId: string, msgIn: RoomLeaveMsg): Promise<IMsg> {
@@ -817,18 +817,17 @@ export class RoomServer {
 
         let peer = this.peers.get(peerId);
         if (!peer) {
-            console.error("peer not found: " + peerId);
-            return new ErrorMsg("peer not found.");
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeServer.roomLeaveResult, "peer not found.");
         }
 
         if (!peer.room) {
-            console.error("no room found.");
-            return new ErrorMsg("no room found.");
+            consoleError("no room found.");
+            return new ErrorMsg(payloadTypeServer.roomLeaveResult, "no room found.");
         }
 
         let room = peer.room;
-
-        this.closePeer(peer);
+        peer.close();
 
         //broadcast to all peers that the peer has left the room
         let msg = new RoomPeerLeftMsg();
@@ -845,7 +844,7 @@ export class RoomServer {
 
     }
 
-    private async onProduce(peerId: string, msgIn: ProduceMsg): Promise<IMsg> {
+    private async onRoomProduceStream(peerId: string, msgIn: RoomProduceStreamMsg): Promise<IMsg> {
         console.log("onProduce");
 
         //client is requesting to produce/send audio or video
@@ -853,21 +852,27 @@ export class RoomServer {
 
         let peer = this.peers.get(peerId);
         if (!peer) {
-            console.error("error peer not found.");
-            return new ErrorMsg("error peer not found.");
+            consoleError("error peer not found.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "error peer not found.");
         }
 
         if (!peer.room) {
-            console.error('peer is not in a room', peer.id);
-            return new ErrorMsg("peer is not in a room.");
+            consoleError('peer is not in a room', peer.id);
+            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "peer is not in a room.");
+        }
+
+        if (peer.room.id !== msgIn.data.roomId) {
+            consoleError('invalid roomid', msgIn.data.roomId);
+            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "invalid roomid.");
         }
 
         //requires a producerTransport
         if (!peer.producerTransport) {
-            console.error('Transport not found for peer', peer.id);
-            return new ErrorMsg("transport not found for peer.");
+            consoleError('Transport not found for peer', peer.id);
+            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "transport not found for peer.");
         }
 
+        let room = peer.room;
         //init a producer with rtpParameters
         const producer = await peer.producerTransport.produce({
             kind: msgIn.data.kind,
@@ -882,6 +887,7 @@ export class RoomServer {
         if (peer.room) {
             let newProducerMsg = new RoomNewProducerMsg();
             newProducerMsg.data = {
+                roomId: room.id,
                 peerId: peer.id,
                 producerId: producer.id,
                 kind: producer.kind
@@ -889,65 +895,71 @@ export class RoomServer {
             this.broadCastExcept(peer.room, peer, newProducerMsg)
         }
 
-        //send the client the producer info
-        let producedMsg = new ProducedMsg();
+        let producedMsg = new RoomProduceStreamResultMsg();
         producedMsg.data = {
+            roomId: room.id,
             kind: msgIn.data.kind
         };
         return producedMsg;
     }
 
-    private async onConsume(peerId: string, msgIn: ConsumeMsg): Promise<IMsg> {
+    private async onRoomConsumeStream(peerId: string, msgIn: RoomConsumeStreamMsg): Promise<IMsg> {
         console.log("onConsume");
         //client is requesting to consume a producer
 
         let peer = this.peers.get(peerId);
         if (!peer) {
-            console.error("peer not found: " + peerId);
-            return new ErrorMsg("peer not found.");
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "peer not found.");
         }
 
         //the peer must have a consumer transport
         if (!peer.consumerTransport) {
-            console.error("no consumer transport for the peer");
-            return new ErrorMsg("no consumer transport for the peer");
+            consoleError("no consumer transport for the peer");
+            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "no consumer transport for the peer");
         }
 
         //the peer must be in room to consume streams
         if (!peer.room) {
-            console.error("peer not in room.");
-            return new ErrorMsg("peer not in room.");
+            consoleError("peer not in room.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "peer not in room.");
         }
 
+        if (peer.room.id !== msgIn.data.roomId) {
+            consoleError("invalid roomid");
+            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "invalid room id");
+        }
+
+        let room = peer.room;
         let consumeMsg = msgIn;
 
         if (!consumeMsg.data?.producerId) {
-            console.error("producerId is required.");
-            return new ErrorMsg("producerId is required.");
+            consoleError("producerId is required.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "producerId is required.");
         }
 
         if (!consumeMsg.data?.remotePeerId) {
-            console.error("remotePeerId is required.");
-            return new ErrorMsg("remotePeerId is required.");
+            consoleError("remotePeerId is required.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "remotePeerId is required.");
         }
 
         if (!consumeMsg.data?.rtpCapabilities) {
-            console.error("rtpCapabilities is required.");
-            return new ErrorMsg("tpCapabilities is required.");
+            consoleError("rtpCapabilities is required.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "rtpCapabilities is required.");
         }
 
         //we need remote peerid, producer, and the client's rtpCapabilities      
         //find the remote peer and producer & in the room
         let remotePeer = peer.room.getPeer(consumeMsg.data!.remotePeerId);
         if (!remotePeer) {
-            console.error("remote peer not found.");
-            return new ErrorMsg("remote peer not found.");
+            consoleError("remote peer not found.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "remote peer not found.");
         }
 
         let remoteProducer = remotePeer?.producers.get(consumeMsg.data!.producerId);
         if (!remoteProducer) {
             console.log("remote producer not found.");
-            return new ErrorMsg("remote producer not found.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "remote producer not found.");
         }
 
         //consume the producer
@@ -959,8 +971,9 @@ export class RoomServer {
         peer.addConsumer(consumer);
 
         //send the consumer data back to the client
-        let consumed = new ConsumedMsg();
-        consumed.data = {
+        let resultMsg = new RoomConsumeStreamResultMsg();
+        resultMsg.data = {
+            roomId: room.id,
             peerId: remotePeer.id,
             consumerId: consumer.id,
             producerId: remoteProducer.id,
@@ -968,7 +981,77 @@ export class RoomServer {
             rtpParameters: consumer.rtpParameters,
         };
 
-        return consumed;
+        return resultMsg;
+    }
+
+    /**
+     * an admin of the room can toggle the stream of a producer    
+     */
+    private async onRoomToggleProducerStream(peerId: string, msgIn: RoomProducerToggleStreamMsg): Promise<IMsg> {
+        console.log("onRoomToggleProducerStream");
+
+        let peer = this.peers.get(peerId);
+        if (!peer) {
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeServer.error, "peer not found.");
+        }
+
+        //the peer must have a consumer transport
+        if (!peer.consumerTransport) {
+            consoleError("no consumer transport for the peer");
+            return;
+        }
+
+        //the peer must be in room
+        if (!peer.room) {
+            consoleError("peer not in room.");
+            return;
+        }
+
+        if (peer.room.id !== msgIn.data.roomId) {
+            consoleError("invalid roomid");
+            return;
+        }
+
+        let remotePeer = peer.room.getPeer(msgIn.data.peerId);
+        if (!remotePeer) {
+            consoleError("remote peer not found.");
+            return;
+        }
+
+        if (msgIn.data.tracksInfo.length === 0) {
+            consoleError("no tracksInfo received.");
+            return;
+        }
+
+        //the peer, has update the peerid
+        if (peer == remotePeer) {
+            consoleLog(`updated self`);
+            //the peer has mute/unmute self
+            //the peer has stopped the local track, we don't need to mute the producer
+        } else {
+            consoleLog(`updated remote peerId ${remotePeer.id} ${remotePeer.displayName}`);
+            //the peer has mute/unmute a remotePeer
+            for (let producer of remotePeer.producers.values()) {
+                let trackInfo = msgIn.data.tracksInfo.find(p => p.kind === producer.kind);
+                if (!trackInfo) {
+                    consoleError(`producer kind ${producer.kind} not found in the request.`);
+                    continue;
+                }
+                //toggle the producer track
+                if (trackInfo.enabled) {
+                    await producer.resume();
+                    console.log(`Producer ${producer.id} resumed.`);
+                } else {
+                    await producer.pause();
+                    console.log(`Producer ${producer.id} paused.`);
+                }
+            }
+        }
+
+        //send to all peers in the room
+        this.broadCastExcept(peer.room, peer, msgIn);
+
     }
 
     async printStats() {

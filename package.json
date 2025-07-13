@@ -11,6 +11,7 @@
   ],
   "scripts": {
     "build": "npm run --workspace=packages build && npm run --workspace=shared build && npm run --workspace=rooms build && npm run --workspace=conf build && npm run --workspace=client-apps build ",
+    "build-libs": "npm run --workspace=packages build && npm run --workspace=shared build && npm run --workspace=rooms/rooms-client build && npm run --workspace=conf/conf-client build",
     "start": "concurrently --kill-others-on-fail \"npm run start --workspace=rooms/rooms-server\" \"npm run start --workspace=conf/conf-server\" \"npm run start --workspace=client-apps/client-conf-react-app\"",
     "delete-node_modules": "find . -type d -name \"node_modules\" -exec rm -rf {} +",
     "delete-dist": "find . -type d -name \"dist\" -exec rm -rf {} +",
@@ -20,5 +21,6 @@
   "devDependencies": {
     "concurrently": "^9.2.0",
     "typescript": "^5.8.3"
-  }
+  },
+  "version": ""
 }

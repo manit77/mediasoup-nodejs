@@ -1,12 +1,12 @@
 import { IAuthPayload } from "../models/models.js";
 import { AuthenticateMsg, AuthenticateResultMsg } from "@conf/conf-models";
 import * as jwt from '../utils/jwtUtil.js';
+import { ConferenceServerConfig } from "./conferenceServer.js";
 
-export class ConferenceUtils {
+export class AuthUtils {
 
-    config = {
-        secretKey: "IFXBhILlrwNGpOLK8XDvvgqrInnU3eZ1", //override with your secret key from a secure location
-        authTokenExpiresInMinutes: 60 * 24 * 1 //0 for never expires
+    constructor(private config: ConferenceServerConfig) {
+
     }
 
     authenticate(msgIn: AuthenticateMsg) {
@@ -20,12 +20,12 @@ export class ConferenceUtils {
             return authResult;
         }
 
-        let payload: IAuthPayload = {         
+        let payload: IAuthPayload = {
             username: userName,
             role: "user"
-        };       
+        };
 
-        let authToken = jwt.jwtSign(this.config.secretKey, payload);
+        let authToken = jwt.jwtSign(this.config.conf_secret_key, payload);
 
         if (authToken) {
             authResult.data.error = "login failed";
@@ -34,12 +34,10 @@ export class ConferenceUtils {
         return authResult;
     }
 
-
-
     validateAuthToken(token: string): boolean {
         try {
             // Verify and decode the token
-            const payload = jwt.jwtVerify(this.config.secretKey, token) as IAuthPayload;
+            const payload = jwt.jwtVerify(this.config.conf_secret_key, token) as IAuthPayload;
 
             // Check if roomId exists in the payload
             if (!payload.username) {
@@ -55,4 +53,5 @@ export class ConferenceUtils {
 
         return false;
     }
+
 }

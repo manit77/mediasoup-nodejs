@@ -8,3 +8,4 @@
 4. cd mediasoup-nodejs
 5. npm install 
 9. npm run start
+10. open two browsers to http://localhost:3001

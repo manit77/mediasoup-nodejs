@@ -2,86 +2,102 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { useAuth } from '../../hooks/useAuth';
-import { Conference } from '../../types';
-
-const OnlineIndicator: React.FC<{ isOnline: boolean }> = ({ isOnline }) => (
-    <Badge pill bg={isOnline ? 'success' : 'secondary'} className="ms-2">
-        {isOnline ? 'Online' : 'Offline'}
-    </Badge>
-);
-
+import { ConferenceRoomScheduled } from '../../types';
 
 const RoomsPane: React.FC = () => {
+  const { isAuthenticated, isCallActive, inviteInfoSend, conferencesOnline, joinConference, createConference, getConferenceRoomsOnline } = useCall();
+  const { conferencesScheduled, fetchConferencesScheduled, getCurrentUser } = useAuth();
 
-    const { joinConference, createConference, isCallActive, inviteContact, inviteInfo } = useCall();
-    const { getConferences } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [mergedConferences, setMergedConferences] = useState<ConferenceRoomScheduled[]>([]);
 
-    const [loading, setLoading] = useState(true);
-    const [conferences, setConferences] = useState<Conference[]>([]);
+  // Handle initial loading state
+  useEffect(() => {
+    console.log("RoomsPane mounted");
+    return () => console.log("RoomsPane unmounted");
+  }, []);
 
-    // Handle initial loading state
+  const handleRefreshRooms = useCallback(async () => {
+    console.warn('handleRefreshRooms:');
+    try {
+      setLoading(true);
+      await fetchConferencesScheduled(); // Assuming this updates conferencesScheduled in context
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to refresh rooms:', error);
+    }
+  }, [fetchConferencesScheduled]);
 
-    const handleRefreshRooms = useCallback(async () => {
-        setLoading(true);
-        try {
-            setConferences(await getConferences());
-        } catch (error) {
-            console.error('Failed to refresh rooms:', error);
-        } finally {
-            setLoading(false);
-        }
-    }, [getConferences]);
-    
-    useEffect(() => {
-        handleRefreshRooms();
-    }, [handleRefreshRooms]);
-    
-    const handleConferenceClick = async (conference: Conference) => {
-        setLoading(true);
-        try {
-            if (conference.id) {
-                joinConference(conference.id);
-            } else {                
-                createConference(conference.trackingId);
-            }
-        } catch (error) {
-            console.error('Failed to refresh contacts:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+  useEffect(() => {
+    // Initial load of conference rooms
+    console.warn("RoomsPane useEffect triggered.");
+    if (isAuthenticated) {
+      handleRefreshRooms();
+    }
+  }, [handleRefreshRooms, isAuthenticated]);
 
-    return (
-        <div>
-            <div className="d-flex justify-content-between align-items-center mb-2">
-                <h5>Rooms</h5>
-                <Button variant="outline-primary" size="sm" onClick={handleRefreshRooms} disabled={loading}>
-                    Refresh
-                </Button>
-            </div>
-            {loading ? (
-                <p>Loading rooms...</p>
-            ) : conferences.length === 0 ? (
-                <p>No rooms found.</p>
-            ) : (
-                <ListGroup>
-                    {conferences.map((conference) => (
-                        <ListGroup.Item
-                            key={conference.trackingId}
-                            action
-                            onClick={() => handleConferenceClick(conference)}
-                            className="d-flex justify-content-between align-items-center"
-                            disabled={isCallActive || !!inviteContact || !!inviteInfo}
-                        >
-                            {conference.name}
-                            <OnlineIndicator isOnline={conference.id ? true : false} />
-                        </ListGroup.Item>
-                    ))}
-                </ListGroup>
-            )}
-        </div>
-    );
+  useEffect(() => {
+    // Merge whenever either data source changes
+    console.log("Merging conferences ", conferencesOnline, conferencesScheduled);
+    const merged = conferencesScheduled.map(scheduled => {
+      const conf = conferencesOnline.find(c => scheduled.id === c.roomTrackingId);
+      return {
+        ...scheduled,
+        conferenceRoomId: conf?.conferenceRoomId,
+        roomStatus: conf?.roomStatus || "",
+      };
+    });
+    setMergedConferences(merged);
+  }, [conferencesOnline, conferencesScheduled]);
+
+  const handleScheduledConferenceClick = async (scheduledConference: ConferenceRoomScheduled) => {
+    setLoading(true);
+    try {
+      if (getCurrentUser()?.role === "admin") {
+        // Admin can create a new conference and join it
+        createConference(scheduledConference.id, scheduledConference.roomName);
+      } else {
+        joinConference(scheduledConference.conferenceRoomId);
+      }
+    } catch (error) {
+      console.error('Failed to refresh contacts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        <h5>Rooms</h5>
+        <Button variant="outline-primary" size="sm" onClick={handleRefreshRooms} disabled={loading}>
+          Refresh
+        </Button>
+      </div>
+      {loading ? (
+        <p>Loading rooms...</p>
+      ) : mergedConferences.length === 0 ? (
+        <p>No rooms found.</p>
+      ) : (
+        <ListGroup>
+          {mergedConferences.map((schedule) => (
+            <ListGroup.Item
+              key={schedule.id}
+              action
+              onClick={() => handleScheduledConferenceClick(schedule)}
+              className="d-flex justify-content-between align-items-center"
+              disabled={isCallActive || !!inviteInfoSend || !!inviteInfoSend}
+            >
+              {schedule.roomName}
+              <Badge pill bg={schedule.roomStatus ? 'success' : 'secondary'} className="ms-2">
+                {schedule.roomStatus ? 'Active' : 'Offline'}
+              </Badge>
+            </ListGroup.Item>
+          ))}
+        </ListGroup>
+      )}
+    </div>
+  );
 };
 
 export default RoomsPane;
-

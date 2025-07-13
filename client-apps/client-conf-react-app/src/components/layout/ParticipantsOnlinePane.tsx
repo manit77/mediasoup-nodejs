@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { ParticipantInfo } from '@conf/conf-models';
@@ -11,30 +11,25 @@ const OnlineIndicator: React.FC<{ isOnline: boolean }> = ({ isOnline }) => (
 
 const ParticipantsOnlinePane: React.FC = () => {
 
-    const { participantsOnline, getParticipantsOnline, sendInvite, isCallActive, inviteContact, inviteInfo, localParticipantId } = useCall();
-    const [loading, setLoading] = useState(true);
-
+    const { isAuthenticated, isConnected, participantsOnline, getParticipantsOnline, sendInvite, isCallActive, inviteInfoSend, localParticipant } = useCall();
+ 
     // Handle initial loading state
     useEffect(() => {
-        if (participantsOnline.length > 0 || localParticipantId) {
-            setLoading(false);
-        }
-    }, [participantsOnline, localParticipantId]);
+        console.log(`isAuthenticated: ${isAuthenticated} isConnected: ${isConnected}`)
+
+    }, [isAuthenticated, isConnected]);    
 
     // Optional: Function to manually refresh contacts
     const handleRefreshParticipants = async () => {
-        setLoading(true);
         try {
             getParticipantsOnline();
         } catch (error) {
             console.error('Failed to refresh contacts:', error);
-        } finally {
-            setLoading(false);
-        }
+        } 
     };
 
     const handleContactClick = (participant: ParticipantInfo) => {
-        if (!isCallActive && !inviteContact && !inviteInfo) {
+        if (!isCallActive && !inviteInfoSend) {
             sendInvite(participant);
         }
     };
@@ -43,11 +38,11 @@ const ParticipantsOnlinePane: React.FC = () => {
         <div>
             <div className="d-flex justify-content-between align-items-center mb-2">
                 <h5>Contacts</h5>
-                <Button variant="outline-primary" size="sm" onClick={handleRefreshParticipants} disabled={loading}>
+                <Button variant="outline-primary" size="sm" onClick={handleRefreshParticipants} disabled={!isConnected || !isAuthenticated}>
                     Refresh
                 </Button>
             </div>
-            {loading ? (
+            {!isConnected || !isAuthenticated ? (
                 <p>Loading contacts...</p>
             ) : participantsOnline.length === 0 ? (
                 <p>No contacts found.</p>
@@ -59,7 +54,7 @@ const ParticipantsOnlinePane: React.FC = () => {
                             action
                             onClick={() => handleContactClick(participantInfo)}
                             className="d-flex justify-content-between align-items-center"
-                            disabled={isCallActive || !!inviteContact || !!inviteInfo}
+                            disabled={isCallActive || !!inviteInfoSend}
                         >
                             {participantInfo.displayName}
                             <OnlineIndicator isOnline={true} />

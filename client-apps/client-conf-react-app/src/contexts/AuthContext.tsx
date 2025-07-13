@@ -1,15 +1,18 @@
-import React, { createContext, useState, ReactNode, useEffect } from 'react';
-import { Conference, User } from '../types';
+import React, { createContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
+import { ConferenceRoomScheduled, User } from '../types';
 import { webRTCService } from '../services/WebRTCService';
-import { ApiService } from '../services/ApiService';
+import { apiService } from '../services/ApiService';
 
 interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
+    loginGuest: (displayName: string) => Promise<void>;
     login: (displayName: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
-    getConferences: () => Promise<Conference[]>;
+    fetchConferencesScheduled: () => Promise<ConferenceRoomScheduled[]>;
     getCurrentUser: () => User | null;
+    conferencesScheduled: ConferenceRoomScheduled[];
+    setConferencesScheduled: React.Dispatch<React.SetStateAction<ConferenceRoomScheduled[]>>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,11 +20,11 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceRoomScheduled[]>(apiService.conferencesScheduled);
 
     useEffect(() => {
-
         console.log("AuthProvider triggered.");
-        let currentUser = getCurrentUser();
+        let currentUser = getCurrentUser();        
         if (currentUser) {
             console.log("user found.");
             setIsAuthenticated(true);
@@ -31,13 +34,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log("user not found. ");
         }
         setIsAuthenticated(false);
-
     }, []);
 
-    const login = async (displayName: string, password: string) => {
+    const loginGuest = useCallback(async (displayName: string) => {
         try {
             setIsLoading(true);
-            const { user } = await ApiService.login(displayName, password);
+            const { user } = await apiService.loginGuest(displayName);
             setIsAuthenticated(true);
             webRTCService.connectSignaling(user);
             setIsLoading(false);
@@ -46,14 +48,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error('Login failed:', error);
             throw error;
         }
-    };
+    }, []);
 
-    const logout = async () => {
+    const login = useCallback(async (displayName: string, password: string) => {
+        try {
+            setIsLoading(true);
+            const { user } = await apiService.login(displayName, password);
+            setIsAuthenticated(true);
+            webRTCService.connectSignaling(user);
+            setIsLoading(false);
+        } catch (error) {
+            setIsLoading(false);
+            console.error('Login failed:', error);
+            throw error;
+        }
+    }, []);
+
+    const logout = useCallback(async () => {
         try {
             setIsLoading(true);
             webRTCService.disconnectSignaling(); // Disconnect signaling on logout
             webRTCService.dispose();
-            await ApiService.logout();
+            await apiService.logout();
             setIsAuthenticated(false);
             localStorage.removeItem('user');
             localStorage.removeItem('authToken');
@@ -66,14 +82,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             localStorage.removeItem('authToken');
             throw error;
         }
-    };
+    }, []);
 
-    const getConferences = async (): Promise<Conference[]> => {
-        let conferences = await ApiService.getConferences();
+    const fetchConferencesScheduled = useCallback(async (): Promise<ConferenceRoomScheduled[]> => {
+        console.log("fetchConferencesScheduled");
+        let conferences = await apiService.fetchConferencesScheduled();
+        setConferencesScheduled(conferences);
         return conferences;
-    }
+    }, []);
 
-    const getCurrentUser = (): User | null => {
+    const getCurrentUser = useCallback((): User | null => {
         const storedUser = localStorage.getItem('user');
         const token = localStorage.getItem('authToken');
         if (storedUser && token) {
@@ -85,10 +103,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
         }
         return null;
-    }
+    }, []);
+
+    const value = useMemo(() => ({
+        conferencesScheduled,
+        getCurrentUser,
+        isAuthenticated,
+        isLoading,
+        loginGuest,
+        login,
+        logout,
+        fetchConferencesScheduled,
+        setConferencesScheduled
+    }), [conferencesScheduled, getCurrentUser, isAuthenticated, isLoading, loginGuest, login, logout, fetchConferencesScheduled, setConferencesScheduled]);
 
     return (
-        <AuthContext.Provider value={{ getCurrentUser, isAuthenticated, isLoading, login, logout, getConferences }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );

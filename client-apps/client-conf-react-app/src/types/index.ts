@@ -1,12 +1,7 @@
 export interface User {
     id: string;
     displayName: string;
-}
-
-export interface Conference {
-    id: string;
-    trackingId: string;
-    name: string;
+    role: "admin" | "user" | "guest";
 }
 
 export interface Device {
@@ -14,16 +9,24 @@ export interface Device {
     label: string;
 }
 
-export class CallParticipant implements User {
-    constructor(id: string, name: string) {
-        this.id = id;
-        this.displayName = name;
-    }
-
-    id: string = "";
-    displayName: string = "";
-    stream: MediaStream = new MediaStream();
-    isMuted: boolean = false;
-    isVideoOff: boolean = false;
+export class SelectedDevices {
+    videoId?: string;
+    audioInId?: string;
+    audioOutId?: string;
+    isVideoEnabled = false;
+    isAudioEnabled = false;
 }
 
+export class ConferenceRoomScheduled {
+    id: string;
+    conferenceRoomId: string;
+    roomStatus : string;
+    roomName: string;
+
+    constructor(uniqeId: string, name: string) {
+        this.id = uniqeId;
+        this.roomName = name;
+    }
+
+    
+}

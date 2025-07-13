@@ -12,7 +12,7 @@ import { useCall } from './hooks/useCall';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
-  const { isCallActive, inviteInfo, inviteContact } = useCall();
+  const { isCallActive, inviteInfoSend, localParticipant } = useCall();
 
   if (isLoading) {
     return <div className="d-flex justify-content-center align-items-center vh-100">Loading...</div>;
@@ -37,8 +37,7 @@ const AppRoutes: React.FC = () => {
           </>
         )}
       </Routes>
-      {isAuthenticated && !isCallActive && inviteInfo && <IncomingCallPopup />}
-      {isAuthenticated && !isCallActive && inviteContact && <CallingPopup />}
+      
     </>
   );
 };

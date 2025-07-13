@@ -10,7 +10,7 @@ ffmpeg.setFfmpegPath('./bin/ffmpeg');
 export async function startRecordingAudio(recordingsDir: string, peer: Peer, router: mediasoup.types.Router) {
   const audioProducer = [...peer.producers?.values()].find((p) => p.kind === 'audio');
   if (!audioProducer) {
-    console.warn(`No audio producer for peer ${peer.id}`);
+    console.log(`No audio producer for peer ${peer.id}`);
     return;
   }
 
@@ -108,7 +108,7 @@ a=recvonly
 export async function startRecordingVideo(recordingsDir: string, peer: Peer, router: mediasoup.types.Router) {
   const videoProducer = [...peer.producers?.values()].find((p) => p.kind === 'video');
   if (!videoProducer) {
-    console.warn(`No video producer for peer ${peer.id}`);
+    console.log(`No video producer for peer ${peer.id}`);
     return;
   }
 

@@ -1,11 +1,10 @@
-import { ConferenceRoomConfig, ParticipantRole } from "@conf/conf-models";
+import { ConferenceRoomConfig, conferenceType, ParticipantRole } from "@conf/conf-models";
 import { WebSocket } from "ws";
 
 export interface IAuthPayload {
     username: string,
     role: ParticipantRole
 }
-
 
 /**
  * active participant
@@ -16,15 +15,17 @@ export class Participant {
     displayName: string = ""; //display name for the user
     socket?: WebSocket = undefined; //websocket connection
     conferenceRoom?: ConferenceRoom = undefined; //reference to a conf room
-    role: "admin" | "user" | "guest" = "guest" ;
+    role: "admin" | "user" | "guest" = "guest";
 }
 
-type conferenceStatus = "none" | "initializing" | "ready" | "closed";
+export type conferenceStatus = "none" | "initializing" | "ready" | "closed";
+
 export class ConferenceRoom {
     id: string;
     trackingId: string;
     timeoutId: any;
-    timeoutSecs: number;
+    timeoutSecs: number = 0;
+    roomName: string;
     roomURI: string;
     roomId: string;
     roomToken: string;
@@ -32,9 +33,13 @@ export class ConferenceRoom {
     participants: Map<string, Participant> = new Map();
     status: conferenceStatus = "none";
     config = new ConferenceRoomConfig();
-    
+    confType: conferenceType = "p2p"
+
+    minParticipants = 0;
+    minParticipantsTimerId: any;
+
     onReadyListeners: (() => void)[] = [];
-    onClose: (conf: ConferenceRoom) => void;
+    onClose: (conf: ConferenceRoom, participants: Participant[], reason: string) => void;
 
     addOnReadyListener(cb: () => void) {
         if (this.status == "ready") {
@@ -49,8 +54,10 @@ export class ConferenceRoom {
     }
 
     updateStatus(status: conferenceStatus) {
+        console.log(`updateStatus ${status}`);
+
         this.status = status;
-        
+
         if (status == "ready") {
             for (let cb of this.onReadyListeners) {
                 cb();
@@ -60,29 +67,43 @@ export class ConferenceRoom {
     }
 
     removeParticipant(id: string) {
+        console.log("removeParticipant");
+
         let part = this.participants.get(id);
         if (part) {
             part.conferenceRoom = null;
             this.participants.delete(id);
+            console.log("participant removed");
         }
 
         if (this.participants.size == 0) {
+            console.log("closing room, no participants.");
             this.close();
         }
     }
 
     addParticipant(part: Participant) {
+        console.log(`addParticipant. ${part.participantId} ${part.displayName}`);
+
         if (this.participants.has(part.participantId)) {
+            console.error("participant already exists");
             return;
         }
 
         this.participants.set(part.participantId, part);
         part.conferenceRoom = this;
-        
+
+        if (this.minParticipants >= this.participants.size) {
+            if (this.minParticipantsTimerId) {
+                clearTimeout(this.minParticipantsTimerId);
+            }
+        }
     }
 
-    close() {
-        console.log(`conference close. ${this.id}`);
+    close(reason: string = "") {
+        console.log(`conference close. ${this.id} reason: ${reason}`);
+
+        let existingParticipants = [...this.participants.values()];
 
         for (let part of this.participants.values()) {
             part.conferenceRoom = null;
@@ -90,12 +111,47 @@ export class ConferenceRoom {
         this.participants.clear();
 
         this.onReadyListeners = [];
-        if(this.timeoutId) {
+        if (this.timeoutId) {
             clearTimeout(this.timeoutId);
+            this.timeoutId = null;
+        }
+
+        if (this.minParticipantsTimerId) {
+            clearTimeout(this.minParticipantsTimerId);
+            this.minParticipantsTimerId = null;
         }
 
         if (this.onClose) {
-            this.onClose(this);
+            this.onClose(this, existingParticipants, reason);
+        }
+    }
+
+    /**
+     * starts the room timer for max room duration
+     */
+    startTimer() {
+        if (this.timeoutSecs > 0) {
+            this.timeoutId = setTimeout(() => { this.close(); }, this.timeoutSecs * 1000);
+        }
+    }
+
+    /**
+     * starts a timer for min participants
+     * @param timeoutSeconds 
+     */
+    startTimerMinParticipants(timeoutSeconds: number) {
+        console.log("startTimerMinParticipants");
+
+        if(this.minParticipantsTimerId) {
+            clearTimeout(this.minParticipantsTimerId);
+        }
+
+        if (this.minParticipants > 0) {
+            console.log(`startTimerMinParticipants started ${this.minParticipants}`);
+            this.minParticipantsTimerId = setTimeout(() => {
+                console.log("TimerMinParticipants executed.");
+                this.close();
+            }, timeoutSeconds * 1000);
         }
     }
 

@@ -37,10 +37,11 @@ export class RoomsAPI {
         return await this.post(RoomServerAPIRoutes.newAuthUserToken, msgIn) as AuthUserNewTokenResultMsg;
     }
 
-    async newRoom(roomId: string, roomToken: string, trackingId: string, config: RoomConfig) {
+    async newRoom(roomId: string, roomToken: string, roomName: string, trackingId: string, config: RoomConfig) {
         let msgIn = new RoomNewMsg();
-        msgIn.data.roomToken = roomToken;
         msgIn.data.roomId = roomId;
+        msgIn.data.roomToken = roomToken;
+        msgIn.data.roomName = roomName;
         msgIn.data.trackingId = trackingId;
         msgIn.data.roomConfig = config;
 
@@ -79,7 +80,7 @@ export class RoomsAPI {
             if (result.status >= 200 && result.status < 300) { // Handle all 2xx status codes
                 return result.data;
             }
-            console.warn(`Unexpected status code: ${result.status}`);
+            console.log(`Unexpected status code: ${result.status}`);
             return null;
         } catch (err) {
             console.error(`POST error: ${err.message}`);
