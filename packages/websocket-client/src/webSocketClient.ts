@@ -152,6 +152,11 @@ export class WebSocketClient {
     addEventHandler(type: eventsTypes, callback: Function) {
         this.writeLog(`addEventHandler for ${type}`);
 
+        if(!callback) {
+            this.writeLog("ERROR: call is null");
+            return false;
+        }
+
         if (!this.callbacks.has(type)) {
             this.callbacks.set(type, []);
         }

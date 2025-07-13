@@ -6,45 +6,46 @@ const confServerURI = 'https://localhost:3100'; // conference
 
 class WebRTCService {
 
-    get localStream(): MediaStream {
-        return this.confClient.localParticipant.stream;
-    }
-
-    confClient: ConferenceClient;
+    confClient: ConferenceClient = new ConferenceClient();
     participantsOnline: ParticipantInfo[] = [];
     conferencesOnline: ConferenceRoomInfo[] = [];
 
+    constructor() {
+        console.warn(`ConferenceClient initialized`)
+    }
+
+    get localStream(): MediaStream | null {
+        return this.confClient?.localParticipant?.stream;
+    }
+
     get isConnected() {
-        return this.confClient.isConnected;
+        return this.confClient?.isConnected ?? false;
     }
 
     get inviteSendMsg(): InviteMsg | null {
-        return this.confClient.inviteSendMsg;
+        return this.confClient?.inviteSendMsg;
     }
 
     get inviteRecievedMsg(): InviteMsg | null {
-        return this.confClient.inviteReceivedMsg;
+        return this.confClient?.inviteReceivedMsg;
     }
 
     get localParticipant(): Participant {
-        return this.confClient.localParticipant;
+        return this.confClient?.localParticipant;
     }
 
     get conferenceRoom(): Conference {
-        return this.confClient.conferenceRoom;
+        return this.confClient?.conferenceRoom;
     }
 
     get participants(): Map<string, Participant> {
-        return this.confClient.conferenceRoom.participants;
+        return this.confClient?.conferenceRoom.participants;
     }
 
     isScreenSharing = false;
 
     selectedDevices: SelectedDevices = new SelectedDevices();
 
-    constructor() {
-        this.confClient = new ConferenceClient();
-    }
     public onServerConnected: () => Promise<void> = async () => { };
     public onServerDisconnected: () => Promise<void> = async () => { };
     public onRegistered: (participantId: string) => Promise<void> = async () => { };
@@ -59,31 +60,38 @@ class WebRTCService {
     public onParticipantJoined: (participantId: string, displayName: string) => Promise<void> = async () => { };
     public onParticipantLeft: (participantId: string) => Promise<void> = async () => { };
 
-    public dispose() {
-        console.log("dispose");
-        this.onServerConnected = null;
-        this.onServerDisconnected = null;
-        this.onRegistered = null;
-        this.onRegisterFailed = null;
-        this.onParticipantsReceived = null;
-        this.onConferencesReceived = null;
-        this.onInviteReceived = null;
-        this.onConferenceJoined = null;
-        this.onConferenceEnded = null;
-        this.onParticipantTrack = null;
-        this.onParticipantJoined = null;
-        this.onParticipantLeft = null;
+    // public dispose() {
+    //     console.warn("dispose");
+    //     this.onServerConnected = null;
+    //     this.onServerDisconnected = null;
+    //     this.onRegistered = null;
+    //     this.onRegisterFailed = null;
+    //     this.onParticipantsReceived = null;
+    //     this.onConferencesReceived = null;
+    //     this.onInviteReceived = null;
+    //     this.onConferenceJoined = null;
+    //     this.onConferenceEnded = null;
+    //     this.onParticipantTrack = null;
+    //     this.onParticipantJoined = null;
+    //     this.onParticipantLeft = null;
 
-        this.removeTracks();
-        if (this.confClient) {
-            this.confClient.onEvent = null;
-            this.confClient.disconnect();
-            this.confClient = null;
-        }
-    }
+    //     this.removeTracks();
+
+    //     if (this.confClient) {
+    //         this.confClient.onEvent = null;
+    //         this.confClient.disconnect();
+    //         this.confClient = null;
+    //     }
+    // }
 
     public connectSignaling(user: User): void {
         console.log("connectSignaling");
+
+
+        if (!this.confClient) {
+            console.error(`conference client not initialized.`);
+            this.confClient = new ConferenceClient();
+        }
 
         this.confClient.connect(confServerURI);
 
@@ -189,7 +197,7 @@ class WebRTCService {
         console.log(`getNewTracks constraints:`, constraints);
         let stream = await this.confClient.getUserMedia(constraints);
 
-        if(this.confClient.isInConference()) {
+        if (this.confClient.isInConference()) {
             this.publishTracks(stream.getTracks());
         }
 
@@ -199,33 +207,33 @@ class WebRTCService {
     async publishTracks(tracks: MediaStreamTrack[]) {
         console.log("publishTracks tracks:", tracks);
 
-        if(!this.confClient.isInConference()) {
+        if (!this.confClient.isInConference()) {
             console.log(`cannot publish tracks, not in a conference.`);
             return;
         }
 
         let kinds = tracks.map(t => t.kind);
 
-        let tracksToRemove = this.localStream.getTracks().filter(t => kinds.includes(t.kind));
+        let tracksToRemove = this.localStream?.getTracks().filter(t => kinds.includes(t.kind));
         tracksToRemove.forEach(t => {
-            this.localStream.removeTrack(t);
+            this.localStream?.removeTrack(t);
         });
 
         this.confClient.unPublishTracks(tracksToRemove);
         this.confClient.publishTracks(tracks);
 
         tracks.forEach(track => {
-            this.localStream.addTrack(track);
+            this.localStream?.addTrack(track);
         });
 
-        console.log("localStream tracks after publish:", this.localStream.getTracks());
+        console.log("localStream tracks after publish:", this.localStream?.getTracks());
     }
 
     public async unPublishTracks(tracks: MediaStreamTrack[]) {
         console.log("unPublishTracks");
 
         tracks.forEach(track => {
-            this.localStream.removeTrack(track);
+            this.localStream?.removeTrack(track);
         });
         this.confClient.unPublishTracks(tracks);
     }
@@ -241,28 +249,26 @@ class WebRTCService {
 
     public removeTracks() {
         console.log("removeTracks");
-        this.localStream.getTracks().forEach(track => {
+        this.localStream?.getTracks().forEach(track => {
             console.log("removing track", track.kind);
             track.stop();
-            this.localStream.removeTrack(track);
+            this.localStream?.removeTrack(track);
         });
     }
 
     public updateTrackEnabled(participantId: string) {
         console.log(`updateTracksStatus participantId: ${participantId}`);
-        console.log(`localStream tracks:`, this.localStream.getTracks());
+        console.log(`localStream tracks:`, this.localStream?.getTracks());
+        this.confClient?.updateTrackEnabled(participantId);
 
-        if (this.confClient) {
-            this.confClient.updateTrackEnabled(participantId);
-        }
     }
 
     public isOnCall() {
-        return this.confClient && this.confClient.isInConference();
+        return this.confClient?.isInConference();
     }
 
     public getConferenceRoom() {
-        return this.confClient.conferenceRoom;
+        return this.confClient?.conferenceRoom;
     }
 
     public createConferenceRoom(trackingId: string, roomName: string) {
@@ -312,8 +318,8 @@ class WebRTCService {
     public disconnectSignaling(): void {
         console.log("disconnectSignaling");
 
-        this.confClient.disconnect();
-        this.confClient = null;
+        this.confClient?.disconnect();
+        //this.confClient = null;
     }
 
     private async eventSignalingConnected() {
@@ -410,7 +416,7 @@ class WebRTCService {
         console.log("eventConferenceJoined", msg);
 
         if (this.localStream) {
-            this.confClient.publishTracks(this.localStream.getTracks());
+            this.confClient.publishTracks(this.localStream?.getTracks());
         }
         await this.onConferenceJoined(msg.data.conferenceRoomId);
     }

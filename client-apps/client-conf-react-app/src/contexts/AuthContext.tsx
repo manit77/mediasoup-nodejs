@@ -67,8 +67,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const logout = useCallback(async () => {
         try {
             setIsLoading(true);
-            webRTCService.disconnectSignaling(); // Disconnect signaling on logout
-            webRTCService.dispose();
+            webRTCService.disconnectSignaling(); // Disconnect signaling on logout            
             await apiService.logout();
             setIsAuthenticated(false);
             localStorage.removeItem('user');

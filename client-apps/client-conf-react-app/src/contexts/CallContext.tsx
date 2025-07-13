@@ -303,7 +303,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         return () => { // Cleanup
-            webRTCService.dispose();
+            webRTCService.disconnectSignaling();
         }
     }, [callParticipants, getLocalMedia, hidePopUp, isCallActive, showPopUp]);
 
