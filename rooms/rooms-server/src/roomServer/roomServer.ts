@@ -2,17 +2,17 @@ import * as mediasoup from 'mediasoup';
 import os from 'os';
 import { Room } from './room.js';
 import {
-    AuthUserNewTokenMsg
-    , AuthUserNewTokenResultMsg
-    , ConnectConsumerTransportMsg, ConnectProducerTransportMsg
-    , ConsumerTransportConnectedMsg, ConsumerTransportCreatedMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient
-    , PeerTerminatedMsg, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg
-    , RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomGetLogsMsg, RoomJoinMsg
-    , RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg
-    , RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg
-    , RoomTerminateMsg
-    , RoomTerminateResultMsg
-    , TerminatePeerMsg,
+    AuthUserNewTokenMsg,
+    AuthUserNewTokenResultMsg,
+    ConnectConsumerTransportMsg, ConnectProducerTransportMsg,
+    ConsumerTransportConnectedMsg, ConsumerTransportCreatedMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient,
+    PeerTerminatedMsg, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg,
+    RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomGetLogsMsg, RoomJoinMsg,
+    RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg,
+    RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
+    RoomTerminateMsg,
+    RoomTerminateResultMsg,
+    TerminatePeerMsg,
     payloadTypeServer,
     RoomProduceStreamMsg,
     RoomProduceStreamResultMsg,
@@ -25,7 +25,8 @@ import * as roomUtils from "./utils.js";
 import { AuthUserRoles, AuthUserTokenPayload } from '../models/tokenPayloads.js';
 import { setTimeout, setInterval } from 'node:timers';
 import { RoomLogAdapterInMemory } from './roomLogsAdapter.js';
-import { consoleError, consoleLog } from '../utils/utils.js';
+import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
+import chalk from 'chalk';
 
 type outMessageEventListener = (peerId: string, msg: any) => void;
 
@@ -988,7 +989,7 @@ export class RoomServer {
      * an admin of the room can toggle the stream of a producer    
      */
     private async onRoomToggleProducerStream(peerId: string, msgIn: RoomProducerToggleStreamMsg): Promise<IMsg> {
-        console.log("onRoomToggleProducerStream");
+        consoleWarn("onRoomToggleProducerStream");
 
         let peer = this.peers.get(peerId);
         if (!peer) {
@@ -1024,29 +1025,44 @@ export class RoomServer {
             return;
         }
 
-        //the peer, has update the peerid
+        let producers;
+        let updatingPeer;
         if (peer == remotePeer) {
-            consoleLog(`updated self`);
-            //the peer has mute/unmute self
-            //the peer has stopped the local track, we don't need to mute the producer
+            updatingPeer = peer;
+            producers = peer.producers;
         } else {
-            consoleLog(`updated remote peerId ${remotePeer.id} ${remotePeer.displayName}`);
-            //the peer has mute/unmute a remotePeer
-            for (let producer of remotePeer.producers.values()) {
-                let trackInfo = msgIn.data.tracksInfo.find(p => p.kind === producer.kind);
-                if (!trackInfo) {
-                    consoleError(`producer kind ${producer.kind} not found in the request.`);
-                    continue;
-                }
-                //toggle the producer track
-                if (trackInfo.enabled) {
-                    await producer.resume();
-                    console.log(`Producer ${producer.id} resumed.`);
-                } else {
-                    await producer.pause();
-                    console.log(`Producer ${producer.id} paused.`);
-                }
+            updatingPeer = remotePeer;
+            producers = remotePeer.producers;
+        }
+
+        consoleWarn(`updating ${peer.displayName} ${peer.id}`);
+        for (const p of peer.producers.values()) {
+            consoleWarn(`producer state: ${p.id} ${p.kind} ${p.paused}`);
+        }
+
+        //the peer has mute/unmute a remotePeer
+        for (let producer of producers.values()) {
+            let trackInfo = msgIn.data.tracksInfo.find(p => p.kind === producer.kind);
+            if (!trackInfo) {
+                consoleError(`producer kind ${producer.kind} not found in the request.`);
+                continue;
             }
+            //toggle the producer track
+            if (trackInfo.enabled && producer.paused) {
+                await producer.resume();
+                consoleWarn(`Producer ${producer.id} ${producer.kind} resumed.`);
+            } else if (!trackInfo.enabled && !producer.paused) {
+                await producer.pause();
+                consoleWarn(`Producer ${producer.id} ${producer.kind} paused.`);
+            }
+
+            if (trackInfo.enabled != !producer.paused) {
+                consoleWarn(`trackInfo and producer is not at the same state`);
+                //send the actual state back to the peer
+                trackInfo.enabled = !producer.paused;
+            }
+
+            consoleWarn(`TrackInfo.enabled: ${trackInfo.enabled} producer.paused: ${producer.paused}`);
         }
 
         //send to all peers in the room

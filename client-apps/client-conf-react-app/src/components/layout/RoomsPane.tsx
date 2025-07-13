@@ -18,7 +18,7 @@ const RoomsPane: React.FC = () => {
   }, []);
 
   const handleRefreshRooms = useCallback(async () => {
-    console.warn('handleRefreshRooms:');
+    console.log('handleRefreshRooms:');
     try {
       setLoading(true);
       await fetchConferencesScheduled(); // Assuming this updates conferencesScheduled in context
@@ -30,7 +30,7 @@ const RoomsPane: React.FC = () => {
 
   useEffect(() => {
     // Initial load of conference rooms
-    console.warn("RoomsPane useEffect triggered.");
+    console.log("RoomsPane useEffect triggered.");
     if (isAuthenticated) {
       handleRefreshRooms();
     }

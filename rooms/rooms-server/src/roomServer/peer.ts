@@ -2,6 +2,7 @@ import * as mediasoup from 'mediasoup';
 import { Room } from './room.js';
 import * as roomUtils from "./utils.js";
 import { setTimeout, setInterval } from 'node:timers';
+import chalk, { Chalk } from 'chalk';
 
 export class Peer {
 
@@ -114,18 +115,26 @@ export class Peer {
 
         // Auto-cleanup when producer closes
         producer.on('@close', () => {
-            console.log(`Producer ${producer.id} closed, removing from peer ${this.id}`);
+            console.warn(chalk.yellow(`Producer ${producer.id} closed, removing from peer ${this.id} for ${this.id} ${this.displayName}`));
             this.producers.delete(producer.id);
         });
 
         // Handle transport close events
         producer.on('transportclose', () => {
-            console.log(`Producer ${producer.id} transport closed`);
+            console.warn(chalk.yellow(`Producer ${producer.id} transport closed for ${this.id} ${this.displayName}`));
             this.producers.delete(producer.id);
         });
 
-    }
+        producer.on("videoorientationchange", (args)=> {
+            console.warn(chalk.yellow(`Producer ${producer.id} videoorientationchange for ${this.id} ${this.displayName}`));
+            console.warn(args);
+        });
 
+        producer.on("listenererror", (args)=> {
+            console.warn(chalk.yellow(`Producer ${producer.id} listenererror for ${this.id} ${this.displayName}`));
+            console.warn(args);
+        });
+    }
 
     close() {
         console.log(`peer close() - ${this.id}`);

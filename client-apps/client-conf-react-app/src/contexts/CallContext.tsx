@@ -76,9 +76,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [popUpTimerId, setPopUpTimerId] = useState<NodeJS.Timeout | undefined>(undefined);
 
     useEffect(() => {
-        console.log("CallProvider mounted");
+        console.warn(`** CallProvider mounted isAuthenticated:${isAuthenticated} isConnected: ${isConnected}`);
+        console.warn(`** CallProvider mounted webRTCService.localParticipant.peerId:${webRTCService.localParticipant.peerId} webRTCService.isConnected: ${webRTCService.isConnected}`);
+
         return () => console.log("CallProvider unmounted");
-    }, []);
+    }, [isAuthenticated, isConnected]);
 
     const getMediaDevices = useCallback(async () => {
         try {
@@ -211,7 +213,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         webRTCService.onParticipantTrackToggled = async (participantId, track) => {
-            console.warn(`CallContext: onParticipantTrackToggled ${participantId} ${track.kind}`);
+            console.log(`CallContext: onParticipantTrackToggled ${participantId} ${track.kind}`);
             console.log(`call participants: `, callParticipants);
 
             if (!participantId) {

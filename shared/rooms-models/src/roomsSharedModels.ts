@@ -490,3 +490,42 @@ export class RoomGetLogsResultMsg implements IMsg {
         logs: RoomLog[]
     } = { logs: [] };
 }
+
+export class UniqueTracks {
+
+    private tracks = new Map<string, MediaStreamTrack>()
+
+    addTrack(track: MediaStreamTrack) {
+        if (this.tracks.has(track.kind)) {
+            throw `already has track of kind ${track.kind}`;
+        }
+        this.tracks.set(track.kind, track);
+    }
+
+    removeTrack(kind: string) {
+        return this.tracks.delete(kind);
+    }
+
+    getTracks() {
+        return [...this.tracks.values()];
+    }
+
+    getVideoTrack() {
+        return this.tracks.get("video");
+    }
+
+    getAudioTrack() {
+        return this.tracks.get("video");
+    }
+
+    getTrack(kind: string) {
+        return this.tracks.get(kind);
+    }
+
+    clearTracks() {
+        this.tracks.clear();
+    }
+    get length() {
+        return this.tracks.size;
+    }
+}

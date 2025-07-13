@@ -1015,9 +1015,9 @@ export class ConferenceClient {
         };
 
         this.roomsClient.eventOnPeerTrackToggled = async (peer: IPeer, track: MediaStreamTrack, enabled: boolean) => {
-            console.log(this.DSTR, `eventOnTrackToggled peerId: ${peer.peerId} trackingId: ${peer.trackingId} displayName: ${peer.displayName}`);
+            console.warn(this.DSTR, `eventOnTrackToggled peerId: ${peer.peerId} trackingId: ${peer.trackingId} displayName: ${peer.displayName}`);
 
-            console.log(`participants:`, this.conferenceRoom.participants);
+            console.warn(`participants:`, this.conferenceRoom.participants);
 
             let participant: Participant;
             if (this.localParticipant.participantId === peer.trackingId) {
