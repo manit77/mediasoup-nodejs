@@ -1,7 +1,11 @@
 export enum CallMessageType {
 
+    login = "login",
+    loginGuest = "loginGuest",
+    loginResult = "loginResult",
     authenticate = "authenticate", //gets an authtoken
     authenticateResult = "authenticateResult",
+
     register = "register", //register the partcipant as online
     registerResult = "registerResult", //partcipant recieves a registration result
 
@@ -29,27 +33,59 @@ export enum CallMessageType {
 
 }
 export enum WebRoutes {
-    authenticate = "authenticate",
-    onRoomClosed = "onRoomClosed",
-    onPeerJoined = "onPeerJoined",
-    onPeerLeft = "onPeerLeft"
+    login = "/login",
+    loginGuest = "/loginGuest",
+    authenticate = "/authenticate",
+    getConferencesScheduled = "/getConferencesScheduled",
+    onRoomClosed = "/onRoomClosed",
+    onPeerJoined = "/onPeerJoined",
+    onPeerLeft = "/onPeerLeft"
 }
 
 export type conferenceType = "p2p" | "room";
 export type ParticipantRole = "admin" | "user" | "guest";
 
-export class AuthenticateMsg {
-    type: CallMessageType.authenticate
+export class LoginGuestMsg {
+    type = CallMessageType.loginGuest;
     data: {
-        username: string,
-        password: string
-    } = { username: "", password: "" }
+        displayName?: string        
+    } = {}
+}
+
+export class LoginMsg {
+    type = CallMessageType.login;
+    data: {
+        username?: string,
+        password?: string
+    } = {}
+}
+
+export class LoginResultMsg {
+    type = CallMessageType.loginResult
+    data: {
+        username?: string,
+        displayName?: string,
+        authToken?: string,
+        role?: string,
+        error?: string
+    } = {}
+}
+
+export class AuthenticateMsg {
+    type = CallMessageType.authenticate
+    data: {
+        username?: string,
+        authToken?: string
+    } = {}
 }
 
 export class AuthenticateResultMsg {
-    type: CallMessageType.authenticateResult;
+    type = CallMessageType.authenticateResult;
     data: {
+        username?: string,
         authToken?: string,
+        displayName?: string,
+        role?: string,
         error?: string
     } = {}
 }
@@ -68,7 +104,7 @@ export interface ParticipantInfo {
 export class RegisterMsg {
     type = CallMessageType.register;
     data = {
-        userName: "",
+        username: "",
         authToken: "",
         participantId: ""
     }
@@ -77,7 +113,7 @@ export class RegisterMsg {
 export class RegisterResultMsg {
     type = CallMessageType.registerResult;
     data: {
-        userName?: string,
+        username?: string,
         authToken?: string,
         participantId?: string,
         role?: ParticipantRole,

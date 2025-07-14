@@ -95,7 +95,7 @@ const AuthenticatedLayout: React.FC = () => {
       <TopMenu onShowSettings={() => setShowSettings(true)} />
       <div className="d-flex flex-grow-1" style={{ overflow: 'hidden' }}>
         <div className="col-3 border-end p-3" style={{ overflowY: 'auto' }}>
-          {auth.getCurrentUser().role === "admin" && <ContactsPane />}
+          {(auth.isAdmin() || auth.isUser()) && <ContactsPane />}
           <RoomsPane />
         </div>
         <div className="col-9 p-3" style={{ overflowY: 'auto' }}>

@@ -6,8 +6,10 @@ import { apiService } from '../services/ApiService';
 interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
+    isAdmin: () => boolean;
+    isUser: () => boolean;
     loginGuest: (displayName: string) => Promise<void>;
-    login: (displayName: string, password: string) => Promise<void>;
+    login: (username: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
     fetchConferencesScheduled: () => Promise<ConferenceRoomScheduled[]>;
     getCurrentUser: () => User | null;
@@ -22,9 +24,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceRoomScheduled[]>(apiService.conferencesScheduled);
 
+    const getCurrentUser = useCallback((): User | null => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                const user = JSON.parse(storedUser) as User;
+                return user;
+            } catch (error) {
+                console.error("Failed to parse stored user", error);
+            }
+        }
+        return null;
+    }, []);
+
+    const isAdmin = useCallback((): boolean => {
+        const user = getCurrentUser();
+        if (user) {
+            return user.role === "admin";
+        }
+        return false;
+    }, [getCurrentUser]);
+
+    const isUser = useCallback((): boolean => {
+        const user = getCurrentUser();
+        if (user) {
+            return user.role === "user";
+        }
+        return false;
+    }, [getCurrentUser]);
+
+
     useEffect(() => {
         console.log("AuthProvider triggered.");
-        let currentUser = getCurrentUser();        
+        let currentUser = getCurrentUser();
         if (currentUser) {
             console.log("user found.");
             setIsAuthenticated(true);
@@ -34,14 +66,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log("user not found. ");
         }
         setIsAuthenticated(false);
-    }, []);
+    }, [getCurrentUser]);
 
     const loginGuest = useCallback(async (displayName: string) => {
         try {
             setIsLoading(true);
-            const { user } = await apiService.loginGuest(displayName);
+            const loginResult = await apiService.loginGuest(displayName);
+
+            if (loginResult.error) {
+                setIsAuthenticated(false);
+                console.error(loginResult.error);
+                return;
+            }
+
             setIsAuthenticated(true);
-            webRTCService.connectSignaling(user);
+            webRTCService.connectSignaling(loginResult.user);
             setIsLoading(false);
         } catch (error) {
             setIsLoading(false);
@@ -50,12 +89,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, []);
 
-    const login = useCallback(async (displayName: string, password: string) => {
+    const login = useCallback(async (username: string, password: string) => {
         try {
             setIsLoading(true);
-            const { user } = await apiService.login(displayName, password);
+            const loginResult = await apiService.login(username, password);
+
+            if (loginResult.error) {
+                setIsAuthenticated(false);
+                console.error(loginResult.error);
+                return;
+            }
+
             setIsAuthenticated(true);
-            webRTCService.connectSignaling(user);
+            webRTCService.connectSignaling(loginResult.user);
             setIsLoading(false);
         } catch (error) {
             setIsLoading(false);
@@ -71,14 +117,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             await apiService.logout();
             setIsAuthenticated(false);
             localStorage.removeItem('user');
-            localStorage.removeItem('authToken');
             setIsLoading(false);
         } catch (error) {
             setIsLoading(false);
             console.error('Logout failed:', error);
             setIsAuthenticated(false);
             localStorage.removeItem('user');
-            localStorage.removeItem('authToken');
             throw error;
         }
     }, []);
@@ -90,31 +134,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return conferences;
     }, []);
 
-    const getCurrentUser = useCallback((): User | null => {
-        const storedUser = localStorage.getItem('user');
-        const token = localStorage.getItem('authToken');
-        if (storedUser && token) {
-            try {
-                const user = JSON.parse(storedUser) as User;
-                return user;
-            } catch (error) {
-                console.error("Failed to parse stored user", error);
-            }
-        }
-        return null;
-    }, []);
-
     const value = useMemo(() => ({
         conferencesScheduled,
         getCurrentUser,
         isAuthenticated,
+        isAdmin,
+        isUser,
         isLoading,
-        loginGuest,
+        loginGuest,        
         login,
         logout,
         fetchConferencesScheduled,
         setConferencesScheduled
-    }), [conferencesScheduled, getCurrentUser, isAuthenticated, isLoading, loginGuest, login, logout, fetchConferencesScheduled, setConferencesScheduled]);
+    }), [conferencesScheduled, getCurrentUser, isAuthenticated, isAdmin, isUser, isLoading, loginGuest, login, logout, fetchConferencesScheduled]);
 
     return (
         <AuthContext.Provider value={value}>

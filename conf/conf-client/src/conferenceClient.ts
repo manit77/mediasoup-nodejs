@@ -309,6 +309,7 @@ export class ConferenceClient {
 
     disconnect() {
         console.warn("conferneceClient disconnect");
+
         this.disconnectRoomsClient("disconnect");
 
         this.socketAutoReconnect = false;
@@ -323,23 +324,26 @@ export class ConferenceClient {
         return this.conferenceRoom.conferenceRoomId > "";
     }
 
-    register(username: string) {
+    register(username: string, authToken: string) {
         console.log("register");
 
         // Register with the server
         const registerMsg: RegisterMsg = new RegisterMsg();
-        registerMsg.data.userName = username;
+        registerMsg.data.username = username;
+        registerMsg.data.authToken = authToken;
         this.sendToServer(registerMsg);
     }
 
     getParticipantsOnline() {
         console.log("getParticipantsOnline");
+
         const getParticipantsMsg = new GetParticipantsMsg();
         this.sendToServer(getParticipantsMsg);
     }
 
     getConferenceRoomsOnline() {
         console.log("getConferenceRooms");
+
         const msg = new GetConferencesMsg();
         this.sendToServer(msg);
     }
@@ -630,10 +634,7 @@ export class ConferenceClient {
     private sendToServer(message: any) {
         console.log("sendToServer " + message.type, message);
 
-        if (this.socket) {
-            if (!message.authToken) {
-                message.authToken = this.authToken;
-            }
+        if (this.socket) {            
             this.socket.send(JSON.stringify(message));
         } else {
             console.error('Socket is not connected');
@@ -648,7 +649,7 @@ export class ConferenceClient {
             await this.onEvent(EventTypes.registerResult, message);
         } else {
             this.localParticipant.participantId = message.data.participantId;
-            this.localParticipant.displayName = message.data.userName;
+            this.localParticipant.displayName = message.data.username;
             console.log('Registered with participantId:', this.localParticipant.participantId, this.localParticipant.displayName);
             await this.onEvent(EventTypes.registerResult, message);
         }

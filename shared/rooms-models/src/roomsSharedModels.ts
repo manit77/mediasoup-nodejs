@@ -451,18 +451,29 @@ export class RoomConfig {
     callBackURL_OnPeerJoined: string;
 }
 
-export interface RoomPeerCallBackData {
-    peerId: string;
-    peerTrackingId: string;
-    roomId: string;
-    roomTrackingId: string;
+export enum payloadTypeCallBacks {
+    roomPeerCallBackMsg = "roomPeerCallBackMsg",
+    roomCallBackMsg = "roomCallBackMsg",
+
+}
+export class RoomPeerCallBackMsg implements IMsg {
+    type: payloadTypeCallBacks.roomPeerCallBackMsg;
+    data: {
+        peerId?: string;
+        peerTrackingId?: string;
+        roomId?: string;
+        roomTrackingId?: string;
+    } = {}
 }
 
-export interface RoomCallBackData {
-    roomId: string;
-    trackingId: string;
-    status: "open" | "closed";
-    peers: RoomPeerCallBackData[];
+export class RoomCallBackMsg implements IMsg {
+    type: payloadTypeCallBacks.roomCallBackMsg;
+    data: {
+        roomId?: string;
+        trackingId?: string;
+        status?: "open" | "closed";
+        peers?: RoomPeerCallBackMsg[];
+    } = {}
 }
 
 export enum RoomLogAction {
@@ -513,8 +524,8 @@ export class UniqueMap<T> {
     keys() {
         return [...this.items.keys()];
     }
-    
-    values() {        
+
+    values() {
         return [...this.items.values()];
     }
 

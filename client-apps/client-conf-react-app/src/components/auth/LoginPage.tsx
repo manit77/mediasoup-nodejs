@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
 
 const LoginPage: React.FC = () => {
-    const [displayName, setDisplayName] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -14,13 +14,13 @@ const LoginPage: React.FC = () => {
     const handleSubmitAdmin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        if (!displayName.trim()) {
+        if (!username.trim()) {
             setError('Display name is required.');
             return;
         }
         setLoading(true);
         try {
-            await auth.login(displayName, password);
+            await auth.login(username, password);
             navigate('/app'); // Navigate to authenticated area
         } catch (err: any) {
             setError(err.message || 'Login failed. Please try again.');
@@ -32,13 +32,13 @@ const LoginPage: React.FC = () => {
     const handleSubmitGuest = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        if (!displayName.trim()) {
+        if (!username.trim()) {
             setError('Display name is required.');
             return;
         }
         setLoading(true);
         try {
-            await auth.loginGuest(displayName);
+            await auth.loginGuest(username);
             navigate('/app'); // Navigate to authenticated area
         } catch (err: any) {
             setError(err.message || 'Login failed. Please try again.');
@@ -54,12 +54,12 @@ const LoginPage: React.FC = () => {
                     <Card.Title className="text-center mb-4">Login as Guest</Card.Title>
                     {error && <Alert variant="danger">{error}</Alert>}
                     <Form onSubmit={handleSubmitGuest}>
-                        <Form.Group className="mb-3" controlId="displayName">
+                        <Form.Group className="mb-3" controlId="username">
                             <Form.Label>Guest Display Name</Form.Label>
                             <Form.Control
                                 type="text"
-                                value={displayName}
-                                onChange={(e) => setDisplayName(e.target.value)}
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
                                 placeholder="Enter your display name"
                                 required
                                 disabled={loading}
@@ -77,12 +77,12 @@ const LoginPage: React.FC = () => {
                     <Card.Title className="card-title-bg-orange text-center mb-4">Login as Admin</Card.Title>
                     {error && <Alert variant="danger">{error}</Alert>}
                     <Form onSubmit={handleSubmitAdmin}>
-                        <Form.Group className="mb-3" controlId="displayName">
+                        <Form.Group className="mb-3" controlId="username">
                             <Form.Label>Admin Display Name</Form.Label>
                             <Form.Control
                                 type="text"
-                                value={displayName}
-                                onChange={(e) => setDisplayName(e.target.value)}
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
                                 placeholder="Enter your display name"
                                 required
                                 disabled={loading}

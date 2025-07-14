@@ -6,7 +6,7 @@ import { ConferenceRoomScheduled } from '../../types';
 
 const RoomsPane: React.FC = () => {
   const { isAuthenticated, isCallActive, inviteInfoSend, conferencesOnline, joinConference, createConference, getConferenceRoomsOnline } = useCall();
-  const { conferencesScheduled, fetchConferencesScheduled, getCurrentUser } = useAuth();
+  const { isAdmin, isUser, conferencesScheduled, fetchConferencesScheduled, getCurrentUser } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [mergedConferences, setMergedConferences] = useState<ConferenceRoomScheduled[]>([]);
@@ -53,7 +53,7 @@ const RoomsPane: React.FC = () => {
   const handleScheduledConferenceClick = async (scheduledConference: ConferenceRoomScheduled) => {
     setLoading(true);
     try {
-      if (getCurrentUser()?.role === "admin") {
+      if (isAdmin() || isUser()) {
         // Admin can create a new conference and join it
         createConference(scheduledConference.id, scheduledConference.roomName);
       } else {

@@ -20,12 +20,13 @@ import {
     ConferenceRoomInfo,
     GetConferencesMsg,
     GetConferencesResultMsg,
-    ConferenceClosedMsg
+    ConferenceClosedMsg,
+    GetParticipantsMsg
 } from '@conf/conf-models';
 import { ConferenceRoom, IAuthPayload, Participant } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
-import { RoomConfig } from '@rooms/rooms-models';
+import { IMsg, RoomConfig } from '@rooms/rooms-models';
 import express from 'express';
 
 export interface ConferenceServerConfig {
@@ -66,52 +67,8 @@ export class ConferenceServer {
             console.log("socket connected participants: " + this.participants.size);
 
             ws.onmessage = async (message) => {
-
-                try {
-                    const msgIn = JSON.parse(message.data.toString());
-
-                    console.log("msgIn: ", msgIn);
-
-                    if (!msgIn.type) {
-                        console.error("message has no type");
-                    }
-
-                    switch (msgIn.type) {
-                        case CallMessageType.register:
-                            await this.onRegister(ws, msgIn);
-                            break;
-                        case CallMessageType.getParticipants:
-                            await this.onGetParticipants(ws, msgIn);
-                            break;
-                        case CallMessageType.getConferences:
-                            await this.onGetConferences(ws, msgIn);
-                            break;
-                        case CallMessageType.createConf:
-                            await this.onCreateConference(ws, msgIn);
-                            break;
-                        case CallMessageType.joinConf:
-                            await this.onJoinConference(ws, msgIn);
-                            break;
-                        case CallMessageType.invite:
-                            await this.onInvite(ws, msgIn);
-                            break;
-                        case CallMessageType.inviteCancelled:
-                            await this.onInviteCancelled(ws, msgIn);
-                            break;
-                        case CallMessageType.reject:
-                            await this.onReject(ws, msgIn);
-                            break;
-                        case CallMessageType.accept:
-                            await this.onAccept(ws, msgIn);
-                            break;
-                        case CallMessageType.leave:
-                            await this.onLeave(ws, msgIn);
-                            break;
-
-                    }
-                } catch (err) {
-                    console.error(err);
-                }
+                const msgIn = JSON.parse(message.data.toString());
+                this.handleMsgInWS(ws, msgIn);
             };
 
             ws.onclose = async () => {
@@ -134,6 +91,60 @@ export class ConferenceServer {
         });
     }
 
+    async handleMsgInWS(ws: WebSocket, msgIn: IMsg) {
+        try {
+
+            console.log("msgIn: ", msgIn);
+
+            if (!msgIn.type) {
+                console.error("message has no type");
+                return;
+            }
+            let participant = this.getParticipantByWS(ws);
+            let resultMsg: IMsg;
+
+            switch (msgIn.type) {
+                case CallMessageType.register:
+                    resultMsg = await this.onRegister(ws, msgIn);
+                    break;
+                case CallMessageType.getParticipants:
+                    resultMsg = await this.onGetParticipants(participant, msgIn);
+                    break;
+                case CallMessageType.getConferences:
+                    resultMsg = await this.onGetConferences(participant, msgIn);
+                    break;
+                case CallMessageType.createConf:
+                    resultMsg = await this.onCreateConference(participant, msgIn);
+                    break;
+                case CallMessageType.joinConf:
+                    resultMsg = await this.onJoinConference(participant, msgIn);
+                    break;
+                case CallMessageType.invite:
+                    resultMsg = await this.onInvite(participant, msgIn);
+                    break;
+                case CallMessageType.inviteCancelled:
+                    resultMsg = await this.onInviteCancelled(participant, msgIn);
+                    break;
+                case CallMessageType.reject:
+                    resultMsg = await this.onReject(participant, msgIn);
+                    break;
+                case CallMessageType.accept:
+                    resultMsg = await this.onAccept(participant, msgIn);
+                    break;
+                case CallMessageType.leave:
+                    resultMsg = await this.onLeave(participant, msgIn);
+                    break;
+            }
+
+            if (resultMsg) {
+                this.send(ws, resultMsg);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+
+    }
+
     send(ws: WebSocket, msg: any): boolean {
         console.log('send ', msg);
         try {
@@ -145,7 +156,7 @@ export class ConferenceServer {
         }
     }
 
-    createParticipant(ws: WebSocket, userName: string, displayName: string): Participant {
+    createParticipant(ws: WebSocket, username: string, displayName: string): Participant {
 
         if (!ws) {
             console.error("no websocket");
@@ -155,7 +166,7 @@ export class ConferenceServer {
         let part = new Participant();
         part.participantId = "part-" + randomUUID().toString();
         part.displayName = displayName;
-        part.userName = userName;
+        part.username = username;
         part.socket = ws;
         this.participants.set(ws, part);
         console.log("new participant created " + part.participantId);
@@ -226,45 +237,44 @@ export class ConferenceServer {
      * @param ws 
      * @param msgIn 
      */
-    private async onRegister(ws: WebSocket, msgIn: RegisterMsg) {
-        console.log("onRegister " + msgIn.data.userName);
+    private async onRegister(ws: WebSocket, msgIn: RegisterMsg): Promise<IMsg> {
+        console.log("onRegister " + msgIn.data.username);
 
-        if (!msgIn.data.userName) {
-            console.error("userName is required.");
+        if (!msgIn.data.username) {
+            console.error("username is required.");
+
             let errorMsg = new RegisterResultMsg();
-            errorMsg.data.error = "userName is required.";
+            errorMsg.data.error = "username is required.";
             return errorMsg;
         }
 
-        let participant: Participant = this.createParticipant(ws, msgIn.data.userName, msgIn.data.userName);
-        let authToken: string = msgIn.data.authToken;
-        let authTokenObject: IAuthPayload;
-        if (msgIn.data.authToken) {
-            authTokenObject = jwtVerify(this.config.conf_secret_key, msgIn.data.authToken) as IAuthPayload;
-            participant.role = authTokenObject.role;
-        } else {
-            //login as guest
-            authTokenObject = {
-                role: "guest",
-                username: msgIn.data.userName
-            };
-            authToken = jwtSign(this.config.conf_secret_key, authTokenObject);
+        if (!msgIn.data.authToken) {
+            console.error("authToken is required.");
+
+            let errorMsg = new RegisterResultMsg();
+            errorMsg.data.error = "authToken is required.";
+            return errorMsg;
         }
+
+        let participant: Participant = this.createParticipant(ws, msgIn.data.username, msgIn.data.username);
+
+        let authToken: string = msgIn.data.authToken;        
+        let authTokenObject: IAuthPayload;
+        authTokenObject = jwtVerify(this.config.conf_secret_key, msgIn.data.authToken) as IAuthPayload;
+        
+        participant.role = authTokenObject.role;
 
         let msg = new RegisterResultMsg();
         msg.data = {
-            userName: participant.displayName,
+            username: participant.displayName,
             authToken: authToken,
             participantId: participant.participantId,
             role: authTokenObject.role ?? "guest"
         };
 
-        this.send(ws, msg);
-
         this.broadCastParticipants();
 
         return msg;
-
     }
 
     async broadCastParticipants() {
@@ -306,14 +316,8 @@ export class ConferenceServer {
         }
     }
 
-    async onGetParticipants(ws: WebSocket, msgIn?: any) {
+    async onGetParticipants(participant: Participant, msgIn: GetParticipantsMsg): Promise<IMsg | null> {
         console.log("onGetParticipants");
-
-        let partcipant = this.getParticipantByWS(ws);
-        if (!partcipant) {
-            console.error("participant not registered");
-            return;
-        }
 
         // if (partcipant.role === "guest") {
         //     console.error("participant must be an authenticated user");
@@ -321,7 +325,7 @@ export class ConferenceServer {
         // }
 
         let msg = new GetParticipantsResultMsg();
-        this.getParticipantsExcept(ws).forEach((p) => {
+        this.getParticipantsExceptPart(participant).forEach((p) => {
             msg.data.push({
                 displayName: p.displayName,
                 participantId: p.participantId,
@@ -329,7 +333,7 @@ export class ConferenceServer {
             });
         });
 
-        this.send(ws, msg);
+        return msg;
     }
 
     getParticipantByWS(ws: WebSocket) {
@@ -352,8 +356,12 @@ export class ConferenceServer {
         return null;
     }
 
-    getParticipantsExcept(ws: WebSocket) {
+    getParticipantsExceptWS(ws: WebSocket) {
         return [...this.participants.values()].filter(p => p.socket !== ws);
+    }
+
+    getParticipantsExceptPart(part: Participant) {
+        return [...this.participants.values()].filter(p => p !== part);
     }
 
     /**
@@ -362,26 +370,18 @@ export class ConferenceServer {
      * @param msgIn 
      * @returns 
      */
-    private async onInvite(ws: WebSocket, msgIn: InviteMsg) {
+    private async onInvite(participant: Participant, msgIn: InviteMsg) {
         console.log("onInvite");
 
-        let caller = this.participants.get(ws);
 
-        if (!caller) {
-            console.error("caller not found.");
-            let errorMsg = new InviteResultMsg();
-            errorMsg.data.error = "failed to add you to the conference.";
-            this.send(ws, errorMsg);
-            return;
-        }
-
-        if (caller.conferenceRoom) {
+        if (participant.conferenceRoom) {
             console.error("caller already in a conference room.");
+
             let errorMsg = new InviteResultMsg();
-            errorMsg.data.conferenceRoomId = caller.conferenceRoom.id;
+            errorMsg.data.conferenceRoomId = participant.conferenceRoom.id;
             errorMsg.data.error = "already in a conference room.";
-            this.send(ws, errorMsg);
-            return;
+
+            return errorMsg;
         }
 
         // if (caller.role === "guest") {
@@ -392,30 +392,32 @@ export class ConferenceServer {
         let remote = this.getParticipant(msgIn.data.participantId);
         if (!remote) {
             console.error("remote participant not found.");
+
             let errorMsg = new InviteResultMsg();
             errorMsg.data.error = "remote party not found.";
-            this.send(caller.socket, errorMsg);
-            return;
+
+            return errorMsg;
         }
 
         if (remote.conferenceRoom) {
             console.error(`receiver is in another conference room. ${remote.conferenceRoom.id}`);
+
             let errorMsg = new InviteResultMsg();
             errorMsg.data.error = "remote party is on another call.";
-            this.send(caller.socket, errorMsg);
-            return;
+
+            return errorMsg;
         }
 
         let conference = this.getOrCreateConference();
         conference.confType = "p2p";
-        conference.addParticipant(caller);
+        conference.addParticipant(participant);
         conference.minParticipants = 2;
         conference.startTimerMinParticipants(10); //call will timeout if minParticipants not met 
 
         //forward the call to the receiver
         let msg = new InviteMsg();
-        msg.data.participantId = caller.participantId;
-        msg.data.displayName = caller.displayName;
+        msg.data.participantId = participant.participantId;
+        msg.data.displayName = participant.displayName;
         msg.data.conferenceRoomId = conference.id;
         msg.data.conferenceRoomName = conference.roomName;
         msg.data.conferenceRoomTrackingId = conference.trackingId;
@@ -430,9 +432,7 @@ export class ConferenceServer {
             errorMsg.data.conferenceRoomId = conference.id;
             errorMsg.data.error = "invite failed.";
 
-            this.send(ws, errorMsg);
-
-            return;
+            return errorMsg;
         }
 
         let inviteResultMsg = new InviteResultMsg();
@@ -444,19 +444,12 @@ export class ConferenceServer {
         inviteResultMsg.data.conferenceRoomTrackingId = conference.trackingId;
         inviteResultMsg.data.conferenceType = conference.confType;
 
-        this.send(ws, inviteResultMsg);
+        return inviteResultMsg;
 
     }
 
-    private async onInviteCancelled(ws: WebSocket, msgIn: InviteCancelledMsg) {
+    private async onInviteCancelled(participant: Participant, msgIn: InviteCancelledMsg) {
         console.log("onInviteCancel");
-
-        let caller = this.participants.get(ws);
-
-        if (!caller) {
-            console.error("caller not found.");
-            return;
-        }
 
         let receiver = this.getParticipant(msgIn.data.participantId);
         if (!receiver) {
@@ -470,7 +463,7 @@ export class ConferenceServer {
             return;
         }
 
-        if (caller.conferenceRoom != conf) {
+        if (participant.conferenceRoom != conf) {
             console.error("not the same conference room.");
             return;
         }
@@ -480,10 +473,11 @@ export class ConferenceServer {
             conf.close("");
         }
 
-        let msg = new InviteCancelledMsg();
-        msg.data.conferenceRoomId = conf.id;
-        msg.data.participantId = caller.participantId;
-        this.send(receiver.socket, msg);
+        let resultMsg = new InviteCancelledMsg();
+        resultMsg.data.conferenceRoomId = conf.id;
+        resultMsg.data.participantId = participant.participantId;
+
+        return resultMsg;
     }
 
     /**
@@ -492,12 +486,12 @@ export class ConferenceServer {
      * @param msgIn 
      * @returns 
      */
-    private async onReject(ws: WebSocket, msgIn: RejectMsg) {
+    private async onReject(participant: Participant, msgIn: RejectMsg): Promise<IMsg | null> {
         console.log("onReject");
-        let participant = this.getParticipant(msgIn.data.toParticipantId);
+        let remoteParticipant = this.getParticipant(msgIn.data.toParticipantId);
 
-        if (!participant) {
-            console.error("onReject - participant not found or not connected");
+        if (!remoteParticipant) {
+            console.error("onReject - remoteParticipant not found or not connected");
             return;
         }
 
@@ -508,22 +502,22 @@ export class ConferenceServer {
         }
 
         //the participant is not in the same conference room as the reject message
-        if (conf !== participant.conferenceRoom) {
+        if (conf !== remoteParticipant.conferenceRoom) {
             console.error("not the same confererence room");
             return;
         }
 
         //send the reject to the client
-        this.send(participant.socket, msgIn);
+        this.send(remoteParticipant.socket, msgIn);
 
         //the room was p2p, remove the particpant
         if (conf.confType == "p2p") {
-            conf.removeParticipant(participant.participantId);
+            conf.removeParticipant(remoteParticipant.participantId);
         }
 
     }
 
-    private async onAccept(ws: WebSocket, msgIn: AcceptMsg) {
+    private async onAccept(participant: Participant, msgIn: AcceptMsg) {
         console.log("onAccept()");
 
         let conference = this.conferences.get(msgIn.data.conferenceRoomId);
@@ -533,11 +527,9 @@ export class ConferenceServer {
             let msg = new AcceptResultMsg();
             msg.data.conferenceRoomId = msgIn.data.conferenceRoomId;
             msg.data.error = "unable to join conference";
-            this.send(ws, msg);
-            return;
+            return msg;
         }
 
-        let participant = this.getParticipantByWS(ws);
         if (!participant) {
             console.error("onAccept - participant not found or not connected");
             return;
@@ -547,8 +539,7 @@ export class ConferenceServer {
             let msg = new AcceptResultMsg();
             msg.data.conferenceRoomId = msgIn.data.conferenceRoomId;
             msg.data.error = "conference is closed";
-            this.send(ws, msg);
-            return;
+            return msg;
         }
 
         if (conference.status == "ready") {
@@ -562,7 +553,7 @@ export class ConferenceServer {
             let msg = new AcceptResultMsg();
             msg.data.conferenceRoomId = msgIn.data.conferenceRoomId;
             msg.data.error = "timeout, unable to join conference";
-            this.send(ws, msg);
+            this.send(participant.socket, msg);
         }, 5000);
 
         conference.addOnReadyListener(() => {
@@ -573,7 +564,7 @@ export class ConferenceServer {
             //send the answer result back
             let msg = new AcceptResultMsg();
             msg.data.conferenceRoomId = msgIn.data.conferenceRoomId;
-            this.send(ws, msg);
+            this.send(participant.socket, msg);
         });
 
         if (conference.status == "none") {
@@ -585,24 +576,24 @@ export class ConferenceServer {
         }
     }
 
-    private async onCreateConference(ws: WebSocket, msgIn: CreateConfMsg) {
+    private async onCreateConference(participant: Participant, msgIn: CreateConfMsg) {
         console.log("onCreateConference");
 
-        let caller = this.participants.get(ws);
-        if (!caller) {
-            console.error("caller not found.");
-            let errorMsg = new CreateConfResultMsg();
-            errorMsg.data.error = "failed to add you to the conference.";
-            this.send(ws, errorMsg);
-            return;
-        }
+        // let caller = this.participants.get(ws);
+        // if (!caller) {
+        //     console.error("caller not found.");
+        //     let errorMsg = new CreateConfResultMsg();
+        //     errorMsg.data.error = "failed to add you to the conference.";
+        //     this.send(ws, errorMsg);
+        //     return;
+        // }
 
         // if (caller.role === "guest") {
         //     console.error("participant must be an authenticated user");
         //     return;
         // }
 
-        let conference = caller.conferenceRoom;
+        let conference = participant.conferenceRoom;
         if (conference) {
             console.log("conference already created");
         } else {
@@ -612,8 +603,7 @@ export class ConferenceServer {
                 console.error("unable to start a conference");
                 let errorMsg = new CreateConfResultMsg();
                 errorMsg.data.error = "unable to start the conference.";
-                this.send(ws, errorMsg);
-                return;
+                return errorMsg;
             }
         }
 
@@ -622,7 +612,7 @@ export class ConferenceServer {
         resultMsg.data.trackingId = conference.trackingId;
         resultMsg.data.roomName = conference.roomName;
 
-        this.send(ws, resultMsg);
+        return resultMsg;
     }
 
     /**
@@ -632,35 +622,25 @@ export class ConferenceServer {
      * @param msgIn 
      * @returns 
      */
-    private async onJoinConference(ws: WebSocket, msgIn: JoinConfMsg) {
+    private async onJoinConference(participant: Participant, msgIn: JoinConfMsg) {
         console.log("onJoinConference");
 
-        let partcipant = this.participants.get(ws);
-        if (!partcipant) {
-            console.error("partcipant not found.");
-
-            let errorMsg = new JoinConfResultMsg();
-            errorMsg.data.error = "failed to add you to the conference.";
-            this.send(ws, errorMsg);
-            return;
-        }
 
         if (!msgIn.data.conferenceRoomId && !msgIn.data.trackingId) {
             console.error("conferenceRoomId or trackingId is required.");
 
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "invalid room data.";
-            this.send(ws, errorMsg);
-            return;
+            return errorMsg;
         }
 
-        if (partcipant.conferenceRoom) {
-            console.error(`already in a conference room: ${partcipant.conferenceRoom.id}`);
+        if (participant.conferenceRoom) {
+            console.error(`already in a conference room: ${participant.conferenceRoom.id}`);
 
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "already in a room.";
-            this.send(ws, errorMsg);
-            return;
+
+            return errorMsg;
         }
 
         let conference: ConferenceRoom;
@@ -675,8 +655,7 @@ export class ConferenceServer {
 
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "conference room not found.";
-            this.send(ws, errorMsg);
-            return;
+            return errorMsg;
         }
 
         if (conference.status !== "ready") {
@@ -684,18 +663,19 @@ export class ConferenceServer {
 
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "conference room not ready.";
-            this.send(ws, errorMsg);
-            return;
+
+            return errorMsg;
         }
 
-        conference.addParticipant(partcipant);
+        conference.addParticipant(participant);
 
         //do not send JoinConfResultMsg back, send the ConferenceReadyMsg
-        this.sendConferenceReady(conference, partcipant);
+        this.sendConferenceReady(conference, participant);
 
         let resultMsg = new JoinConfResultMsg();
         resultMsg.data.conferenceRoomId = conference.roomId;
-        this.send(ws, resultMsg);
+
+        return resultMsg;
     }
 
     async sendConferenceReady(conference: ConferenceRoom, participant: Participant) {
@@ -798,7 +778,7 @@ export class ConferenceServer {
         return true;
     }
 
-    private async onLeave(ws: WebSocket, msgIn: LeaveMsg) {
+    private async onLeave(participant: Participant, msgIn: LeaveMsg): Promise<IMsg | null> {
         console.log("onLeave");
         let conf = this.conferences.get(msgIn.data.conferenceRoomId);
 
@@ -806,7 +786,6 @@ export class ConferenceServer {
             console.error("conference room not found.");
             return;
         }
-        let participant = this.getParticipantByWS(ws);
 
         if (!conf.participants.get(participant.participantId)) {
             console.error(`participant not found. ${participant.participantId}`);
@@ -833,11 +812,11 @@ export class ConferenceServer {
         }
     }
 
-    private async onGetConferences(ws: WebSocket, msgIn: GetConferencesMsg) {
+    private async onGetConferences(participant: Participant, msgIn: GetConferencesMsg) {
         console.log("onGetConferences");
         let returnMsg = new GetConferencesResultMsg();
         returnMsg.data = await this.getConferences();
-        this.send(ws, returnMsg);
+        return returnMsg;
     }
 
     async getConferences(): Promise<ConferenceRoomInfo[]> {

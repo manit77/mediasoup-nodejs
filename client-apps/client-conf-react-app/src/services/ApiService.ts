@@ -1,72 +1,103 @@
+import { LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
 import { User, ConferenceRoomScheduled } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api'; // Configure your API base URL
+const API_BASE_URL = 'https://localhost:3100';
 
 interface LoginResponse {
     user: User;
-    token: string; 
-    role: string;
+    error?: string;
 }
 
-class ApiService  {
+class ApiService {
     conferencesScheduled: ConferenceRoomScheduled[] = [];
 
-    login = async (displayName: string, password: string): Promise<LoginResponse> => {
-        // Simulate API call
-        console.log(`ApiService: Logging in user ${displayName}`);
-        if (!displayName.trim()) {
-            throw new Error('Display name cannot be empty.');
-        }
-        // Replace with actual fetch call
-        // const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify({ displayName }),
-        // });
-        // if (!response.ok) {
-        //   const errorData = await response.json();
-        //   throw new Error(errorData.message || 'Login failed');
-        // }
-        // return response.json() as Promise<LoginResponse>;
+    login = async (username: string, password: string): Promise<LoginResponse> => {
 
-        // Mock implementation:
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const user : User = { id: Date.now().toString(), displayName, role: "admin" };
-                localStorage.setItem('authToken', `fake-jwt-token-for-${user.id}`);
-                localStorage.setItem('user', JSON.stringify(user));
-                resolve({ user, token: `fake-jwt-token-for-${user.id}`, role: user.role });
-            }, 500);
+        console.warn(`login ${username}`);
+        if (!username.trim()) {
+            throw new Error('username name cannot be empty.');
+        }
+
+        if (!password.trim()) {
+            throw new Error('password name cannot be empty.');
+        }
+
+        let postMsg = new LoginMsg();
+        postMsg.data.username = username;
+        postMsg.data.password = password;
+
+        const response = await fetch(`${API_BASE_URL}${WebRoutes.login}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(postMsg),
         });
+
+        let loginResult = await response.json() as LoginResultMsg;
+        console.warn(`loginResult`, loginResult);
+
+        if (loginResult.data.error) {
+            console.error(`login failed: ${loginResult.data.error}`);
+            return {
+                error: loginResult.data.error
+            } as LoginResponse;
+        }
+
+        let result: LoginResponse = {
+            user: {
+                username: loginResult.data.username,
+                displayName: loginResult.data.displayName,
+                role: loginResult.data.role as any,
+                authToken: loginResult.data.authToken
+            }
+        }
+
+        console.warn(`LoginResponse`, result);
+
+        localStorage.setItem('user', JSON.stringify(result.user));
+
+        return result;
+
     };
 
     loginGuest = async (displayName: string): Promise<LoginResponse> => {
-        // Simulate API call
-        console.log(`ApiService: Logging in user ${displayName}`);
+        console.warn(`loginGuest ${displayName}`);
         if (!displayName.trim()) {
             throw new Error('Display name cannot be empty.');
         }
-        // Replace with actual fetch call
-        // const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify({ displayName }),
-        // });
-        // if (!response.ok) {
-        //   const errorData = await response.json();
-        //   throw new Error(errorData.message || 'Login failed');
-        // }
-        // return response.json() as Promise<LoginResponse>;
 
-        // Mock implementation:
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const user: User = { id: Date.now().toString(), displayName, role: "guest" };
-                localStorage.setItem('authToken', `fake-jwt-token-for-${user.id}`);
-                localStorage.setItem('user', JSON.stringify(user));
-                resolve({ user, token: `fake-jwt-token-for-${user.id}`, role: user.role });
-            }, 500);
+        let postMsg = new LoginGuestMsg();
+        postMsg.data.displayName = displayName;
+
+        const response = await fetch(`${API_BASE_URL}${WebRoutes.loginGuest}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(postMsg),
         });
+
+        let loginResult = await response.json() as LoginResultMsg;
+        console.warn(`loginResult`, loginResult);
+
+        if (loginResult.data.error) {
+            console.error(`login guest failed: ${loginResult.data.error}`);
+            return {
+                error: loginResult.data.error
+            } as LoginResponse;
+        }
+
+        let result: LoginResponse = {
+            user: {
+                username: loginResult.data.username,
+                displayName: loginResult.data.displayName,
+                role: loginResult.data.role as any,
+                authToken: loginResult.data.authToken
+            }
+        }
+
+        console.warn(`LoginResponse`, result);
+
+        localStorage.setItem('user', JSON.stringify(result.user));
+
+        return result;
     };
 
     logout = async (): Promise<void> => {
@@ -77,8 +108,7 @@ class ApiService  {
         // await fetch(`${API_BASE_URL}/auth/logout`, {
         //   method: 'POST',
         //   headers: { 'Authorization': `Bearer ${token}` },
-        // });
-        localStorage.removeItem('authToken');
+        // });       
         localStorage.removeItem('user');
         return Promise.resolve();
     };

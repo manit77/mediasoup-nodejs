@@ -14,15 +14,10 @@ interface ParticipantVideoPreviewProps {
 
 const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected }) => {
     const { callParticipants, localParticipant, getLocalMedia, toggleMuteAudio, toggleMuteVideo } = useCall();
-    const { getCurrentUser } = useAuth();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [videoOff, setVideoOff] = useState(participant.isVideoOff);
     const [micOff, setMicOff] = useState(participant.isMuted);
-    const [isAdmin, setIsAdmin] = useState(false);
 
-    useEffect(() => {
-        setIsAdmin(getCurrentUser()?.role === "admin");
-    }, [getCurrentUser]);
 
     useEffect(() => {
         setVideoOff(participant.isVideoOff);

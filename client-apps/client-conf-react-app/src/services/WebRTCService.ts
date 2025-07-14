@@ -85,8 +85,12 @@ class WebRTCService {
     // }
 
     public connectSignaling(user: User): void {
-        console.log("connectSignaling");
+        console.warn("connectSignaling");
 
+        if(!user.authToken || !user.username) {
+            console.error("authtoken and username is required.", user);
+            return;
+        }
 
         if (!this.confClient) {
             console.error(`conference client not initialized.`);
@@ -100,7 +104,7 @@ class WebRTCService {
 
             switch (eventType) {
                 case EventTypes.connected: {
-                    this.confClient.register(user.displayName);
+                    this.confClient.register(user.username, user.authToken);
                     this.eventSignalingConnected();
                     break;
                 }

@@ -1,7 +1,8 @@
 export interface User {
-    id: string;
+    username: string;
     displayName: string;
     role: "admin" | "user" | "guest";
+    authToken: string;
 }
 
 export interface Device {

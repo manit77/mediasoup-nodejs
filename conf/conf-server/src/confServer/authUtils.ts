@@ -1,5 +1,5 @@
 import { IAuthPayload } from "../models/models.js";
-import { AuthenticateMsg, AuthenticateResultMsg } from "@conf/conf-models";
+import { AuthenticateMsg, AuthenticateResultMsg, LoginMsg } from "@conf/conf-models";
 import * as jwt from '../utils/jwtUtil.js';
 import { ConferenceServerConfig } from "./conferenceServer.js";
 
@@ -9,8 +9,13 @@ export class AuthUtils {
 
     }
 
-    authenticate(msgIn: AuthenticateMsg) {
-        let userName = msgIn.data.username;
+    /**
+     * 
+     * @param msgIn 
+     * @returns 
+     */
+    login(msgIn: LoginMsg) {
+        let username = msgIn.data.username;
         let password = msgIn.data.password;
 
         let authResult = new AuthenticateResultMsg();
@@ -21,7 +26,7 @@ export class AuthUtils {
         }
 
         let payload: IAuthPayload = {
-            username: userName,
+            username: username,
             role: "user"
         };
 
