@@ -84,7 +84,7 @@ export class ConferenceServer {
                     console.log(`participant ${participant.participantId} disconnected. participants: ${this.participants.size} rooms: ${this.conferences.size}`);
 
                     //update contacts
-                    await this.broadCastParticipants();
+                    await this.broadCastParticipants(null);
                 }
             }
 
@@ -272,12 +272,12 @@ export class ConferenceServer {
             role: authTokenObject.role ?? "guest"
         };
 
-        this.broadCastParticipants();
+        this.broadCastParticipants(participant);
 
         return msg;
     }
 
-    async broadCastParticipants() {
+    async broadCastParticipants(exceptParticipant: Participant) {
 
         console.log("broadCastParticipants");
         //broadcast to all participants of contacts
@@ -289,9 +289,9 @@ export class ConferenceServer {
         }) as ParticipantInfo);
 
         for (let [socket, p] of this.participants.entries()) {
-            //if (p.role !== "guest") {
-            this.send(socket, contactsMsg);
-            //}
+            if (exceptParticipant != p && p.role !== "guest") {
+                this.send(socket, contactsMsg);
+            }
         }
 
     }
@@ -319,10 +319,15 @@ export class ConferenceServer {
     async onGetParticipants(participant: Participant, msgIn: GetParticipantsMsg): Promise<IMsg | null> {
         console.log("onGetParticipants");
 
-        // if (partcipant.role === "guest") {
-        //     console.error("participant must be an authenticated user");
-        //     return;
-        // }
+        if (!participant){
+            console.error("participant is required.");
+            return;
+        }
+
+        if (participant.role === "guest") {
+            console.error("participant must be an authenticated user");
+            return;
+        }
 
         let msg = new GetParticipantsResultMsg();
         this.getParticipantsExceptPart(participant).forEach((p) => {
@@ -361,7 +366,7 @@ export class ConferenceServer {
     }
 
     getParticipantsExceptPart(part: Participant) {
-        return [...this.participants.values()].filter(p => p !== part);
+        return [...this.participants.values()].filter(p => p.participantId !== part.participantId);
     }
 
     /**
