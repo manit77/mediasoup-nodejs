@@ -48,7 +48,7 @@ export type ParticipantRole = "admin" | "user" | "guest";
 export class LoginGuestMsg {
     type = CallMessageType.loginGuest;
     data: {
-        displayName?: string        
+        displayName?: string
     } = {}
 }
 
@@ -137,9 +137,20 @@ export class GetConferencesMsg {
     data = {}
 }
 
+export class GetConferencesScheduledResultMsg {
+    type = CallMessageType.getConferencesResult;
+    data: {
+        scheduled: ConferenceScheduledInfo[],
+        error?: string,
+    } = { scheduled: [] }
+}
+
 export class GetConferencesResultMsg {
     type = CallMessageType.getConferencesResult;
-    data: ConferenceRoomInfo[] = [];
+    data: {
+        conferences: ConferenceRoomInfo[],
+        error?: string,
+    } = { conferences: [] }
 }
 
 export class CreateConfMsg {
@@ -283,9 +294,14 @@ export class ConferenceClosedMsg {
 
 export class ConferenceRoomConfig {
     roomTimeoutSecs: number = 60 * 60;
-    maxGuests: number = 99;
-    guestAllowMic: boolean = true;
-    guestAllowCamera: boolean = true;
+    conferenceCode: string;
+
+    usersMax = 99;
+    guestsMax: number = 99;
+    guestsAllow = true;
+    guestsAllowMic: boolean = true;
+    guestsAllowCamera: boolean = true;
+    
 }
 
 export class ConferenceRoomInfo {
@@ -294,5 +310,12 @@ export class ConferenceRoomInfo {
     roomName: string = "";
     roomStatus: string = "";
     participantCount = 0;
+}
+
+export class ConferenceScheduledInfo {
+    id: string = "";
+    name: string = "";
+    description: string = "";
+    config: ConferenceRoomConfig = new ConferenceRoomConfig();
 }
 

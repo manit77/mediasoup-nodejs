@@ -301,7 +301,7 @@ export class ConferenceServer {
 
         //broadcast to all participants of conferences that have a trackingId
         let msg = new GetConferencesResultMsg();
-        msg.data = [...this.conferences.values()].filter(c => c.trackingId).map(c => ({
+        msg.data.conferences = [...this.conferences.values()].filter(c => c.trackingId).map(c => ({
             conferenceRoomId: c.id,
             roomName: c.roomName,
             roomStatus: c.status,
@@ -309,10 +309,8 @@ export class ConferenceServer {
             participantCount: c.participants.size
         }) as ConferenceRoomInfo);
 
-        for (let [socket, p] of this.participants.entries()) {
-            //if (p.role !== "guest") {
-            this.send(socket, msg);
-            //}
+        for (let [socket, p] of this.participants.entries()) {           
+            this.send(socket, msg);            
         }
     }
 
@@ -758,7 +756,7 @@ export class ConferenceServer {
         let roomId = roomTokenResult.data.roomId;
 
         let roomConfig = new RoomConfig();
-        roomConfig.maxPeers = conference.config.maxGuests;
+        roomConfig.maxPeers = conference.config.guestsMax + conference.config.usersMax ;
         roomConfig.maxRoomDurationMinutes = Math.ceil(conference.timeoutSecs / 60);
 
         let roomNewResult = await roomsAPI.newRoom(roomId, roomToken, conference.roomName, conference.id, roomConfig);
@@ -820,7 +818,7 @@ export class ConferenceServer {
     private async onGetConferences(participant: Participant, msgIn: GetConferencesMsg) {
         console.log("onGetConferences");
         let returnMsg = new GetConferencesResultMsg();
-        returnMsg.data = await this.getConferences();
+        returnMsg.data.conferences = await this.getConferences();
         return returnMsg;
     }
 

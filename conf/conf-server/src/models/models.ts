@@ -39,6 +39,7 @@ export class ConferenceRoom {
     minParticipantsTimerId: any;
 
     onReadyListeners: (() => void)[] = [];
+    
     onClose: (conf: ConferenceRoom, participants: Participant[], reason: string) => void;
 
     addOnReadyListener(cb: () => void) {

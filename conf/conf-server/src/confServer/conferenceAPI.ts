@@ -1,5 +1,5 @@
 import express from 'express';
-import { AuthenticateMsg, AuthenticateResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
+import { AuthenticateMsg, AuthenticateResultMsg, ConferenceScheduledInfo, GetConferencesResultMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
 import { AuthUtils } from './authUtils.js';
 import { ConferenceServer, ConferenceServerConfig } from './conferenceServer.js';
 import { IAuthPayload } from '../models/models.js';
@@ -61,11 +61,11 @@ export class ConferenceAPI {
         this.app.post(WebRoutes.login, (req, res) => {
             console.log(WebRoutes.login);
             console.warn(req.body);
-            
-            let msg = req.body as LoginMsg;            
+
+            let msg = req.body as LoginMsg;
             if (!msg.data.username || !msg.data.password) {
                 console.error(`username and password is required.`);
-                 let errorMsg = new AuthenticateResultMsg();
+                let errorMsg = new AuthenticateResultMsg();
                 errorMsg.data.error = "authentication failed";
                 res.send(errorMsg);
                 return;
@@ -96,6 +96,38 @@ export class ConferenceAPI {
             }
 
         });
+
+        console.log(`${WebRoutes.getConferencesScheduled}`);
+        this.app.post(WebRoutes.getConferencesScheduled, (req, res) => {
+
+            //validate auth token
+
+            console.log(`${WebRoutes.getConferencesScheduled}`);
+            
+            let scheduled = [new ConferenceScheduledInfo(), new ConferenceScheduledInfo(), new ConferenceScheduledInfo()];
+            scheduled[0].id = "1";
+            scheduled[0].name = "Room 1";
+            scheduled[0].description = "scheduled conference Room 1";
+            
+            scheduled[1].id = "2";
+            scheduled[1].name = "Room 2";
+            scheduled[1].description = "scheduled conference Room 2";
+            
+
+            scheduled[2].id = "3";
+            scheduled[2].name = "Room 3";
+            scheduled[2].description = "scheduled conference Room 3";
+            
+            let resultMsg = new GetConferencesScheduledResultMsg();
+            resultMsg.data.scheduled = scheduled;
+
+            res.send(resultMsg);
+
+        });
+
+
+
+
 
         console.log(`${WebRoutes.onRoomClosed}`);
         this.app.post(WebRoutes.onRoomClosed, (req, res) => {
