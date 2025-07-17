@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { CallProvider } from './contexts/CallContext';
@@ -9,10 +9,19 @@ import IncomingCallPopup from './components/call/IncomingCallPopup';
 import CallingPopup from './components/call/CallingPopup';
 import { useAuth } from './hooks/useAuth';
 import { useCall } from './hooks/useCall';
+import { UIProvider, useUI } from './contexts/UIContext';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const { isCallActive, inviteInfoSend, localParticipant } = useCall();
+  const { showPopup, showToast } = useUI();
+
+  useEffect(() => {
+    console.log('loading.. app');
+    // showPopup("hello popup");
+    // showToast("hello toast");
+  }, [])
+
 
   if (isLoading) {
     return <div className="d-flex justify-content-center align-items-center vh-100">Loading...</div>;
@@ -37,7 +46,7 @@ const AppRoutes: React.FC = () => {
           </>
         )}
       </Routes>
-      
+
     </>
   );
 };
@@ -45,11 +54,13 @@ const AppRoutes: React.FC = () => {
 function App() {
   return (
     <Router>
+      <UIProvider>
       <AuthProvider>
         <CallProvider>
           <AppRoutes />
         </CallProvider>
       </AuthProvider>
+      </UIProvider>
     </Router>
   );
 }

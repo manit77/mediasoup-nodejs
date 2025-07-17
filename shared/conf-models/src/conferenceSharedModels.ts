@@ -2,9 +2,7 @@ export enum CallMessageType {
 
     login = "login",
     loginGuest = "loginGuest",
-    loginResult = "loginResult",
-    authenticate = "authenticate", //gets an authtoken
-    authenticateResult = "authenticateResult",
+    loginResult = "loginResult",   
 
     register = "register", //register the partcipant as online
     registerResult = "registerResult", //partcipant recieves a registration result
@@ -48,7 +46,8 @@ export type ParticipantRole = "admin" | "user" | "guest";
 export class LoginGuestMsg {
     type = CallMessageType.loginGuest;
     data: {
-        displayName?: string
+        displayName?: string,
+        clientData?: {}
     } = {}
 }
 
@@ -56,7 +55,9 @@ export class LoginMsg {
     type = CallMessageType.login;
     data: {
         username?: string,
-        password?: string
+        password?: string,
+        authToken?: string,
+        clientData?: {}
     } = {}
 }
 
@@ -66,25 +67,6 @@ export class LoginResultMsg {
         username?: string,
         displayName?: string,
         authToken?: string,
-        role?: string,
-        error?: string
-    } = {}
-}
-
-export class AuthenticateMsg {
-    type = CallMessageType.authenticate
-    data: {
-        username?: string,
-        authToken?: string
-    } = {}
-}
-
-export class AuthenticateResultMsg {
-    type = CallMessageType.authenticateResult;
-    data: {
-        username?: string,
-        authToken?: string,
-        displayName?: string,
         role?: string,
         error?: string
     } = {}
@@ -179,7 +161,8 @@ export class JoinConfMsg {
     type = CallMessageType.joinConf;
     data: {
         conferenceRoomId?: string,
-        trackingId?: string,
+        conferenceCode?: string,
+        trackingId?: string,        
         error?: string
     } = {
         }
@@ -298,7 +281,7 @@ export class ConferenceRoomConfig {
 
     usersMax = 99;
     guestsMax: number = 99;
-    guestsAllow = true;
+    guestsAllowed = true;
     guestsAllowMic: boolean = true;
     guestsAllowCamera: boolean = true;
     

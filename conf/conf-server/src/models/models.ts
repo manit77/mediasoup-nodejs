@@ -16,6 +16,7 @@ export class Participant {
     socket?: WebSocket = undefined; //websocket connection
     conferenceRoom?: ConferenceRoom = undefined; //reference to a conf room
     role: "admin" | "monitor" | "user" | "guest" = "guest";
+    clientData: {} = {}; //passed down from the user login or the query string from a client
 }
 
 export type conferenceStatus = "none" | "initializing" | "ready" | "closed";
@@ -104,6 +105,13 @@ export class ConferenceRoom {
     close(reason: string = "") {
         console.log(`conference close. ${this.id} reason: ${reason}`);
 
+        if(this.status === "closed"){
+            console.log("conference already closed.");
+            return;
+        }
+
+        this.status = "closed";
+        
         let existingParticipants = [...this.participants.values()];
 
         for (let part of this.participants.values()) {

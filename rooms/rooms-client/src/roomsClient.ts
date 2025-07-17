@@ -62,7 +62,6 @@ export class RoomsClient {
   };
 
   dispose = () => {
-
     console.log("disposeRoom()");
 
     this.disconnect();
@@ -560,7 +559,7 @@ export class RoomsClient {
     console.log(`removeLocalTracks`);
 
     for (const track of tracks) {
-      let producer = this.localPeer.getProducers().find(p => p.track.kind === track.kind);
+      let producer = this.localPeer.getProducers().get(track.kind);
       if (producer) {
         console.log(`producer found, closing ${track.kind}`)
         producer.close();
@@ -588,7 +587,7 @@ export class RoomsClient {
       return;
     }
 
-    let producer = this.localPeer.getProducers().find(p => p.track.kind === existingTrack.kind);
+    let producer = this.localPeer.getProducers().get(existingTrack.kind);
     if (producer) {
       producer.replaceTrack({ track: newTrack });
 
@@ -604,19 +603,6 @@ export class RoomsClient {
     console.log(`roomProducerToggleStream`);
 
     let tracks: MediaStreamTrack[];
-
-    //local producers consumers
-    tracks = this.localPeer.getProducers().map(p => p.track);
-    console.log("local producer tracks", tracks);
-    //console.log("localPeer tracks", this.localPeer.tracks);
-    tracks = this.localPeer.getProducers().map(p => p.track);
-    console.log("local consumer tracks", tracks);
-
-    //remote producers
-    // for (const peer of this.peers.values()) {
-    //   console.log(`remtoe peer ${peer.peerId} ${peer.displayName} tracks:`, peer.tracks);
-    // }
-
     if (peerId === this.localPeer.peerId) {
       //this is a local peer that was updated
       tracks = this.localPeer.getTracks();
@@ -1029,7 +1015,7 @@ export class RoomsClient {
     //some remote person shut me off
     if (this.localPeer.peerId == msgIn.data.peerId) {
       peer = this.localPeer;
-      tracks = this.localPeer.getProducers().map(p => p.track);
+      tracks = this.localPeer.getTracks();
     } else {
       peer = this.peers.get(msgIn.data.peerId);
       tracks = (peer as Peer).getConsumers().map(c => c.consumer.track);

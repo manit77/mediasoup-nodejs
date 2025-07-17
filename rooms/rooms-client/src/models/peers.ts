@@ -1,6 +1,7 @@
 import * as mediasoupClient from 'mediasoup-client';
 import { Consumer, Producer } from 'mediasoup-client/types';
 import { ConsumerInfo } from './models.js';
+import { UniqueMap } from '@rooms/rooms-models';
 
 export class LocalPeer implements IPeer {
   peerId: string = "";
@@ -14,10 +15,10 @@ export class LocalPeer implements IPeer {
   transportSend: mediasoupClient.types.Transport;
   transportReceive: mediasoupClient.types.Transport;
 
-  private producers: mediasoupClient.types.Producer[] = [];
+  private producers: UniqueMap<mediasoupClient.types.Producer> = new UniqueMap();
 
   getTracks() {
-    return this.producers.map(p => p.track);
+    return this.producers.values().map(p => p.track);
   }
 
   getProducers() {
@@ -25,22 +26,13 @@ export class LocalPeer implements IPeer {
   }
 
   clearProducers() {
-    this.producers.forEach(p => p.close());
-    this.producers = [];
+    this.producers.values().forEach(p => p.close());
+    this.producers.clear();
   }
 
   removeProducer(producer: Producer) {
     console.log(`removeProducer ${producer.kind}`);
-    let idx = this.producers.findIndex(p => p == producer);
-    if (idx > -1) {
-      let removed = this.producers.splice(idx, 1);
-      console.log(`producer with kind ${producer.track.kind} removed.`, this.producers);
-
-      // for (let producer of removed) {
-      //   producer.track.stop();
-      //   this.tracks.removeTrack(producer.track.kind);
-      // }
-    }
+    this.producers.delete(producer.kind);    
   }
 
   /**
@@ -53,7 +45,7 @@ export class LocalPeer implements IPeer {
     console.log(`createProducer ${track.kind}`);
 
     //if the producer exists by kind throw an error
-    let existingProducer = this.producers.find(p => p.kind === track.kind);
+    let existingProducer = this.producers.get(track.kind);
     if (existingProducer) {
       throw `producer already exists for kind ${existingProducer.kind}`;
     }
@@ -77,7 +69,7 @@ export class LocalPeer implements IPeer {
       console.log('producer - resumed (unmuted)');
     });
 
-    this.producers.push(producer);
+    this.producers.set(producer.kind, producer);
   }
 }
 

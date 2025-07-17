@@ -28,16 +28,21 @@ import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
 import { IMsg, RoomConfig } from '@rooms/rooms-models';
 import express from 'express';
+import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 
 export interface ConferenceServerConfig {
     conf_server_port: number,
     conf_reconnection_timeout: number,
     conf_secret_key: string,
     conf_max_peers_per_conf: number,
+    conf_allow_guests: boolean;
     conf_token_expires_min: number,
     conf_callback_urls: {},
+    conf_data_access_token: string;
+    conf_data_urls: { getScheduledConferencesURL: string, getScheduledConferenceURL: string, loginURL: string }
     room_access_token: string,
     room_servers_uris: string[],
+
     cert_file_path: string,
     cert_key_path: string
 }
@@ -51,11 +56,13 @@ export class ConferenceServer {
     nextRoomURIIdx = 0;
     app: express.Express;
     httpServer: https.Server
+    thirdParty: ThirdPartyAPI;
 
     constructor(config: ConferenceServerConfig, app: express.Express, httpServer: https.Server) {
         this.config = config;
         this.app = app;
         this.httpServer = httpServer;
+        this.thirdParty = new ThirdPartyAPI(this.config);
     }
 
     async start() {
@@ -258,10 +265,10 @@ export class ConferenceServer {
 
         let participant: Participant = this.createParticipant(ws, msgIn.data.username, msgIn.data.username);
 
-        let authToken: string = msgIn.data.authToken;        
+        let authToken: string = msgIn.data.authToken;
         let authTokenObject: IAuthPayload;
         authTokenObject = jwtVerify(this.config.conf_secret_key, msgIn.data.authToken) as IAuthPayload;
-        
+
         participant.role = authTokenObject.role;
 
         let msg = new RegisterResultMsg();
@@ -309,15 +316,15 @@ export class ConferenceServer {
             participantCount: c.participants.size
         }) as ConferenceRoomInfo);
 
-        for (let [socket, p] of this.participants.entries()) {           
-            this.send(socket, msg);            
+        for (let [socket, p] of this.participants.entries()) {
+            this.send(socket, msg);
         }
     }
 
     async onGetParticipants(participant: Participant, msgIn: GetParticipantsMsg): Promise<IMsg | null> {
         console.log("onGetParticipants");
 
-        if (!participant){
+        if (!participant) {
             console.error("participant is required.");
             return;
         }
@@ -596,6 +603,22 @@ export class ConferenceServer {
         //     return;
         // }
 
+        //get the config from the api endpoint
+        let confConfig = msgIn.data.conferenceRoomConfig;
+        if (this.config.conf_data_urls.getScheduledConferenceURL) {
+            confConfig = new ConferenceRoomConfig();
+            let scheduled = await this.thirdParty.getScheduledConference(msgIn.data.conferenceRoomTrackingId, participant.clientData);
+            if (scheduled) {
+                confConfig.conferenceCode = scheduled.config.conferenceCode;
+                confConfig.guestsAllowCamera = scheduled.config.guestsAllowCamera;
+                confConfig.guestsAllowMic = scheduled.config.guestsAllowMic;
+                confConfig.guestsAllowed = scheduled.config.guestsAllowed;
+                confConfig.guestsMax = scheduled.config.guestsMax;
+                confConfig.roomTimeoutSecs = 0;
+                confConfig.usersMax = 0;
+            }
+        }
+
         let conference = participant.conferenceRoom;
         if (conference) {
             console.log("conference already created");
@@ -627,7 +650,6 @@ export class ConferenceServer {
      */
     private async onJoinConference(participant: Participant, msgIn: JoinConfMsg) {
         console.log("onJoinConference");
-
 
         if (!msgIn.data.conferenceRoomId && !msgIn.data.trackingId) {
             console.error("conferenceRoomId or trackingId is required.");
@@ -666,6 +688,16 @@ export class ConferenceServer {
 
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "conference room not ready.";
+
+            return errorMsg;
+        }
+
+        //check the conference code
+        if (conference.config.conferenceCode && conference.config.conferenceCode !== msgIn.data.conferenceCode) {
+            console.error(`invalid conference code: ${msgIn.data.conferenceCode}`);
+
+            let errorMsg = new JoinConfResultMsg();
+            errorMsg.data.error = "invalid conference code";
 
             return errorMsg;
         }
@@ -756,7 +788,7 @@ export class ConferenceServer {
         let roomId = roomTokenResult.data.roomId;
 
         let roomConfig = new RoomConfig();
-        roomConfig.maxPeers = conference.config.guestsMax + conference.config.usersMax ;
+        roomConfig.maxPeers = conference.config.guestsMax + conference.config.usersMax;
         roomConfig.maxRoomDurationMinutes = Math.ceil(conference.timeoutSecs / 60);
 
         let roomNewResult = await roomsAPI.newRoom(roomId, roomToken, conference.roomName, conference.id, roomConfig);
