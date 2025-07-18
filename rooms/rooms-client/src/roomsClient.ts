@@ -804,7 +804,7 @@ export class RoomsClient {
   };
 
   private addPeer = (remotePeer: Peer) => {
-    console.warn( `addPeer() - ${remotePeer.displayName} ${remotePeer.peerId} ${remotePeer.trackingId}`);
+    console.log( `addPeer() - ${remotePeer.displayName} ${remotePeer.peerId} ${remotePeer.trackingId}`);
 
     if (this.peers.has(remotePeer.peerId)) {
       console.error(`peer already exists, ${remotePeer.peerId}`);
@@ -821,7 +821,7 @@ export class RoomsClient {
   };
 
   private removePeer = (remotePeer: Peer) => {
-    console.warn(`removePeer() - ${remotePeer.displayName} ${remotePeer.peerId} ${remotePeer.trackingId}`);
+    console.log(`removePeer() - ${remotePeer.displayName} ${remotePeer.peerId} ${remotePeer.trackingId}`);
 
     remotePeer.clearConsumers();
     remotePeer.producersToConsume = [];
@@ -982,7 +982,7 @@ export class RoomsClient {
   }
 
   private onRoomPeerLeft = async (msgIn: RoomPeerLeftMsg) => {
-    console.warn("peer left the room, peerid:" + msgIn.data.peerId);
+    console.log("peer left the room, peerid:" + msgIn.data.peerId);
 
     let peer = this.peers.get(msgIn.data.peerId);
     if (!peer) {

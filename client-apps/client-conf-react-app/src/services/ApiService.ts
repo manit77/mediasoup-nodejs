@@ -3,17 +3,18 @@ import { User, ConferenceRoomScheduled } from '../types';
 
 const API_BASE_URL = 'https://localhost:3100';
 
-interface LoginResponse {
+export interface LoginResponse {
     user: User;
     error?: string;
 }
 
 class ApiService {
     conferencesScheduled: ConferenceRoomScheduled[] = [];
+    startFetchConferencesScheduledTimerId = null;
 
     login = async (username: string, password: string): Promise<LoginResponse> => {
 
-        console.warn(`login ${username}`);
+        console.log(`login ${username}`);
         if (!username.trim()) {
             throw new Error('username name cannot be empty.');
         }
@@ -33,7 +34,7 @@ class ApiService {
         });
 
         let loginResult = await response.json() as LoginResultMsg;
-        console.warn(`loginResult`, loginResult);
+        console.log(`loginResult`, loginResult);
 
         if (loginResult.data.error) {
             console.error(`login failed: ${loginResult.data.error}`);
@@ -51,8 +52,7 @@ class ApiService {
             }
         }
 
-        console.warn(`LoginResponse`, result);
-
+        console.log(`LoginResponse`, result);
         localStorage.setItem('user', JSON.stringify(result.user));
 
         return result;
@@ -60,7 +60,7 @@ class ApiService {
     };
 
     loginGuest = async (displayName: string): Promise<LoginResponse> => {
-        console.warn(`loginGuest ${displayName}`);
+        console.log(`loginGuest ${displayName}`);
         if (!displayName.trim()) {
             throw new Error('Display name cannot be empty.');
         }
@@ -75,7 +75,7 @@ class ApiService {
         });
 
         let loginResult = await response.json() as LoginResultMsg;
-        console.warn(`loginResult`, loginResult);
+        console.log(`loginResult`, loginResult);
 
         if (loginResult.data.error) {
             console.error(`login guest failed: ${loginResult.data.error}`);
@@ -93,10 +93,8 @@ class ApiService {
             }
         }
 
-        console.warn(`LoginResponse`, result);
-
+        console.log(`LoginResponse`, result);
         localStorage.setItem('user', JSON.stringify(result.user));
-
         return result;
     };
 
@@ -113,9 +111,22 @@ class ApiService {
         return Promise.resolve();
     };
 
+    getUser() {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                const user = JSON.parse(storedUser) as User;
+                return user;
+            } catch (error) {
+                console.error("Failed to parse stored user", error);
+            }
+        }
+        return null;
+    }
+
     fetchConferencesScheduled = async (): Promise<ConferenceRoomScheduled[]> => {
         console.log("fetchConferencesScheduled");
-        //get rooms from API
+        //get rooms from API        
 
         const response = await fetch(`${API_BASE_URL}${WebRoutes.getConferencesScheduled}`, {
             method: 'POST',
@@ -124,7 +135,10 @@ class ApiService {
         });
 
         let result = await response.json() as GetConferencesScheduledResultMsg;
-        if (!result.data.error) {
+        console.log(result);
+
+        if (result.data.error) {
+            console.error(`ERROR:`, result.data.error);
             return this.conferencesScheduled;
         }
 
@@ -144,7 +158,25 @@ class ApiService {
             }
         } as ConferenceRoomScheduled));
 
+        console.log(`ConferenceRoomScheduled:`, this.conferencesScheduled);
+
         return this.conferencesScheduled;
+    };
+
+    
+    startFetchConferencesScheduled = () => {
+        console.log("startFetchConferencesScheduled");
+        if(this.startFetchConferencesScheduledTimerId) {
+            clearTimeout(this.startFetchConferencesScheduledTimerId);
+        }
+
+        this.startFetchConferencesScheduledTimerId = setTimeout(() => {
+            let user = this.getUser();
+            if (user) {
+                this.fetchConferencesScheduled();
+                this.startFetchConferencesScheduled();
+            }
+        }, 10 * 1000);
     };
 
 };

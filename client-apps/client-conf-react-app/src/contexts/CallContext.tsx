@@ -175,6 +175,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         webRTCService.onRegistered = async (participantId: string) => {
             console.log("CallContext: onRegistered: participantId", participantId);
+            getConferenceRoomsOnline();
             setIsAuthenticated(true);
             hidePopUp();
         }
@@ -250,7 +251,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log("CallContext: setInviteInfoReceived ");
 
         };
-
 
         webRTCService.onConferenceJoined = async (conferenceId: string) => {
             console.log(`CallContext: onConferenceJoined ${conferenceId}, conferenceRoomName:${webRTCService.getConferenceRoom()?.conferenceRoomName}`);

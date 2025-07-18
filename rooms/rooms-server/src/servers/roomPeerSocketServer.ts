@@ -91,22 +91,7 @@ export class RoomPeerSocketServer {
             console.log("msgIn, ", message.toString());
             const msgIn = JSON.parse(message.toString());
 
-            if (msgIn.type == payloadTypeClient.authUserNewToken) {
-                // user is requesting an authtoken we need to verify the service token passed
-
-                let authToken = (msgIn as AuthUserNewTokenMsg).data.authToken;
-
-                let errMsg = this.validateMsgRoute(authToken, msgIn);
-                if (errMsg) {
-                    this.send(ws, errMsg);
-                    return;
-                }
-
-                let resultMsg = await this.roomServer.onAuthUserNewTokenMsg(msgIn);
-                this.send(ws, resultMsg);
-
-
-            } else if (msgIn.type == payloadTypeClient.registerPeer) {
+            if (msgIn.type == payloadTypeClient.registerPeer) {
                 //we need to tie the peerid to the socket
                 //the client should already have an authtoken
                 let registerResult = await this.roomServer.onRegisterPeer(msgIn);

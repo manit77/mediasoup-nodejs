@@ -21,7 +21,6 @@ const RoomsPane: React.FC = () => {
     console.log('handleRefreshRooms:');
     try {
       setLoading(true);
-      await fetchConferencesScheduled(); // Assuming this updates conferencesScheduled in context
       setLoading(false);
     } catch (error) {
       console.error('Failed to refresh rooms:', error);
@@ -38,16 +37,21 @@ const RoomsPane: React.FC = () => {
 
   useEffect(() => {
     // Merge whenever either data source changes
-    console.log("Merging conferences ", conferencesOnline, conferencesScheduled);
-    const merged = conferencesScheduled.map(scheduled => {
-      const conf = conferencesOnline.find(c => scheduled.id === c.roomTrackingId);
-      return {
-        ...scheduled,
-        conferenceRoomId: conf?.conferenceRoomId,
-        roomStatus: conf?.roomStatus || "",
-      };
-    });
-    setMergedConferences(merged);
+    console.log("Merging conferences ", conferencesOnline, conferencesScheduled);    
+
+    if (conferencesOnline && conferencesScheduled) {
+      console.log("conferencesOnline.length", conferencesOnline.length);    
+
+      const merged = conferencesScheduled?.map(scheduled => {
+        const conf = conferencesOnline?.find(c => scheduled.id === c.roomTrackingId);
+        return {
+          ...scheduled,
+          conferenceRoomId: conf?.conferenceRoomId,
+          roomStatus: conf?.roomStatus || "",
+        };
+      });
+      setMergedConferences(merged);
+    }
   }, [conferencesOnline, conferencesScheduled]);
 
   const handleScheduledConferenceClick = async (scheduledConference: ConferenceRoomScheduled) => {

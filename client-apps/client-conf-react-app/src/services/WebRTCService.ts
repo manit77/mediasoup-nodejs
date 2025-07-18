@@ -1,6 +1,6 @@
 import { Conference, ConferenceClient, EventTypes, Participant } from '@conf/conf-client';
 import { SelectedDevices, User } from '../types';
-import { AcceptResultMsg, ConferenceClosedMsg, ConferenceRoomInfo, CreateConfResultMsg, InviteMsg, InviteResultMsg, JoinConfResultMsg, ParticipantInfo } from '@conf/conf-models';
+import { AcceptResultMsg, ConferenceClosedMsg, ConferenceRoomInfo, CreateConfResultMsg, GetConferencesResultMsg, InviteMsg, InviteResultMsg, JoinConfResultMsg, ParticipantInfo } from '@conf/conf-models';
 
 const confServerURI = 'https://localhost:3100'; // conference
 
@@ -11,7 +11,7 @@ class WebRTCService {
     conferencesOnline: ConferenceRoomInfo[] = [];
 
     constructor() {
-        console.warn(`ConferenceClient initialized`)
+        console.log(`ConferenceClient initialized`)
     }
 
     get localStream(): MediaStream | null {
@@ -61,7 +61,7 @@ class WebRTCService {
     public onParticipantLeft: (participantId: string) => Promise<void> = async () => { };
 
     // public dispose() {
-    //     console.warn("dispose");
+    //     console.log("dispose");
     //     this.onServerConnected = null;
     //     this.onServerDisconnected = null;
     //     this.onRegistered = null;
@@ -355,10 +355,10 @@ class WebRTCService {
         await this.onParticipantsReceived(this.participantsOnline);
     }
 
-    private async eventConferencesReceived(msg: any) {
+    private async eventConferencesReceived(msg: GetConferencesResultMsg) {
         console.log("eventConferencesReceived", msg);
 
-        this.conferencesOnline = msg.data;
+        this.conferencesOnline = msg.data.conferences;
         await this.onConferencesReceived(this.conferencesOnline);
     }
 

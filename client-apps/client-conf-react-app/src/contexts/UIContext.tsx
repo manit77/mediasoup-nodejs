@@ -1,22 +1,12 @@
 import React, { createContext, useContext, useState, ReactNode, useRef, useCallback, useMemo } from 'react';
 
 // Define the types for the context
-interface UIContextType {
-  showPopup: (message: string, duration?: number) => void;
-  showToast: (message: string, duration?: number) => void;
+export interface UIContextType {
+  showPopup: (message: string, durationSec?: number) => void;
+  showToast: (message: string, durationSec?: number) => void;
 }
 
-// Create the context
-const UIContext = createContext<UIContextType | undefined>(undefined);
-
-// Hook to use the context
-export const useUI = (): UIContextType => {
-  const context = useContext(UIContext);
-  if (!context) {
-    throw new Error('useUI must be used within a UIProvider');
-  }
-  return context;
-};
+export const UIContext = createContext<UIContextType | undefined>(undefined);
 
 // Type for toast items
 interface Toast {
@@ -35,19 +25,19 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
   const toastIdRef = useRef(0);
 
 // Memoize the functions with useCallback
-  const showPopup = useCallback((message: string, duration: number = 3000) => {
+  const showPopup = useCallback((message: string, durationSec: number = 3) => {
     setPopupMessage(message);
     setTimeout(() => {
       setPopupMessage(null);
-    }, duration);
+    }, durationSec * 1000);
   }, []); // Empty deps: stable unless dependencies change (none here)
 
-const showToast = useCallback((message: string, duration: number = 3000) => {
+const showToast = useCallback((message: string, durationSec: number = 3) => {
     const id = toastIdRef.current++;
     setToasts((prev) => [...prev, { id, message }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, duration);
+    }, durationSec * 1000);
   }, []); // Empty deps: stable
 
   const contextValue = useMemo(() => ({ showPopup, showToast }), [showPopup, showToast]);

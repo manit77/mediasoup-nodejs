@@ -308,13 +308,13 @@ export class ConferenceClient {
     }
 
     disconnect() {
-        console.warn("conferneceClient disconnect");
+        console.log("conferneceClient disconnect");
 
         this.disconnectRoomsClient("disconnect");
 
         this.socketAutoReconnect = false;
         if (this.socket) {
-            console.warn(`disconnecting from socket`);
+            console.log(`disconnecting from socket`);
             this.socket.disconnect();
             this.socket = null;
         }

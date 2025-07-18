@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAPI';
+import { useAPI } from '../../hooks/useAPI';
+import { useUI } from '../../hooks/useUI';
 import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
 
 const LoginPage: React.FC = () => {
@@ -8,22 +9,28 @@ const LoginPage: React.FC = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const auth = useAuth();
+    const api = useAPI();
+    const ui = useUI();
     const navigate = useNavigate();
 
     const handleSubmitAdmin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
+        e.preventDefault();        
         if (!username.trim()) {
             setError('Display name is required.');
             return;
         }
         setLoading(true);
         try {
-            await auth.login(username, password);
+            let response = await api.login(username, password);
+            if (response.error) {
+                setError(response.error);
+                ui.showToast(`Login failed. ${response.error}`, 3);
+                return;
+            }
+            setError('');
             navigate('/app'); // Navigate to authenticated area
         } catch (err: any) {
-            setError(err.message || 'Login failed. Please try again.');
+            setError('Login failed. Please try again.');            
         } finally {
             setLoading(false);
         }
@@ -38,7 +45,13 @@ const LoginPage: React.FC = () => {
         }
         setLoading(true);
         try {
-            await auth.loginGuest(username);
+            let response = await api.loginGuest(username);
+            if (response.error) {
+                setError(response.error);
+                ui.showToast(`Login failed. ${response.error}`, 3);
+                return;
+            }
+            setError('');
             navigate('/app'); // Navigate to authenticated area
         } catch (err: any) {
             setError(err.message || 'Login failed. Please try again.');
@@ -70,7 +83,7 @@ const LoginPage: React.FC = () => {
                         </Button>
                     </Form>
                 </Card.Body>
-            </Card>            
+            </Card>
             OR
             <Card style={{ width: '400px', borderColor: '#ff9800' }}>
                 <Card.Body>

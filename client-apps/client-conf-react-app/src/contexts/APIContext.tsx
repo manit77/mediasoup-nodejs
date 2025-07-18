@@ -1,15 +1,15 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { ConferenceRoomScheduled, User } from '../types';
 import { webRTCService } from '../services/WebRTCService';
-import { apiService } from '../services/ApiService';
+import { apiService, LoginResponse } from '../services/ApiService';
 
 interface APIContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     isAdmin: () => boolean;
     isUser: () => boolean;
-    loginGuest: (displayName: string) => Promise<void>;
-    login: (username: string, password: string) => Promise<void>;
+    loginGuest: (displayName: string) => Promise<LoginResponse>;
+    login: (username: string, password: string) => Promise<LoginResponse>;
     logout: () => Promise<void>;
     fetchConferencesScheduled: () => Promise<ConferenceRoomScheduled[]>;
     getCurrentUser: () => User | null;
@@ -22,7 +22,7 @@ export const APIContext = createContext<APIContextType | undefined>(undefined);
 export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceRoomScheduled[]>(apiService.conferencesScheduled);
+    const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceRoomScheduled[]>(apiService.conferencesScheduled);    
 
     const getCurrentUser = useCallback((): User | null => {
         const storedUser = localStorage.getItem('user');
@@ -53,14 +53,13 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return false;
     }, [getCurrentUser]);
 
-
     useEffect(() => {
         console.log("AuthProvider triggered.");
         let currentUser = getCurrentUser();
         if (currentUser) {
             console.log("user found.");
             setIsAuthenticated(true);
-            webRTCService.connectSignaling(currentUser);
+            setUpConnections();
             return;
         } else {
             console.log("user not found. ");
@@ -69,6 +68,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, [getCurrentUser]);
 
     const loginGuest = useCallback(async (displayName: string) => {
+        console.log("loginGuest");
         try {
             setIsLoading(true);
             const loginResult = await apiService.loginGuest(displayName);
@@ -76,16 +76,20 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (loginResult.error) {
                 setIsAuthenticated(false);
                 console.error(loginResult.error);
-                return;
+                return loginResult;
             }
-
+            console.log("authenticated");
             setIsAuthenticated(true);
-            webRTCService.connectSignaling(loginResult.user);
             setIsLoading(false);
+            return loginResult;
         } catch (error) {
             setIsLoading(false);
             console.error('Login failed:', error);
-            throw error;
+            let errorResponse: LoginResponse = {
+                user: null,
+                error: "login failed. server connection error."
+            }
+            return errorResponse;
         }
     }, []);
 
@@ -97,16 +101,19 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (loginResult.error) {
                 setIsAuthenticated(false);
                 console.error(loginResult.error);
-                return;
+                return loginResult;
             }
-
             setIsAuthenticated(true);
-            webRTCService.connectSignaling(loginResult.user);
             setIsLoading(false);
+            return loginResult;
         } catch (error) {
             setIsLoading(false);
             console.error('Login failed:', error);
-            throw error;
+            let errorResponse: LoginResponse = {
+                user: null,
+                error: "login failed. server connection error."
+            }
+            return errorResponse;
         }
     }, []);
 
@@ -134,6 +141,23 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return conferences;
     }, []);
 
+    const setUpConnections = useCallback(() => {
+        console.log(`setUpConnections`);
+
+        let user = apiService.getUser();
+        if (user) {
+            webRTCService.connectSignaling(user);
+            fetchConferencesScheduled();
+            apiService.startFetchConferencesScheduled();
+        }
+    }, [fetchConferencesScheduled]);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            setUpConnections();
+        }
+    }, [isAuthenticated, setUpConnections]);
+    
     const value = useMemo(() => ({
         conferencesScheduled,
         getCurrentUser,
@@ -141,7 +165,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isAdmin,
         isUser,
         isLoading,
-        loginGuest,        
+        loginGuest,
         login,
         logout,
         fetchConferencesScheduled,

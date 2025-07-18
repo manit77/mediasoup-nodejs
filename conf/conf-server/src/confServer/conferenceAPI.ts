@@ -8,8 +8,6 @@ import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from '../thirdParty/models.js';
 import { getDemoSchedules } from '../demoData/demoData.js';
 
-const DSTR = "ConferenceAPI";
-
 export class ConferenceAPI {
     thirdPartyAPI: ThirdPartyAPI;
 
@@ -64,7 +62,7 @@ export class ConferenceAPI {
         this.app.post(WebRoutes.login, async (req, res) => {
             console.log(WebRoutes.login);
 
-            console.warn(req.body);
+            console.log(req.body);
             let isAuthenticated = false;
             let username = "";
             let displayName = "";
@@ -151,7 +149,8 @@ export class ConferenceAPI {
         this.app.post(WebRoutes.getConferencesScheduled, async (req, res) => {
             console.log(`${WebRoutes.getConferencesScheduled}`);
 
-            //validate auth token
+            let resultMsg = new GetConferencesScheduledResultMsg();
+            
             if (this.config.conf_data_urls.getScheduledConferencesURL) {
                 //make a post to the url
                 let msg = req.body as apiGetScheduledConferencesPost;
@@ -161,8 +160,7 @@ export class ConferenceAPI {
                     return;
                 }
 
-                //hide the conference code
-                let resultMsg = new GetConferencesScheduledResultMsg();
+                //hide the conference code                
                 resultMsg.data.conferences = result.data.conferences.map(s => {
                     let clone = new ConferenceScheduledInfo()
                     clone.description = s.description;
@@ -181,7 +179,8 @@ export class ConferenceAPI {
                 //get from demo data
                 console.log(`${WebRoutes.getConferencesScheduled}`);
 
-                let resultMsg = new GetConferencesScheduledResultMsg();
+                //map and delete the conference code
+                resultMsg = new GetConferencesScheduledResultMsg();
                 resultMsg.data.conferences = getDemoSchedules().map(s => {
                     let clone = {
                         ...s,
@@ -189,10 +188,10 @@ export class ConferenceAPI {
                     };
                     delete clone.config.conferenceCode;
                     return clone;
-                });
-
-                res.send(resultMsg);
+                });                
             }
+
+            res.send(resultMsg);
 
         });
 

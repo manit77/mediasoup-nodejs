@@ -90,9 +90,9 @@ export class RoomHTTPServer {
             console.log(RoomServerAPIRoutes.newAuthUserToken);
             console.log(RoomServerAPIRoutes.newAuthUserToken);
             let msgIn = req.body as AuthUserNewTokenMsg;
-            msgIn.data.authToken = req.rooms_authtoken;
 
             let resultMsg = await this.roomServer.onAuthUserNewTokenMsg(msgIn)
+            
             res.send(resultMsg);
 
         });

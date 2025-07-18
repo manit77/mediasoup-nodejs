@@ -5,16 +5,13 @@ import { CallProvider } from './contexts/CallContext';
 import LoginPage from './components/auth/LoginPage';
 import AuthenticatedLayout from './components/layout/AuthenticatedLayout';
 import OnCallScreen from './components/call/OnCallScreen';
-import IncomingCallPopup from './components/call/IncomingCallPopup';
-import CallingPopup from './components/call/CallingPopup';
 import { useAPI } from './hooks/useAPI';
 import { useCall } from './hooks/useCall';
-import { UIProvider, useUI } from './contexts/UIContext';
+import { UIProvider} from './contexts/UIContext';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAPI();
-  const { isCallActive, inviteInfoSend, localParticipant } = useCall();
-  const { showPopup, showToast } = useUI();
+  const { isCallActive } = useCall();
 
   useEffect(() => {
     console.log('loading.. app');

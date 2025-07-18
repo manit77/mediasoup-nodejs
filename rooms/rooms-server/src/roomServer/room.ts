@@ -117,7 +117,7 @@ export class Room {
     }
 
     removePeer(peerId: string): void {
-        console.warn("room.removePeer() - ", peerId);
+        console.log("room.removePeer() - ", peerId);
         let peer = this.peers.get(peerId);
 
         if (!peer) {
