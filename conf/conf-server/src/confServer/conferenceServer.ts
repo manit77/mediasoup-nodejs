@@ -30,6 +30,7 @@ import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
 import { IMsg, RoomConfig } from '@rooms/rooms-models';
 import express from 'express';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
+import { getDemoSchedules } from '../demoData/demoData.js';
 
 export interface ConferenceServerConfig {
     conf_server_port: number,
@@ -612,6 +613,18 @@ export class ConferenceServer {
                 confConfig.guestsAllowMic = resultMsg.data.conference.config.guestsAllowMic;
                 confConfig.guestsAllowed = resultMsg.data.conference.config.guestsAllowed;
                 confConfig.guestsMax = resultMsg.data.conference.config.guestsMax;
+                confConfig.roomTimeoutSecs = 0;
+                confConfig.usersMax = 0;
+            }
+        } else {
+            //get from demo data
+            let demoSchedule = getDemoSchedules().find(s=> s.id === msgIn.data.conferenceRoomTrackingId);
+            if (demoSchedule) {
+                confConfig.conferenceCode = demoSchedule.config.conferenceCode;
+                confConfig.guestsAllowCamera = demoSchedule.config.guestsAllowCamera;
+                confConfig.guestsAllowMic = demoSchedule.config.guestsAllowMic;
+                confConfig.guestsAllowed = demoSchedule.config.guestsAllowed;
+                confConfig.guestsMax = demoSchedule.config.guestsMax;
                 confConfig.roomTimeoutSecs = 0;
                 confConfig.usersMax = 0;
             }

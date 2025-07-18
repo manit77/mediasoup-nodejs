@@ -1,21 +1,19 @@
 import express from 'express';
 import { ConferenceRoomConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesResultMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantRole, WebRoutes } from '@conf/conf-models';
-import { AuthUtils } from './authUtils.js';
 import { ConferenceServer, ConferenceServerConfig } from './conferenceServer.js';
 import { IAuthPayload } from '../models/models.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
 import { RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/rooms-models';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from '../thirdParty/models.js';
+import { getDemoSchedules } from '../demoData/demoData.js';
 
 const DSTR = "ConferenceAPI";
 
 export class ConferenceAPI {
-    authUtils: AuthUtils;
     thirdPartyAPI: ThirdPartyAPI;
 
     constructor(private app: express.Express, private config: ConferenceServerConfig, private confServer: ConferenceServer) {
-        this.authUtils = new AuthUtils(config);
         this.thirdPartyAPI = new ThirdPartyAPI(config);
     }
 
@@ -29,8 +27,7 @@ export class ConferenceAPI {
             res.send("ConferenceAPI");
         });
 
-        console.log(`${WebRoutes.loginGuest}`);
-
+        console.log(`route: ${WebRoutes.loginGuest}`);
         this.app.post(WebRoutes.loginGuest, (req, res) => {
             console.log(WebRoutes.loginGuest, req.body);
 
@@ -63,9 +60,10 @@ export class ConferenceAPI {
 
         });
 
-        console.log(`${WebRoutes.login}`);
+        console.log(`route: ${WebRoutes.login}`);
         this.app.post(WebRoutes.login, async (req, res) => {
             console.log(WebRoutes.login);
+
             console.warn(req.body);
             let isAuthenticated = false;
             let username = "";
@@ -149,9 +147,10 @@ export class ConferenceAPI {
 
         });
 
-
+        console.log(`route: ${WebRoutes.getConferencesScheduled}`);
         this.app.post(WebRoutes.getConferencesScheduled, async (req, res) => {
             console.log(`${WebRoutes.getConferencesScheduled}`);
+
             //validate auth token
             if (this.config.conf_data_urls.getScheduledConferencesURL) {
                 //make a post to the url
@@ -179,11 +178,11 @@ export class ConferenceAPI {
                 res.send(resultMsg);
 
             } else {
-
+                //get from demo data
                 console.log(`${WebRoutes.getConferencesScheduled}`);
 
                 let resultMsg = new GetConferencesScheduledResultMsg();
-                resultMsg.data.conferences = this.getDemoSchedules().map(s => {
+                resultMsg.data.conferences = getDemoSchedules().map(s => {
                     let clone = {
                         ...s,
                         config: { ...s.config }
@@ -195,9 +194,9 @@ export class ConferenceAPI {
                 res.send(resultMsg);
             }
 
-        });        
+        });
 
-        console.log(`${WebRoutes.onRoomClosed}`);
+        console.log(`route: ${WebRoutes.onRoomClosed}`);
         this.app.post(WebRoutes.onRoomClosed, (req, res) => {
             console.log(WebRoutes.onRoomClosed);
 
@@ -212,7 +211,7 @@ export class ConferenceAPI {
 
         });
 
-        console.log(`${WebRoutes.onPeerJoined}`);
+        console.log(`route: ${WebRoutes.onPeerJoined}`);
         this.app.post(WebRoutes.onPeerJoined, (req, res) => {
             console.log(WebRoutes.onPeerJoined);
 
@@ -220,7 +219,7 @@ export class ConferenceAPI {
             console.log(`peerId: ${msg.data.peerId} peerTrackingId: ${msg.data.peerTrackingId} roomId: ${msg.data.roomId} roomTrackingId: ${msg.data.roomTrackingId}`);
         });
 
-        console.log(`${WebRoutes.onPeerLeft}`);
+        console.log(`route: ${WebRoutes.onPeerLeft}`);
         this.app.post(WebRoutes.onPeerLeft, (req, res) => {
             console.log(WebRoutes.onPeerLeft);
 
@@ -228,31 +227,6 @@ export class ConferenceAPI {
             console.log(`peerId: ${msg.data.peerId} peerTrackingId: ${msg.data.peerTrackingId} roomId: ${msg.data.roomId} roomTrackingId: ${msg.data.roomTrackingId}`);
         });
 
-
     }
-
-    getDemoSchedules() {
-        let scheduled = [new ConferenceScheduledInfo(), new ConferenceScheduledInfo(), new ConferenceScheduledInfo()];
-        scheduled[0].id = "1";
-        scheduled[0].name = "Room 1";
-        scheduled[0].description = "scheduled conference Room 1";
-        scheduled[0].config = new ConferenceRoomConfig();
-
-        scheduled[1].id = "2";
-        scheduled[1].name = "Room 2";
-        scheduled[1].description = "scheduled conference Room 2";
-        scheduled[1].config = new ConferenceRoomConfig();
-        scheduled[2].config.conferenceCode = "1111";
-        scheduled[2].config.requireConferenceCode = true;
-
-        scheduled[2].id = "3";
-        scheduled[2].name = "Room 3";
-        scheduled[2].description = "scheduled conference Room 3";
-        scheduled[2].config = new ConferenceRoomConfig();
-        scheduled[2].config.guestsAllowCamera = false;
-        scheduled[2].config.guestsAllowMic = false;
-        scheduled[2].config.conferenceCode = "2222";
-        scheduled[2].config.requireConferenceCode = true;
-        return scheduled;
-    }
+    
 }

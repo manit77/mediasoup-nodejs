@@ -5,7 +5,6 @@ import cors from 'cors';
 import { ConferenceServer, ConferenceServerConfig } from './confServer/conferenceServer.js';
 import { getENV } from './utils/env.js';
 import { ConferenceAPI } from './confServer/conferenceAPI.js';
-import { AuthUtils } from './confServer/authUtils.js';
 import chalk from 'chalk';
 
 const config: ConferenceServerConfig = await getENV() as any;
