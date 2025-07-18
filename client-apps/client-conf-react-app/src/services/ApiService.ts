@@ -1,4 +1,4 @@
-import { LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
+import { ConferenceScheduledInfo, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
 import { User, ConferenceRoomScheduled } from '../types';
 
 const API_BASE_URL = 'https://localhost:3100';
@@ -116,7 +116,34 @@ class ApiService {
     fetchConferencesScheduled = async (): Promise<ConferenceRoomScheduled[]> => {
         console.log("fetchConferencesScheduled");
         //get rooms from API
-        this.conferencesScheduled = [new ConferenceRoomScheduled("1", "Room 1"), new ConferenceRoomScheduled("2", "Room 2")];
+
+        const response = await fetch(`${API_BASE_URL}${WebRoutes.getConferencesScheduled}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: "",
+        });
+
+        let result = await response.json() as GetConferencesScheduledResultMsg;
+        if (!result.data.error) {
+            return this.conferencesScheduled;
+        }
+
+        this.conferencesScheduled = result.data.conferences.map(c => ({
+            id: c.id,
+            roomName: c.name,
+            roomDescription: c.description,
+            config: {
+                conferenceCode: c.config.conferenceCode,
+                guestsAllowCamera: c.config.guestsAllowCamera,
+                guestsAllowed: c.config.guestsAllowed,
+                guestsAllowMic: c.config.guestsAllowMic,
+                guestsMax: c.config.guestsMax,
+                requireConferenceCode: c.config.requireConferenceCode,
+                roomTimeoutSecs: c.config.roomTimeoutSecs,
+                usersMax: c.config.usersMax
+            }
+        } as ConferenceRoomScheduled));
+
         return this.conferencesScheduled;
     };
 

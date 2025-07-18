@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../hooks/useAPI';
 import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
 
 const LoginPage: React.FC = () => {

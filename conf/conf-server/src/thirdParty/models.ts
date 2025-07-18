@@ -61,7 +61,7 @@ export interface apiGetScheduledConferencesResult {
 }
 
 export class apiScheduledConference {
-    d: string;
+    id: string;
     name: string;
     description: string;
     config: { conferenceCode: string, guestsMax: number, guestsAllowed: boolean, guestsAllowMic: boolean, guestsAllowCamera: boolean }

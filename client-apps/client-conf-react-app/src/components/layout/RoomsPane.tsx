@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
-import { useAuth } from '../../hooks/useAuth';
+import { useAPI } from '../../hooks/useAPI';
 import { ConferenceRoomScheduled } from '../../types';
 
 const RoomsPane: React.FC = () => {
   const { isAuthenticated, isCallActive, inviteInfoSend, conferencesOnline, joinConference, createConference, getConferenceRoomsOnline } = useCall();
-  const { isAdmin, isUser, conferencesScheduled, fetchConferencesScheduled, getCurrentUser } = useAuth();
+  const { isAdmin, isUser, conferencesScheduled, fetchConferencesScheduled, getCurrentUser } = useAPI();
 
   const [loading, setLoading] = useState(false);
   const [mergedConferences, setMergedConferences] = useState<ConferenceRoomScheduled[]>([]);

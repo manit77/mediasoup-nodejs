@@ -4,7 +4,7 @@ import {
     , RoomServerAPIRoutes, RoomTerminateMsg, RoomConfig,
     RoomLeaveMsg,
     RoomLeaveResultMsg,
-    RoomNewResultMsg
+    RoomNewResultMsg,    
 } from "@rooms/rooms-models";
 import https from "https"
 
@@ -33,7 +33,8 @@ export class RoomsAPI {
     }
 
     async newAuthUserToken() {
-        let msgIn = new AuthUserNewTokenMsg();
+        let msgIn = new AuthUserNewTokenMsg();       
+        msgIn.data.expiresInMin = 0;        
         return await this.post(RoomServerAPIRoutes.newAuthUserToken, msgIn) as AuthUserNewTokenResultMsg;
     }
 

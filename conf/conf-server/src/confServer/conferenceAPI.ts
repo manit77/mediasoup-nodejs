@@ -1,11 +1,12 @@
 import express from 'express';
-import { ConferenceScheduledInfo, GetConferencesResultMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
+import { ConferenceRoomConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesResultMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantRole, WebRoutes } from '@conf/conf-models';
 import { AuthUtils } from './authUtils.js';
 import { ConferenceServer, ConferenceServerConfig } from './conferenceServer.js';
 import { IAuthPayload } from '../models/models.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
 import { RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/rooms-models';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
+import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from '../thirdParty/models.js';
 
 const DSTR = "ConferenceAPI";
 
@@ -38,7 +39,7 @@ export class ConferenceAPI {
 
                 let authTokenPayload: IAuthPayload = {
                     username: msg.data.displayName,
-                    role: "guest"
+                    role: ParticipantRole.guest
                 };
                 let authToken = jwtSign(this.config.conf_secret_key, authTokenPayload);
 
@@ -126,7 +127,7 @@ export class ConferenceAPI {
             if (isAuthenticated) {
                 let authTokenPayload: IAuthPayload = {
                     username: username,
-                    role: "user"
+                    role: ParticipantRole.user
                 };
                 let authToken = jwtSign(this.config.conf_secret_key, authTokenPayload);
 
@@ -134,7 +135,7 @@ export class ConferenceAPI {
                 resultMsg.data.username = msg.data.username;
                 resultMsg.data.displayName = displayName;
                 resultMsg.data.authToken = authToken;
-                resultMsg.data.role = "user";
+                resultMsg.data.role = ParticipantRole.user;
 
                 console.log(`send `, resultMsg);
                 res.send(resultMsg);
@@ -148,38 +149,53 @@ export class ConferenceAPI {
 
         });
 
-        console.log(`${WebRoutes.getConferencesScheduled}`);
-        this.app.post(WebRoutes.getConferencesScheduled, (req, res) => {
 
+        this.app.post(WebRoutes.getConferencesScheduled, async (req, res) => {
+            console.log(`${WebRoutes.getConferencesScheduled}`);
             //validate auth token
             if (this.config.conf_data_urls.getScheduledConferencesURL) {
                 //make a post to the url
+                let msg = req.body as apiGetScheduledConferencesPost;
+                let result = await this.thirdPartyAPI.getScheduledConferences(msg.data.clientData) as apiGetScheduledConferencesResult;
+                if (result.data.error) {
+                    console.log(result.data.error);
+                    return;
+                }
 
+                //hide the conference code
+                let resultMsg = new GetConferencesScheduledResultMsg();
+                resultMsg.data.conferences = result.data.conferences.map(s => {
+                    let clone = new ConferenceScheduledInfo()
+                    clone.description = s.description;
+                    clone.id = s.id;
+                    clone.name = s.name;
+                    clone.config.conferenceCode = "";
+                    clone.config.guestsAllowCamera = s.config.guestsAllowCamera;
+                    clone.config.guestsAllowMic = s.config.guestsAllowMic;
+                    clone.config.guestsAllowed = s.config.guestsAllowed;
+                    clone.config.guestsMax = s.config.guestsMax;
+                    return clone;
+                });
+                res.send(resultMsg);
 
             } else {
 
                 console.log(`${WebRoutes.getConferencesScheduled}`);
 
-                let scheduled = [new ConferenceScheduledInfo(), new ConferenceScheduledInfo(), new ConferenceScheduledInfo()];
-                scheduled[0].id = "1";
-                scheduled[0].name = "Room 1";
-                scheduled[0].description = "scheduled conference Room 1";
-
-                scheduled[1].id = "2";
-                scheduled[1].name = "Room 2";
-                scheduled[1].description = "scheduled conference Room 2";
-
-                scheduled[2].id = "3";
-                scheduled[2].name = "Room 3";
-                scheduled[2].description = "scheduled conference Room 3";
-
                 let resultMsg = new GetConferencesScheduledResultMsg();
-                resultMsg.data.scheduled = scheduled;
+                resultMsg.data.conferences = this.getDemoSchedules().map(s => {
+                    let clone = {
+                        ...s,
+                        config: { ...s.config }
+                    };
+                    delete clone.config.conferenceCode;
+                    return clone;
+                });
 
                 res.send(resultMsg);
             }
 
-        });
+        });        
 
         console.log(`${WebRoutes.onRoomClosed}`);
         this.app.post(WebRoutes.onRoomClosed, (req, res) => {
@@ -213,5 +229,30 @@ export class ConferenceAPI {
         });
 
 
+    }
+
+    getDemoSchedules() {
+        let scheduled = [new ConferenceScheduledInfo(), new ConferenceScheduledInfo(), new ConferenceScheduledInfo()];
+        scheduled[0].id = "1";
+        scheduled[0].name = "Room 1";
+        scheduled[0].description = "scheduled conference Room 1";
+        scheduled[0].config = new ConferenceRoomConfig();
+
+        scheduled[1].id = "2";
+        scheduled[1].name = "Room 2";
+        scheduled[1].description = "scheduled conference Room 2";
+        scheduled[1].config = new ConferenceRoomConfig();
+        scheduled[2].config.conferenceCode = "1111";
+        scheduled[2].config.requireConferenceCode = true;
+
+        scheduled[2].id = "3";
+        scheduled[2].name = "Room 3";
+        scheduled[2].description = "scheduled conference Room 3";
+        scheduled[2].config = new ConferenceRoomConfig();
+        scheduled[2].config.guestsAllowCamera = false;
+        scheduled[2].config.guestsAllowMic = false;
+        scheduled[2].config.conferenceCode = "2222";
+        scheduled[2].config.requireConferenceCode = true;
+        return scheduled;
     }
 }

@@ -2,7 +2,7 @@ export enum CallMessageType {
 
     login = "login",
     loginGuest = "loginGuest",
-    loginResult = "loginResult",   
+    loginResult = "loginResult",
 
     register = "register", //register the partcipant as online
     registerResult = "registerResult", //partcipant recieves a registration result
@@ -41,7 +41,12 @@ export enum WebRoutes {
 }
 
 export type conferenceType = "p2p" | "room";
-export type ParticipantRole = "admin" | "user" | "guest";
+export enum ParticipantRole {
+    "admin" = "admin",
+    "monitor" = "monitor",
+    "user" = "user",
+    "guest" = "guest"
+}
 
 export class LoginGuestMsg {
     type = CallMessageType.loginGuest;
@@ -119,12 +124,20 @@ export class GetConferencesMsg {
     data = {}
 }
 
+export class GetConferenceScheduledResultMsg {
+    type = CallMessageType.getConferencesResult;
+    data: {
+        conference?: ConferenceScheduledInfo,
+        error?: string,
+    } = {}
+}
+
 export class GetConferencesScheduledResultMsg {
     type = CallMessageType.getConferencesResult;
     data: {
-        scheduled: ConferenceScheduledInfo[],
+        conferences?: ConferenceScheduledInfo[],
         error?: string,
-    } = { scheduled: [] }
+    } = {}
 }
 
 export class GetConferencesResultMsg {
@@ -162,7 +175,7 @@ export class JoinConfMsg {
     data: {
         conferenceRoomId?: string,
         conferenceCode?: string,
-        trackingId?: string,        
+        trackingId?: string,
         error?: string
     } = {
         }
@@ -278,13 +291,12 @@ export class ConferenceClosedMsg {
 export class ConferenceRoomConfig {
     roomTimeoutSecs: number = 60 * 60;
     conferenceCode: string;
-
+    requireConferenceCode: boolean;
     usersMax = 99;
     guestsMax: number = 99;
     guestsAllowed = true;
     guestsAllowMic: boolean = true;
     guestsAllowCamera: boolean = true;
-    
 }
 
 export class ConferenceRoomInfo {

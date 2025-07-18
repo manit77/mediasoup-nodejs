@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
-import { useAuth } from '../../hooks/useAuth';
+import { useAPI } from '../../hooks/useAPI';
 import { MicFill, MicMuteFill, CameraVideoFill, CameraVideoOffFill } from 'react-bootstrap-icons';
 import { Participant } from '@conf/conf-client';
 
@@ -207,7 +207,7 @@ interface ParticipantsPaneProps {
 
 const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo }) => {
     const { localParticipant, callParticipants } = useCall();
-    const { getCurrentUser } = useAuth();
+    const { getCurrentUser } = useAPI();
 
     useEffect(() => {
     }, [getCurrentUser])

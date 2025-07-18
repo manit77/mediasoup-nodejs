@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navbar, Nav, NavDropdown, Container } from 'react-bootstrap';
-import { useAuth } from '../../hooks/useAuth';
+import { useAPI } from '../../hooks/useAPI';
 import { useNavigate } from 'react-router-dom';
 
 interface TopMenuProps {
@@ -8,7 +8,7 @@ interface TopMenuProps {
 }
 
 const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
-    const { getCurrentUser, logout } = useAuth();
+    const { getCurrentUser, logout } = useAPI();
     const navigate = useNavigate();
 
     const handleLogout = async () => {

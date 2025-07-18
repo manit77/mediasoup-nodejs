@@ -61,7 +61,6 @@ export enum payloadTypeServer {
     error = "error",
     ok = "ok",
     unauthorized = "",
-
 }
 
 export interface IMsg {
@@ -221,8 +220,7 @@ export class RoomNewMsg implements IMsg {
 
 export class AuthUserNewTokenMsg implements IMsg {
     type = payloadTypeClient.authUserNewToken;
-    data: {
-        authToken?: string,
+    data: {        
         expiresInMin?: number
     } = {}
 }
@@ -437,11 +435,7 @@ export enum RoomServerAPIRoutes {
 }
 
 export class RoomConfig {
-    maxPeers = 99;
-    peerAllowMic = true;
-    peerAllowCamera = true;
-    monitorAllowMic = false;
-    monitorAllowCamera = false;
+    maxPeers = 99;    
     newRoomTokenExpiresInMinutes = 30; //room token expiration from date created
     maxRoomDurationMinutes = 30; // room max duration, starts when the room is created
     timeOutNoParticipantsSecs = 5 * 60; //when no participants in the room, timer starts and will close the room 

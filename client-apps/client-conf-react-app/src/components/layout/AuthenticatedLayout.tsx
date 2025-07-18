@@ -6,12 +6,12 @@ import { useCall } from '../../hooks/useCall';
 import { Button } from 'react-bootstrap';
 import PopupMessage from '../popups/PopupMessage';
 import RoomsPane from './RoomsPane';
-import { AuthContext } from './../../contexts/AuthContext';
+import { APIContext } from '../../contexts/APIContext';
 import IncomingCallPopup from '../call/IncomingCallPopup';
 import CallingPopup from '../call/CallingPopup';
 
 const AuthenticatedLayout: React.FC = () => {
-  const auth = useContext(AuthContext);
+  const api = useContext(APIContext);
   const [showSettings, setShowSettings] = useState(false);
   const { selectedDevices, getMediaConstraints, inviteInfoSend, inviteInfoReceived, popUpMessage, hidePopUp, showPopUp } = useCall();
   const [showingPreview, setShowingPreview] = useState(false);
@@ -95,7 +95,7 @@ const AuthenticatedLayout: React.FC = () => {
       <TopMenu onShowSettings={() => setShowSettings(true)} />
       <div className="d-flex flex-grow-1" style={{ overflow: 'hidden' }}>
         <div className="col-3 border-end p-3" style={{ overflowY: 'auto' }}>
-          {(auth.isAdmin() || auth.isUser()) && <ContactsPane />}
+          {(api.isAdmin() || api.isUser()) && <ContactsPane />}
           <RoomsPane />
         </div>
         <div className="col-9 p-3" style={{ overflowY: 'auto' }}>

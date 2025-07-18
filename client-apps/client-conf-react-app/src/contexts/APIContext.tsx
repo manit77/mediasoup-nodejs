@@ -3,7 +3,7 @@ import { ConferenceRoomScheduled, User } from '../types';
 import { webRTCService } from '../services/WebRTCService';
 import { apiService } from '../services/ApiService';
 
-interface AuthContextType {
+interface APIContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     isAdmin: () => boolean;
@@ -17,9 +17,9 @@ interface AuthContextType {
     setConferencesScheduled: React.Dispatch<React.SetStateAction<ConferenceRoomScheduled[]>>;
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const APIContext = createContext<APIContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceRoomScheduled[]>(apiService.conferencesScheduled);
@@ -149,8 +149,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }), [conferencesScheduled, getCurrentUser, isAuthenticated, isAdmin, isUser, isLoading, loginGuest, login, logout, fetchConferencesScheduled]);
 
     return (
-        <AuthContext.Provider value={value}>
+        <APIContext.Provider value={value}>
             {children}
-        </AuthContext.Provider>
+        </APIContext.Provider>
     );
 };

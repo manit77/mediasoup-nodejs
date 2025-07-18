@@ -21,7 +21,8 @@ import {
     GetConferencesMsg,
     GetConferencesResultMsg,
     ConferenceClosedMsg,
-    GetParticipantsMsg
+    GetParticipantsMsg,
+    ParticipantRole
 } from '@conf/conf-models';
 import { ConferenceRoom, IAuthPayload, Participant } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
@@ -276,7 +277,7 @@ export class ConferenceServer {
             username: participant.displayName,
             authToken: authToken,
             participantId: participant.participantId,
-            role: authTokenObject.role ?? "guest"
+            role: authTokenObject.role ?? ParticipantRole.guest
         };
 
         this.broadCastParticipants(participant);
@@ -578,7 +579,7 @@ export class ConferenceServer {
         });
 
         if (conference.status == "none") {
-            if (await this.startConference(conference)) {
+            if (await this.startRoom(conference)) {
                 for (let p of conference.participants.values()) {
                     this.sendConferenceReady(conference, p);
                 }
@@ -589,31 +590,28 @@ export class ConferenceServer {
     private async onCreateConference(participant: Participant, msgIn: CreateConfMsg) {
         console.log("onCreateConference");
 
-        // let caller = this.participants.get(ws);
-        // if (!caller) {
-        //     console.error("caller not found.");
-        //     let errorMsg = new CreateConfResultMsg();
-        //     errorMsg.data.error = "failed to add you to the conference.";
-        //     this.send(ws, errorMsg);
-        //     return;
-        // }
+        if (![ParticipantRole.admin, ParticipantRole.user].includes(participant.role)) {
+            console.error("participant must be an authenticated user");
+            return;
+        }
 
-        // if (caller.role === "guest") {
-        //     console.error("participant must be an authenticated user");
-        //     return;
-        // }
+        //tracking id is required
+        if (!msgIn.data.conferenceRoomTrackingId) {
+            console.error("conferenceRoomTrackingId is required.");
+            return;
+        }
 
         //get the config from the api endpoint
         let confConfig = msgIn.data.conferenceRoomConfig;
         if (this.config.conf_data_urls.getScheduledConferenceURL) {
             confConfig = new ConferenceRoomConfig();
-            let scheduled = await this.thirdParty.getScheduledConference(msgIn.data.conferenceRoomTrackingId, participant.clientData);
-            if (scheduled) {
-                confConfig.conferenceCode = scheduled.config.conferenceCode;
-                confConfig.guestsAllowCamera = scheduled.config.guestsAllowCamera;
-                confConfig.guestsAllowMic = scheduled.config.guestsAllowMic;
-                confConfig.guestsAllowed = scheduled.config.guestsAllowed;
-                confConfig.guestsMax = scheduled.config.guestsMax;
+            let resultMsg = await this.thirdParty.getScheduledConference(msgIn.data.conferenceRoomTrackingId, participant.clientData);
+            if (resultMsg) {
+                confConfig.conferenceCode = resultMsg.data.conference.config.conferenceCode;
+                confConfig.guestsAllowCamera = resultMsg.data.conference.config.guestsAllowCamera;
+                confConfig.guestsAllowMic = resultMsg.data.conference.config.guestsAllowMic;
+                confConfig.guestsAllowed = resultMsg.data.conference.config.guestsAllowed;
+                confConfig.guestsMax = resultMsg.data.conference.config.guestsMax;
                 confConfig.roomTimeoutSecs = 0;
                 confConfig.usersMax = 0;
             }
@@ -623,9 +621,9 @@ export class ConferenceServer {
         if (conference) {
             console.log("conference already created");
         } else {
-            conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomTrackingId, msgIn.data.roomName, msgIn.data.conferenceRoomConfig);
+            conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomTrackingId, msgIn.data.roomName, confConfig);
             conference.confType = "room";
-            if (!await this.startConference(conference)) {
+            if (!await this.startRoom(conference)) {
                 console.error("unable to start a conference");
                 let errorMsg = new CreateConfResultMsg();
                 errorMsg.data.error = "unable to start the conference.";
@@ -693,11 +691,21 @@ export class ConferenceServer {
         }
 
         //check the conference code
-        if (conference.config.conferenceCode && conference.config.conferenceCode !== msgIn.data.conferenceCode) {
+        if (conference.config.requireConferenceCode && conference.config.conferenceCode && conference.config.conferenceCode !== msgIn.data.conferenceCode) {
             console.error(`invalid conference code: ${msgIn.data.conferenceCode}`);
 
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "invalid conference code";
+
+            return errorMsg;
+        }
+
+        //check the role
+        if (!conference.config.guestsAllowed && ParticipantRole.guest === participant.role) {
+            console.error(`guest not allowed: ${participant.role}`);
+
+            let errorMsg = new JoinConfResultMsg();
+            errorMsg.data.error = "unauthorized";
 
             return errorMsg;
         }
@@ -721,6 +729,7 @@ export class ConferenceServer {
         //send the room info the participant
         let roomsAPI = new RoomsAPI(conference.roomURI, this.config.room_access_token);
 
+        //create an authtoken per user
         let authUserTokenResult = await roomsAPI.newAuthUserToken();
         if (!authUserTokenResult || authUserTokenResult?.data?.error) {
             console.error("failed to create new authUser token in rooms");
@@ -755,7 +764,7 @@ export class ConferenceServer {
      * @param conference 
      * @returns 
      */
-    async startConference(conference: ConferenceRoom) {
+    async startRoom(conference: ConferenceRoom) {
         console.log("startConference");
 
         if (conference.status != "none") {
@@ -789,7 +798,10 @@ export class ConferenceServer {
 
         let roomConfig = new RoomConfig();
         roomConfig.maxPeers = conference.config.guestsMax + conference.config.usersMax;
-        roomConfig.maxRoomDurationMinutes = Math.ceil(conference.timeoutSecs / 60);
+        roomConfig.maxRoomDurationMinutes = 0;
+        if (conference.timeoutSecs > 0) {
+            roomConfig.maxRoomDurationMinutes = Math.ceil(conference.timeoutSecs / 60);
+        }
 
         let roomNewResult = await roomsAPI.newRoom(roomId, roomToken, conference.roomName, conference.id, roomConfig);
         if (!roomNewResult || roomNewResult?.data?.error) {

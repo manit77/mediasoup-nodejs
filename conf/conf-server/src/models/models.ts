@@ -15,7 +15,7 @@ export class Participant {
     displayName: string = ""; //display name for the user
     socket?: WebSocket = undefined; //websocket connection
     conferenceRoom?: ConferenceRoom = undefined; //reference to a conf room
-    role: "admin" | "monitor" | "user" | "guest" = "guest";
+    role: ParticipantRole = ParticipantRole.guest;
     clientData: {} = {}; //passed down from the user login or the query string from a client
 }
 

@@ -1,18 +1,18 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { APIProvider } from './contexts/APIContext';
 import { CallProvider } from './contexts/CallContext';
 import LoginPage from './components/auth/LoginPage';
 import AuthenticatedLayout from './components/layout/AuthenticatedLayout';
 import OnCallScreen from './components/call/OnCallScreen';
 import IncomingCallPopup from './components/call/IncomingCallPopup';
 import CallingPopup from './components/call/CallingPopup';
-import { useAuth } from './hooks/useAuth';
+import { useAPI } from './hooks/useAPI';
 import { useCall } from './hooks/useCall';
 import { UIProvider, useUI } from './contexts/UIContext';
 
 const AppRoutes: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAPI();
   const { isCallActive, inviteInfoSend, localParticipant } = useCall();
   const { showPopup, showToast } = useUI();
 
@@ -55,11 +55,11 @@ function App() {
   return (
     <Router>
       <UIProvider>
-      <AuthProvider>
+      <APIProvider>
         <CallProvider>
           <AppRoutes />
         </CallProvider>
-      </AuthProvider>
+      </APIProvider>
       </UIProvider>
     </Router>
   );

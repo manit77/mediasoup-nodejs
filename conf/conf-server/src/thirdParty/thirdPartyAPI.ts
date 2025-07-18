@@ -1,7 +1,7 @@
 import axios from "axios";
 import https from "https"
 import { ConferenceServerConfig } from "../confServer/conferenceServer.js";
-import { apiLoginResult, apiScheduledConference } from "./models.js";
+import { apiGetScheduledConferenceResult, apiGetScheduledConferencesResult, apiLoginResult, apiScheduledConference } from "./models.js";
 
 export class ThirdPartyAPI {
 
@@ -16,12 +16,12 @@ export class ThirdPartyAPI {
 
     async getScheduledConferences(clientData: any) {
         let postData = { clientData: clientData };
-        return await this.post(this.config.conf_data_urls.getScheduledConferencesURL, postData) as apiScheduledConference[];
+        return await this.post(this.config.conf_data_urls.getScheduledConferencesURL, postData) as apiGetScheduledConferencesResult;
     }
 
     async getScheduledConference(id: string, clientData: any) {
         let postData = { id: id, clientData: clientData };
-        return await this.post(this.config.conf_data_urls.getScheduledConferenceURL, postData) as apiScheduledConference;
+        return await this.post(this.config.conf_data_urls.getScheduledConferenceURL, postData) as apiGetScheduledConferenceResult;
     }
 
     private async post(url: string, dataObj?: any): Promise<any> {

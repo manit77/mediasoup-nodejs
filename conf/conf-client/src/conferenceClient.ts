@@ -665,7 +665,7 @@ export class ConferenceClient {
     private async onConferencesReceived(message: GetConferencesResultMsg) {
         console.log("onConferencesReceived");
 
-        this.conferences = message.data;
+        this.conferences = message.data.conferences;
         await this.onEvent(EventTypes.conferencesReceived, message);
     }
 
@@ -752,13 +752,10 @@ export class ConferenceClient {
         this.conferenceRoom.conferenceType = message.data.conferenceType;
         this.conferenceRoom.conferenceRoomConfig = message.data.conferenceRoomConfig;
 
-
         this.conferenceRoom.roomId = message.data.roomId;
         this.conferenceRoom.roomToken = message.data.roomToken;
         this.conferenceRoom.roomURI = message.data.roomURI;
         this.conferenceRoom.roomAuthToken = message.data.authToken;
-
-
 
         if (!this.conferenceRoom.roomId) {
             console.error(this.DSTR, "ERROR: no roomId");
