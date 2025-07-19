@@ -1,5 +1,6 @@
 import React, { createContext, useState, ReactNode, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Modal, Button } from 'react-bootstrap'; // Import Modal and Button from react-bootstrap
+import PopupMessage from '../components/popups/PopupMessage';
 
 // Define the types for the context
 export interface UIContextType {
@@ -26,8 +27,6 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
 
-  const popupRef = useRef<HTMLDivElement>(null); // Optional: Keep if needed for other purposes, but not required for Modal
-
   const hidePopUp = useCallback(() => {
     setPopupMessage(null);
   }, []);
@@ -53,26 +52,7 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
   return (
     <UIContext.Provider value={contextValue}>
       {children}
-      <Modal
-        show={popupMessage !== null}
-        centered
-        backdrop="static"
-        keyboard={true}
-        onHide={hidePopUp} // Handles backdrop clicks and ESC key (but keyboard={false} disables ESC)
-        ref={popupRef} // Optional: Attach ref if needed (e.g., for custom click-outside logic)
-      >
-        <Modal.Header>
-          <Modal.Title>Alert</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {popupMessage}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={hidePopUp}>
-            OK
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <PopupMessage show={popupMessage !== null} handleClose={hidePopUp} message={popupMessage}></PopupMessage>     
       <div
         style={{
           position: 'fixed',

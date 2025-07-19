@@ -7,6 +7,7 @@ import { useUI } from '../hooks/useUI';
 
 interface CallContextType {
     isConnected: boolean;
+    isLoggedOff: boolean;
     isAuthenticated: boolean;
     localParticipant: Participant;
     isLocalStreamUpdated: boolean;
@@ -59,13 +60,14 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const ui = useUI();
     const [isConnected, setIsConnected] = useState<boolean>(webRTCService.isConnected);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(webRTCService.isConnected && webRTCService.localParticipant.peerId ? true : false);
+    const [isLoggedOff, setIsLoggedOff] = useState<boolean>(false);
+
     const localParticipant = useRef<Participant>(webRTCService.localParticipant);
     const [isCallActive, setIsCallActive] = useState<boolean>(webRTCService.isOnCall());
     const [conferenceRoom, setConferenceRoom] = useState<Conference>(webRTCService.conferenceRoom);
     const [callParticipants, setCallParticipants] = useState<Map<string, Participant>>(webRTCService.participants);
     const [isScreenSharing, setIsScreenSharing] = useState<boolean>(webRTCService.isScreenSharing);
     const [selectedDevices, setSelectedDevices] = useState<SelectedDevices>(webRTCService.selectedDevices);
-
 
     const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>(webRTCService.participantsOnline);
     const [conferencesOnline, setConferencesOnline] = useState<ConferenceRoomInfo[]>(webRTCService.conferencesOnline);
@@ -147,10 +149,29 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             ui.hidePopUp();
         }
 
+        webRTCService.onRegisterFailed = async (error: string) => {
+            console.warn("CallContext: onRegisterFailed: error", error);
+            setIsAuthenticated(false);
+            ui.showPopUp(`socket registration failed. ${error}`);
+
+            //try again
+            if (webRTCService.localUser) {
+                setTimeout(() => {
+                    ui.showToast("trying to register socket...");
+                    webRTCService.register(webRTCService.localUser);
+                }, 5000);
+            }
+        }
+        webRTCService.onLoggedOff = async (reason: string) => {
+            console.warn("CallContext: onLoggedOff: reason", reason);
+            setIsLoggedOff(true);
+        }
+
         webRTCService.onServerConnected = async () => {
             console.log("CallContext: server connected");
             setIsConnected(true);
             ui.hidePopUp();
+            ui.showToast("connected to server");
         }
 
         webRTCService.onServerDisconnected = async () => {
@@ -158,7 +179,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsConnected(false);
             setIsAuthenticated(false);
             setIsCallActive(false);
-            ui.showPopUp("disconnected from server. trying to reconnect...");
+            ui.showToast("disconnected from server. trying to reconnect...");
         }
 
         webRTCService.onParticipantsReceived = async (participants) => {
@@ -232,6 +253,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setInviteInfoReceived(null);
             setInviteInfoSend(null);
             setCallParticipants(prev => new Map(webRTCService.conferenceRoom.participants));
+            ui.showToast("conference joined");
 
         };
 
@@ -483,6 +505,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSelectedDevices(selectedDevices);
 
         setIsLocalStreamUpdated(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -491,8 +514,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return (
         <CallContext.Provider value={{
-            isAuthenticated,
             isConnected,
+            isAuthenticated,
+            isLoggedOff,
             localParticipant: localParticipant.current,
             isLocalStreamUpdated,
             isCallActive: isCallActive,

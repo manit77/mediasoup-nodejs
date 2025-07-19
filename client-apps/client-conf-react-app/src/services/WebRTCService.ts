@@ -18,6 +18,9 @@ class WebRTCService {
     confClient: ConferenceClient = new ConferenceClient();
     participantsOnline: ParticipantInfo[] = [];
     conferencesOnline: ConferenceRoomInfo[] = [];
+    localUser : User;
+    registerAttempts = 0;
+    maxRegisterAttempts = 3;
 
     constructor() {
         console.log(`ConferenceClient initialized`)
@@ -59,6 +62,7 @@ class WebRTCService {
     public onServerDisconnected: () => Promise<void> = async () => { };
     public onRegistered: (participantId: string) => Promise<void> = async () => { };
     public onRegisterFailed: (error: string) => Promise<void> = async () => { };
+    public onLoggedOff: (reason: string) => Promise<void> = async () => { };
     public onParticipantsReceived: (participants: ParticipantInfo[]) => Promise<void> = async () => { };
     public onConferencesReceived: (conferences: ConferenceRoomInfo[]) => Promise<void> = async () => { };
     public onInviteReceived: (msg: InviteMsg) => Promise<void> = async () => { };
@@ -95,6 +99,7 @@ class WebRTCService {
 
     public connectSignaling(user: User): void {
         console.warn("connectSignaling");
+        this.localUser = user;
 
         if (!user.authToken || !user.username) {
             console.error("authtoken and username is required.", user);
@@ -113,7 +118,7 @@ class WebRTCService {
 
             switch (eventType) {
                 case EventTypes.connected: {
-                    this.confClient.register(user.username, user.authToken);
+                    this.register(user);
                     this.eventSignalingConnected();
                     break;
                 }
@@ -192,6 +197,39 @@ class WebRTCService {
             }
 
         };
+    }
+
+    public register(user: User){
+        console.log(`register registerAttempts: ${this.registerAttempts}`);
+        this.registerAttempts ++;
+        if(this.registerAttempts > this.maxRegisterAttempts) {
+            console.error('max register attempts reached.');
+            this.disconnectSignaling();
+            this.onServerDisconnected();
+            this.onLoggedOff("max register attempts reached.");
+            return;
+        }
+        
+        if(!user) {
+            console.error("no user provided");
+            return;
+        }
+
+        this.localUser = user;
+
+        if (!user.authToken || !user.username) {
+            console.error("authtoken and username is required.", user);
+            return;
+        }
+        this.confClient.register(user.username, user.authToken);
+    }
+
+    public disconnectSignaling(): void {
+        console.log("disconnectSignaling");
+        this.localUser = null;
+        this.registerAttempts = 0;
+        this.confClient?.disconnect();        
+        //this.confClient = null;
     }
 
     public getParticipantsOnline() {
@@ -356,12 +394,7 @@ class WebRTCService {
         this.removeTracks();
     }
 
-    public disconnectSignaling(): void {
-        console.log("disconnectSignaling");
-
-        this.confClient?.disconnect();
-        //this.confClient = null;
-    }
+    
 
     private async eventSignalingConnected() {
         console.log("eventSignalingDisconnected");

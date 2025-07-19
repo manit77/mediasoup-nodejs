@@ -2,22 +2,15 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { useAPI } from '../../hooks/useAPI';
+import { useUI } from '../../hooks/useUI';
 import { ConferenceRoomScheduled } from '../../types';
 import { ArrowRepeat, Circle, CircleFill } from 'react-bootstrap-icons';
 import JoinRoomPopUp from './JoinRoomPopUp';
 
 const RoomsPane: React.FC = () => {
-  const {
-    isAuthenticated,
-    isCallActive,
-    inviteInfoSend,
-    conferencesOnline,
-    joinConference,
-    createConference,
-    getConferenceRoomsOnline, // Make sure this is used if you need to fetch online rooms
-    // Assuming selectedDevices, setSelectedDevices are also available from useCall if needed here for initial state
-  } = useCall();
+  const { isAuthenticated, isCallActive, inviteInfoSend, conferencesOnline, getConferenceRoomsOnline, } = useCall();
   const { isAdmin, isUser, conferencesScheduled, fetchConferencesScheduled, getCurrentUser } = useAPI();
+  const ui = useUI();
 
   const [loading, setLoading] = useState(false);
   const [mergedConferences, setMergedConferences] = useState<ConferenceRoomScheduled[]>([]);
@@ -75,8 +68,16 @@ const RoomsPane: React.FC = () => {
 
   // Function to handle showing the JoinRoomPopUp
   const handleShowJoinPopUp = (conference: ConferenceRoomScheduled) => {
-    setSelectedConferenceToJoin(conference);
-    setShowJoinPopUp(true);
+
+    if (isAdmin() || isUser() || conference.conferenceRoomId) {
+      setSelectedConferenceToJoin(conference);
+      setShowJoinPopUp(true);
+      return;
+    } else {
+      console.warn(`conference not started. guests cannot create a room.`);
+      ui.showToast(`conference ${conference.roomName} not started`);      
+    }
+
   };
 
   // Function to handle closing the JoinRoomPopUp
@@ -137,8 +138,8 @@ const RoomsPane: React.FC = () => {
           show={showJoinPopUp}
           onClose={handleCloseJoinPopUp}
           conference={selectedConferenceToJoin}
-          // The JoinRoomPopUp will internally use joinConference from useCall
-          // and its own micEnabled/cameraEnabled states.
+        // The JoinRoomPopUp will internally use joinConference from useCall
+        // and its own micEnabled/cameraEnabled states.
         />
       )}
     </div>

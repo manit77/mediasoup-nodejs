@@ -10,13 +10,15 @@ import IncomingCallPopup from '../call/IncomingCallPopup';
 import CallingPopup from '../call/CallingPopup';
 import { FilePersonFill, Gear } from 'react-bootstrap-icons';
 import { useAPI } from '../../hooks/useAPI';
+import { useNavigate } from 'react-router-dom';
 
 
 const AuthenticatedLayout: React.FC = () => {
   const api = useAPI();
-  const ui = useUI()
+  const ui = useUI();
+  const navigate = useNavigate();
   const [showSettings, setShowSettings] = useState(false);
-  const { selectedDevices, getMediaConstraints, inviteInfoSend, inviteInfoReceived } = useCall();
+  const { selectedDevices, getMediaConstraints, inviteInfoSend, inviteInfoReceived, isLoggedOff } = useCall();
   const [showingPreview, setShowingPreview] = useState(false);
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -92,6 +94,15 @@ const AuthenticatedLayout: React.FC = () => {
     console.log("updated inviteInfoSend", inviteInfoSend);
     console.log("updated inviteInfoReceived", inviteInfoReceived);
   }, [inviteInfoSend, inviteInfoReceived]);
+
+  useEffect(() => {
+    if(isLoggedOff) {
+      console.log("useEffect isLoggedOff");
+      api.logout();
+      navigate("/login");
+      
+    }
+  }, [api, isLoggedOff, navigate]);
 
   return (
     <div className="d-flex flex-column vh-100">

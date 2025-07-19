@@ -110,6 +110,8 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conference, show, onClose
                 if (user.role === "admin" || user.role === "user") {
                     // Admin can create a new conference and join it
                     createConferenceOrJoin(conference.id, conferenceCode);
+                } else {
+                    console.error(`guests cannot create a room.`);
                 }
             }
         } catch (error) {
