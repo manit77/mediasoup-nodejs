@@ -1,7 +1,7 @@
 import {
     AcceptMsg,
     AcceptResultMsg,
-    CallMessageType, ConferenceClosedMsg, ConferenceReadyMsg, ConferenceRoomConfig, ConferenceRoomInfo, conferenceType, CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg, GetParticipantsResultMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg
+    CallMessageType, ConferenceClosedMsg, ConferenceReadyMsg, ConferenceRoomConfig, ConferenceRoomInfo, ConferenceRoomJoinConfig, conferenceType, CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg, GetParticipantsResultMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg
     , JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo, RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
@@ -387,18 +387,120 @@ export class ConferenceClient {
         this.resetConferenceRoom();
     }
 
-    createConferenceRoom(trackingId: string, roomName: string, config: ConferenceRoomConfig = new ConferenceRoomConfig()) {
+    createConferenceRoom(trackingId: string, roomName: string, conferenceCode: string, config?: ConferenceRoomConfig) {
         console.log(`createConferenceRoom trackingId: ${trackingId}, roomName: ${roomName}`);
 
         const msg = new CreateConfMsg();
         msg.data.conferenceRoomTrackingId = trackingId;
         msg.data.roomName = roomName;
+        msg.data.conferenceCode = conferenceCode;
         msg.data.conferenceRoomConfig = config;
         this.sendToServer(msg);
     }
 
-    joinConferenceRoom(conferenceRoomId: string) {
-        console.log(`joinConferenceRoom ${conferenceRoomId}`);
+    /**
+     * if role is a user then conferenceCode is required if the scheduled conference requires it
+     * @param trackingId 
+     * @param roomName 
+     * @param conferenceCode 
+     * @param config 
+     * @returns 
+     */
+    waitCreateConferenceRoom(trackingId: string, roomName?: string, conferenceCode? : string, config?: ConferenceRoomConfig) {
+        console.log(`waitCreateConferenceRoom trackingId: ${trackingId}, roomName: ${roomName}, conferenceCode: ${conferenceCode}`);
+        return new Promise<CreateConfResultMsg>((resolve, reject) => {
+            let _onmessage: (event: any) => void;
+
+            let _removeEvents = () => {
+                if (_onmessage) {
+                    this.socket.removeEventHandler("onmessage", _onmessage);
+                }
+            }
+
+            try {
+                let timerid = setTimeout(() => {
+                    _removeEvents();
+                    reject("failed to create conference");
+                }, 5000);
+
+                _onmessage = (event: any) => {
+                    console.log("** onmessage", event.data);
+                    let msg = JSON.parse(event.data);
+
+                    if (msg.type == CallMessageType.createConfResult) {
+                        clearTimeout(timerid);
+                        _removeEvents();
+
+                        let msgIn = msg as CreateConfResultMsg;                       
+                        if (msgIn.data.error) {
+                            console.log(msgIn.data.error);
+                            reject("failed to create");
+                            return;
+                        }
+                        resolve(msgIn);
+                    }
+                };
+
+                this.socket.addEventHandler("onmessage", _onmessage);
+                this.createConferenceRoom(trackingId, roomName, conferenceCode, config);
+
+            } catch (err: any) {
+                console.log(err);
+                _removeEvents();
+                reject("failed to join room");
+            }
+        });
+    }
+
+    waitJoinConferenceRoom(conferenceRoomId: string, conferenceCode?: string) {
+        console.log(`waitJoinConferenceRoom trackingId: ${conferenceRoomId}, conferenceCode: ${conferenceCode}`);
+        return new Promise<JoinConfResultMsg>((resolve, reject) => {
+            let _onmessage: (event: any) => void;
+
+            let _removeEvents = () => {
+                if (_onmessage) {
+                    this.socket.removeEventHandler("onmessage", _onmessage);
+                }
+            }
+
+            try {
+                let timerid = setTimeout(() => {
+                    _removeEvents();
+                    reject("failed to join conference");
+                }, 5000);
+
+                _onmessage = (event: any) => {
+                    console.log("** onmessage", event.data);
+                    let msg = JSON.parse(event.data);
+
+                    if (msg.type == CallMessageType.joinConfResult) {
+                        clearTimeout(timerid);
+                        _removeEvents();
+
+                        let msgIn = msg as JoinConfResultMsg;
+                        
+                        if (msgIn.data.error) {
+                            console.log(msgIn.data.error);                        
+                            reject("failed to join conference");
+                            return;
+                        }
+                        resolve(msgIn);
+                    }
+                };
+
+                this.socket.addEventHandler("onmessage", _onmessage);
+                this.joinConferenceRoom(conferenceRoomId, conferenceCode);
+
+            } catch (err: any) {
+                console.log(err);
+                _removeEvents();
+                reject("failed to join room");
+            }
+        });
+    }
+
+    joinConferenceRoom(conferenceRoomId: string, conferenceCode?: string) {
+        console.warn(`joinConferenceRoom conferenceRoomId: ${conferenceRoomId} conferenceCode: ${conferenceCode}`);
 
         if (this.conferenceRoom.conferenceRoomId) {
             console.error(`already in conferenceroom ${this.conferenceRoom.conferenceRoomId}`);
@@ -410,6 +512,8 @@ export class ConferenceClient {
 
         const msg = new JoinConfMsg();
         msg.data.conferenceRoomId = conferenceRoomId;
+        msg.data.conferenceCode = conferenceCode;
+
         this.conferenceRoom.conferenceRoomId = conferenceRoomId;
         this.sendToServer(msg);
     }
@@ -634,7 +738,7 @@ export class ConferenceClient {
     private sendToServer(message: any) {
         console.log("sendToServer " + message.type, message);
 
-        if (this.socket) {            
+        if (this.socket) {
             this.socket.send(JSON.stringify(message));
         } else {
             console.error('Socket is not connected');

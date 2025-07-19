@@ -154,6 +154,12 @@ export class CreateConfMsg {
         conferenceRoomTrackingId?: string,
         conferenceRoomConfig?: ConferenceRoomConfig,
         roomName?: string,
+        /**
+         * a user trying to create a conference room with a trackingid
+         * the conference config requires a conference code
+         * the user must pass a conference code to start it
+         */
+        conferenceCode?: string,
         error?: string
     } = {
         }
@@ -290,8 +296,8 @@ export class ConferenceClosedMsg {
 
 export class ConferenceRoomConfig {
     roomTimeoutSecs: number = 60 * 60;
-    conferenceCode: string;
-    requireConferenceCode: boolean;
+    conferenceCode: string = "";
+    requireConferenceCode: boolean = false;
     usersMax = 99;
     guestsMax: number = 99;
     guestsAllowed = true;
@@ -314,3 +320,7 @@ export class ConferenceScheduledInfo {
     config: ConferenceRoomConfig = new ConferenceRoomConfig();
 }
 
+export class ConferenceRoomJoinConfig {
+    micEnabled: boolean;
+    cameraEnabled: boolean;
+}

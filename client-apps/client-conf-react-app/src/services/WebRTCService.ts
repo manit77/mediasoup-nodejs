@@ -4,6 +4,15 @@ import { AcceptResultMsg, ConferenceClosedMsg, ConferenceRoomInfo, CreateConfRes
 
 const confServerURI = 'https://localhost:3100'; // conference
 
+export interface JoinConferenceParams {
+    conferenceRoomId: string,
+    conferenceCode: string,
+    roomName: string,
+    trackingId: string,
+    micEnabled: boolean,
+    cameraEnabled: boolean
+}
+
 class WebRTCService {
 
     confClient: ConferenceClient = new ConferenceClient();
@@ -87,7 +96,7 @@ class WebRTCService {
     public connectSignaling(user: User): void {
         console.warn("connectSignaling");
 
-        if(!user.authToken || !user.username) {
+        if (!user.authToken || !user.username) {
             console.error("authtoken and username is required.", user);
             return;
         }
@@ -279,8 +288,36 @@ class WebRTCService {
         this.confClient.createConferenceRoom(trackingId, roomName);
     }
 
-    public joinConferenceRoom(conferenceRoomId: string) {
-        this.confClient.joinConferenceRoom(conferenceRoomId);
+    public async createConferenceOrJoin(args: JoinConferenceParams): Promise<boolean> {
+
+        if(!args.trackingId) {
+            console.error("trackingId is required.");
+            return false;
+        }
+        
+        try {
+            let newResult = await this.confClient.waitCreateConferenceRoom(args.trackingId, args.roomName, args.conferenceCode);
+            if (newResult.data.error) {
+                console.error(newResult.data.error);
+                return false;
+            }
+
+            let joinResult = await this.confClient.waitJoinConferenceRoom(newResult.data.conferenceRoomId, args.conferenceCode);
+            if (joinResult.data.error) {
+                console.error(joinResult.data.error);
+                return false;
+            }
+
+            console.warn("join conference, waiting for room ready message");
+
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    }
+
+    public joinConferenceRoom(conferenceRoomId: string, conferenceCode?: string) {
+        this.confClient.joinConferenceRoom(conferenceRoomId, conferenceCode);
     }
 
     /**
@@ -412,8 +449,6 @@ class WebRTCService {
             this.removeTracks();
             return;
         }
-        //this.onConferenceCreated(msg.data.conferenceRoomId, msg.data.trackingId);
-        this.joinConferenceRoom(msg.data.conferenceRoomId);
     }
 
     private async eventConferenceJoined(msg: JoinConfResultMsg) {

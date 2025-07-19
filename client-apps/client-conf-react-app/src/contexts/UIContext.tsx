@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useState, ReactNode, useRef, useCallback, useMemo } from 'react';
+import React, { createContext, useState, ReactNode, useRef, useCallback, useMemo, useEffect } from 'react';
+import { Modal, Button } from 'react-bootstrap'; // Import Modal and Button from react-bootstrap
 
 // Define the types for the context
 export interface UIContextType {
-  showPopup: (message: string, durationSec?: number) => void;
+  hidePopUp: () => void;
+  showPopUp: (message: string, durationSec?: number) => void;
   showToast: (message: string, durationSec?: number) => void;
 }
 
@@ -24,15 +26,21 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
 
-// Memoize the functions with useCallback
-  const showPopup = useCallback((message: string, durationSec: number = 3) => {
+  const popupRef = useRef<HTMLDivElement>(null); // Optional: Keep if needed for other purposes, but not required for Modal
+
+  const hidePopUp = useCallback(() => {
+    setPopupMessage(null);
+  }, []);
+
+  // Memoize the functions with useCallback
+  const showPopUp = useCallback((message: string, durationSec: number = 3) => {
     setPopupMessage(message);
     setTimeout(() => {
       setPopupMessage(null);
     }, durationSec * 1000);
   }, []); // Empty deps: stable unless dependencies change (none here)
 
-const showToast = useCallback((message: string, durationSec: number = 3) => {
+  const showToast = useCallback((message: string, durationSec: number = 3) => {
     const id = toastIdRef.current++;
     setToasts((prev) => [...prev, { id, message }]);
     setTimeout(() => {
@@ -40,28 +48,31 @@ const showToast = useCallback((message: string, durationSec: number = 3) => {
     }, durationSec * 1000);
   }, []); // Empty deps: stable
 
-  const contextValue = useMemo(() => ({ showPopup, showToast }), [showPopup, showToast]);
+  const contextValue = useMemo(() => ({ showPopUp, showToast, hidePopUp }), [showPopUp, showToast, hidePopUp]);
 
   return (
     <UIContext.Provider value={contextValue}>
       {children}
-      {popupMessage && (
-        <div
-          style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            padding: '20px',
-            borderRadius: '8px',
-            zIndex: 1000,
-          }}
-        >
+      <Modal
+        show={popupMessage !== null}
+        centered
+        backdrop="static"
+        keyboard={true}
+        onHide={hidePopUp} // Handles backdrop clicks and ESC key (but keyboard={false} disables ESC)
+        ref={popupRef} // Optional: Attach ref if needed (e.g., for custom click-outside logic)
+      >
+        <Modal.Header>
+          <Modal.Title>Alert</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
           {popupMessage}
-        </div>
-      )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={hidePopUp}>
+            OK
+          </Button>
+        </Modal.Footer>
+      </Modal>
       <div
         style={{
           position: 'fixed',

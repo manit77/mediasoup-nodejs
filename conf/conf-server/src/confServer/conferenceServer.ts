@@ -604,29 +604,51 @@ export class ConferenceServer {
 
         //get the config from the api endpoint
         let confConfig = msgIn.data.conferenceRoomConfig;
-        if (this.config.conf_data_urls.getScheduledConferenceURL) {
+        if (!confConfig) {
             confConfig = new ConferenceRoomConfig();
-            let resultMsg = await this.thirdParty.getScheduledConference(msgIn.data.conferenceRoomTrackingId, participant.clientData);
-            if (resultMsg) {
-                confConfig.conferenceCode = resultMsg.data.conference.config.conferenceCode;
-                confConfig.guestsAllowCamera = resultMsg.data.conference.config.guestsAllowCamera;
-                confConfig.guestsAllowMic = resultMsg.data.conference.config.guestsAllowMic;
-                confConfig.guestsAllowed = resultMsg.data.conference.config.guestsAllowed;
-                confConfig.guestsMax = resultMsg.data.conference.config.guestsMax;
-                confConfig.roomTimeoutSecs = 0;
-                confConfig.usersMax = 0;
+        }
+        let roomName = msgIn.data.roomName;
+
+        if (msgIn.data.conferenceRoomTrackingId) {
+            //tracking id was passed fetch config from external datasource
+            if (this.config.conf_data_urls.getScheduledConferenceURL) {
+                let resultMsg = await this.thirdParty.getScheduledConference(msgIn.data.conferenceRoomTrackingId, participant.clientData);
+                if (resultMsg) {
+                    confConfig.conferenceCode = resultMsg.data.conference.config.conferenceCode;
+                    confConfig.guestsAllowCamera = resultMsg.data.conference.config.guestsAllowCamera;
+                    confConfig.guestsAllowMic = resultMsg.data.conference.config.guestsAllowMic;
+                    confConfig.guestsAllowed = resultMsg.data.conference.config.guestsAllowed;
+                    confConfig.guestsMax = resultMsg.data.conference.config.guestsMax;
+                    confConfig.requireConferenceCode = resultMsg.data.conference.config.conferenceCode ? true : false;
+                    confConfig.roomTimeoutSecs = 0;
+                    confConfig.usersMax = 0;
+
+                    roomName = resultMsg.data.conference.name;
+                }
+            } else {
+                //get from demo data                
+                let demoSchedule = getDemoSchedules().find(s => s.id === msgIn.data.conferenceRoomTrackingId);
+                if (demoSchedule) {
+                    confConfig.conferenceCode = demoSchedule.config.conferenceCode;
+                    confConfig.guestsAllowCamera = demoSchedule.config.guestsAllowCamera;
+                    confConfig.guestsAllowMic = demoSchedule.config.guestsAllowMic;
+                    confConfig.guestsAllowed = demoSchedule.config.guestsAllowed;
+                    confConfig.guestsMax = demoSchedule.config.guestsMax;
+                    confConfig.requireConferenceCode = demoSchedule.config.requireConferenceCode;
+                    confConfig.roomTimeoutSecs = 0;
+                    confConfig.usersMax = 0;
+
+                    roomName = demoSchedule.name;
+                }
             }
-        } else {
-            //get from demo data
-            let demoSchedule = getDemoSchedules().find(s=> s.id === msgIn.data.conferenceRoomTrackingId);
-            if (demoSchedule) {
-                confConfig.conferenceCode = demoSchedule.config.conferenceCode;
-                confConfig.guestsAllowCamera = demoSchedule.config.guestsAllowCamera;
-                confConfig.guestsAllowMic = demoSchedule.config.guestsAllowMic;
-                confConfig.guestsAllowed = demoSchedule.config.guestsAllowed;
-                confConfig.guestsMax = demoSchedule.config.guestsMax;
-                confConfig.roomTimeoutSecs = 0;
-                confConfig.usersMax = 0;
+
+            if(participant.role !== ParticipantRole.admin) {
+                if(confConfig.requireConferenceCode && confConfig.conferenceCode != msgIn.data.conferenceCode) {
+                    console.error("invalid conference code");
+                    let errorMsg = new CreateConfResultMsg();
+                    errorMsg.data.error = "invalid conference code.";
+                    return errorMsg;
+                }
             }
         }
 
@@ -634,7 +656,7 @@ export class ConferenceServer {
         if (conference) {
             console.log("conference already created");
         } else {
-            conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomTrackingId, msgIn.data.roomName, confConfig);
+            conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomTrackingId, roomName, confConfig);
             conference.confType = "room";
             if (!await this.startRoom(conference)) {
                 console.error("unable to start a conference");

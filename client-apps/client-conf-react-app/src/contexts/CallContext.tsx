@@ -3,6 +3,7 @@ import { Device, SelectedDevices } from '../types';
 import { webRTCService } from '../services/WebRTCService';
 import { ConferenceRoomInfo, InviteMsg, ParticipantInfo } from '@conf/conf-models';
 import { Conference, Participant } from '@conf/conf-client';
+import { useUI } from '../hooks/useUI';
 
 interface CallContextType {
     isConnected: boolean;
@@ -24,18 +25,15 @@ interface CallContextType {
     selectedDevices: SelectedDevices;
     setSelectedDevices: React.Dispatch<React.SetStateAction<SelectedDevices>>;
 
-    popUpMessage: string;
-    showPopUp: (message: string, timeoutSecs?: number) => void;
 
     getLocalMedia: () => Promise<MediaStreamTrack[]>;
     getMediaConstraints: () => MediaStreamConstraints;
     getConferenceRoomsOnline: () => void;
     getParticipantsOnline: () => void;
 
-    hidePopUp: () => void;
     createConference: (trackingId: string, roomName: string) => void;
-    joinConference: (conferenceRoomId: string) => void;
-
+    joinConference: (conferenceRoomId: string, conferenceCode?: string) => void;
+    createConferenceOrJoin: (trackingId: string, conferenceCode: string) => void;
 
     sendInvite: (participantInfo: ParticipantInfo) => Promise<void>;
     acceptInvite: () => Promise<void>;
@@ -53,13 +51,12 @@ interface CallContextType {
     getMediaDevices: () => Promise<void>;
     switchDevices: (videoId: string, audioId: string, audioOutId: string) => Promise<void>;
 
-
 }
 
 export const CallContext = createContext<CallContextType>(undefined);
 
 export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-
+    const ui = useUI();
     const [isConnected, setIsConnected] = useState<boolean>(webRTCService.isConnected);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(webRTCService.isConnected && webRTCService.localParticipant.peerId ? true : false);
     const localParticipant = useRef<Participant>(webRTCService.localParticipant);
@@ -77,8 +74,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const [isLocalStreamUpdated, setIsLocalStreamUpdated] = useState<boolean>(false);
     const [availableDevices, setAvailableDevices] = useState<{ video: Device[]; audioIn: Device[]; audioOut: Device[] }>({ video: [], audioIn: [], audioOut: [] });
-    const [popUpMessage, setPopUpMessage] = useState("");
-    const [popUpTimerId, setPopUpTimerId] = useState<NodeJS.Timeout | undefined>(undefined);
 
     useEffect(() => {
         console.log(`** CallProvider mounted isAuthenticated:${isAuthenticated} isConnected: ${isConnected}`);
@@ -143,47 +138,19 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
     }, [getMediaDevices]);
 
-    const hidePopUp = useCallback(() => {
-        setPopUpMessage("");
-        if (popUpTimerId) {
-            clearTimeout(popUpTimerId);
-        }
-    }, [popUpTimerId])
-
-    const showPopUp = useCallback((message: string, timeoutSecs?: number) => {
-        console.log(`showPopUp ${message} ${timeoutSecs}`);
-
-        if (timeoutSecs) {
-
-            if (popUpTimerId) {
-                clearTimeout(popUpTimerId);
-            }
-
-            setPopUpMessage(message);
-            let timerid = setTimeout(() => {
-                setPopUpMessage("");
-            }, timeoutSecs * 1000);
-
-            setPopUpTimerId(timerid);
-
-        } else {
-            setPopUpMessage(message);
-        }
-    }, [popUpTimerId])
-
     const setupWebRTCEvents = useCallback(() => {
 
         webRTCService.onRegistered = async (participantId: string) => {
             console.log("CallContext: onRegistered: participantId", participantId);
             getConferenceRoomsOnline();
             setIsAuthenticated(true);
-            hidePopUp();
+            ui.hidePopUp();
         }
 
         webRTCService.onServerConnected = async () => {
             console.log("CallContext: server connected");
             setIsConnected(true);
-            hidePopUp();
+            ui.hidePopUp();
         }
 
         webRTCService.onServerDisconnected = async () => {
@@ -191,7 +158,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsConnected(false);
             setIsAuthenticated(false);
             setIsCallActive(false);
-            showPopUp("disconnected from server. trying to reconnect...");
+            ui.showPopUp("disconnected from server. trying to reconnect...");
         }
 
         webRTCService.onParticipantsReceived = async (participants) => {
@@ -246,7 +213,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 webRTCService.declineInvite();
                 return;
             }
-            setPopUpMessage("");
+            ui.hidePopUp();
             setInviteInfoReceived(inviteReceivedMsg);
             console.log("CallContext: setInviteInfoReceived ");
 
@@ -273,10 +240,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsCallActive(false);
             setInviteInfoSend(null);
             setInviteInfoReceived(null);
-            hidePopUp();
+            ui.hidePopUp();
 
             if (reason) {
-                showPopUp(reason, 3);
+                ui.showPopUp(reason, 3);
                 return;
             }
 
@@ -305,7 +272,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return () => { // Cleanup
             webRTCService.disconnectSignaling();
         }
-    }, [callParticipants, getLocalMedia, hidePopUp, isCallActive, showPopUp]);
+    }, [callParticipants, getLocalMedia, ui, isCallActive]);
 
     const getParticipantsOnline = useCallback(() => {
         webRTCService.getParticipantsOnline();
@@ -364,15 +331,29 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         webRTCService.createConferenceRoom(trackingId, roomName);
     }, []);
 
-    const joinConference = useCallback((conferenceRoomId: string) => {
+    const joinConference = useCallback((conferenceRoomId: string, conferenceCode: string) => {
         console.log("CallContext: joinConference");
 
         if (!conferenceRoomId) {
             console.error("CallContext: joinConference: conferenceRoomId is required");
             return;
         }
-        webRTCService.joinConferenceRoom(conferenceRoomId)
+        webRTCService.joinConferenceRoom(conferenceRoomId, conferenceCode)
     }, []);
+
+    const createConferenceOrJoin = useCallback((trackingId: string, conferenceCode: string) => {
+        console.warn("CallContext: createConferenceOrJoin ", trackingId, conferenceCode);
+
+        webRTCService.createConferenceOrJoin({
+            cameraEnabled: selectedDevices.isVideoEnabled,
+            conferenceCode: conferenceCode,
+            conferenceRoomId: "",
+            micEnabled: selectedDevices.isAudioEnabled,
+            roomName: "",
+            trackingId: trackingId
+        });
+
+    }, [selectedDevices.isAudioEnabled, selectedDevices.isVideoEnabled]);
 
     const toggleMuteAudio = useCallback((participantId: string, isMuted: boolean) => {
         console.log("CallContext: toggleMuteAudio");
@@ -527,9 +508,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             availableDevices,
             selectedDevices,
             setSelectedDevices,
-            popUpMessage: popUpMessage,
-            hidePopUp,
-            showPopUp,
 
             getLocalMedia,
             getMediaConstraints,
@@ -539,6 +517,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             createConference,
             joinConference,
+            createConferenceOrJoin,
 
             sendInvite,
             acceptInvite,

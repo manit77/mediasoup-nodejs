@@ -208,58 +208,6 @@ export class RoomsClient {
     });
   };
 
-  waitForGetAuthoken = (serviceToken: string): Promise<IMsg> => {
-    console.log("waitForGetAuthoken()");
-
-    return new Promise<IMsg>((resolve, reject) => {
-
-      let _onmessage: (event: any) => void;
-
-      try {
-
-        let timerid = setTimeout(() => {
-          if (_onmessage) {
-            this.ws.removeEventHandler("onmessage", _onmessage);
-          }
-          reject("failed to get authtoken");
-        }, 5000);
-
-        _onmessage = (event: any) => {
-
-          try {
-            let msg = JSON.parse(event.data);
-            if (msg.type == payloadTypeServer.authUserNewTokenResult) {
-              console.log("** waitForGetAuthoken() - onmessage", msg);
-              let msgIn = msg as AuthUserNewTokenResultMsg;
-              clearTimeout(timerid);
-              this.ws.removeEventHandler("onmessage", _onmessage);
-              if (msgIn.data.authToken) {
-                resolve(new OkMsg(payloadTypeServer.ok, "token received"));
-                return;
-              }
-              resolve(new ErrorMsg(payloadTypeServer.ok, "failed to get token"));
-            }
-          } catch (err) {
-            console.error(err);
-            resolve(new ErrorMsg(payloadTypeServer.ok, "error getting token"));
-          }
-
-        };
-
-        this.ws.addEventHandler("onmessage", _onmessage);
-
-        this.getAuthoken(serviceToken);
-      } catch (err) {
-        if (_onmessage) {
-          this.ws.removeEventHandler("onmessage", _onmessage);
-        }
-        reject(err);
-        console.error(err);
-      }
-
-    });
-  };
-
   /**
    * register a client connection and wait for a result
    * @param trackingId 
@@ -465,19 +413,6 @@ export class RoomsClient {
   setAuthtoken = (authToken: string) => {
     this.localPeer.authToken = authToken;
   }
-
-  getAuthoken = (serviceToken: string) => {
-    console.log(`-- getAuthoken `);
-    //the server may reject this request due to server settings
-    //in a typical setting, your application will request an authtoken from the rooms server using a service auth token
-
-    let msg = new AuthUserNewTokenMsg();
-    msg.data.authToken = serviceToken;
-    msg.data.expiresInMin = 60;
-
-    this.send(msg);
-
-  };
 
   register = (authToken: string, trackingId: string, displayName: string) => {
     console.log(`-- register trackingId: ${trackingId}, displayName: ${displayName}`);

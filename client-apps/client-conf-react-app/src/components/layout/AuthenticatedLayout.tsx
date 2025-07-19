@@ -1,19 +1,22 @@
-import React, { useContext, useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import TopMenu from './TopMenu';
 import ContactsPane from './ParticipantsOnlinePane';
 import SettingsPopup from '../popups/SettingsPopup';
 import { useCall } from '../../hooks/useCall';
+import { useUI } from '../../hooks/useUI';
 import { Button } from 'react-bootstrap';
-import PopupMessage from '../popups/PopupMessage';
 import RoomsPane from './RoomsPane';
-import { APIContext } from '../../contexts/APIContext';
 import IncomingCallPopup from '../call/IncomingCallPopup';
 import CallingPopup from '../call/CallingPopup';
+import { FilePersonFill, Gear } from 'react-bootstrap-icons';
+import { useAPI } from '../../hooks/useAPI';
+
 
 const AuthenticatedLayout: React.FC = () => {
-  const api = useContext(APIContext);
+  const api = useAPI();
+  const ui = useUI()
   const [showSettings, setShowSettings] = useState(false);
-  const { selectedDevices, getMediaConstraints, inviteInfoSend, inviteInfoReceived, popUpMessage, hidePopUp, showPopUp } = useCall();
+  const { selectedDevices, getMediaConstraints, inviteInfoSend, inviteInfoReceived } = useCall();
   const [showingPreview, setShowingPreview] = useState(false);
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -39,7 +42,7 @@ const AuthenticatedLayout: React.FC = () => {
         // Ensure video
         const videoTrack = stream.getVideoTracks()[0];
         if (!videoTrack) {
-          showPopUp("No video devices available", 3);
+          ui.showPopUp("No video devices available", 3);
           stream.getTracks().forEach((track) => track.stop()); // Clean up failed stream
           setShowingPreview(false);
           return;
@@ -50,7 +53,7 @@ const AuthenticatedLayout: React.FC = () => {
       })
       .catch((error) => {
         console.error('Error getting preview stream:', error);
-        showPopUp("Failed to get camera. Check permissions.", 3);
+        ui.showPopUp("Failed to get camera. Check permissions.", 3);
         setShowingPreview(false);
       });
 
@@ -58,7 +61,7 @@ const AuthenticatedLayout: React.FC = () => {
     return () => {
       setPreviewStream(null);
     };
-  }, [showingPreview, selectedDevices, getMediaConstraints, showPopUp]);
+  }, [showingPreview, selectedDevices, getMediaConstraints, ui]);
 
   // Separate effect for stream changes: Assign srcObject and stop old tracks to release device
   useEffect(() => {
@@ -99,15 +102,14 @@ const AuthenticatedLayout: React.FC = () => {
           <RoomsPane />
         </div>
         <div className="col-9 p-3" style={{ overflowY: 'auto' }}>
-          <Button variant="primary" onClick={handleShowSettingsClick}>Device Settings</Button>{' '}
+          <Button variant="primary" onClick={handleShowSettingsClick}><Gear></Gear> Device Settings</Button>{' '}
           <Button variant="secondary" onClick={previewClick}>
-            {!showingPreview ? "Preview Video" : "Stop Preview"}
+            <FilePersonFill></FilePersonFill> {!showingPreview ? "Preview Video" : "Stop Preview"}
           </Button>
           <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: 'auto' }} />
         </div>
       </div>
-      <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />
-      <PopupMessage show={popUpMessage ? true : false} message={popUpMessage} handleClose={() => hidePopUp()} />
+      <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />      
       {inviteInfoReceived && <IncomingCallPopup />}
       {inviteInfoSend && <CallingPopup />}
     </div>

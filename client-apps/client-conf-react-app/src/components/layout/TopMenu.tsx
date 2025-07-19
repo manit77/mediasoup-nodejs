@@ -2,7 +2,7 @@ import React from 'react';
 import { Navbar, Nav, NavDropdown, Container } from 'react-bootstrap';
 import { useAPI } from '../../hooks/useAPI';
 import { useNavigate } from 'react-router-dom';
-import { BoxArrowRight, Gear, Person } from 'react-bootstrap-icons';
+import { BoxArrowRight, Gear, Person, PersonGear } from 'react-bootstrap-icons';
 
 interface TopMenuProps {
     onShowSettings: () => void;
