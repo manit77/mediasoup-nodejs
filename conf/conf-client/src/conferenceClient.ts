@@ -387,7 +387,7 @@ export class ConferenceClient {
         this.resetConferenceRoom();
     }
 
-    createConferenceRoom(trackingId: string, roomName: string, conferenceCode: string, config?: ConferenceRoomConfig) {
+    createConferenceRoom(trackingId: string, roomName: string, conferenceCode?: string, config?: ConferenceRoomConfig) {
         console.log(`createConferenceRoom trackingId: ${trackingId}, roomName: ${roomName}`);
 
         const msg = new CreateConfMsg();
@@ -399,7 +399,8 @@ export class ConferenceClient {
     }
 
     /**
-     * if role is a user then conferenceCode is required if the scheduled conference requires it
+     * admins can always create a room and join a room
+     * if role is a user, conferenceCode is required and must match the scheduled conference's conferenceCode
      * @param trackingId 
      * @param roomName 
      * @param conferenceCode 

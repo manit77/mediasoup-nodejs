@@ -265,6 +265,16 @@ export class ConferenceServer {
             return errorMsg;
         }
 
+        //check if user already exists
+        let existingParticipant = [...this.participants.values()].find(p=> p.username === msgIn.data.username)
+        if(existingParticipant) {
+            console.error("username already registered.", msgIn.data.username);
+
+            let errorMsg = new RegisterResultMsg();
+            errorMsg.data.error = "username already registered.";
+            return errorMsg;
+        }
+
         let participant: Participant = this.createParticipant(ws, msgIn.data.username, msgIn.data.username);
 
         let authToken: string = msgIn.data.authToken;
@@ -591,6 +601,7 @@ export class ConferenceServer {
     private async onCreateConference(participant: Participant, msgIn: CreateConfMsg) {
         console.log("onCreateConference");
 
+        //must be admin or a user
         if (![ParticipantRole.admin, ParticipantRole.user].includes(participant.role)) {
             console.error("participant must be an authenticated user");
             return;
@@ -684,6 +695,7 @@ export class ConferenceServer {
     private async onJoinConference(participant: Participant, msgIn: JoinConfMsg) {
         console.log("onJoinConference");
 
+        //conferenceRoomId or trackingId is required
         if (!msgIn.data.conferenceRoomId && !msgIn.data.trackingId) {
             console.error("conferenceRoomId or trackingId is required.");
 
@@ -692,6 +704,7 @@ export class ConferenceServer {
             return errorMsg;
         }
 
+        //is user is already in a conference room throw an error
         if (participant.conferenceRoom) {
             console.error(`already in a conference room: ${participant.conferenceRoom.id}`);
 
@@ -716,6 +729,7 @@ export class ConferenceServer {
             return errorMsg;
         }
 
+        //conferece must be in ready status
         if (conference.status !== "ready") {
             console.error(`conference room not ready ${conference.id}`);
 
@@ -723,6 +737,16 @@ export class ConferenceServer {
             errorMsg.data.error = "conference room not ready.";
 
             return errorMsg;
+        }
+
+        //check the role
+        if(!conference.config.guestsAllowed && participant.role == ParticipantRole.guest) {
+            console.error(`guests not allowed ${conference.id}`);
+
+            let errorMsg = new JoinConfResultMsg();
+            errorMsg.data.error = "guests not allowed.";
+
+            return errorMsg;            
         }
 
         //check the conference code
@@ -745,7 +769,12 @@ export class ConferenceServer {
             return errorMsg;
         }
 
-        conference.addParticipant(participant);
+        if(!conference.addParticipant(participant)){
+            let errorMsg = new JoinConfResultMsg();
+            errorMsg.data.error = "unable to add you to the conference.";
+
+            return errorMsg;
+        }
 
         //do not send JoinConfResultMsg back, send the ConferenceReadyMsg
         this.sendConferenceReady(conference, participant);

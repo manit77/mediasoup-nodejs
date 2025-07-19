@@ -40,7 +40,7 @@ export class ConferenceRoom {
     minParticipantsTimerId: any;
 
     onReadyListeners: (() => void)[] = [];
-    
+
     onClose: (conf: ConferenceRoom, participants: Participant[], reason: string) => void;
 
     addOnReadyListener(cb: () => void) {
@@ -84,12 +84,26 @@ export class ConferenceRoom {
         }
     }
 
-    addParticipant(part: Participant) {
+    addParticipant(part: Participant): boolean {
         console.log(`addParticipant. ${part.participantId} ${part.displayName}`);
 
         if (this.participants.has(part.participantId)) {
             console.error("participant already exists");
-            return;
+            return false;
+        }
+
+        let arrParts = [...this.participants.values()];
+        let usersCount = arrParts.filter(p => p.role == ParticipantRole.admin || p.role == ParticipantRole.user).length;
+        let guestCount = arrParts.filter(p => p.role == ParticipantRole.guest).length;
+
+        if (this.config.usersMax > 0 && usersCount >= this.config.usersMax) {
+            console.error(`max users reached.`);
+            return false;
+        }
+
+        if (this.config.guestsMax > 0 && guestCount >= this.config.guestsMax) {
+            console.error(`max guests reached.`);
+            return false;
         }
 
         this.participants.set(part.participantId, part);
@@ -100,18 +114,19 @@ export class ConferenceRoom {
                 clearTimeout(this.minParticipantsTimerId);
             }
         }
+        return true;
     }
 
     close(reason: string = "") {
         console.log(`conference close. ${this.id} reason: ${reason}`);
 
-        if(this.status === "closed"){
+        if (this.status === "closed") {
             console.log("conference already closed.");
             return;
         }
 
         this.status = "closed";
-        
+
         let existingParticipants = [...this.participants.values()];
 
         for (let part of this.participants.values()) {
@@ -151,7 +166,7 @@ export class ConferenceRoom {
     startTimerMinParticipants(timeoutSeconds: number) {
         console.log("startTimerMinParticipants");
 
-        if(this.minParticipantsTimerId) {
+        if (this.minParticipantsTimerId) {
             clearTimeout(this.minParticipantsTimerId);
         }
 

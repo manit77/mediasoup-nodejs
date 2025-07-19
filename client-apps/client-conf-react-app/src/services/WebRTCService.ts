@@ -295,7 +295,7 @@ class WebRTCService {
             return false;
         }
         
-        try {
+        try {            
             let newResult = await this.confClient.waitCreateConferenceRoom(args.trackingId, args.roomName, args.conferenceCode);
             if (newResult.data.error) {
                 console.error(newResult.data.error);
