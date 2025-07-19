@@ -204,7 +204,7 @@ class WebRTCService {
         this.registerAttempts ++;
         if(this.registerAttempts > this.maxRegisterAttempts) {
             console.error('max register attempts reached.');
-            this.disconnectSignaling();
+            this.disconnectSignaling("max register attempts reached");
             this.onServerDisconnected();
             this.onLoggedOff("max register attempts reached.");
             return;
@@ -224,8 +224,8 @@ class WebRTCService {
         this.confClient.register(user.username, user.authToken);
     }
 
-    public disconnectSignaling(): void {
-        console.log("disconnectSignaling");
+    public disconnectSignaling(reason: string): void {
+        console.log(`disconnectSignaling ${reason}`);
         this.localUser = null;
         this.registerAttempts = 0;
         this.confClient?.disconnect();        

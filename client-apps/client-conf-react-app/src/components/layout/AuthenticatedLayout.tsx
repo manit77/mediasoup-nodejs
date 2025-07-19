@@ -18,7 +18,7 @@ const AuthenticatedLayout: React.FC = () => {
   const ui = useUI();
   const navigate = useNavigate();
   const [showSettings, setShowSettings] = useState(false);
-  const { selectedDevices, getMediaConstraints, inviteInfoSend, inviteInfoReceived, isLoggedOff } = useCall();
+  const { selectedDevices, getMediaConstraints, inviteInfoSend, inviteInfoReceived, isLoggedOff, setIsLoggedOff } = useCall();
   const [showingPreview, setShowingPreview] = useState(false);
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -96,13 +96,13 @@ const AuthenticatedLayout: React.FC = () => {
   }, [inviteInfoSend, inviteInfoReceived]);
 
   useEffect(() => {
-    if(isLoggedOff) {
+    if(isLoggedOff) {            
       console.log("useEffect isLoggedOff");
       api.logout();
-      navigate("/login");
-      
+      navigate("/login");  
+      setIsLoggedOff(false);    
     }
-  }, [api, isLoggedOff, navigate]);
+  }, [api, isLoggedOff, navigate, setIsLoggedOff]);
 
   return (
     <div className="d-flex flex-column vh-100">

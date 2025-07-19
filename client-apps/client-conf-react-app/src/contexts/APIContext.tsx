@@ -120,7 +120,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const logout = useCallback(async () => {
         try {
             setIsLoading(true);
-            webRTCService.disconnectSignaling(); // Disconnect signaling on logout            
+            webRTCService.disconnectSignaling("user clicked logout"); // Disconnect signaling on logout            
             await apiService.logout();
             setIsAuthenticated(false);
             localStorage.removeItem('user');

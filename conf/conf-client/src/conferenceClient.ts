@@ -205,7 +205,7 @@ export class ConferenceClient {
     connect(conf_wsURIOverride: string = "") {
         console.log(`connect - autoReconnect: ${this.socketAutoReconnect}, conf_wsURIOverride: ${conf_wsURIOverride}`);
         if (this.socket) {
-            console.log("already connecting.");
+            console.error("already connecting.");
             return;
         }
 
@@ -216,6 +216,7 @@ export class ConferenceClient {
         }
 
         // Connect to WebSocket server
+        console.warn("new socket created");
         this.socket = new WebSocketClient({ enableLogs: this.config.enableSocketLogs });
 
         this.socket.addEventHandler("onopen", async () => {
@@ -315,7 +316,7 @@ export class ConferenceClient {
         this.socketAutoReconnect = false;
         if (this.socket) {
             console.log(`disconnecting from socket`);
-            this.socket.disconnect();
+            this.socket.disconnect();            
             this.socket = null;
         }
     }

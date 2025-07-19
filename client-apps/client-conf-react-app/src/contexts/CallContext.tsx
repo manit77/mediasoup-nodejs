@@ -8,6 +8,7 @@ import { useUI } from '../hooks/useUI';
 interface CallContextType {
     isConnected: boolean;
     isLoggedOff: boolean;
+    setIsLoggedOff: React.Dispatch<React.SetStateAction<boolean>>;
     isAuthenticated: boolean;
     localParticipant: Participant;
     isLocalStreamUpdated: boolean;
@@ -292,7 +293,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         return () => { // Cleanup
-            webRTCService.disconnectSignaling();
+            webRTCService.disconnectSignaling("callContext cleanup");
         }
     }, [callParticipants, getLocalMedia, ui, isCallActive]);
 
@@ -514,9 +515,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return (
         <CallContext.Provider value={{
-            isConnected,
+            isConnected,            
             isAuthenticated,
-            isLoggedOff,
+            isLoggedOff, setIsLoggedOff,
             localParticipant: localParticipant.current,
             isLocalStreamUpdated,
             isCallActive: isCallActive,
