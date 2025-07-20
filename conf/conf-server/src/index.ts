@@ -6,12 +6,13 @@ import { ConferenceServer, ConferenceServerConfig } from './confServer/conferenc
 import { getENV } from './utils/env.js';
 import { ConferenceAPI } from './confServer/conferenceAPI.js';
 import chalk from 'chalk';
+import { ConferenceSocketServer } from './confServer/conferenceSocketServer.js';
 
 const config: ConferenceServerConfig = await getENV() as any;
 
 const app = express();
 app.use(cors());
-  app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '1mb' }));
 
 const certInfo = {
   key: fs.readFileSync(config.cert_key_path),
@@ -23,11 +24,13 @@ const server = https.createServer(certInfo, app);
 server.listen(config.conf_server_port, async () => {
   console.log(chalk.bgGreen(`Server running at https://0.0.0.0:${config.conf_server_port}`));
 
-  let conferenceServer = new ConferenceServer(config, app, server);
-  conferenceServer.start();
+  let conferenceServer = new ConferenceServer({ config });
 
-  let apiServer = new ConferenceAPI(app, config, conferenceServer);
+  let apiServer = new ConferenceAPI({ app, config, confServer: conferenceServer });
   apiServer.start();
+
+  let socketServer = new ConferenceSocketServer({ app, httpServer: server, config, confServer: conferenceServer });
+  socketServer.start();
 
 });
 

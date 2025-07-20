@@ -214,10 +214,15 @@ export class ConferenceClient {
             return;
         }
 
-        console.log("connect");
+        console.log("connecting to socket server.");
 
         if (conf_wsURIOverride) {
             this.config.conf_ws_url = conf_wsURIOverride;
+        }
+
+        if(this.socket) {
+            this.socket.disconnect();
+            this.socket = null;
         }
 
         // Connect to WebSocket server
@@ -518,11 +523,13 @@ export class ConferenceClient {
 
         //get the conference config first
         if (!this.conferenceRoom.conferenceRoomConfig) {
+            console.warn(`getConferenceScheduled config `);
             let scheduled = await this.apiClient.getConferenceScheduled(args.trackingId, args.clientData);
             if (scheduled.data.error) {
                 console.error(scheduled.data.error);
                 return;
             }
+            console.warn(`getConferenceScheduled result `, scheduled);
             this.conferenceRoom.conferenceRoomConfig = scheduled.data.conference.config;
         }
 

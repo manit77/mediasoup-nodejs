@@ -10,9 +10,15 @@ import { getDemoSchedules } from '../demoData/demoData.js';
 
 export class ConferenceAPI {
     thirdPartyAPI: ThirdPartyAPI;
+    private app: express.Express;
+    private config: ConferenceServerConfig;
+    private confServer: ConferenceServer;
 
-    constructor(private app: express.Express, private config: ConferenceServerConfig, private confServer: ConferenceServer) {
-        this.thirdPartyAPI = new ThirdPartyAPI(config);
+    constructor(args: {app: express.Express, config: ConferenceServerConfig, confServer: ConferenceServer}) {
+        this.app = args.app;
+        this.config = args.config;
+        this.confServer = args.confServer;
+        this.thirdPartyAPI = new ThirdPartyAPI(args.config);
     }
 
     start() {

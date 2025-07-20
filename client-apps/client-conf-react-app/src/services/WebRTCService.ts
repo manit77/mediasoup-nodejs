@@ -397,10 +397,8 @@ class WebRTCService {
         this.removeTracks();
     }
 
-
-
     private async eventSignalingConnected() {
-        console.log("eventSignalingDisconnected");
+        console.log("eventSignalingConnected");
         await this.onServerConnected();
     }
 

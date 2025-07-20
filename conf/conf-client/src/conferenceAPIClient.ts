@@ -82,7 +82,7 @@ export class ConferenceAPIClient {
         post.data.id = trackingId;
         post.data.clientData = clientData;
 
-        const response = await fetch(`${this.config.conf_server_url}${WebRoutes.getConferencesScheduled}`, {
+        const response = await fetch(`${this.config.conf_server_url}${WebRoutes.getConferenceScheduled}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(post),
