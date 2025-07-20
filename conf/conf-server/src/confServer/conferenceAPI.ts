@@ -1,11 +1,11 @@
 import express from 'express';
-import { ConferenceRoomConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesResultMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantRole, WebRoutes } from '@conf/conf-models';
+import { apiGetScheduledConferencePost, apiGetScheduledConferenceResult, ConferenceRoomConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantRole, WebRoutes } from '@conf/conf-models';
 import { ConferenceServer, ConferenceServerConfig } from './conferenceServer.js';
 import { IAuthPayload } from '../models/models.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
 import { RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/rooms-models';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
-import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from '../thirdParty/models.js';
+import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from '@conf/conf-models';
 import { getDemoSchedules } from '../demoData/demoData.js';
 
 export class ConferenceAPI {
@@ -150,7 +150,7 @@ export class ConferenceAPI {
             console.log(`${WebRoutes.getConferencesScheduled}`);
 
             let resultMsg = new GetConferencesScheduledResultMsg();
-            
+
             if (this.config.conf_data_urls.getScheduledConferencesURL) {
                 //make a post to the url
                 let msg = req.body as apiGetScheduledConferencesPost;
@@ -188,7 +188,59 @@ export class ConferenceAPI {
                     };
                     delete clone.config.conferenceCode;
                     return clone;
-                });                
+                });
+            }
+
+            res.send(resultMsg);
+
+        });
+
+        console.log(`route: ${WebRoutes.getConferenceScheduled}`);
+        this.app.post(WebRoutes.getConferenceScheduled, async (req, res) => {
+            console.log(`${WebRoutes.getConferenceScheduled}`);
+
+            let resultMsg = new GetConferenceScheduledResultMsg();
+
+            let msg = req.body as apiGetScheduledConferencePost;
+            if (this.config.conf_data_urls.getScheduledConferencesURL) {
+                //make a post to the url
+                
+                let result = await this.thirdPartyAPI.getScheduledConference(msg.data.id, msg.data.clientData) as apiGetScheduledConferenceResult;
+                if (result.data.error) {
+                    console.log(result.data.error);
+                    return;
+                }
+
+                //hide the conference code                
+
+                let conf = new ConferenceScheduledInfo()
+                conf.description = result.data.conference.description;
+                conf.id = result.data.conference.id;
+                conf.name = result.data.conference.name;
+                conf.config.conferenceCode = "";
+                conf.config.guestsAllowCamera = result.data.conference.config.guestsAllowCamera;
+                conf.config.guestsAllowMic = result.data.conference.config.guestsAllowMic;
+                conf.config.guestsAllowed = result.data.conference.config.guestsAllowed;
+                conf.config.guestsMax = result.data.conference.config.guestsMax;
+
+                resultMsg.data.conference = conf;
+
+                res.send(resultMsg);
+
+            } else {
+                //get from demo data
+                console.log(`${WebRoutes.getConferencesScheduled}`);
+
+                //map and delete the conference code
+                resultMsg = new GetConferencesScheduledResultMsg();
+                resultMsg.data.conference = getDemoSchedules().filter(s=> s.id === msg.data.id).map(s => {
+                    let clone = {
+                        ...s,
+                        config: { ...s.config }
+                    };
+                    delete clone.config.conferenceCode;
+                    return clone;
+                })[0];
             }
 
             res.send(resultMsg);
@@ -227,5 +279,5 @@ export class ConferenceAPI {
         });
 
     }
-    
+
 }

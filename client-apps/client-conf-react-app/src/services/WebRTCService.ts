@@ -1,24 +1,20 @@
 import { Conference, ConferenceClient, EventTypes, Participant } from '@conf/conf-client';
 import { SelectedDevices, User } from '../types';
-import { AcceptResultMsg, ConferenceClosedMsg, ConferenceRoomInfo, CreateConfResultMsg, GetConferencesResultMsg, InviteMsg, InviteResultMsg, JoinConfResultMsg, ParticipantInfo } from '@conf/conf-models';
+import { AcceptResultMsg, ConferenceClosedMsg, ConferenceRoomInfo, CreateConferenceParams, CreateConfResultMsg, GetConferencesResultMsg, InviteMsg, InviteResultMsg, JoinConferenceParams, JoinConfResultMsg, ParticipantInfo } from '@conf/conf-models';
+import { ConferenceClientConfig } from '@conf/conf-client/src/models';
 
-const confServerURI = 'https://localhost:3100'; // conference
-
-export interface JoinConferenceParams {
-    conferenceRoomId: string,
-    conferenceCode: string,
-    roomName: string,
-    trackingId: string,
-    micEnabled: boolean,
-    cameraEnabled: boolean
+let confConfig : ConferenceClientConfig = {
+    conf_server_url: "https://localhost:3100",
+    conf_ws_url : "https://localhost:3100",
+    socket_enable_logs : false
 }
 
 class WebRTCService {
 
-    confClient: ConferenceClient = new ConferenceClient();
+    confClient: ConferenceClient = new ConferenceClient(confConfig);
     participantsOnline: ParticipantInfo[] = [];
     conferencesOnline: ConferenceRoomInfo[] = [];
-    localUser : User;
+    localUser: User;
     registerAttempts = 0;
     maxRegisterAttempts = 3;
 
@@ -98,7 +94,7 @@ class WebRTCService {
     // }
 
     public connectSignaling(user: User): void {
-        console.warn("connectSignaling");
+        console.log("connectSignaling");
         this.localUser = user;
 
         if (!user.authToken || !user.username) {
@@ -108,10 +104,10 @@ class WebRTCService {
 
         if (!this.confClient) {
             console.error(`conference client not initialized.`);
-            this.confClient = new ConferenceClient();
+            this.confClient = new ConferenceClient(confConfig);
         }
 
-        this.confClient.connect(confServerURI);
+        this.confClient.connect();
 
         this.confClient.onEvent = async (eventType: EventTypes, payload?: any) => {
             console.log("** onEvent", eventType, payload);
@@ -199,18 +195,18 @@ class WebRTCService {
         };
     }
 
-    public register(user: User){
+    public register(user: User) {
         console.log(`register registerAttempts: ${this.registerAttempts}`);
-        this.registerAttempts ++;
-        if(this.registerAttempts > this.maxRegisterAttempts) {
+        this.registerAttempts++;
+        if (this.registerAttempts > this.maxRegisterAttempts) {
             console.error('max register attempts reached.');
             this.disconnectSignaling("max register attempts reached");
             this.onServerDisconnected();
             this.onLoggedOff("max register attempts reached.");
             return;
         }
-        
-        if(!user) {
+
+        if (!user) {
             console.error("no user provided");
             return;
         }
@@ -228,7 +224,7 @@ class WebRTCService {
         console.log(`disconnectSignaling ${reason}`);
         this.localUser = null;
         this.registerAttempts = 0;
-        this.confClient?.disconnect();        
+        this.confClient?.disconnect();
         //this.confClient = null;
     }
 
@@ -322,31 +318,38 @@ class WebRTCService {
         return this.confClient?.conferenceRoom;
     }
 
-    public createConferenceRoom(trackingId: string, roomName: string) {
-        this.confClient.createConferenceRoom(trackingId, roomName);
+    public createConferenceRoom(createArgs: CreateConferenceParams) {
+        this.confClient.createConferenceRoom(createArgs);
     }
 
-    public async createConferenceOrJoin(args: JoinConferenceParams): Promise<boolean> {
+    public async createConferenceAndJoin(createArgs: CreateConferenceParams, joinArgs: JoinConferenceParams): Promise<boolean> {
 
-        if(!args.trackingId) {
-            console.error("trackingId is required.");
+        if (!createArgs.trackingId) {
+            console.error("createArgs trackingId is required.");
+            return false;
+        }
+
+        if (!joinArgs.trackingId) {
+            console.error("joinArgs trackingId is required.");
             return false;
         }
         
-        try {            
-            let newResult = await this.confClient.waitCreateConferenceRoom(args.trackingId, args.roomName, args.conferenceCode);
+        try {
+            let newResult = await this.confClient.waitCreateConferenceRoom(createArgs);
             if (newResult.data.error) {
                 console.error(newResult.data.error);
                 return false;
             }
 
-            let joinResult = await this.confClient.waitJoinConferenceRoom(newResult.data.conferenceRoomId, args.conferenceCode);
+            joinArgs.conferenceRoomId = newResult.data.conferenceRoomId;
+
+            let joinResult = await this.confClient.waitJoinConferenceRoom(joinArgs);
             if (joinResult.data.error) {
                 console.error(joinResult.data.error);
                 return false;
             }
 
-            console.warn("join conference, waiting for room ready message");
+            console.log("join conference, waiting for room ready message");
 
         } catch (err) {
             console.error(err);
@@ -354,8 +357,8 @@ class WebRTCService {
         }
     }
 
-    public joinConferenceRoom(conferenceRoomId: string, conferenceCode?: string) {
-        this.confClient.joinConferenceRoom(conferenceRoomId, conferenceCode);
+    public joinConferenceRoom(args: JoinConferenceParams) {
+        this.confClient.joinConferenceRoom(args);
     }
 
     /**
@@ -394,7 +397,7 @@ class WebRTCService {
         this.removeTracks();
     }
 
-    
+
 
     private async eventSignalingConnected() {
         console.log("eventSignalingDisconnected");

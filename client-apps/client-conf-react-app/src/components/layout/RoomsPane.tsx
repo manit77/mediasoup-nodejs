@@ -74,7 +74,7 @@ const RoomsPane: React.FC = () => {
       setShowJoinPopUp(true);
       return;
     } else {
-      console.warn(`conference not started. guests cannot create a room.`);
+      console.log(`conference not started. guests cannot create a room.`);
       ui.showToast(`conference ${conference.roomName} not started`);      
     }
 

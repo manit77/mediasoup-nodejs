@@ -1,9 +1,10 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { Device, SelectedDevices } from '../types';
 import { webRTCService } from '../services/WebRTCService';
-import { ConferenceRoomInfo, InviteMsg, ParticipantInfo } from '@conf/conf-models';
+import { ConferenceRoomInfo, CreateConferenceParams, InviteMsg, JoinConferenceParams, ParticipantInfo } from '@conf/conf-models';
 import { Conference, Participant } from '@conf/conf-client';
 import { useUI } from '../hooks/useUI';
+import { useAPI } from '../hooks/useAPI';
 
 interface CallContextType {
     isConnected: boolean;
@@ -59,6 +60,8 @@ export const CallContext = createContext<CallContextType>(undefined);
 
 export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const ui = useUI();
+    const api = useAPI();
+
     const [isConnected, setIsConnected] = useState<boolean>(webRTCService.isConnected);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(webRTCService.isConnected && webRTCService.localParticipant.peerId ? true : false);
     const [isLoggedOff, setIsLoggedOff] = useState<boolean>(false);
@@ -151,7 +154,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         webRTCService.onRegisterFailed = async (error: string) => {
-            console.warn("CallContext: onRegisterFailed: error", error);
+            console.log("CallContext: onRegisterFailed: error", error);
             setIsAuthenticated(false);
             ui.showPopUp(`socket registration failed. ${error}`);
 
@@ -164,7 +167,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
         }
         webRTCService.onLoggedOff = async (reason: string) => {
-            console.warn("CallContext: onLoggedOff: reason", reason);
+            console.log("CallContext: onLoggedOff: reason", reason);
             setIsLoggedOff(true);
         }
 
@@ -350,8 +353,15 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const createConference = useCallback((trackingId: string, roomName: string) => {
         console.log("CallContext: createConference");
+        let createArgs: CreateConferenceParams = {
+            conferenceCode: "",
+            trackingId: trackingId,
+            roomName: roomName,
+            conferenceRoomId: "",
+            config: null
+        }
 
-        webRTCService.createConferenceRoom(trackingId, roomName);
+        webRTCService.createConferenceRoom(createArgs);
     }, []);
 
     const joinConference = useCallback((conferenceRoomId: string, conferenceCode: string) => {
@@ -361,22 +371,42 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error("CallContext: joinConference: conferenceRoomId is required");
             return;
         }
-        webRTCService.joinConferenceRoom(conferenceRoomId, conferenceCode)
-    }, []);
+        let joinArgs: JoinConferenceParams = {
+            audioEnabledOnStart: selectedDevices.isAudioEnabled,
+            clientData: api.getCurrentUser()?.clientData,
+            conferenceCode: conferenceCode,
+            conferenceRoomId: conferenceRoomId,
+            roomName: "",
+            trackingId: "",
+            videoEnabledOnStart: selectedDevices.isVideoEnabled
+        }
+
+        webRTCService.joinConferenceRoom(joinArgs)
+    }, [api, selectedDevices.isAudioEnabled, selectedDevices.isVideoEnabled]);
 
     const createConferenceOrJoin = useCallback((trackingId: string, conferenceCode: string) => {
-        console.warn("CallContext: createConferenceOrJoin ", trackingId, conferenceCode);
-
-        webRTCService.createConferenceOrJoin({
-            cameraEnabled: selectedDevices.isVideoEnabled,
+        console.warn("CallContext: createConferenceOrJoin ", trackingId, conferenceCode, selectedDevices);
+        let createArgs: CreateConferenceParams = {
             conferenceCode: conferenceCode,
             conferenceRoomId: "",
-            micEnabled: selectedDevices.isAudioEnabled,
+            config: null,
             roomName: "",
             trackingId: trackingId
-        });
+        };
 
-    }, [selectedDevices.isAudioEnabled, selectedDevices.isVideoEnabled]);
+        let joinArgs: JoinConferenceParams = {
+            audioEnabledOnStart: selectedDevices.isAudioEnabled,
+            clientData: api.getCurrentUser()?.clientData,
+            conferenceCode: conferenceCode,
+            conferenceRoomId: "",
+            roomName: "",
+            trackingId: trackingId,
+            videoEnabledOnStart: selectedDevices.isVideoEnabled
+        }
+
+        webRTCService.createConferenceAndJoin(createArgs, joinArgs);
+
+    }, [api, selectedDevices]);
 
     const toggleMuteAudio = useCallback((participantId: string, isMuted: boolean) => {
         console.log("CallContext: toggleMuteAudio");
@@ -515,7 +545,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return (
         <CallContext.Provider value={{
-            isConnected,            
+            isConnected,
             isAuthenticated,
             isLoggedOff, setIsLoggedOff,
             localParticipant: localParticipant.current,

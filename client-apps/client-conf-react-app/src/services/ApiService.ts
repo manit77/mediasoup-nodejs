@@ -1,7 +1,7 @@
 import { ConferenceScheduledInfo, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
 import { User, ConferenceRoomScheduled } from '../types';
-
-const API_BASE_URL = 'https://localhost:3100';
+import { ConferenceAPIClient } from '@conf/conf-client';
+import { conferenceClientConfig } from './ConferenceConfig';
 
 export interface LoginResponse {
     user: User;
@@ -9,8 +9,13 @@ export interface LoginResponse {
 }
 
 class ApiService {
+    conferenceAPIClient: ConferenceAPIClient = new ConferenceAPIClient(conferenceClientConfig);
     conferencesScheduled: ConferenceRoomScheduled[] = [];
     startFetchConferencesScheduledTimerId = null;
+
+    getClientData = () => {
+        return {};
+    }
 
     login = async (username: string, password: string): Promise<LoginResponse> => {
 
@@ -23,18 +28,7 @@ class ApiService {
             throw new Error('password name cannot be empty.');
         }
 
-        let postMsg = new LoginMsg();
-        postMsg.data.username = username;
-        postMsg.data.password = password;
-
-        const response = await fetch(`${API_BASE_URL}${WebRoutes.login}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(postMsg),
-        });
-
-        let loginResult = await response.json() as LoginResultMsg;
-        console.log(`loginResult`, loginResult);
+        let loginResult = await this.conferenceAPIClient.login(username, password, this.getClientData());
 
         if (loginResult.data.error) {
             console.error(`login failed: ${loginResult.data.error}`);
@@ -48,7 +42,8 @@ class ApiService {
                 username: loginResult.data.username,
                 displayName: loginResult.data.displayName,
                 role: loginResult.data.role as any,
-                authToken: loginResult.data.authToken
+                authToken: loginResult.data.authToken,
+                clientData: loginResult.data.clientData
             }
         }
 
@@ -65,16 +60,7 @@ class ApiService {
             throw new Error('Display name cannot be empty.');
         }
 
-        let postMsg = new LoginGuestMsg();
-        postMsg.data.displayName = displayName;
-
-        const response = await fetch(`${API_BASE_URL}${WebRoutes.loginGuest}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(postMsg),
-        });
-
-        let loginResult = await response.json() as LoginResultMsg;
+        let loginResult = await this.conferenceAPIClient.loginGuest(displayName, this.getClientData());
         console.log(`loginResult`, loginResult);
 
         if (loginResult.data.error) {
@@ -89,7 +75,8 @@ class ApiService {
                 username: loginResult.data.username,
                 displayName: loginResult.data.displayName,
                 role: loginResult.data.role as any,
-                authToken: loginResult.data.authToken
+                authToken: loginResult.data.authToken,
+                clientData: loginResult.data.clientData,
             }
         }
 
@@ -128,14 +115,8 @@ class ApiService {
         console.log("fetchConferencesScheduled");
         //get rooms from API        
 
-        const response = await fetch(`${API_BASE_URL}${WebRoutes.getConferencesScheduled}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: "",
-        });
 
-        let result = await response.json() as GetConferencesScheduledResultMsg;
-        console.log(result);
+        let result = await this.conferenceAPIClient.getConferencesScheduled(this.getClientData());
 
         if (result.data.error) {
             console.error(`ERROR:`, result.data.error);
@@ -163,10 +144,10 @@ class ApiService {
         return this.conferencesScheduled;
     };
 
-    
+
     startFetchConferencesScheduled = () => {
         console.log("startFetchConferencesScheduled");
-        if(this.startFetchConferencesScheduledTimerId) {
+        if (this.startFetchConferencesScheduledTimerId) {
             clearTimeout(this.startFetchConferencesScheduledTimerId);
         }
 

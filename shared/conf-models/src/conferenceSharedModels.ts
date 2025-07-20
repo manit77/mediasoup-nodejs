@@ -35,6 +35,7 @@ export enum WebRoutes {
     loginGuest = "/loginGuest",
     authenticate = "/authenticate",
     getConferencesScheduled = "/getConferencesScheduled",
+    getConferenceScheduled = "/getConferenceScheduled",
     onRoomClosed = "/onRoomClosed",
     onPeerJoined = "/onPeerJoined",
     onPeerLeft = "/onPeerLeft"
@@ -73,7 +74,8 @@ export class LoginResultMsg {
         displayName?: string,
         authToken?: string,
         role?: string,
-        error?: string
+        error?: string,
+        clientData?: string,
     } = {}
 }
 
@@ -292,6 +294,24 @@ export class ConferenceClosedMsg {
         conferenceRoomId?: string,
         reason?: string
     } = {}
+}
+
+export interface CreateConferenceParams {
+    conferenceRoomId: string,
+    conferenceCode: string,
+    roomName: string,
+    trackingId: string,    
+    config: ConferenceRoomConfig,
+}
+
+export interface JoinConferenceParams {
+    conferenceRoomId: string,
+    conferenceCode: string,
+    roomName: string,
+    trackingId: string,
+    audioEnabledOnStart: boolean,
+    videoEnabledOnStart: boolean,
+    clientData: {},
 }
 
 export class ConferenceRoomConfig {

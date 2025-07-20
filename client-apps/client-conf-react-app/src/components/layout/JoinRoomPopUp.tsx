@@ -32,7 +32,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conference, show, onClose
 
 
     useEffect(() => {
-        console.warn("useEffect selectedDevices:", selectedDevices);
+        console.log("useEffect selectedDevices:", selectedDevices);
         if (selectedDevices) {
             setMicEnabled(selectedDevices.isAudioEnabled)
             setCameraEnabled(selectedDevices.isVideoEnabled);
@@ -41,9 +41,9 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conference, show, onClose
     }, [selectedDevices])
 
     useEffect(() => {
-        console.warn(`isCallActive`, isCallActive);
+        console.log(`isCallActive`, isCallActive);
         if (isCallActive) {
-            console.warn("Navigating to on-call screen.");
+            console.log("Navigating to on-call screen.");
             // If the call is active, navigate to the call screen
             navigate('/on-call');
             // Optionally, close the modal once navigation starts
@@ -52,7 +52,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conference, show, onClose
     }, [isCallActive, navigate, onClose]);
 
     const toggleMic = useCallback((enabled: boolean) => {
-        console.warn(`toggleMic`);
+        console.log(`toggleMic`);
         setMicEnabled(enabled);
         setSelectedDevices(prev => {
             return {
@@ -63,7 +63,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conference, show, onClose
     }, [setSelectedDevices]);
 
     const toggleCamera = useCallback((enabled: boolean) => {
-        console.warn(`toggleCamera`);
+        console.log(`toggleCamera`);
         setCameraEnabled(enabled);
         setSelectedDevices(prev => {
             return {
@@ -74,11 +74,11 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conference, show, onClose
     }, [setSelectedDevices]);
 
     useEffect(() => {
-        console.warn(`useEffect guest`);
+        console.log(`useEffect guest`);
 
         let user = api.getCurrentUser();
         if (user.role === "guest") {
-            console.warn(`guest user`);
+            console.log(`guest user`);
             //guests cannot oveeride conference configs
             if (!conference.config.guestsAllowCamera) {
                 setShowCameraOption(false);

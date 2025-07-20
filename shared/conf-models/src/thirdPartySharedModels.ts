@@ -11,11 +11,11 @@ export enum apiMsgTypes {
 export class apiLoginPost {
     type = apiMsgTypes.login;
     data: {
-        username: string;
+        username?: string;
         password?: string;
         authToken?: string;
         clientData?: {};
-    }
+    } = {}
 }
 
 export class apiLoginResult {
@@ -26,38 +26,38 @@ export class apiLoginResult {
         role?: string;
         appData?: {};
         error?: string;
-    }
+    } = {}
 }
 
 export class apiGetScheduledConferencePost {
     type = apiMsgTypes.getScheduledConference;
     data: {
-        id: string;
-        clientData: {};
-    }
+        id?: string;
+        clientData?: {};
+    } = {}
 }
 
-export interface apiGetScheduledConferenceResult {
+export class apiGetScheduledConferenceResult {
     type: apiMsgTypes.getScheduledConferenceResult;
     data: {
-        conference: apiScheduledConference;
+        conference?: apiScheduledConference;
         error?: string;
-    }
+    } = {}
 }
 
 export class apiGetScheduledConferencesPost {
     type = apiMsgTypes.getScheduledConference;
     data: {
-        clientData: {};
-    }
+        clientData?: {};
+    } = {}
 }
 
-export interface apiGetScheduledConferencesResult {
+export class apiGetScheduledConferencesResult {
     type: apiMsgTypes.getScheduledConferencesResult;
     data: {
-        conferences: apiScheduledConference[];
+        conferences?: apiScheduledConference[];
         error?: string;
-    }
+    } = {}
 }
 
 export class apiScheduledConference {

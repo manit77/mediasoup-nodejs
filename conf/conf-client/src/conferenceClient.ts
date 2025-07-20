@@ -1,11 +1,13 @@
 import {
     AcceptMsg,
     AcceptResultMsg,
-    CallMessageType, ConferenceClosedMsg, ConferenceReadyMsg, ConferenceRoomConfig, ConferenceRoomInfo, ConferenceRoomJoinConfig, conferenceType, CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg, GetParticipantsResultMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg
-    , JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo, RegisterMsg, RegisterResultMsg, RejectMsg
+    CallMessageType, ConferenceClosedMsg, ConferenceReadyMsg, ConferenceRoomConfig, ConferenceRoomInfo, ConferenceRoomJoinConfig, conferenceType, CreateConferenceParams, CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg, GetParticipantsResultMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg
+    , JoinConferenceParams, JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo, ParticipantRole, RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
+import { ConferenceClientConfig } from "./models.js";
+import { ConferenceAPIClient } from "./conferenceAPIClient.js";
 
 
 export type callStates = "calling" | "answering" | "connecting" | "connected" | "disconnected";
@@ -17,6 +19,7 @@ export class Participant {
     stream: MediaStream = new MediaStream();
     isMuted: boolean = false;
     isVideoOff: boolean = false;
+    role: string = ParticipantRole.guest;
 }
 
 export class Conference {
@@ -29,6 +32,7 @@ export class Conference {
     roomToken: string;
     roomId: string;
     roomURI: string;
+    joinParams: JoinConferenceParams;
 
     /**
      * remote participants
@@ -87,17 +91,14 @@ export class ConferenceClient {
 
     CallConnectTimeoutSeconds = 5;
 
-    config = {
-        conf_wsURI: 'wss://localhost:3001',
-        enableSocketLogs: false
-    }
-
     onEvent: ConferenceEvent;
-
-    constructor() {
-    }
+    apiClient: ConferenceAPIClient;
 
     CallConnectTimeoutTimerIds = new Set<any>();
+
+    constructor(private config: ConferenceClientConfig) {
+        this.apiClient = new ConferenceAPIClient(config);
+    }
 
     startCallConnectTimer() {
         console.log("startCallConnectTimer");
@@ -149,6 +150,10 @@ export class ConferenceClient {
 
     publishTracks(tracks: MediaStreamTrack[]) {
         console.log(`publishTracks`);
+
+        tracks.forEach(t => {
+            this.checkTrackAllowed(t);
+        });
 
         if (this.roomsClient) {
             this.roomsClient.publishTracks(tracks);
@@ -212,12 +217,12 @@ export class ConferenceClient {
         console.log("connect");
 
         if (conf_wsURIOverride) {
-            this.config.conf_wsURI = conf_wsURIOverride;
+            this.config.conf_ws_url = conf_wsURIOverride;
         }
 
         // Connect to WebSocket server
-        console.warn("new socket created");
-        this.socket = new WebSocketClient({ enableLogs: this.config.enableSocketLogs });
+        console.log("new socket created");
+        this.socket = new WebSocketClient({ enableLogs: this.config.socket_enable_logs });
 
         this.socket.addEventHandler("onopen", async () => {
             console.log("onopen - socket opened");
@@ -240,7 +245,7 @@ export class ConferenceClient {
             await this.onSocketMessage(message);
         });
 
-        this.socket.connect(this.config.conf_wsURI, this.socketAutoReconnect);
+        this.socket.connect(this.config.conf_ws_url, this.socketAutoReconnect);
 
     }
 
@@ -316,7 +321,7 @@ export class ConferenceClient {
         this.socketAutoReconnect = false;
         if (this.socket) {
             console.log(`disconnecting from socket`);
-            this.socket.disconnect();            
+            this.socket.disconnect();
             this.socket = null;
         }
     }
@@ -388,14 +393,14 @@ export class ConferenceClient {
         this.resetConferenceRoom();
     }
 
-    createConferenceRoom(trackingId: string, roomName: string, conferenceCode?: string, config?: ConferenceRoomConfig) {
-        console.log(`createConferenceRoom trackingId: ${trackingId}, roomName: ${roomName}`);
+    createConferenceRoom(args: CreateConferenceParams) {
+        console.log(`createConferenceRoom trackingId: ${args.trackingId}, roomName: ${args.roomName}`);
 
         const msg = new CreateConfMsg();
-        msg.data.conferenceRoomTrackingId = trackingId;
-        msg.data.roomName = roomName;
-        msg.data.conferenceCode = conferenceCode;
-        msg.data.conferenceRoomConfig = config;
+        msg.data.conferenceRoomTrackingId = args.trackingId;
+        msg.data.roomName = args.roomName;
+        msg.data.conferenceCode = args.conferenceCode;
+        msg.data.conferenceRoomConfig = args.config;
         this.sendToServer(msg);
     }
 
@@ -408,8 +413,8 @@ export class ConferenceClient {
      * @param config 
      * @returns 
      */
-    waitCreateConferenceRoom(trackingId: string, roomName?: string, conferenceCode? : string, config?: ConferenceRoomConfig) {
-        console.log(`waitCreateConferenceRoom trackingId: ${trackingId}, roomName: ${roomName}, conferenceCode: ${conferenceCode}`);
+    waitCreateConferenceRoom(args: CreateConferenceParams) {
+        console.log(`waitCreateConferenceRoom trackingId: ${args.trackingId}, roomName: ${args.roomName}, conferenceCode: ${args.conferenceCode}`);
         return new Promise<CreateConfResultMsg>((resolve, reject) => {
             let _onmessage: (event: any) => void;
 
@@ -433,7 +438,7 @@ export class ConferenceClient {
                         clearTimeout(timerid);
                         _removeEvents();
 
-                        let msgIn = msg as CreateConfResultMsg;                       
+                        let msgIn = msg as CreateConfResultMsg;
                         if (msgIn.data.error) {
                             console.log(msgIn.data.error);
                             reject("failed to create");
@@ -444,7 +449,7 @@ export class ConferenceClient {
                 };
 
                 this.socket.addEventHandler("onmessage", _onmessage);
-                this.createConferenceRoom(trackingId, roomName, conferenceCode, config);
+                this.createConferenceRoom(args);
 
             } catch (err: any) {
                 console.log(err);
@@ -454,8 +459,8 @@ export class ConferenceClient {
         });
     }
 
-    waitJoinConferenceRoom(conferenceRoomId: string, conferenceCode?: string) {
-        console.log(`waitJoinConferenceRoom trackingId: ${conferenceRoomId}, conferenceCode: ${conferenceCode}`);
+    waitJoinConferenceRoom(args: JoinConferenceParams) {
+        console.log(`waitJoinConferenceRoom trackingId: ${args.conferenceRoomId}, conferenceCode: ${args.conferenceCode}`);
         return new Promise<JoinConfResultMsg>((resolve, reject) => {
             let _onmessage: (event: any) => void;
 
@@ -480,9 +485,9 @@ export class ConferenceClient {
                         _removeEvents();
 
                         let msgIn = msg as JoinConfResultMsg;
-                        
+
                         if (msgIn.data.error) {
-                            console.log(msgIn.data.error);                        
+                            console.log(msgIn.data.error);
                             reject("failed to join conference");
                             return;
                         }
@@ -491,7 +496,7 @@ export class ConferenceClient {
                 };
 
                 this.socket.addEventHandler("onmessage", _onmessage);
-                this.joinConferenceRoom(conferenceRoomId, conferenceCode);
+                this.joinConferenceRoom(args);
 
             } catch (err: any) {
                 console.log(err);
@@ -501,23 +506,77 @@ export class ConferenceClient {
         });
     }
 
-    joinConferenceRoom(conferenceRoomId: string, conferenceCode?: string) {
-        console.warn(`joinConferenceRoom conferenceRoomId: ${conferenceRoomId} conferenceCode: ${conferenceCode}`);
+    async joinConferenceRoom(args: JoinConferenceParams) {
+        console.log(`joinConferenceRoom conferenceRoomId: ${args.conferenceRoomId} conferenceCode: ${args.conferenceCode}`);
 
         if (this.conferenceRoom.conferenceRoomId) {
             console.error(`already in conferenceroom ${this.conferenceRoom.conferenceRoomId}`);
             return;
         }
 
+        this.conferenceRoom.joinParams = args;
+
+        //get the conference config first
+        if (!this.conferenceRoom.conferenceRoomConfig) {
+            let scheduled = await this.apiClient.getConferenceScheduled(args.trackingId, args.clientData);
+            if (scheduled.data.error) {
+                console.error(scheduled.data.error);
+                return;
+            }
+            this.conferenceRoom.conferenceRoomConfig = scheduled.data.conference.config;
+        }
+
+        if (!this.conferenceRoom.conferenceRoomConfig) {
+            console.error(`not conference config found.`);
+            return;
+        }
+
+        //disable mic or cam based on user preference
+        let videoTrack = this.localParticipant.stream.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.enabled = args.videoEnabledOnStart;
+            this.checkTrackAllowed(videoTrack);
+        }
+
+        let audioTrack = this.localParticipant.stream.getAudioTracks()[0];
+        if (audioTrack) {
+            audioTrack.enabled = args.videoEnabledOnStart;
+            this.checkTrackAllowed(audioTrack);
+        }
+
         this.startCallConnectTimer();
         this.callState = "connecting";
 
         const msg = new JoinConfMsg();
-        msg.data.conferenceRoomId = conferenceRoomId;
-        msg.data.conferenceCode = conferenceCode;
+        msg.data.conferenceRoomId = args.conferenceRoomId;
+        msg.data.conferenceCode = args.conferenceCode;
 
-        this.conferenceRoom.conferenceRoomId = conferenceRoomId;
+        this.conferenceRoom.conferenceRoomId = args.conferenceRoomId;
         this.sendToServer(msg);
+    }
+
+    private checkTrackAllowed(track: MediaStreamTrack) {
+        console.warn("checkTrackAllowed", track.kind);
+
+        if(!this.conferenceRoom.conferenceRoomConfig) {
+            console.error(`not conference config found.`);
+            return;
+        }
+
+        if (this.localParticipant.role === "guest") {
+            if (track.kind === "audio" && !this.conferenceRoom.conferenceRoomConfig.guestsAllowMic) {
+                if (track) {
+                    track.enabled = false;
+                }
+            }
+
+            if (track.kind === "video" && !this.conferenceRoom.conferenceRoomConfig.guestsAllowCamera) {
+                if (track) {
+                    track.enabled = false;
+                }
+            }
+        }
+
     }
 
 
@@ -756,6 +815,7 @@ export class ConferenceClient {
         } else {
             this.localParticipant.participantId = message.data.participantId;
             this.localParticipant.displayName = message.data.username;
+            this.localParticipant.role = message.data.role;
             console.log('Registered with participantId:', this.localParticipant.participantId, this.localParticipant.displayName);
             await this.onEvent(EventTypes.registerResult, message);
         }
@@ -836,6 +896,9 @@ export class ConferenceClient {
             this.disconnectRoomsClient("onJoinConfResult");
             return;
         }
+
+        //!!! don't send event for EventTypes.conferenceJoined, wait for room client to send event
+        //!!! next event recieved is onConferenceReady
 
     }
 
