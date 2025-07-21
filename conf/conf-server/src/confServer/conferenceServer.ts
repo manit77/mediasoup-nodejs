@@ -1,5 +1,4 @@
 import https from 'https';
-import { WebSocket, WebSocketServer } from 'ws';
 import { randomUUID } from 'crypto';
 import {
     CallMessageType,
@@ -31,6 +30,7 @@ import { IMsg, RoomConfig } from '@rooms/rooms-models';
 import express from 'express';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { getDemoSchedules } from '../demoData/demoData.js';
+import { AbstractEventHandler } from '../utils/evenHandler.js';
 
 export interface ConferenceServerConfig {
     conf_server_port: number,
@@ -51,7 +51,11 @@ export interface ConferenceServerConfig {
     cert_key_path: string,
 }
 
-export class ConferenceServer {
+export enum ConferenceServerEventTypes {
+    onSendMsg = 'onSendMsg',    
+}
+
+export class ConferenceServer extends AbstractEventHandler<ConferenceServerEventTypes> {
 
     participants = new Map<string, Participant>();
     conferences = new Map<string, ConferenceRoom>();
@@ -61,14 +65,15 @@ export class ConferenceServer {
     httpServer: https.Server
     thirdParty: ThirdPartyAPI;
 
-    onSendMsg = (conn: SocketConnection, msg: any) => { }
-
     constructor(args: { config: ConferenceServerConfig }) {
+        super({enableLogs: false});
+
         this.config = args.config;
         this.thirdParty = new ThirdPartyAPI(this.config);
     }
 
-    terminateParticipant(participant: Participant) {
+    terminateParticipant(participantId: string) {
+        let participant = this.participants.get(participantId);
         console.log(`terminateParticipant`, participant.participantId);
         if (participant) {
             // Remove from active participants map
@@ -86,7 +91,7 @@ export class ConferenceServer {
         }
     }
 
-    async handleMsgInWS(conn: SocketConnection, msgIn: IMsg) {
+    async handleMsgInWS(participantId:string, msgIn: IMsg) {
         try {
 
             console.log("msgIn: ", msgIn);
@@ -95,13 +100,15 @@ export class ConferenceServer {
                 console.error("message has no type");
                 return;
             }
-            let participant = conn.participant;
+            let participant = this.participants.get(participantId);            
+
+            if(!participant) {
+                console.error(`participant not found.`);
+                return;
+            }
             let resultMsg: IMsg;
 
-            switch (msgIn.type) {
-                case CallMessageType.register:
-                    resultMsg = await this.onRegister(conn, msgIn);
-                    break;
+            switch (msgIn.type) {                
                 case CallMessageType.getParticipants:
                     resultMsg = await this.onGetParticipants(participant, msgIn);
                     break;
@@ -130,20 +137,17 @@ export class ConferenceServer {
                     resultMsg = await this.onLeave(participant, msgIn);
                     break;
             }
-
-            if (resultMsg) {
-                this.send(conn, resultMsg);
-            }
+            return resultMsg;
         } catch (err) {
             console.error(err);
         }
 
     }
 
-    send(conn: SocketConnection, msg: any): boolean {
+    send(partcipant: Participant, msg: any): boolean {
         console.log('send ', msg);
         try {
-            this.onSendMsg(conn, msg);
+            this.fireEvent(ConferenceServerEventTypes.onSendMsg, partcipant, msg);
             //ws.send(JSON.stringify(msg));
             return true;
         } catch (err) {
@@ -152,9 +156,9 @@ export class ConferenceServer {
         }
     }
 
-    createParticipant(conn: SocketConnection, username: string, displayName: string): Participant {
+    createParticipant(username: string, displayName: string): Participant {
 
-        let part = new Participant(conn);
+        let part = new Participant();
         part.participantId = "part-" + randomUUID().toString();
         part.displayName = displayName;
         part.username = username;
@@ -207,7 +211,7 @@ export class ConferenceServer {
             let msgClosed = new ConferenceClosedMsg();
             msgClosed.data.conferenceRoomId = conf.id;
             msgClosed.data.reason = reason;
-            participants.forEach(p => this.send(p.connection, msgClosed));
+            participants.forEach(p => this.send(p, msgClosed));
 
             //broadcast rooms to existing participants
             this.broadCastConferenceRooms();
@@ -223,11 +227,11 @@ export class ConferenceServer {
     }
 
     /**
-     * registers a socket connection
+     * registers a new peer, we expect the peer to be already authenticated
      * @param ws 
      * @param msgIn 
      */
-    private async onRegister(conn: SocketConnection, msgIn: RegisterMsg): Promise<IMsg> {
+    async onRegister(msgIn: RegisterMsg): Promise<IMsg> {
         console.log("onRegister " + msgIn.data.username);
 
         if (!msgIn.data.username) {
@@ -256,7 +260,7 @@ export class ConferenceServer {
             return errorMsg;
         }
 
-        let participant: Participant = this.createParticipant(conn, msgIn.data.username, msgIn.data.username);
+        let participant: Participant = this.createParticipant(msgIn.data.username, msgIn.data.username);
 
         let authToken: string = msgIn.data.authToken;
         let authTokenObject: IAuthPayload;
@@ -290,7 +294,7 @@ export class ConferenceServer {
 
         for (let [id, p] of this.participants.entries()) {
             if (exceptParticipant != p && p.role !== "guest") {
-                this.send(p.connection, contactsMsg);
+                this.send(p, contactsMsg);
             }
         }
 
@@ -310,7 +314,7 @@ export class ConferenceServer {
         }) as ConferenceRoomInfo);
 
         for (let [id, p] of this.participants.entries()) {
-            this.send(p.connection, msg);
+            this.send(p, msg);
         }
     }
 
@@ -425,7 +429,7 @@ export class ConferenceServer {
         msg.data.conferenceRoomTrackingId = conference.trackingId;
         msg.data.conferenceType = conference.confType;
 
-        if (!this.send(remote.connection, msg)) {
+        if (!this.send(remote, msg)) {
             console.error("failed to send invite to receiver");
             conference.close("remote peer not available");
 
@@ -510,7 +514,7 @@ export class ConferenceServer {
         }
 
         //send the reject to the client
-        this.send(remoteParticipant.connection, msgIn);
+        this.send(remoteParticipant, msgIn);
 
         //the room was p2p, remove the particpant
         if (conf.confType == "p2p") {
@@ -555,7 +559,7 @@ export class ConferenceServer {
             let msg = new AcceptResultMsg();
             msg.data.conferenceRoomId = msgIn.data.conferenceRoomId;
             msg.data.error = "timeout, unable to join conference";
-            this.send(participant.connection, msg);
+            this.send(participant, msg);
         }, 5000);
 
         conference.addOnReadyListener(() => {
@@ -566,7 +570,7 @@ export class ConferenceServer {
             //send the answer result back
             let msg = new AcceptResultMsg();
             msg.data.conferenceRoomId = msgIn.data.conferenceRoomId;
-            this.send(participant.connection, msg);
+            this.send(participant, msg);
         });
 
         if (conference.status == "none") {
@@ -779,7 +783,7 @@ export class ConferenceServer {
             console.error("failed to create new authUser token in rooms");
             let errorMsg = new InviteResultMsg();
             errorMsg.data.error = "error creating conference for user.";
-            this.send(participant.connection, errorMsg);
+            this.send(participant, errorMsg);
             return null;
         }
 
@@ -800,7 +804,7 @@ export class ConferenceServer {
         msg.data.roomURI = conference.roomURI;
         msg.data.roomRtpCapabilities = conference.roomRtpCapabilities;
 
-        this.send(participant.connection, msg);
+        this.send(participant, msg);
     }
 
     /**
@@ -899,7 +903,7 @@ export class ConferenceServer {
             let msg = new LeaveMsg();
             msg.data.conferenceRoomId = conf.id;
             msg.data.participantId = participant.participantId;
-            this.send(p.connection, msg);
+            this.send(p, msg);
         }
     }
 

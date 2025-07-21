@@ -6,28 +6,48 @@ export interface IAuthPayload {
     role: ParticipantRole
 }
 
+type onSocketTimeout = (conn: SocketConnection) => void;
+
 export class SocketConnection {
 
     socketTimeoutId: any;
     ws: WebSocket;
     timeoutSecs: number;
-    participant: Participant;
+    participantId: string;
+    eventHandlers: onSocketTimeout[] = [];
 
     constructor(webSocket: WebSocket, socketTimeoutSecs: number) {
         this.ws = webSocket;
-        this.timeoutSecs = socketTimeoutSecs;        
+        this.timeoutSecs = socketTimeoutSecs;
     }
 
-    onSocketTimeout = (conn: SocketConnection) => { };
+    dispose() {
+        this.eventHandlers = [];
+
+        if (this.ws) {
+            this.ws.close();
+            this.ws = null;
+        }
+    }
+
+    addEventHandlers(cb: onSocketTimeout) {
+        this.eventHandlers.push(cb);
+    }
 
     restartSocketTimeout = () => {
+        console.log(`restartSocketTimeout`);
+
         if (this.socketTimeoutId) {
             clearTimeout(this.socketTimeoutId);
             this.socketTimeoutId = null;
         }
 
+        console.log(`socketTimeout started:`, this.timeoutSecs);
         this.socketTimeoutId = setTimeout(() => {
-            this.onSocketTimeout(this);
+            console.log(`socketTimeout reached`);
+            for (let cb of this.eventHandlers) {
+                cb(this);
+            }
         }, this.timeoutSecs * 1000);
     }
 
@@ -48,16 +68,12 @@ export class Participant {
 
     onTimeout = (participant: Participant) => { };
 
-    constructor(private conn: SocketConnection) {
-        this.connection = conn;
-        conn.participant = this;
-        conn.onSocketTimeout = () => {
-            this.onTimeout(this);
-        };
+    constructor() {
+       
     }
 
     restartTimeout() {
-        this.conn.restartSocketTimeout();
+        
     }
 
 }

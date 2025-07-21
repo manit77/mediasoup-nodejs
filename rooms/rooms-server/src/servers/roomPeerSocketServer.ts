@@ -11,7 +11,6 @@ import {
 import { RoomServer, RoomServerConfig } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
 import { AuthUserRoles } from '../models/tokenPayloads.js';
-import { setTimeout, setInterval } from 'node:timers';
 
 const DSTR = "RoomSocketServer";
 
