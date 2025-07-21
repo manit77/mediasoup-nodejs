@@ -9,15 +9,15 @@ import { useUI } from '../../hooks/useUI';
 import { ConferenceRoomScheduled } from '../../types'; // Assuming this type is correctly defined
 
 interface JoinRoomPopUpProps {
-    conference: ConferenceRoomScheduled; // Corrected prop destructuring
+    conferenceScheduled: ConferenceRoomScheduled; // Corrected prop destructuring
     show: boolean; // Add a prop to control modal visibility
     onClose: () => void; // Add a prop to handle closing the modal
 }
 
-const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conference, show, onClose }) => {
+const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show, onClose }) => {
     const api = useAPI();
     const ui = useUI();
-    const { isCallActive, createConferenceOrJoin, createConference, joinConference, selectedDevices, setSelectedDevices, } = useCall();
+    const { isCallActive, createConferenceOrJoin, joinConference, selectedDevices, setSelectedDevices, } = useCall();
     const navigate = useNavigate();
 
     // State to hold the conference code entered by the user
@@ -80,10 +80,10 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conference, show, onClose
         if (user.role === "guest") {
             console.log(`guest user`);
             //guests cannot oveeride conference configs
-            if (!conference.config.guestsAllowCamera) {
+            if (!conferenceScheduled.config.guestsAllowCamera) {
                 setShowCameraOption(false);
             }
-            if (!conference.config.guestsAllowMic) {
+            if (!conferenceScheduled.config.guestsAllowMic) {
                 setShowMicOption(false);
             }
 
@@ -92,7 +92,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conference, show, onClose
 
             return;
         }
-    }, [api, conference.config.guestsAllowCamera, conference.config.guestsAllowMic, toggleCamera, toggleMic]);
+    }, [api, conferenceScheduled, toggleCamera, toggleMic]);
 
 
     const handleJoinRoom = async (event: React.FormEvent) => {
@@ -100,23 +100,23 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conference, show, onClose
 
         setLoading(true);
         try {
-            if (conference.conferenceRoomId) {
 
-                // Assuming joinConference takes the conference details and the entered code
-                joinConference(conference.conferenceRoomId, conferenceCode); // You might need to adjust parameters based on your useCall hook
-                // The useEffect above will handle navigation if isCallActive becomes true
+            let user = api.getCurrentUser();
+            if (user.role === "admin" || user.role === "user") {
+                // Admin can create a new conference and join it
+                createConferenceOrJoin(conferenceScheduled.id, conferenceCode);
             } else {
-                let user = api.getCurrentUser();
-                if (user.role === "admin" || user.role === "user") {
-                    // Admin can create a new conference and join it
-                    createConferenceOrJoin(conference.id, conferenceCode);
+                if (conferenceScheduled.conferenceRoomId) {
+                    // Assuming joinConference takes the conference details and the entered code
+                    joinConference(conferenceCode, conferenceScheduled); // You might need to adjust parameters based on your useCall hook
+                    // The useEffect above will handle navigation if isCallActive becomes true
                 } else {
-                    console.error(`guests cannot create a room.`);
+                    ui.showToast("conference is not active.");
                 }
             }
         } catch (error) {
             console.error('Failed to join conference:', error);
-            ui.showPopUp('Failed to join the conference. Please check the code and try again.');
+            ui.showPopUp('Failed to join the conferenceScheduled. Please check the code and try again.');
         } finally {
             setLoading(false);
         }
@@ -136,10 +136,10 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conference, show, onClose
             <Modal.Body>
                 <Form onSubmit={handleJoinRoom}>
                     <Form.Group className="mb-3" controlId="roomName">
-                        <Form.Label>Conference Room Name:</Form.Label> {conference.roomName}
+                        <Form.Label>Conference Room Name:</Form.Label> {conferenceScheduled.roomName}
                     </Form.Group>
                     {
-                        conference.config && conference.config.requireConferenceCode ? (
+                        conferenceScheduled.config && conferenceScheduled.config.requireConferenceCode ? (
                             <Form.Group className="mb-3" controlId="conferenceCode">
                                 <Form.Label>Enter Conference Code:</Form.Label>
                                 <Form.Control

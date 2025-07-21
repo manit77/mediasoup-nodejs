@@ -1,5 +1,6 @@
 import { ConferenceRoomConfig, conferenceType, ParticipantRole } from "@conf/conf-models";
 import { WebSocket } from "ws";
+import { AbstractEventHandler } from "../utils/evenHandler.js";
 
 export interface IAuthPayload {
     username: string,
@@ -22,11 +23,13 @@ export class SocketConnection {
     }
 
     dispose() {
+        console.log(`SocketConnection dispose()`);
         this.eventHandlers = [];
 
         if (this.ws) {
             this.ws.close();
             this.ws = null;
+            console.log(`SocketConnection ws close`);
         }
     }
 
@@ -42,10 +45,11 @@ export class SocketConnection {
             this.socketTimeoutId = null;
         }
 
-        console.log(`socketTimeout started:`, this.timeoutSecs);
+        console.log(`SocketConnection socketTimeout started:`, this.timeoutSecs);
         this.socketTimeoutId = setTimeout(() => {
-            console.log(`socketTimeout reached`);
+            console.log(`SocketConnection socketTimeout reached ${this.eventHandlers.length}`);
             for (let cb of this.eventHandlers) {
+                console.log(`SocketConnection socketTimeout fire event`);
                 cb(this);
             }
         }, this.timeoutSecs * 1000);
@@ -65,22 +69,15 @@ export class Participant {
     role: ParticipantRole = ParticipantRole.guest;
     clientData: {} = {}; //passed down from the user login or the query string from a client    
     connection: SocketConnection;
-
-    onTimeout = (participant: Participant) => { };
-
+   
     constructor() {
        
     }
-
-    restartTimeout() {
-        
-    }
-
 }
 
 export type conferenceStatus = "none" | "initializing" | "ready" | "closed";
 
-export class ConferenceRoom {
+export class ConferenceRoom  {
     id: string;
     trackingId: string;
     timeoutId: any;
@@ -101,6 +98,10 @@ export class ConferenceRoom {
     onReadyListeners: (() => void)[] = [];
 
     onClose: (conf: ConferenceRoom, participants: Participant[], reason: string) => void;
+
+    constructor() {
+       
+    }
 
     addOnReadyListener(cb: () => void) {
         if (this.status == "ready") {

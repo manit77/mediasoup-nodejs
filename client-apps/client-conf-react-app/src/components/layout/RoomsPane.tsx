@@ -137,7 +137,7 @@ const RoomsPane: React.FC = () => {
         <JoinRoomPopUp
           show={showJoinPopUp}
           onClose={handleCloseJoinPopUp}
-          conference={selectedConferenceToJoin}
+          conferenceScheduled={selectedConferenceToJoin}
         // The JoinRoomPopUp will internally use joinConference from useCall
         // and its own micEnabled/cameraEnabled states.
         />

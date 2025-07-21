@@ -19,9 +19,9 @@ const certInfo = {
   cert: fs.readFileSync(config.cert_file_path),
 };
 
-const server = https.createServer(certInfo, app);
+const httpServer = https.createServer(certInfo, app);
 
-server.listen(config.conf_server_port, async () => {
+httpServer.listen(config.conf_server_port, async () => {
   console.log(chalk.bgGreen(`Server running at https://0.0.0.0:${config.conf_server_port}`));
 
   let conferenceServer = new ConferenceServer({ config });
@@ -29,7 +29,7 @@ server.listen(config.conf_server_port, async () => {
   let apiServer = new ConferenceAPI({ app, config, confServer: conferenceServer });
   apiServer.start();
 
-  let socketServer = new ConferenceSocketServer({ app, httpServer: server, config, confServer: conferenceServer });
+  let socketServer = new ConferenceSocketServer({ httpServer: httpServer, config, confServer: conferenceServer });
   socketServer.start();
 
 });

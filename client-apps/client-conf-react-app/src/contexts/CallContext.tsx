@@ -1,5 +1,5 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
-import { Device, SelectedDevices } from '../types';
+import { ConferenceRoomScheduled, Device, SelectedDevices } from '../types';
 import { webRTCService } from '../services/WebRTCService';
 import { ConferenceRoomInfo, CreateConferenceParams, InviteMsg, JoinConferenceParams, ParticipantInfo } from '@conf/conf-models';
 import { Conference, Participant } from '@conf/conf-client';
@@ -35,7 +35,7 @@ interface CallContextType {
     getParticipantsOnline: () => void;
 
     createConference: (trackingId: string, roomName: string) => void;
-    joinConference: (conferenceRoomId: string, conferenceCode?: string) => void;
+    joinConference: (conferenceCode: string, scheduled: ConferenceRoomScheduled) => void;
     createConferenceOrJoin: (trackingId: string, conferenceCode: string) => void;
 
     sendInvite: (participantInfo: ParticipantInfo) => Promise<void>;
@@ -159,11 +159,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             ui.showPopUp(`socket registration failed. ${error}`);
 
             //try again
-            if (webRTCService.localUser) {
+            if (webRTCService.localUser && webRTCService.localUser.username && webRTCService.localUser.authToken) {
                 setTimeout(() => {
                     ui.showToast("trying to register socket...");
-                    webRTCService.register(webRTCService.localUser);
+                    webRTCService.registerConnection(webRTCService.localUser);
                 }, 5000);
+            } else {
+                console.error(`invalid credentials.`);
             }
         }
         webRTCService.onLoggedOff = async (reason: string) => {
@@ -200,7 +202,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log('CallContext: onParticipantTrack');
 
             if (!participantId) {
-                console.error("CallContext: no userid");
+                console.error("CallContext: no participantId");
                 return;
             }
 
@@ -218,7 +220,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log(`call participants: `, callParticipants);
 
             if (!participantId) {
-                console.error("CallContext: no userid");
+                console.error("CallContext: no participantId");
                 return;
             }
 
@@ -364,10 +366,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         webRTCService.createConferenceRoom(createArgs);
     }, []);
 
-    const joinConference = useCallback((conferenceRoomId: string, conferenceCode: string) => {
+    const joinConference = useCallback((conferenceCode: string, scheduled: ConferenceRoomScheduled) => {
         console.log("CallContext: joinConference");
 
-        if (!conferenceRoomId) {
+        if (!scheduled.conferenceRoomId) {
             console.error("CallContext: joinConference: conferenceRoomId is required");
             return;
         }
@@ -375,9 +377,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             audioEnabledOnStart: selectedDevices.isAudioEnabled,
             clientData: api.getCurrentUser()?.clientData,
             conferenceCode: conferenceCode,
-            conferenceRoomId: conferenceRoomId,
+            conferenceRoomId: scheduled.conferenceRoomId,
             roomName: "",
-            trackingId: "",
+            trackingId: scheduled.id,
             videoEnabledOnStart: selectedDevices.isVideoEnabled
         }
 

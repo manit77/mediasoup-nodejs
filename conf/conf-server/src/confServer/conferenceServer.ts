@@ -73,8 +73,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
     }
 
     terminateParticipant(participantId: string) {
-        let participant = this.participants.get(participantId);
-        console.log(`terminateParticipant`, participant.participantId);
+        console.log(`terminateParticipant`, participantId);
+
+        let participant = this.participants.get(participantId);        
         if (participant) {
             // Remove from active participants map
             this.participants.delete(participant.participantId);
@@ -706,7 +707,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         if (!conference) {
-            console.error(`conference room not found ${conference.id}`);
+            console.error(`conference room not found ${msgIn.data.conferenceRoomId}`);
 
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "conference room not found.";
@@ -818,16 +819,16 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         if (conference.status != "none") {
             console.log("conference already started");
             return true;
-        }
+        }       
 
-        //we have 5 seconds to init a room
+        conference.updateStatus("initializing");
+
+         //we have 5 seconds to init a room
         let initTimerId = setTimeout(() => {
             console.error("new room timeout, closing room");
             conference.close("room timed out");
         }, 5000);
 
-
-        conference.updateStatus("initializing");
         //caller sent an invite
         //receiver accepted the invite
         //send room ready to both parties

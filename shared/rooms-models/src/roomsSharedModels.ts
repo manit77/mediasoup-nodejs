@@ -84,9 +84,13 @@ export class OkMsg implements IMsg {
     type = payloadTypeServer.ok;
     data = {}
 
-    constructor(msgType: any, data: {}) {
-        this.type = msgType;
-        this.data = data
+    constructor(msgType?: any, data?: {}) {
+        if(msgType) {
+            this.type = msgType;
+        }
+        if(data) {
+            this.data = data
+        }
     }
 }
 

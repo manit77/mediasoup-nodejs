@@ -6,7 +6,8 @@ import { ConferenceClientConfig } from '@conf/conf-client/src/models';
 let confConfig : ConferenceClientConfig = {
     conf_server_url: "https://localhost:3100",
     conf_ws_url : "https://localhost:3100",
-    socket_enable_logs : false
+    socket_enable_logs : false,
+    rooms_ws_url: "https://localhost:3000",
 }
 
 class WebRTCService {
@@ -114,7 +115,7 @@ class WebRTCService {
 
             switch (eventType) {
                 case EventTypes.connected: {
-                    this.register(user);
+                    this.registerConnection(user);
                     this.eventSignalingConnected();
                     break;
                 }
@@ -195,11 +196,12 @@ class WebRTCService {
         };
     }
 
-    public register(user: User) {
+    public async registerConnection(user: User) {
         console.log(`register registerAttempts: ${this.registerAttempts}`);
         this.registerAttempts++;
         if (this.registerAttempts > this.maxRegisterAttempts) {
             console.error('max register attempts reached.');
+            this.registerAttempts = 0;
             this.disconnectSignaling("max register attempts reached");
             this.onServerDisconnected();
             this.onLoggedOff("max register attempts reached.");
@@ -208,6 +210,7 @@ class WebRTCService {
 
         if (!user) {
             console.error("no user provided");
+            await this.onRegisterFailed("user is required to register connection");
             return;
         }
 
@@ -215,9 +218,15 @@ class WebRTCService {
 
         if (!user.authToken || !user.username) {
             console.error("authtoken and username is required.", user);
+            await this.onRegisterFailed("username is required to register a connection");
             return;
         }
-        this.confClient.register(user.username, user.authToken);
+        try {
+            await this.confClient.waitRegisterConnection(user.username, user.authToken);
+        } catch(err) {
+            console.error(err);
+            await this.onRegisterFailed("failed to register connection");
+        }
     }
 
     public disconnectSignaling(reason: string): void {

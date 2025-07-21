@@ -5,17 +5,18 @@ import { WebSocketServer, WebSocket } from 'ws';
 import https from 'https';
 import { IMsg } from '@rooms/rooms-models';
 import { CallMessageType, RegisterResultMsg } from '@conf/conf-models';
+import { consoleError, consoleLog } from '../utils/utils.js';
+
+const LOG = "ConferenceSocketServer";
 
 export class ConferenceSocketServer {
     wsServer: WebSocketServer;
     connections = new Map<WebSocket, SocketConnection>();
-    private app: express.Express;
     private httpServer: https.Server;
     private config: ConferenceServerConfig;
     private confServer: ConferenceServer;
 
-    constructor(args: { app: express.Express, httpServer: https.Server, config: ConferenceServerConfig, confServer: ConferenceServer }) {
-        this.app = args.app;
+    constructor(args: { httpServer: https.Server, config: ConferenceServerConfig, confServer: ConferenceServer }) {
         this.confServer = args.confServer;
         this.config = args.config;
         this.httpServer = args.httpServer;
@@ -23,12 +24,12 @@ export class ConferenceSocketServer {
     }
 
     start() {
-        console.log(`start ConferenceServer`);
+        consoleLog(LOG, `start ConferenceSocketServer`);
 
         this.wsServer = new WebSocketServer({ server: this.httpServer });
         this.wsServer.on('connection', (ws: WebSocket) => {
 
-            console.log("new socket connected, current participants: " + this.confServer.participants.size);
+            consoleLog(LOG, "new socket connected, current participants: " + this.confServer.participants.size);
             let newConnection = new SocketConnection(ws, this.config.conf_socket_timeout_secs);
             newConnection.addEventHandlers(this.onSocketTimeout.bind(this));
             this.connections.set(ws, newConnection);
@@ -38,50 +39,60 @@ export class ConferenceSocketServer {
                 const msgIn = JSON.parse(message.data.toString()) as IMsg;
                 let conn = this.connections.get(ws);
                 if (!conn) {
-                    console.error(`connection not found.`);
+                    consoleError(LOG, `connection not found.`);
                     this.connections.delete(ws);
                     return;
                 }
 
                 if (!msgIn.type) {
-                    console.error("message has no type");
+                    consoleError(LOG, "message has no type");
                     return;
                 }
+
+                let returnMsg: IMsg;
 
                 if (msgIn.type == CallMessageType.register) {
                     //register belongs to the a socket connection
                     if (conn.participantId) {
-                        console.error(`already registered`, conn.participantId);
+                        consoleError(LOG, `already registered`, conn.participantId);
+                        returnMsg = new RegisterResultMsg();
+                        returnMsg.data.error = "already registered.";
+
                     } else {
-                        let result = await this.confServer.onRegister(msgIn) as RegisterResultMsg;
-                        if (result.data.error) {
-                            console.error(`failed to register socket`);
+                        returnMsg = await this.confServer.onRegister(msgIn) as RegisterResultMsg;
+                        if (returnMsg.data.error) {
+                            consoleError(LOG, `failed to register socket ${returnMsg.data.error}`);
                             return;
-                        }
-                        conn.participantId = result.data.participantId
-                        console.log(`socket registered`, conn.participantId);
-                        conn.restartSocketTimeout();
-                        return;
-                    }
-                } else {
-                    let msg: IMsg = await this.confServer.handleMsgInWS(conn.participantId, msgIn);
-                    if (msg) {
-                        if (!msg.data.error) {
+                        } else {
+                            conn.participantId = returnMsg.data.participantId
+                            consoleLog(LOG, `socket registered`, conn.participantId);
                             conn.restartSocketTimeout();
                         }
-                        conn.ws.send(JSON.stringify(msg));
                     }
+                } else {
+                    if (!conn.participantId) {
+                        consoleError(LOG, `participantId is required.`);
+                        return;
+                    }
+                    returnMsg = await this.confServer.handleMsgInWS(conn.participantId, msgIn);
+                }
+
+                if (returnMsg) {
+                    if (!returnMsg.data.error) {
+                        conn.restartSocketTimeout();
+                    }
+                    conn.ws.send(JSON.stringify(returnMsg));
                 }
 
             };
 
             ws.onclose = async () => {
-                console.log(`socket closed`);
+                consoleLog(LOG, `socket closed`);
                 let conn = this.connections.get(ws);
                 if (conn) {
                     this.connections.delete(conn.ws);
                     if (conn && conn.participantId) {
-                        this.confServer.terminateParticipant(conn.participantId);                        
+                        this.confServer.terminateParticipant(conn.participantId);
                         conn.dispose();
                     }
                 }
@@ -90,24 +101,23 @@ export class ConferenceSocketServer {
     }
 
     onSendMsg(participant: Participant, msg: IMsg) {
-        console.log(`onSendMsg`, msg.type);
+        consoleLog(LOG, `onSendMsg`, msg.type);
         try {
             let conn = [...this.connections.values()].find(c => c.participantId === participant.participantId);
             if (conn) {
                 conn.ws.send(JSON.stringify(msg));
             }
         } catch (err) {
-            console.error(err);
+            consoleError(LOG, err);
         }
     }
 
     onSocketTimeout(conn: SocketConnection) {
-        console.log(`onSocketTimeout`);
-        if(conn.participantId) {
+        consoleLog(LOG, `onSocketTimeout`);
+        if (conn.participantId) {
             this.confServer.terminateParticipant(conn.participantId);
         }
         this.connections.delete(conn.ws);
         conn.dispose();
-        
     }
 }

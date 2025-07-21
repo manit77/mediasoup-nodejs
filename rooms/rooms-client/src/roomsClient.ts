@@ -31,13 +31,15 @@ export class RoomsClient {
   ]
 
   config = {
-    wsURI: "wss://localhost:3000",
-    socketAutoReconnect: true,
-    socketEnableLogs: false
+    socket_ws_uri: "wss://localhost:3000",
+    socket_auto_reconnect: true,
+    socket_enable_logs: false
   }
 
-  constructor() {
-
+  constructor(options: { socket_ws_uri: string, socket_auto_reconnect: boolean, socket_enable_logs: boolean }) {
+    this.config.socket_auto_reconnect = options.socket_auto_reconnect;
+    this.config.socket_enable_logs = options.socket_enable_logs;
+    this.config.socket_ws_uri = options.socket_ws_uri;
   }
 
   private onTransportsReadyEvent: (transport: mediasoupClient.types.Transport) => void;
@@ -51,12 +53,12 @@ export class RoomsClient {
   eventOnPeerTrackToggled: (peer: IPeer, track: MediaStreamTrack, enabled: boolean) => Promise<void> = async () => { };
   eventOnRoomSocketClosed: () => Promise<void> = async () => { };
 
-  inititalize = async (conf: { socketAutoConnect: boolean, socketURI: string, rtpCapabilities?: any }) => {
+  inititalize = async (options: { rtp_capabilities?: any }) => {
     console.log("inititalize");
 
-    this.config.wsURI = conf.socketURI;
-    this.config.socketAutoReconnect = conf.socketAutoConnect;
-    await this.initMediaSoupDevice(conf.rtpCapabilities);
+    this.config.socket_ws_uri = this.config.socket_ws_uri;
+    this.config.socket_auto_reconnect = this.config.socket_auto_reconnect;
+    await this.initMediaSoupDevice(options.rtp_capabilities);
     console.log("init complete");
 
   };
@@ -77,9 +79,9 @@ export class RoomsClient {
   };
 
   connect = async (wsURI: string = "") => {
-    console.log(`connect ${wsURI} autoReconnect: ${this.config.socketAutoReconnect}`);
+    console.log(`connect ${wsURI} autoReconnect: ${this.config.socket_auto_reconnect}`);
     if (wsURI) {
-      this.config.wsURI = wsURI;
+      this.config.socket_ws_uri = wsURI;
     }
 
     if (this.ws && ["connecting", "connected"].includes(this.ws.state)) {
@@ -87,7 +89,7 @@ export class RoomsClient {
       return;
     }
 
-    console.log("connect " + this.config.wsURI);
+    console.log("connect " + this.config.socket_ws_uri);
     this.ws = new WebSocketClient();
 
     this.ws.addEventHandler("onopen", this.socketOnOpen);
@@ -95,18 +97,18 @@ export class RoomsClient {
     this.ws.addEventHandler("onclose", this.socketOnClose);
     this.ws.addEventHandler("onerror", this.socketOnClose);
 
-    this.ws.connect(this.config.wsURI, this.config.socketAutoReconnect);
+    this.ws.connect(this.config.socket_ws_uri, this.config.socket_auto_reconnect);
 
   };
 
   disconnect = () => {
-    console.log("disconnect");    
+    console.log("disconnect");
 
     if (this.ws) {
       this.ws.disconnect();
     }
     this.resetLocalPeer();
-    this.resetPeers();    
+    this.resetPeers();
   };
 
   resetLocalPeer() {
@@ -121,17 +123,17 @@ export class RoomsClient {
     this.localPeer = new LocalPeer();
   }
 
-  resetPeers(){
+  resetPeers() {
     console.log(`resetPeers`);
 
-    for(let peer of this.peers.values()){
-      peer.clearConsumers();     
+    for (let peer of this.peers.values()) {
+      peer.clearConsumers();
     }
     this.peers.clear();
   }
 
   private socketOnOpen = async () => {
-    console.log("websocket open " + this.config.wsURI);
+    console.log("websocket open " + this.config.socket_ws_uri);
   };
 
   private socketOnClose = async () => {
@@ -151,16 +153,16 @@ export class RoomsClient {
   * @param wsURI 
   * @returns 
   */
-  waitForConnect = (wsURI: string = ""): Promise<IMsg> => {
-    console.log(`waitForConnect() ${wsURI}`);
+  waitForConnect = (socketURI: string = ""): Promise<IMsg> => {
+    console.log(`waitForConnect() ${socketURI}`);
     return new Promise<IMsg>((resolve, reject) => {
       try {
 
-        if (wsURI) {
-          this.config.wsURI = wsURI;
+        if (socketURI) {
+          this.config.socket_ws_uri = socketURI;
         }
 
-        console.log("config.wsURI:", this.config.wsURI);
+        console.log("config.socket_ws_uri:", this.config.socket_ws_uri);
 
         if (this.ws && ["connecting", "connected"].includes(this.ws.state)) {
           console.log("socket already created. current state: " + this.ws.state);
@@ -168,11 +170,11 @@ export class RoomsClient {
           return;
         }
 
-        this.ws = new WebSocketClient({ enableLogs: this.config.socketEnableLogs });
-        console.log("waitForConnect() - " + this.config.wsURI + " state:" + this.ws.state);
+        this.ws = new WebSocketClient({ enableLogs: this.config.socket_enable_logs });
+        console.log("waitForConnect() - " + this.config.socket_ws_uri + " state:" + this.ws.state);
 
         const _onOpen = () => {
-          console.log("websocket onOpen " + this.config.wsURI);
+          console.log("websocket onOpen " + this.config.socket_ws_uri);
           this.socketOnOpen();
           resolve(new OkMsg(payloadTypeServer.ok, "socket opened."));
           clearTimeout(timerid);
@@ -189,7 +191,7 @@ export class RoomsClient {
         this.ws.addEventHandler("onclose", _onClose);
         this.ws.addEventHandler("onerror", _onClose);
 
-        this.ws.connect(this.config.wsURI, this.config.socketAutoReconnect);
+        this.ws.connect(this.config.socket_ws_uri, this.config.socket_auto_reconnect);
 
         let timerid = setTimeout(() => {
 
@@ -739,7 +741,7 @@ export class RoomsClient {
   };
 
   private addPeer = (remotePeer: Peer) => {
-    console.log( `addPeer() - ${remotePeer.displayName} ${remotePeer.peerId} ${remotePeer.trackingId}`);
+    console.log(`addPeer() - ${remotePeer.displayName} ${remotePeer.peerId} ${remotePeer.trackingId}`);
 
     if (this.peers.has(remotePeer.peerId)) {
       console.error(`peer already exists, ${remotePeer.peerId}`);
@@ -921,7 +923,7 @@ export class RoomsClient {
 
     let peer = this.peers.get(msgIn.data.peerId);
     if (!peer) {
-      console.error(`peer not found ${msgIn.data.peerId}, current peers:`, this.peers);      
+      console.error(`peer not found ${msgIn.data.peerId}, current peers:`, this.peers);
       return;
     }
 
@@ -1001,7 +1003,7 @@ export class RoomsClient {
       console.error("not in a room.")
       return;
     }
-   
+
     this.resetLocalPeer();
     this.resetPeers()
 

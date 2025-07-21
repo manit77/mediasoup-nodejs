@@ -8,7 +8,7 @@ import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
 import { ConferenceClientConfig } from "./models.js";
 import { ConferenceAPIClient } from "./conferenceAPIClient.js";
-
+import { IMsg, OkMsg } from "@rooms/rooms-models";
 
 export type callStates = "calling" | "answering" | "connecting" | "connected" | "disconnected";
 
@@ -65,15 +65,13 @@ export enum EventTypes {
     participantTrackToggled = "participantTrackToggled",
     participantJoined = "participantJoined",
     participantLeft = "participantLeft",
-
 }
-type ConferenceEvent = (eventType: EventTypes, payload?: any) => Promise<void>;
+
+type ConferenceEvent = (eventType: EventTypes, payload: IMsg) => Promise<void>;
 
 export class ConferenceClient {
-    private DSTR = "ConferenceClient";
-    private socket: WebSocketClient;
-    socketAutoReconnect: boolean = true;
 
+    private socket: WebSocketClient;
     localParticipant = new Participant();
     authToken: string = "";
     conferenceRoom: Conference = new Conference();
@@ -207,8 +205,8 @@ export class ConferenceClient {
         });
     }
 
-    connect(conf_wsURIOverride: string = "") {
-        console.log(`connect - autoReconnect: ${this.socketAutoReconnect}, conf_wsURIOverride: ${conf_wsURIOverride}`);
+    connect(options?: { socket_ws_uri?: string }) {
+        console.log(`connect`);
         if (this.socket) {
             console.error("already connecting.");
             return;
@@ -216,11 +214,11 @@ export class ConferenceClient {
 
         console.log("connecting to socket server.");
 
-        if (conf_wsURIOverride) {
-            this.config.conf_ws_url = conf_wsURIOverride;
+        if (options && options.socket_ws_uri) {
+            this.config.conf_ws_url = options.socket_ws_uri;
         }
 
-        if(this.socket) {
+        if (this.socket) {
             this.socket.disconnect();
             this.socket = null;
         }
@@ -250,29 +248,38 @@ export class ConferenceClient {
             await this.onSocketMessage(message);
         });
 
-        this.socket.connect(this.config.conf_ws_url, this.socketAutoReconnect);
+        this.socket.connect(this.config.conf_ws_url, true);
 
     }
 
     private async onSocketConnected() {
         console.log("onSocketConnected()");
 
-        await this.onEvent(EventTypes.connected);
+        await this.onEvent(EventTypes.connected, new OkMsg());
     }
 
     private async onSocketClosed(reason: string = "") {
-        console.log("onSocketClosed() - reason:", reason);
+        console.log(`onSocketClosed() - reconnecting: ${this.socket.autoReconnect}, state: ${this.socket.state} reason: ${reason}`);
 
         if (this.roomsClient) {
+            console.log(`closing roomsClient`);
             this.roomsClient.roomLeave();
             this.roomsClient.disconnect();
             this.roomsClient.dispose();
             this.roomsClient = null;
         }
 
-        await this.onEvent(EventTypes.disconnected);
+        if (this.isInConference()) {
+            let msg = new ConferenceClosedMsg();
+            msg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
+            msg.data.reason = "connection closed";            
+            await this.onEvent(EventTypes.conferenceClosed, msg);
+        }
+        this.resetConferenceRoom();
 
+        await this.onEvent(EventTypes.disconnected, new OkMsg());
     }
+
     private async onSocketMessage(message: { type: CallMessageType, data: any }) {
         console.log('onSocketMessage ' + message.type, message);
 
@@ -323,7 +330,7 @@ export class ConferenceClient {
 
         this.disconnectRoomsClient("disconnect");
 
-        this.socketAutoReconnect = false;
+
         if (this.socket) {
             console.log(`disconnecting from socket`);
             this.socket.disconnect();
@@ -335,8 +342,67 @@ export class ConferenceClient {
         return this.conferenceRoom.conferenceRoomId > "";
     }
 
-    register(username: string, authToken: string) {
-        console.log("register");
+    waitRegisterConnection(username: string, authToken: string) {
+        console.log("waitRegisterConnection");
+        return new Promise<CreateConfResultMsg>((resolve, reject) => {
+            let _onmessage: (event: any) => void;
+
+            let _removeEvents = () => {
+                if (_onmessage) {
+                    this.socket.removeEventHandler("onmessage", _onmessage);
+                }
+            }
+
+            try {
+                let timerid = setTimeout(() => {
+                    _removeEvents();
+                    reject("failed to register connection");
+                }, 5000);
+
+                _onmessage = (event: any) => {
+                    console.log("** onmessage", event.data);
+                    let msg = JSON.parse(event.data);
+
+                    if (msg.type == CallMessageType.registerResult) {
+                        clearTimeout(timerid);
+                        _removeEvents();
+
+                        let msgIn = msg as RegisterResultMsg;
+                        if (msgIn.data.error) {
+                            console.log(msgIn.data.error);
+                            reject("failed to register connection");
+                            return;
+                        }
+                        resolve(msgIn);
+                    }
+                };
+
+                this.socket.addEventHandler("onmessage", _onmessage);
+                this.registerConnection(username, authToken);
+
+            } catch (err: any) {
+                console.log(err);
+                _removeEvents();
+                reject("failed to register connection");
+            }
+        });
+    }
+    /**
+     * registers a websocket connection
+     * @param username 
+     * @param authToken 
+     */
+    registerConnection(username: string, authToken: string) {
+        console.log("registerConnection");
+
+        if(!username) {
+            console.error(`username is requied.`);
+            return;
+        }
+        if(!authToken) {
+            console.error(`authToken is requied.`);
+            return;
+        }
 
         // Register with the server
         const registerMsg: RegisterMsg = new RegisterMsg();
@@ -368,7 +434,7 @@ export class ConferenceClient {
         console.log(`invite() ${participantId}`);
 
         if (this.isInConference()) {
-            console.error(this.DSTR, "invite() - already in a conference.");
+            console.error("invite() - already in a conference.");
             return null;
         }
 
@@ -446,7 +512,7 @@ export class ConferenceClient {
                         let msgIn = msg as CreateConfResultMsg;
                         if (msgIn.data.error) {
                             console.log(msgIn.data.error);
-                            reject("failed to create");
+                            reject("failed to create conference");
                             return;
                         }
                         resolve(msgIn);
@@ -459,7 +525,7 @@ export class ConferenceClient {
             } catch (err: any) {
                 console.log(err);
                 _removeEvents();
-                reject("failed to join room");
+                reject("erorr on creating conference room");
             }
         });
     }
@@ -523,7 +589,13 @@ export class ConferenceClient {
 
         //get the conference config first
         if (!this.conferenceRoom.conferenceRoomConfig) {
-            console.warn(`getConferenceScheduled config `);
+
+            if (!args.trackingId) {
+                console.error(`trackingId is required.`);
+                return;
+            }
+
+            console.warn(`getConferenceScheduled config `, args.trackingId, args.clientData);
             let scheduled = await this.apiClient.getConferenceScheduled(args.trackingId, args.clientData);
             if (scheduled.data.error) {
                 console.error(scheduled.data.error);
@@ -565,7 +637,7 @@ export class ConferenceClient {
     private checkTrackAllowed(track: MediaStreamTrack) {
         console.warn("checkTrackAllowed", track.kind);
 
-        if(!this.conferenceRoom.conferenceRoomConfig) {
+        if (!this.conferenceRoom.conferenceRoomConfig) {
             console.error(`not conference config found.`);
             return;
         }
@@ -595,28 +667,28 @@ export class ConferenceClient {
         //the conferenceRoomId must be empty or it must match
 
         if (message.data.error) {
-            console.error(this.DSTR, "onInviteResult() - error received");
+            console.error("onInviteResult() - error received");
             this.callState = "disconnected";
 
         }
 
         if (!message.data.conferenceRoomId) {
-            console.error(this.DSTR, "onInviteResult() - no conferenceRoomId");
+            console.error("onInviteResult() - no conferenceRoomId");
             this.callState = "disconnected";
         }
 
         if (!this.inviteSendMsg) {
-            console.error(this.DSTR, "onInviteResult() - no invite sent");
+            console.error("onInviteResult() - no invite sent");
             this.callState = "disconnected";
         }
 
         if (this.conferenceRoom.conferenceRoomId && this.conferenceRoom.conferenceRoomId != message.data.conferenceRoomId) {
-            console.error(this.DSTR, `onInviteResult() - incorrect conferenceRoomId ${this.conferenceRoom.conferenceRoomId} ${message.data.conferenceRoomId}`);
+            console.error(`onInviteResult() - incorrect conferenceRoomId ${this.conferenceRoom.conferenceRoomId} ${message.data.conferenceRoomId}`);
             this.callState = "disconnected";
         }
 
         if (this.inviteSendMsg.data.participantId != message.data.participantId) {
-            console.error(this.DSTR, `onInviteResult() - incorrect participantId, invite:${this.inviteSendMsg.data.participantId} msg:${message.data.participantId}`);
+            console.error(`onInviteResult() - incorrect participantId, invite:${this.inviteSendMsg.data.participantId} msg:${message.data.participantId}`);
             this.callState = "disconnected";
         }
 
@@ -674,7 +746,7 @@ export class ConferenceClient {
         console.log("onInviteCancelled()");
 
         if (message.data.conferenceRoomId != this.conferenceRoom.conferenceRoomId) {
-            console.error(this.DSTR, "onInviteCancelled() - not the same conferenceRoomId.");
+            console.error("onInviteCancelled() - not the same conferenceRoomId.");
             return;
         }
 
@@ -697,12 +769,12 @@ export class ConferenceClient {
         }
 
         if (message.data.conferenceRoomId != this.inviteReceivedMsg.data.conferenceRoomId) {
-            console.error(this.DSTR, "accept failed. not the same conferenceRoomId");
+            console.error("accept failed. not the same conferenceRoomId");
             return false;
         }
 
         if (message.data.participantId != this.inviteReceivedMsg.data.participantId) {
-            console.error(this.DSTR, "accept failed. not the same participantId");
+            console.error("accept failed. not the same participantId");
             return false;
         }
 
@@ -746,12 +818,12 @@ export class ConferenceClient {
         }
 
         if (message.data.conferenceRoomId != this.inviteReceivedMsg.data.conferenceRoomId) {
-            console.error(this.DSTR, "accept failed. not the same conferenceRoomId");
+            console.error("accept failed. not the same conferenceRoomId");
             return false;
         }
 
         if (message.data.participantId != this.inviteReceivedMsg.data.participantId) {
-            console.error(this.DSTR, "accept failed. not the same participantId");
+            console.error("accept failed. not the same participantId");
             return false;
         }
 
@@ -850,7 +922,7 @@ export class ConferenceClient {
         console.log("onRejectReceived");
 
         if (this.conferenceRoom.conferenceRoomId != message.data.conferenceRoomId) {
-            console.error(this.DSTR, `conferenceRoomId does not match ${this.conferenceRoom.conferenceRoomId} ${message.data.conferenceRoomId}`);
+            console.error(`conferenceRoomId does not match ${this.conferenceRoom.conferenceRoomId} ${message.data.conferenceRoomId}`);
             return;
         }
 
@@ -874,7 +946,7 @@ export class ConferenceClient {
         console.log("onCreateConfResult");
 
         if (message.data.error) {
-            console.error(this.DSTR, message.data.error);
+            console.error(message.data.error);
 
             await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.data.error } });
             this.disconnectRoomsClient("onCreateConfResult");
@@ -893,7 +965,7 @@ export class ConferenceClient {
         console.log("onJoinConfResult");
 
         if (message.data.error) {
-            console.error(this.DSTR, "onJoinConfResult() - error received");
+            console.error("onJoinConfResult() - error received");
 
             this.clearCallConnectTimer();
             this.callState = "disconnected";
@@ -918,7 +990,7 @@ export class ConferenceClient {
         console.log("onConferenceReady()");
 
         if (this.conferenceRoom.conferenceRoomId != message.data.conferenceRoomId) {
-            console.error(this.DSTR, `onConferenceReady() - conferenceRoomId does not match ${this.conferenceRoom.conferenceRoomId} ${message.data.conferenceRoomId}`);
+            console.error(`onConferenceReady() - conferenceRoomId does not match ${this.conferenceRoom.conferenceRoomId} ${message.data.conferenceRoomId}`);
             return;
         }
 
@@ -934,27 +1006,27 @@ export class ConferenceClient {
         this.conferenceRoom.roomAuthToken = message.data.authToken;
 
         if (!this.conferenceRoom.roomId) {
-            console.error(this.DSTR, "ERROR: no roomId");
+            console.error("ERROR: no roomId");
             return;
         }
 
         if (!this.conferenceRoom.roomToken) {
-            console.error(this.DSTR, "ERROR: no roomToken");
+            console.error("ERROR: no roomToken");
             return;
         }
 
         if (!this.conferenceRoom.roomURI) {
-            console.error(this.DSTR, "ERROR: no roomURI");
+            console.error("ERROR: no roomURI");
             return;
         }
 
         if (!this.conferenceRoom.roomAuthToken) {
-            console.error(this.DSTR, "ERROR: no roomAuthToken");
+            console.error("ERROR: no roomAuthToken");
             return;
         }
 
         if (!message.data.roomRtpCapabilities) {
-            console.error(this.DSTR, "ERROR: no roomRtpCapabilities");
+            console.error("ERROR: no roomRtpCapabilities");
             return;
         }
 
@@ -1000,7 +1072,7 @@ export class ConferenceClient {
 
             }
         } catch (err) {
-            console.error(this.DSTR, err);
+            console.error(err);
 
             this.resetConferenceRoom();
 
@@ -1013,12 +1085,12 @@ export class ConferenceClient {
         console.log("onConferenceClosed()");
 
         if (!this.isInConference()) {
-            console.error(this.DSTR, "onConferenceClosed() - not in a conference.");
+            console.error("onConferenceClosed() - not in a conference.");
             return;
         }
 
         if (this.conferenceRoom.conferenceRoomId != message.data.conferenceRoomId) {
-            console.error(this.DSTR, `onConferenceClosed() - conferenceRoomId does not match ${this.conferenceRoom.conferenceRoomId} ${message.data.conferenceRoomId}`);
+            console.error(`onConferenceClosed() - conferenceRoomId does not match ${this.conferenceRoom.conferenceRoomId} ${message.data.conferenceRoomId}`);
             return;
         }
 
@@ -1040,12 +1112,16 @@ export class ConferenceClient {
             clearTimeout(this.roomsClientDisconnectTimerId);
         }
 
-        if (this.roomsClient && this.roomsClient.config.wsURI == roomURI) {
+        if (this.roomsClient && this.roomsClient.config.socket_ws_uri == roomURI) {
             console.log("room already initialized with URI:", roomURI);
             return;
         }
 
-        this.roomsClient = new RoomsClient();
+        this.roomsClient = new RoomsClient({
+            socket_auto_reconnect: true,
+            socket_enable_logs: this.config.socket_enable_logs,
+            socket_ws_uri: this.config.rooms_ws_url
+        });
 
         this.roomsClient.eventOnRoomSocketClosed = async () => {
             console.log("onRoomSocketClosedEvent");
@@ -1114,11 +1190,10 @@ export class ConferenceClient {
             let participant = this.conferenceRoom.participants.get(peer.trackingId);
 
             if (participant) {
-                console.error(`participant already in local conferenceRoom: ${participant.displayName}`);
+                console.error(`participant already in local conferenceRoom: ${participant.participantId} ${participant.displayName}`);
                 return;
             }
-
-
+          
             //this is a new peer get 
             participant = new Participant();
             participant.displayName = peer.displayName;
@@ -1235,7 +1310,7 @@ export class ConferenceClient {
             await this.onEvent(EventTypes.participantTrackToggled, msg);
         };
 
-        await this.roomsClient.inititalize({ socketAutoConnect: false, socketURI: roomURI, rtpCapabilities: roomRtpCapabilities });
+        await this.roomsClient.inititalize({ rtp_capabilities: roomRtpCapabilities });
     }
 
     private disconnectRoomsClient(reason: string, inSeconds: number = 10) {
