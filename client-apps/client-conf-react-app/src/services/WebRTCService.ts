@@ -3,10 +3,10 @@ import { SelectedDevices, User } from '../types';
 import { AcceptResultMsg, ConferenceClosedMsg, ConferenceRoomInfo, CreateConferenceParams, CreateConfResultMsg, GetConferencesResultMsg, InviteMsg, InviteResultMsg, JoinConferenceParams, JoinConfResultMsg, ParticipantInfo } from '@conf/conf-models';
 import { ConferenceClientConfig } from '@conf/conf-client/src/models';
 
-let confConfig : ConferenceClientConfig = {
+let confConfig: ConferenceClientConfig = {
     conf_server_url: "https://localhost:3100",
-    conf_ws_url : "https://localhost:3100",
-    socket_enable_logs : false,
+    conf_ws_url: "https://localhost:3100",
+    socket_enable_logs: false,
     rooms_ws_url: "https://localhost:3000",
 }
 
@@ -89,7 +89,7 @@ class WebRTCService {
 
         if (this.confClient) {
             this.confClient.dispose();
-        }            
+        }
     }
 
     public connectSignaling(user: User): void {
@@ -221,7 +221,7 @@ class WebRTCService {
         }
         try {
             await this.confClient.waitRegisterConnection(user.username, user.authToken);
-        } catch(err) {
+        } catch (err) {
             console.error(err);
             await this.onRegisterFailed("failed to register connection");
         }
@@ -250,12 +250,13 @@ class WebRTCService {
     public async getNewTracks(constraints?: MediaStreamConstraints) {
         console.log(`getNewTracks constraints:`, constraints);
         let stream = await this.confClient.getUserMedia(constraints);
+        let tracks = stream.getTracks();
 
         if (this.confClient.isInConference()) {
-            this.publishTracks(stream.getTracks());
+            await this.publishTracks(tracks);
         }
 
-        return stream.getTracks();
+        return tracks;
     }
 
     async publishTracks(tracks: MediaStreamTrack[]) {
@@ -281,19 +282,24 @@ class WebRTCService {
         });
 
         console.log("localStream tracks after publish:", this.localStream?.getTracks());
+
+        tracks.forEach(track => {
+            this.onParticipantTrackToggled(this.localParticipant.participantId, track);
+        });
     }
 
     public async unPublishTracks(tracks: MediaStreamTrack[]) {
         console.log("unPublishTracks");
 
         tracks.forEach(track => {
+            track.enabled = false;
             this.localStream?.removeTrack(track);
         });
         this.confClient.unPublishTracks(tracks);
-    }
 
-    public toggleTrack(enabled: boolean, track: MediaStreamTrack) {
-        track.enabled = enabled;
+        tracks.forEach(track => {
+            this.onParticipantTrackToggled(this.localParticipant.participantId, track);
+        });
     }
 
     public async getScreenTrack(): Promise<MediaStreamTrack | null> {
@@ -341,7 +347,7 @@ class WebRTCService {
             console.error("joinArgs trackingId is required.");
             return false;
         }
-        
+
         try {
             let newResult = await this.confClient.waitCreateConferenceRoom(createArgs);
             if (newResult.data.error) {

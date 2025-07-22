@@ -13,16 +13,10 @@ interface ParticipantVideoPreviewProps {
 }
 
 const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected }) => {
-    const { callParticipants, localParticipant, getLocalMedia, toggleMuteAudio, toggleMuteVideo } = useCall();
+    const { localParticipant, getLocalMedia, toggleMuteAudio, toggleMuteVideo } = useCall();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [videoOff, setVideoOff] = useState(participant.isVideoOff);
     const [micOff, setMicOff] = useState(participant.isMuted);
-
-
-    useEffect(() => {
-        setVideoOff(participant.isVideoOff);
-        setMicOff(participant.isMuted);
-    }, [participant, callParticipants]);
 
     useEffect(() => {
         console.log(`participant updated, set video srcObject ${participant.displayName}`);
@@ -30,8 +24,12 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
             videoRef.current.srcObject = participant.stream;
              console.log(`set srcObject ${participant.displayName}`);
         }
-    }, [participant]);
 
+        setVideoOff(participant.isVideoOff);
+        setMicOff(participant.isMuted);
+
+    }, [participant]);
+    
 
     // no reliable across
     // Add mute/unmute event listeners for tracks

@@ -103,7 +103,7 @@ export class ConferenceClient {
 
         console.log("dispose");
 
-        this.onEvent = null;        
+        this.onEvent = null;
         this.disconnectRoomsClient("dispose", 0);
 
         if (this.socket) {
@@ -111,7 +111,7 @@ export class ConferenceClient {
             this.socket.disconnect();
             this.socket = null;
         }
-                
+
         this.apiClient = null;
 
     }
@@ -166,6 +166,28 @@ export class ConferenceClient {
 
     publishTracks(tracks: MediaStreamTrack[]) {
         console.log(`publishTracks`);
+
+        if (this.isInConference() && this.conferenceRoom.joinParams) {
+            console.warn(`disable mic or cam based on user preference`, this.conferenceRoom.joinParams);
+
+            let joinParams = this.conferenceRoom.joinParams;
+            let videoTrack = tracks.find(t => t.kind === "video");
+            if (videoTrack) {
+                videoTrack.enabled = joinParams.videoEnabledOnStart;
+                this.checkTrackAllowed(videoTrack);
+                this.localParticipant.isVideoOff = !videoTrack.enabled;
+            }
+
+            let audioTrack = tracks.find(t => t.kind === "audio");
+            if (audioTrack) {
+                audioTrack.enabled = joinParams.audioEnabledOnStart;
+                this.checkTrackAllowed(audioTrack);
+
+                this.localParticipant.isMuted = !audioTrack.enabled;
+            }
+            console.warn(`track status audioTrack: ${audioTrack?.enabled}, videoTrack: ${videoTrack?.enabled}`);
+
+        }
 
         tracks.forEach(t => {
             this.checkTrackAllowed(t);
@@ -623,21 +645,6 @@ export class ConferenceClient {
             console.error(`not conference config found.`);
             return;
         }
-
-        //disable mic or cam based on user preference
-        let videoTrack = this.localParticipant.stream.getVideoTracks()[0];
-        if (videoTrack) {
-            videoTrack.enabled = args.videoEnabledOnStart;
-            this.checkTrackAllowed(videoTrack);
-        }
-
-        let audioTrack = this.localParticipant.stream.getAudioTracks()[0];
-        if (audioTrack) {
-            audioTrack.enabled = args.videoEnabledOnStart;
-            this.checkTrackAllowed(audioTrack);
-        }
-
-        console.log(`track status audioTrack: ${audioTrack?.enabled}, videoTrack: ${videoTrack?.enabled}}`);
 
         this.startCallConnectTimer();
         this.callState = "connecting";

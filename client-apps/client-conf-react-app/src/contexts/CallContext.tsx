@@ -13,6 +13,7 @@ interface CallContextType {
     isAuthenticated: boolean;
     localParticipant: Participant;
     isLocalStreamUpdated: boolean;
+
     isCallActive: boolean;
     conferenceRoom: Conference;
     callParticipants: Map<string, Participant>;
@@ -80,6 +81,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const [isLocalStreamUpdated, setIsLocalStreamUpdated] = useState<boolean>(false);
     const [availableDevices, setAvailableDevices] = useState<{ video: Device[]; audioIn: Device[]; audioOut: Device[] }>({ video: [], audioIn: [], audioOut: [] });
+    const [tracksUpdated, setTracksUpdated] = useState<MediaStreamTrack[]>([]);
 
     useEffect(() => {
         console.log(`** CallProvider mounted isAuthenticated:${isAuthenticated} isConnected: ${isConnected}`);
@@ -216,7 +218,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         webRTCService.onParticipantTrackToggled = async (participantId, track) => {
-            console.log(`CallContext: onParticipantTrackToggled ${participantId} ${track.kind}`);
+            console.log(`CallContext: onParticipantTrackToggled ${participantId}, kind:${track.kind}, enabled:${track.enabled}`);
             console.log(`call participants: `, callParticipants);
 
             if (!participantId) {
@@ -228,7 +230,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 console.error("CallContext: no track");
                 return;
             }
-
+            
             setCallParticipants(prev => new Map(webRTCService.conferenceRoom.participants));
         };
 
@@ -296,6 +298,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             setCallParticipants(prev => new Map(webRTCService.conferenceRoom.participants));
         };
+      
 
         return () => { // Cleanup
             webRTCService.disconnectSignaling("callContext cleanup");
@@ -552,6 +555,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isLoggedOff, setIsLoggedOff,
             localParticipant: localParticipant.current,
             isLocalStreamUpdated,
+            
             isCallActive: isCallActive,
             conferenceRoom: conferenceRoom,
             callParticipants,
