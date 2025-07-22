@@ -246,7 +246,7 @@ export class RoomServer {
     }
 
     /**
-     * 
+     * creates a new peer and adds it the peers map
      * @param trackingId custom id from a client
      * @returns 
      */
@@ -401,7 +401,7 @@ export class RoomServer {
         this.rooms.delete(room.id);
     }
 
-    private send(peerId: string, msg: any) {
+    private send(peerId: string, msg: IMsg) {
         let peer = this.getPeer(peerId);
         console.log(`send() - to: ${peer.displayName} `, msg.type);
         for (let eventListener of this.eventListeners) {
@@ -409,7 +409,7 @@ export class RoomServer {
         }
     }
 
-    private async broadCastExcept(room: Room, except: Peer, msg: any) {
+    private async broadCastExcept(room: Room, except: Peer, msg: IMsg) {
         console.log("broadCastExcept()", except.id);
         for (let peer of room.getPeers()) {
             if (except != peer) {
@@ -418,13 +418,17 @@ export class RoomServer {
         }
     }
 
-    private broadCastAll(room: Room, msg: any) {
+    private broadCastAll(room: Room, msg: IMsg) {
         console.log("broadCastAll()");
         for (let peer of room.getPeers()) {
             this.send(peer.id, msg);
         }
     }
-
+    /**
+     * registers a new peer
+     * @param msgIn
+     * @returns RegisterPeerResultMsg
+     */
     async onRegisterPeer(msgIn: RegisterPeerMsg) {
         console.log(`onRegister() - trackingId:${msgIn.data.trackingId},  displayName:${msgIn.data.displayName}`);
 
@@ -495,6 +499,7 @@ export class RoomServer {
 
         let producerTransportCreated = new ProducerTransportCreatedMsg();
         producerTransportCreated.data = {
+            roomId: peer.room.id,
             iceServers: null,
             iceTransportPolicy: null,
             transportId: peer.producerTransport.id,
@@ -527,6 +532,7 @@ export class RoomServer {
 
         let consumerTransportCreated = new ConsumerTransportCreatedMsg();
         consumerTransportCreated.data = {
+            roomId: peer.room.id,
             iceServers: null,
             iceTransportPolicy: null,
             transportId: peer.consumerTransport.id,
@@ -564,6 +570,7 @@ export class RoomServer {
         console.log("producerTransport connected.");
 
         let resultMsg = new ProducerTransportConnectedMsg();
+        resultMsg.data.roomId = peer.room.id;
         return resultMsg;
     }
 
@@ -590,6 +597,7 @@ export class RoomServer {
         await peer.consumerTransport!.connect({ dtlsParameters: msgIn.data.dtlsParameters });
 
         let resultMsg = new ConsumerTransportConnectedMsg();
+        resultMsg.data.roomId = peer.room.id;
         return resultMsg;
     }
 

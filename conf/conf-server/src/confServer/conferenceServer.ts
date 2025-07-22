@@ -494,6 +494,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     /**
      * the participant rejected an invite
+     * send RejectMsg to remote participant
      * @param ws 
      * @param msgIn 
      * @returns 

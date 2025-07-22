@@ -85,10 +85,10 @@ export class OkMsg implements IMsg {
     data = {}
 
     constructor(msgType?: any, data?: {}) {
-        if(msgType) {
+        if (msgType) {
             this.type = msgType;
         }
-        if(data) {
+        if (data) {
             this.data = data
         }
     }
@@ -142,8 +142,8 @@ export class CreateProducerTransportMsg implements IMsg {
 
 export class ProducerTransportCreatedMsg implements IMsg {
     type = payloadTypeServer.producerTransportCreated;
-    data: {
-        authToken?: string,
+    data: {        
+        roomId?: string,
         transportId?: string,
         iceParameters?: any,
         iceServers?: any,
@@ -156,7 +156,8 @@ export class ProducerTransportCreatedMsg implements IMsg {
 export class ProducerTransportConnectedMsg implements IMsg {
     type = payloadTypeServer.producerTransportConnected;
     data: {
-        error?: any
+        roomId?: string,
+        error?: any,
     } = {};
 }
 
@@ -179,8 +180,8 @@ export class CreateConsumerTransportMsg implements IMsg {
 
 export class ConsumerTransportCreatedMsg implements IMsg {
     type = payloadTypeServer.consumerTransportCreated;
-    data: {
-        authToken?: string,
+    data: {       
+        roomId?: string,
         transportId?: string,
         iceParameters?: any,
         iceServers?: any,
@@ -193,7 +194,8 @@ export class ConsumerTransportCreatedMsg implements IMsg {
 export class ConsumerTransportConnectedMsg implements IMsg {
     type = payloadTypeServer.consumerTransportConnected;
     data: {
-        error?: any
+        roomId?: string,
+        error?: any,
     } = {};
 }
 

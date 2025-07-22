@@ -7,8 +7,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         availableDevices,
         selectedDevices,
         getMediaDevices,
-        switchDevices,
-        setSelectedDevices
+        switchDevices,        
     } = useCall();
 
     const [audioId, setAudioId] = useState("");
@@ -40,13 +39,8 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
     };
 
     const closeButtonClick = async () => {
-        switchDevices(videoId, audioId, speakerId);
-        setSelectedDevices(prev => ({
-            ...prev,
-            videoId,
-            audioId,
-            speakerId
-        }));
+        console.warn(`closeButtonClick ${isAudioEnabled} ${isVideoEnabled}`);       
+        switchDevices(videoId, audioId, speakerId, isAudioEnabled, isVideoEnabled);        
         handleClose();
     };
 

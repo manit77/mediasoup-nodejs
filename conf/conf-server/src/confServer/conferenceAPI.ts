@@ -153,7 +153,7 @@ export class ConferenceAPI {
 
         console.log(`route: ${WebRoutes.getConferencesScheduled}`);
         this.app.post(WebRoutes.getConferencesScheduled, async (req, res) => {
-            console.log(`${WebRoutes.getConferencesScheduled}`);
+            //console.log(`${WebRoutes.getConferencesScheduled}`);
 
             let resultMsg = new GetConferencesScheduledResultMsg();
 

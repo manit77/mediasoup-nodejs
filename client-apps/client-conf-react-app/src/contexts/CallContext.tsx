@@ -53,7 +53,7 @@ interface CallContextType {
     stopScreenShare: () => void;
 
     getMediaDevices: () => Promise<void>;
-    switchDevices: (videoId: string, audioId: string, audioOutId: string) => Promise<void>;
+    switchDevices: (videoId: string, audioId: string, audioOutId: string, isAudioEnabled: boolean, isVideoEnabled: boolean) => Promise<void>;
 
 }
 
@@ -230,7 +230,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 console.error("CallContext: no track");
                 return;
             }
-            
+
             setCallParticipants(prev => new Map(webRTCService.conferenceRoom.participants));
         };
 
@@ -298,7 +298,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             setCallParticipants(prev => new Map(webRTCService.conferenceRoom.participants));
         };
-      
+
 
         return () => { // Cleanup
             webRTCService.disconnectSignaling("callContext cleanup");
@@ -317,10 +317,30 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log(`sendInvite to ${participantInfo.participantId} ${participantInfo.displayName}`);
 
         try {
-            let inviteMsg = await webRTCService.sendInvite(participantInfo.participantId);
-            inviteMsg.data.displayName = participantInfo.displayName;
+            //at least one device must be enabled
+            if(!selectedDevices.isAudioEnabled && !selectedDevices.isVideoEnabled){
+                ui.showPopUp("at least one device must be enabled. please check your settings.");
+                return;
+            }
 
+            let joinArgs: JoinConferenceParams = {
+                audioEnabledOnStart: selectedDevices.isAudioEnabled,
+                clientData: api.getCurrentUser()?.clientData,
+                conferenceCode: "",
+                conferenceRoomId: "",
+                roomName: "",
+                trackingId: "",
+                videoEnabledOnStart: selectedDevices.isVideoEnabled
+            }
+
+            let inviteMsg = await webRTCService.sendInvite(participantInfo.participantId, joinArgs);
+            if(!inviteMsg) {
+                ui.showPopUp("error unable to initiate a new call");
+                return;
+            }
+            inviteMsg.data.displayName = participantInfo.displayName;
             setInviteInfoSend(inviteMsg);
+
             console.log(`Call initiated to ${participantInfo.displayName}`);
         } catch (error) {
             console.error('Failed to initiate call:', error);
@@ -503,7 +523,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [getMediaConstraints]);
 
-    const switchDevices = useCallback(async (videoId: string, audioId: string, speakerId: string) => {
+    const switchDevices = useCallback(async (videoId: string, audioId: string, speakerId: string, isAudioEnabled: boolean, isVideoEnabled: boolean) => {
         console.log(`switchDevices videoId:${videoId}, audioId:${audioId}, speakerId:${speakerId}, micEnabled:${selectedDevices.isAudioEnabled}, cameraEnabled:${selectedDevices.isVideoEnabled}`);
 
         //set selected devices
@@ -518,6 +538,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (selectedDevices.audioOutId !== speakerId) {
             selectedDevices.audioOutId = speakerId ?? selectedDevices.audioOutId;
         }
+
+        selectedDevices.isAudioEnabled = isAudioEnabled;
+        selectedDevices.isVideoEnabled = isVideoEnabled;
 
         const constraints = {
             audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
@@ -555,7 +578,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isLoggedOff, setIsLoggedOff,
             localParticipant: localParticipant.current,
             isLocalStreamUpdated,
-            
+
             isCallActive: isCallActive,
             conferenceRoom: conferenceRoom,
             callParticipants,

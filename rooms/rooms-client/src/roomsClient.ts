@@ -1135,6 +1135,13 @@ export class RoomsClient {
   private onConsumerTransportCreated = async (msgIn: ConsumerTransportCreatedMsg) => {
     console.log("** onConsumerTransportCreated");
 
+    //the server has created a consumer transport for the peer 
+    //roomid should match the local roomid
+    if(msgIn.data.roomId != this.localPeer.roomId) {
+      console.error(`onConsumerTransportCreated: invalid message for roomid`);
+      return;
+    }
+
     this.localPeer.transportReceive = this.device.createRecvTransport({
       id: msgIn.data.transportId,
       iceServers: msgIn.data.iceServers ?? this.iceServers,
@@ -1165,8 +1172,14 @@ export class RoomsClient {
 
   private onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
     console.log("** onProducerTransportCreated");
+    
+    //the server has created a producer transport for the peer
+    //roomid should match the local roomid
+    if(msgIn.data.roomId != this.localPeer.roomId) {
+      console.error(`onProducerTransportCreated: invalid message for roomid`);
+      return;
+    }
 
-    //the server has created a transport
     //create a client transport to connect to the server transport
     this.localPeer.transportSend = this.device.createSendTransport({
       id: msgIn.data!.transportId,

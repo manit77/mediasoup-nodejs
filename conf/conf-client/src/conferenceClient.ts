@@ -464,11 +464,11 @@ export class ConferenceClient {
     /**
      * send an invite to a participant that is online
      * this is a p2p conference room
+     * send InviteMsg, wait to receive InviteResultMsg
      * @param participantId 
      */
-    invite(participantId: string): InviteMsg {
-        console.log(`invite() ${participantId}`);
-
+    invite(participantId: string, args: JoinConferenceParams): InviteMsg {
+        console.warn(`invite() ${participantId}`, args);
         if (this.isInConference()) {
             console.error("invite() - already in a conference.");
             return null;
@@ -482,9 +482,10 @@ export class ConferenceClient {
         this.callState = "calling";
         this.inviteSendMsg = new InviteMsg();
         this.inviteSendMsg.data.participantId = participantId;
-        this.sendToServer(this.inviteSendMsg);
+        this.sendToServer(this.inviteSendMsg);        
 
         this.startCallConnectTimer();
+        this.conferenceRoom.joinParams = args;
 
         return this.inviteSendMsg;
     }
@@ -684,7 +685,7 @@ export class ConferenceClient {
     }
 
     /**
-     * sent and invite and received a result
+     * sent and InviteMsg, received InviteResultMsg, wait to receive ConferenceReadyMsg or RejectMsg
      */
     private async onInviteResult(message: InviteResultMsg) {
         console.log("onInviteResult()");
@@ -903,10 +904,11 @@ export class ConferenceClient {
         console.log("sendToServer " + message.type, message);
 
         if (this.socket) {
-            this.socket.send(JSON.stringify(message));
+            return this.socket.send(JSON.stringify(message));            
         } else {
-            console.error('Socket is not connected');
+            console.error('Error sending message, socket is not connected');
         }
+        return false;
     }
 
     private async onRegisterResult(message: RegisterResultMsg) {

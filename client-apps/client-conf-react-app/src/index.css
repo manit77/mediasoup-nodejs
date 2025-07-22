@@ -26,5 +26,8 @@ code {
 :root, .navbar {
   --bs-navbar-brand-color: #ffffff !important; /* White for testing */
 }
+:root {
+  --bs-border-color: #000000;
+}
 
 

@@ -379,9 +379,9 @@ class WebRTCService {
      * calls a participant that is online
      * @param participantId 
      */
-    public async sendInvite(participantId: string): Promise<InviteMsg> {
-        console.log(`sendInvite ${participantId}`);
-        return this.confClient.invite(participantId);
+    public async sendInvite(participantId: string, args: JoinConferenceParams): Promise<InviteMsg> {
+        console.log(`sendInvite ${participantId}`, args);
+        return this.confClient.invite(participantId, args);
     }
 
     /**
