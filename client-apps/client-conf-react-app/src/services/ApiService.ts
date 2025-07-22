@@ -112,7 +112,7 @@ class ApiService {
     }
 
     fetchConferencesScheduled = async (): Promise<ConferenceRoomScheduled[]> => {
-        console.log("fetchConferencesScheduled");
+        //console.log("fetchConferencesScheduled");
         //get rooms from API        
 
 
@@ -139,7 +139,7 @@ class ApiService {
             }
         } as ConferenceRoomScheduled));
 
-        console.log(`ConferenceRoomScheduled:`, this.conferencesScheduled);
+        //console.log(`ConferenceRoomScheduled:`, this.conferencesScheduled);
 
         return this.conferencesScheduled;
     };

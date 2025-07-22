@@ -20,7 +20,7 @@ class WebRTCService {
     maxRegisterAttempts = 3;
 
     constructor() {
-        console.log(`ConferenceClient initialized`)
+        console.warn(`*** new WebRTCService initialized.`)
     }
 
     get localStream(): MediaStream | null {
@@ -70,32 +70,30 @@ class WebRTCService {
     public onParticipantJoined: (participantId: string, displayName: string) => Promise<void> = async () => { };
     public onParticipantLeft: (participantId: string) => Promise<void> = async () => { };
 
-    // public dispose() {
-    //     console.log("dispose");
-    //     this.onServerConnected = null;
-    //     this.onServerDisconnected = null;
-    //     this.onRegistered = null;
-    //     this.onRegisterFailed = null;
-    //     this.onParticipantsReceived = null;
-    //     this.onConferencesReceived = null;
-    //     this.onInviteReceived = null;
-    //     this.onConferenceJoined = null;
-    //     this.onConferenceEnded = null;
-    //     this.onParticipantTrack = null;
-    //     this.onParticipantJoined = null;
-    //     this.onParticipantLeft = null;
+    public dispose() {
+        console.log("dispose");
+        this.onServerConnected = null;
+        this.onServerDisconnected = null;
+        this.onRegistered = null;
+        this.onRegisterFailed = null;
+        this.onParticipantsReceived = null;
+        this.onConferencesReceived = null;
+        this.onInviteReceived = null;
+        this.onConferenceJoined = null;
+        this.onConferenceEnded = null;
+        this.onParticipantTrack = null;
+        this.onParticipantJoined = null;
+        this.onParticipantLeft = null;
 
-    //     this.removeTracks();
+        this.removeTracks();
 
-    //     if (this.confClient) {
-    //         this.confClient.onEvent = null;
-    //         this.confClient.disconnect();
-    //         this.confClient = null;
-    //     }
-    // }
+        if (this.confClient) {
+            this.confClient.dispose();
+        }            
+    }
 
     public connectSignaling(user: User): void {
-        console.log("connectSignaling");
+        console.log("connectSignaling.");
         this.localUser = user;
 
         if (!user.authToken || !user.username) {
@@ -332,6 +330,7 @@ class WebRTCService {
     }
 
     public async createConferenceAndJoin(createArgs: CreateConferenceParams, joinArgs: JoinConferenceParams): Promise<boolean> {
+        console.warn("createConferenceAndJoin", createArgs, joinArgs);
 
         if (!createArgs.trackingId) {
             console.error("createArgs trackingId is required.");

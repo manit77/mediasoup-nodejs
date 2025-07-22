@@ -95,7 +95,25 @@ export class ConferenceClient {
     CallConnectTimeoutTimerIds = new Set<any>();
 
     constructor(private config: ConferenceClientConfig) {
+        console.warn(`*** new ConferenceClient`);
         this.apiClient = new ConferenceAPIClient(config);
+    }
+
+    dispose() {
+
+        console.log("dispose");
+
+        this.onEvent = null;        
+        this.disconnectRoomsClient("dispose", 0);
+
+        if (this.socket) {
+            console.log(`disconnecting from socket`);
+            this.socket.disconnect();
+            this.socket = null;
+        }
+                
+        this.apiClient = null;
+
     }
 
     startCallConnectTimer() {
@@ -206,19 +224,14 @@ export class ConferenceClient {
     }
 
     connect(options?: { socket_ws_uri?: string }) {
-        console.log(`connect`);
-        if (this.socket) {
-            console.error("already connecting.");
-            return;
-        }
-
-        console.log("connecting to socket server.");
+        console.log(`connect to socket server.`);
 
         if (options && options.socket_ws_uri) {
             this.config.conf_ws_url = options.socket_ws_uri;
         }
 
         if (this.socket) {
+            console.warn(`socket already exists, disconnect.`);
             this.socket.disconnect();
             this.socket = null;
         }
@@ -272,7 +285,7 @@ export class ConferenceClient {
         if (this.isInConference()) {
             let msg = new ConferenceClosedMsg();
             msg.data.conferenceRoomId = this.conferenceRoom.conferenceRoomId;
-            msg.data.reason = "connection closed";            
+            msg.data.reason = "connection closed";
             await this.onEvent(EventTypes.conferenceClosed, msg);
         }
         this.resetConferenceRoom();
@@ -395,11 +408,11 @@ export class ConferenceClient {
     registerConnection(username: string, authToken: string) {
         console.log("registerConnection");
 
-        if(!username) {
+        if (!username) {
             console.error(`username is requied.`);
             return;
         }
-        if(!authToken) {
+        if (!authToken) {
             console.error(`authToken is requied.`);
             return;
         }
@@ -579,7 +592,7 @@ export class ConferenceClient {
     }
 
     async joinConferenceRoom(args: JoinConferenceParams) {
-        console.log(`joinConferenceRoom conferenceRoomId: ${args.conferenceRoomId} conferenceCode: ${args.conferenceCode}`);
+        console.warn(`joinConferenceRoom conferenceRoomId: ${args.conferenceRoomId} conferenceCode: ${args.conferenceCode}`);
 
         if (this.conferenceRoom.conferenceRoomId) {
             console.error(`already in conferenceroom ${this.conferenceRoom.conferenceRoomId}`);
@@ -624,6 +637,8 @@ export class ConferenceClient {
             this.checkTrackAllowed(audioTrack);
         }
 
+        console.log(`track status audioTrack: ${audioTrack?.enabled}, videoTrack: ${videoTrack?.enabled}}`);
+
         this.startCallConnectTimer();
         this.callState = "connecting";
 
@@ -636,7 +651,7 @@ export class ConferenceClient {
     }
 
     private checkTrackAllowed(track: MediaStreamTrack) {
-        console.warn("checkTrackAllowed", track.kind);
+        console.warn("checkTrackAllowed", track.kind, this.conferenceRoom.conferenceRoomConfig);
 
         if (!this.conferenceRoom.conferenceRoomConfig) {
             console.error(`not conference config found.`);
@@ -657,8 +672,9 @@ export class ConferenceClient {
             }
         }
 
-    }
+        console.warn(`track ${track.kind} ${track.enabled}`);
 
+    }
 
     /**
      * sent and invite and received a result
@@ -1194,7 +1210,7 @@ export class ConferenceClient {
                 console.error(`participant already in local conferenceRoom: ${participant.participantId} ${participant.displayName}`);
                 return;
             }
-          
+
             //this is a new peer get 
             participant = new Participant();
             participant.displayName = peer.displayName;

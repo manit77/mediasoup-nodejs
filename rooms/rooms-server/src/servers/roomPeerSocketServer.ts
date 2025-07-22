@@ -53,7 +53,7 @@ export class RoomPeerSocketServer {
             let conn = [...this.connections.values()].find(c => c.peerId == peerId);
             if (conn) {
                 if (msg.type == payloadTypeClient.terminatePeer) {
-                    consoleLog(LOG, "socket closed");
+                    consoleLog(LOG, "terminatePeer");
                     conn.ws?.close();
                     this.connections.delete(conn.ws);
                     return;
@@ -83,13 +83,15 @@ export class RoomPeerSocketServer {
                 try {
                     consoleLog(LOG, "msgIn, ", message.toString());
                     const msgIn = JSON.parse(message.toString());
-                    if (msgIn.type === payloadTypeClient.authUserNewToken) {                        
+                    if (msgIn.type === payloadTypeClient.authUserNewToken) {
                         let resultMsg = this.roomServer.onAuthUserNewTokenMsg(msgIn);
                         this.send(ws, resultMsg);
-                        return;                        
+                        return;
                     } else if (msgIn.type == payloadTypeClient.registerPeer) {
                         if (newConnection.peerId) {
-                            consoleError(`connection already registered. ${newConnection.peerId}, ${newConnection.displayName}`);
+                            consoleWarn(`connection already registered. ${newConnection.peerId}, ${newConnection.displayName}`);
+                            let registerResult = await this.roomServer.onRegisterPeer(msgIn);
+                            this.send(ws, registerResult);
                             return;
                         }
                         //we need to tie the peerid to the socket

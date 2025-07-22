@@ -49,7 +49,6 @@ const AuthenticatedLayout: React.FC = () => {
           setShowingPreview(false);
           return;
         } else {
-          videoTrack.enabled = true;
           setPreviewStream(stream);
         }
       })

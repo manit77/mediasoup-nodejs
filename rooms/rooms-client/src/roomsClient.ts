@@ -37,6 +37,8 @@ export class RoomsClient {
   }
 
   constructor(options: { socket_ws_uri: string, socket_auto_reconnect: boolean, socket_enable_logs: boolean }) {
+    console.warn(`*** new RoomsClient`);
+
     this.config.socket_auto_reconnect = options.socket_auto_reconnect;
     this.config.socket_enable_logs = options.socket_enable_logs;
     this.config.socket_ws_uri = options.socket_ws_uri;
@@ -609,7 +611,8 @@ export class RoomsClient {
   };
 
   roomJoin = (roomid: string, roomToken: string) => {
-    console.log(`roomJoin ${roomid} ${roomToken}`)
+    console.log(`roomJoin ${roomid} ${roomToken}`);
+
     let msg = new RoomJoinMsg();
     msg.data = {
       roomId: roomid,
@@ -620,6 +623,7 @@ export class RoomsClient {
 
   roomLeave = () => {
     console.log("roomLeave");
+
     if (!this.localPeer.roomId) {
       console.error("not in room");
       return;
@@ -641,6 +645,7 @@ export class RoomsClient {
 
   private initMediaSoupDevice = async (rtpCapabilities?: any) => {
     console.log("initMediaSoupDevice");
+
     if (this.device) {
       console.log("device already initialized");
       return;
@@ -1277,8 +1282,6 @@ export class RoomsClient {
     }
 
     const consumer = await peer.createConsumer(this.localPeer.transportReceive, msgIn.data.peerId, msgIn.data.consumerId, msgIn.data.producerId, msgIn.data.kind, msgIn.data.rtpParameters);
-    consumer.track.enabled = true;
-
     console.log(`add track for ${peer.displayName} of type ${consumer.track.kind}`);
 
     if (this.eventOnPeerNewTrack) {

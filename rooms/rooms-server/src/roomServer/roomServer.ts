@@ -153,7 +153,7 @@ export class RoomServer {
             return null;
         }
 
-        switch (msgIn.type) {                 
+        switch (msgIn.type) {
             case payloadTypeClient.terminatePeer: {
                 return this.onTerminatePeer(peerId, msgIn);
             }
@@ -446,7 +446,19 @@ export class RoomServer {
             return errMsg;
         }
 
-        let peer = this.createPeer(msgIn.data.authToken, msgIn.data.trackingId, msgIn.data.displayName);
+        //get peer by trackingId
+        let peer = [...this.peers.values()].find(p => p.trackingId === msgIn.data.trackingId);
+        if (peer) {
+            consoleWarn(`peer already exists by trackingId ${peer.trackingId}, ${peer.displayName}, ${peer.id}`);
+            let msg = new RegisterPeerResultMsg();
+            msg.data = {
+                peerId: peer.id,
+                displayName: msgIn.data.displayName,
+            };
+            return msg;
+        }
+
+        peer = this.createPeer(msgIn.data.authToken, msgIn.data.trackingId, msgIn.data.displayName);
         if (!peer) {
             let errMsg = new RegisterPeerResultMsg();
             errMsg.data = {

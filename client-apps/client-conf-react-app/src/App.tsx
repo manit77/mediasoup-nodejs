@@ -7,16 +7,19 @@ import AuthenticatedLayout from './components/layout/AuthenticatedLayout';
 import OnCallScreen from './components/call/OnCallScreen';
 import { useAPI } from './hooks/useAPI';
 import { useCall } from './hooks/useCall';
-import { UIProvider} from './contexts/UIContext';
+import { UIProvider } from './contexts/UIContext';
+import { webRTCService } from './services/WebRTCService';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAPI();
   const { isCallActive } = useCall();
 
   useEffect(() => {
-    console.log('loading.. app');
-    // showPopup("hello popup");
-    // showToast("hello toast");
+    console.warn('loading app');
+    return () => {
+      console.warn('unmounting app');
+      webRTCService.dispose();
+    }
   }, [])
 
 
@@ -52,11 +55,11 @@ function App() {
   return (
     <Router>
       <UIProvider>
-      <APIProvider>
-        <CallProvider>
-          <AppRoutes />
-        </CallProvider>
-      </APIProvider>
+        <APIProvider>
+          <CallProvider>
+            <AppRoutes />
+          </CallProvider>
+        </APIProvider>
       </UIProvider>
     </Router>
   );

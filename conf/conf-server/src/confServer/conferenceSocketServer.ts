@@ -29,7 +29,7 @@ export class ConferenceSocketServer {
         this.wsServer = new WebSocketServer({ server: this.httpServer });
         this.wsServer.on('connection', (ws: WebSocket) => {
 
-            consoleLog(LOG, "new socket connected, current participants: " + this.confServer.participants.size);
+            consoleLog(LOG, `new socket connected, connections: ${this.connections.size}, participants: ` + this.confServer.participants.size);
             let newConnection = new SocketConnection(ws, this.config.conf_socket_timeout_secs);
             newConnection.addEventHandlers(this.onSocketTimeout.bind(this));
             this.connections.set(ws, newConnection);
