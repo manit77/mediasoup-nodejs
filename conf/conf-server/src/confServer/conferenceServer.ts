@@ -243,6 +243,14 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return errorMsg;
         }
 
+        if (!msgIn.data.displayName) {
+            console.error("displayName is required.");
+
+            let errorMsg = new RegisterResultMsg();
+            errorMsg.data.error = "displayName is required.";
+            return errorMsg;
+        }
+
         if (!msgIn.data.authToken) {
             console.error("authToken is required.");
 
@@ -262,8 +270,6 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         let participant: Participant = this.createParticipant(msgIn.data.username, msgIn.data.username);
-
-        let authToken: string = msgIn.data.authToken;
         let authTokenObject: IAuthPayload;
         authTokenObject = jwtVerify(this.config.conf_secret_key, msgIn.data.authToken) as IAuthPayload;
 
@@ -271,8 +277,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         let msg = new RegisterResultMsg();
         msg.data = {
-            username: participant.displayName,
-            authToken: authToken,
+            username: authTokenObject.username,
             participantId: participant.participantId,
             role: authTokenObject.role ?? ParticipantRole.guest
         };

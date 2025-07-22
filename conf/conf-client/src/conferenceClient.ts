@@ -407,6 +407,7 @@ export class ConferenceClient {
         // Register with the server
         const registerMsg: RegisterMsg = new RegisterMsg();
         registerMsg.data.username = username;
+        registerMsg.data.displayName = username;
         registerMsg.data.authToken = authToken;
         this.sendToServer(registerMsg);
     }

@@ -128,11 +128,11 @@ export class RoomServer {
         return worker;
     }
 
-    addEventListner(eventListener: outMessageEventListener) {
+    addEventListener(eventListener: outMessageEventListener) {
         this.eventListeners.push(eventListener);
     }
 
-    removeEventListner(eventListener: outMessageEventListener) {
+    removeEventListener(eventListener: outMessageEventListener) {
         let idx = this.eventListeners.findIndex((l) => l === eventListener);
         if (idx > -1) {
             this.eventListeners.splice(idx, 1);
@@ -153,13 +153,7 @@ export class RoomServer {
             return null;
         }
 
-        switch (msgIn.type) {
-            case payloadTypeClient.authUserNewToken: {
-                return this.onAuthUserNewTokenMsg(msgIn);
-            }
-            case payloadTypeClient.registerPeer: {
-                return this.onRegisterPeer(msgIn);
-            }
+        switch (msgIn.type) {                 
             case payloadTypeClient.terminatePeer: {
                 return this.onTerminatePeer(peerId, msgIn);
             }
@@ -433,6 +427,24 @@ export class RoomServer {
 
     async onRegisterPeer(msgIn: RegisterPeerMsg) {
         console.log(`onRegister() - trackingId:${msgIn.data.trackingId},  displayName:${msgIn.data.displayName}`);
+
+        if (!msgIn.data.trackingId) {
+            consoleError("tracking id is required.");
+            let errMsg = new RegisterPeerResultMsg();
+            errMsg.data = {
+                error: "tracking id for peer is required."
+            };
+            return errMsg;
+        }
+
+        if (!msgIn.data.displayName) {
+            consoleError("displayName for peer is required.");
+            let errMsg = new RegisterPeerResultMsg();
+            errMsg.data = {
+                error: "displayName for peer is required."
+            };
+            return errMsg;
+        }
 
         let peer = this.createPeer(msgIn.data.authToken, msgIn.data.trackingId, msgIn.data.displayName);
         if (!peer) {
@@ -831,7 +843,7 @@ export class RoomServer {
         let room = peer.room;
         //peer.close will broadcast to all peers that the peer has left the room, see onPeerRemovedEvent
         peer.close();
-        
+
         // let msg = new RoomPeerLeftMsg();
         // msg.data = {
         //     peerId: peer.id,
@@ -1090,7 +1102,7 @@ export class RoomServer {
 
         console.log(`### peers: ${this.peers.size} ###`);
         for (let [peerid, peer] of this.peers) {
-            console.log(`##### peerid: ${peerid}, displayName: ${peer.displayName}`);
+            console.log(`##### peerid: ${peerid}, displayName: ${peer.displayName}, roomid: ${peer.room?.id}`);
         }
         console.log("### ##### ###");
     }

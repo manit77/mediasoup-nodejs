@@ -94,6 +94,7 @@ export class RegisterMsg {
     type = CallMessageType.register;
     data = {
         username: "",
+        displayName: "",
         authToken: "",
         participantId: ""
     }
@@ -102,8 +103,7 @@ export class RegisterMsg {
 export class RegisterResultMsg {
     type = CallMessageType.registerResult;
     data: {
-        username?: string,
-        authToken?: string,
+        username?: string,        
         participantId?: string,
         role?: ParticipantRole,
         error?: string
