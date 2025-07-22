@@ -48,7 +48,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const isUser = useCallback((): boolean => {
         const user = getCurrentUser();
         if (user) {
-            return user.role === "user";
+            return user.role === "user" || user.role === "admin";
         }
         return false;
     }, [getCurrentUser]);

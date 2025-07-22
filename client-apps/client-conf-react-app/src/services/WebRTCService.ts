@@ -20,7 +20,7 @@ class WebRTCService {
     maxRegisterAttempts = 3;
 
     constructor() {
-        console.warn(`*** new WebRTCService initialized.`)
+        console.log(`*** new WebRTCService initialized.`)
     }
 
     get localStream(): MediaStream | null {
@@ -263,7 +263,7 @@ class WebRTCService {
         console.log("publishTracks tracks:", tracks);
 
         if (!this.confClient.isInConference()) {
-            console.log(`cannot publish tracks, not in a conference.`);
+            console.info(`cannot publish tracks, not in a conference.`);
             return;
         }
 
@@ -316,10 +316,13 @@ class WebRTCService {
         });
     }
 
-    public updateTrackEnabled(participantId: string) {
-        console.log(`updateTracksStatus participantId: ${participantId}`);
-        console.log(`localStream tracks:`, this.localStream?.getTracks());
-        this.confClient?.updateTrackEnabled(participantId);
+    public muteParticipantTrack(participantId: string, audioEnabled: boolean, videoEnabled: boolean) {
+        this.confClient?.muteParticipantTrack(participantId, audioEnabled, videoEnabled);
+    }
+
+    public updateTrackEnabled() {
+        console.log(`updateTrackEnabled`);        
+        this.confClient?.updateTrackEnabled();
 
     }
 
@@ -336,7 +339,7 @@ class WebRTCService {
     }
 
     public async createConferenceAndJoin(createArgs: CreateConferenceParams, joinArgs: JoinConferenceParams): Promise<boolean> {
-        console.warn("createConferenceAndJoin", createArgs, joinArgs);
+        console.log("createConferenceAndJoin", createArgs, joinArgs);
 
         if (!createArgs.trackingId) {
             console.error("createArgs trackingId is required.");
@@ -500,10 +503,9 @@ class WebRTCService {
     }
 
     private async eventConferenceJoined(msg: JoinConfResultMsg) {
-        console.log("eventConferenceJoined", msg);
-
-        if (this.localStream) {
-            this.confClient.publishTracks(this.localStream?.getTracks());
+        console.log("eventConferenceJoined, try to publishTracks", msg);        
+        if (this.localStream) {            
+            this.confClient.publishTracks(this.localStream.getTracks());
         }
         await this.onConferenceJoined(msg.data.conferenceRoomId);
     }

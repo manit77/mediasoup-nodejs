@@ -15,9 +15,9 @@ const AppRoutes: React.FC = () => {
   const { isCallActive } = useCall();
 
   useEffect(() => {
-    console.warn('loading app');
+    console.log('loading app');
     return () => {
-      console.warn('unmounting app');
+      console.log('unmounting app');
       webRTCService.dispose();
     }
   }, [])

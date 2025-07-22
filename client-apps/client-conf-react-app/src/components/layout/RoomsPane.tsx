@@ -31,7 +31,7 @@ const RoomsPane: React.FC = () => {
       setLoading(true);
       // Fetch both scheduled and online conferences
       await fetchConferencesScheduled(); // Make sure this actually fetches data
-      await getConferenceRoomsOnline(); // Assuming this fetches data for conferencesOnline
+      getConferenceRoomsOnline(); // Assuming this fetches data for conferencesOnline
       setLoading(false);
     } catch (error) {
       console.error('Failed to refresh rooms:', error);
@@ -86,8 +86,9 @@ const RoomsPane: React.FC = () => {
     setSelectedConferenceToJoin(null); // Clear selected conference
   };
 
-  const handleScheduledConferenceClick = async (scheduledConference: ConferenceRoomScheduled) => {
-    // Instead of directly joining, now we show the pop-up
+  const handleScheduledConferenceClick = async (scheduledConference: ConferenceRoomScheduled) => {    
+    console.log(`handleScheduledConferenceClick`, scheduledConference);
+
     handleShowJoinPopUp(scheduledConference);
   };
 

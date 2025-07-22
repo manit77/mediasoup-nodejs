@@ -24,6 +24,7 @@ export enum payloadTypeClient {
     roomConsumeStream = "roomConsumeStream",
 
     roomProducerToggleStream = "roomProducerToggleStream",
+    roomProducerMuteStream = "roomProducerMuteStream",
 }
 
 
@@ -415,6 +416,18 @@ export class RoomConsumeStreamResultMsg implements IMsg {
 }
 
 export class RoomProducerToggleStreamMsg {
+    type = payloadTypeClient.roomProducerToggleStream
+    data: {
+        roomId?: string,
+        peerId?: string,
+        tracksInfo?: {
+            kind?: "audio" | "video" | string,
+            enabled?: boolean
+        }[];
+    } = {}
+}
+
+export class RoomProducerMuteStreamMsg {
     type = payloadTypeClient.roomProducerToggleStream
     data: {
         roomId?: string,

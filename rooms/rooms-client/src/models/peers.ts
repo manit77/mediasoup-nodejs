@@ -32,7 +32,7 @@ export class LocalPeer implements IPeer {
 
   removeProducer(producer: Producer) {
     console.log(`removeProducer ${producer.kind}`);
-    this.producers.delete(producer.kind);    
+    this.producers.delete(producer.kind);
   }
 
   /**
@@ -51,6 +51,11 @@ export class LocalPeer implements IPeer {
     }
 
     let producer = await this.transportSend.produce({ track });
+    if (!track.enabled) {
+      console.warn(`*** pause the producer`);
+      producer.pause();
+    }
+
     this.addProducer(producer);
     return producer;
   }
@@ -59,14 +64,15 @@ export class LocalPeer implements IPeer {
     console.log(`addProducer ${producer.kind}`);
 
     producer.on("trackended", () => {
-      console.log(`producer - track ended ${producer.track?.id} ${producer.track?.kind}`);
+      console.log(`producer - ${producer.track?.kind} track ended ${producer.track?.id} ${producer.track?.kind}`);
     });
+    
     producer.observer.on('pause', () => {
-      console.log('producer - paused (muted)');
+      console.log(`producer - ${producer.track?.kind} track paused (muted)`);
     });
 
     producer.observer.on('resume', () => {
-      console.log('producer - resumed (unmuted)');
+      console.log(`producer - ${producer.track?.kind} track resumed (unmuted)`);
     });
 
     this.producers.set(producer.kind, producer);

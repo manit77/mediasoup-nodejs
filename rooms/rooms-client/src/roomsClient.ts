@@ -7,6 +7,7 @@ import {
   ErrorMsg, IMsg, OkMsg, payloadTypeClient, payloadTypeServer, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg,
   RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeStreamMsg, RoomConsumeStreamResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
   RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
+  RoomProducerMuteStreamMsg,
   RoomProducerToggleStreamMsg,
   RoomProduceStreamMsg,
   RoomProduceStreamResultMsg,
@@ -37,7 +38,7 @@ export class RoomsClient {
   }
 
   constructor(options: { socket_ws_uri: string, socket_auto_reconnect: boolean, socket_enable_logs: boolean }) {
-    console.warn(`*** new RoomsClient`);
+    console.log(`*** new RoomsClient`);
 
     this.config.socket_auto_reconnect = options.socket_auto_reconnect;
     this.config.socket_enable_logs = options.socket_enable_logs;
@@ -538,31 +539,29 @@ export class RoomsClient {
 
   };
 
-  roomProducerToggleStream = async (peerId: string) => {
+  roomProducerToggleStream = async () => {
     console.log(`roomProducerToggleStream`);
 
-    let tracks: MediaStreamTrack[];
-    if (peerId === this.localPeer.peerId) {
-      //this is a local peer that was updated
-      tracks = this.localPeer.getTracks();
-    } else {
-      // remote peer updated
-      let remotePeer = [...this.peers.values()].find(p => p.peerId === peerId);
-      if (!remotePeer) {
-        console.log(`remote peer not found.`);
-        return;
-      }
-
-      tracks = remotePeer.getTracks();
-    }
-
+    let tracks = this.localPeer.getTracks();    
     if (!tracks || tracks.length == 0) {
-      console.log("no tracks found.");
+      console.warn("no tracks found.");
       return;
     }
 
+    //pause unpause track    
+    tracks.forEach(t => {
+      let producer = [...this.localPeer.getProducers().values()].find(p => p.kind === t.kind);
+      if (t.enabled) {
+        console.warn(`${t.kind}: resume producer`);
+        producer.resume();
+      } else {
+        console.warn(`${t.kind}: pause producer`);
+        producer.pause();
+      }
+    });
+
     let msg = new RoomProducerToggleStreamMsg();
-    msg.data.peerId = peerId;
+    msg.data.peerId = this.localPeer.peerId;
     msg.data.roomId = this.localPeer.roomId;
     msg.data.tracksInfo = [];
 
@@ -572,6 +571,27 @@ export class RoomsClient {
         kind: track.kind
       });
     }
+
+    this.send(msg);
+  }
+
+  muteParticipantTrack = async (peerId: string, audioEnabled: boolean, videoEnabled: boolean) => {
+    console.log(`roomProducerToggleStream`);
+
+    let msg = new RoomProducerMuteStreamMsg();
+    msg.data.peerId = peerId;
+    msg.data.roomId = this.localPeer.roomId;
+    msg.data.tracksInfo = [];
+
+    msg.data.tracksInfo.push({
+      enabled: audioEnabled,
+      kind: "audio"
+    });
+
+    msg.data.tracksInfo.push({
+      enabled: videoEnabled,
+      kind: "video"
+    });
 
     this.send(msg);
   }
@@ -1137,7 +1157,7 @@ export class RoomsClient {
 
     //the server has created a consumer transport for the peer 
     //roomid should match the local roomid
-    if(msgIn.data.roomId != this.localPeer.roomId) {
+    if (msgIn.data.roomId != this.localPeer.roomId) {
       console.error(`onConsumerTransportCreated: invalid message for roomid`);
       return;
     }
@@ -1172,10 +1192,10 @@ export class RoomsClient {
 
   private onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
     console.log("** onProducerTransportCreated");
-    
+
     //the server has created a producer transport for the peer
     //roomid should match the local roomid
-    if(msgIn.data.roomId != this.localPeer.roomId) {
+    if (msgIn.data.roomId != this.localPeer.roomId) {
       console.error(`onProducerTransportCreated: invalid message for roomid`);
       return;
     }

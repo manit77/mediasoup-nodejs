@@ -7,7 +7,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         availableDevices,
         selectedDevices,
         getMediaDevices,
-        switchDevices,        
+        switchDevices,
     } = useCall();
 
     const [audioId, setAudioId] = useState("");
@@ -39,8 +39,8 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
     };
 
     const closeButtonClick = async () => {
-        console.warn(`closeButtonClick ${isAudioEnabled} ${isVideoEnabled}`);       
-        switchDevices(videoId, audioId, speakerId, isAudioEnabled, isVideoEnabled);        
+        console.log(`closeButtonClick ${isAudioEnabled} ${isVideoEnabled}`);
+        switchDevices(videoId, audioId, speakerId, isAudioEnabled, isVideoEnabled);
         handleClose();
     };
 
@@ -65,7 +65,23 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                         <Col sm={9}>
                             <Tab.Content>
                                 <Tab.Pane eventKey="devices">
-                                    <h5>Camera</h5>
+                                    <h5>Audio</h5>
+                                    {availableDevices.audioIn.length > 0 ? (
+                                        <Form.Select
+                                            aria-label="Select Microphone"
+                                            value={audioId || ''}
+                                            onChange={(e) => handleDeviceChange('audioIn', e.target.value)}
+                                            className="mb-3"
+                                        >
+                                            {availableDevices.audioIn.map(device => (
+                                                <option key={device.id} value={device.id}>{device.label}</option>
+                                            ))}
+                                        </Form.Select>
+                                    ) : <p>No microphones found.</p>}
+                                    <Form.Check label="Mic enabled" checked={isAudioEnabled} onChange={(e) => setIsAudioEnabled(e.target.checked)}></Form.Check>
+
+
+                                    <h5>Video</h5>
                                     {availableDevices.video.length > 0 ? (
                                         <Form.Select
                                             aria-label="Select Camera"
@@ -80,20 +96,6 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                     ) : <p>No cameras found.</p>}
                                     <Form.Check label="Camera enabled" checked={isVideoEnabled} onChange={(e) => setIsVideoEnabled(e.target.checked)}></Form.Check>
 
-                                    <h5>Microphone</h5>
-                                    {availableDevices.audioIn.length > 0 ? (
-                                        <Form.Select
-                                            aria-label="Select Microphone"
-                                            value={audioId || ''}
-                                            onChange={(e) => handleDeviceChange('audioIn', e.target.value)}
-                                            className="mb-3"
-                                        >
-                                            {availableDevices.audioIn.map(device => (
-                                                <option key={device.id} value={device.id}>{device.label}</option>
-                                            ))}
-                                        </Form.Select>
-                                    ) : <p>No microphones found.</p>}
-                                    <Form.Check label="Mic enabled" checked={isAudioEnabled} onChange={(e) => setIsAudioEnabled(e.target.checked)}></Form.Check>
 
                                     <h5>Speaker</h5>
                                     {availableDevices.audioOut.length > 0 ? (

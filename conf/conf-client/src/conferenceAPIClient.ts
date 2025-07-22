@@ -60,7 +60,7 @@ export class ConferenceAPIClient {
     };
 
     getConferencesScheduled = async (clientData: {}): Promise<GetConferencesScheduledResultMsg> => {
-        console.log("getConferencesScheduled");
+//        console.log("getConferencesScheduled");
 
         let post = new apiGetScheduledConferencesPost();
         post.data.clientData = clientData;
@@ -76,7 +76,7 @@ export class ConferenceAPIClient {
     };
 
     getConferenceScheduled = async (trackingId: string, clientData: {}): Promise<GetConferenceScheduledResultMsg> => {
-        console.log("getConferenceScheduled");
+        //console.log("getConferenceScheduled");
 
         let post = new apiGetScheduledConferencePost();
         post.data.id = trackingId;

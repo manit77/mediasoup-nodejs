@@ -113,9 +113,7 @@ class ApiService {
 
     fetchConferencesScheduled = async (): Promise<ConferenceRoomScheduled[]> => {
         //console.log("fetchConferencesScheduled");
-        //get rooms from API        
-
-
+        //get rooms from API
         let result = await this.conferenceAPIClient.getConferencesScheduled(this.getClientData());
 
         if (result.data.error) {
@@ -146,7 +144,7 @@ class ApiService {
 
 
     startFetchConferencesScheduled = () => {
-        console.log("startFetchConferencesScheduled");
+        //console.log("startFetchConferencesScheduled");
         if (this.startFetchConferencesScheduledTimerId) {
             clearTimeout(this.startFetchConferencesScheduledTimerId);
         }

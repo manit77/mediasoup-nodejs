@@ -1,23 +1,23 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
-import { useCall } from '../../hooks/useCall'; // Assuming this hook provides call-related logic
+import { useCall } from '../../hooks/useCall';
 import { useNavigate } from 'react-router-dom';
 import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
 
 
-import { ConferenceRoomScheduled } from '../../types'; // Assuming this type is correctly defined
+import { ConferenceRoomScheduled } from '../../types';
 
 interface JoinRoomPopUpProps {
-    conferenceScheduled: ConferenceRoomScheduled; // Corrected prop destructuring
-    show: boolean; // Add a prop to control modal visibility
-    onClose: () => void; // Add a prop to handle closing the modal
+    conferenceScheduled: ConferenceRoomScheduled;
+    show: boolean;
+    onClose: () => void;
 }
 
 const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show, onClose }) => {
     const api = useAPI();
     const ui = useUI();
-    const { isCallActive, createConferenceOrJoin, joinConference, selectedDevices, setSelectedDevices, } = useCall();
+    const { isCallActive, createConferenceOrJoin, joinConference, selectedDevices } = useCall();
     const navigate = useNavigate();
 
     // State to hold the conference code entered by the user
@@ -44,9 +44,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
         console.log(`isCallActive`, isCallActive);
         if (isCallActive) {
             console.log("Navigating to on-call screen.");
-            // If the call is active, navigate to the call screen
-            navigate('/on-call');
-            // Optionally, close the modal once navigation starts
+            navigate('/on-call');            
             onClose();
         }
     }, [isCallActive, navigate, onClose]);
@@ -54,27 +52,15 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
     const toggleMic = useCallback((enabled: boolean) => {
         console.log(`toggleMic`);
         setMicEnabled(enabled);
-        setSelectedDevices(prev => {
-            return {
-                ...prev,
-                isAudioEnabled: enabled
-            }
-        });
-    }, [setSelectedDevices]);
+    }, []);
 
     const toggleCamera = useCallback((enabled: boolean) => {
         console.log(`toggleCamera`);
         setCameraEnabled(enabled);
-        setSelectedDevices(prev => {
-            return {
-                ...prev,
-                isVideoEnabled: enabled
-            }
-        });
-    }, [setSelectedDevices]);
+    }, []);
 
     useEffect(() => {
-        console.log(`useEffect guest`);
+        console.warn(`useEffect guest`);
 
         let user = api.getCurrentUser();
         if (user.role === "guest") {
@@ -82,13 +68,12 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             //guests cannot oveeride conference configs
             if (!conferenceScheduled.config.guestsAllowCamera) {
                 setShowCameraOption(false);
+                toggleCamera(false);
             }
             if (!conferenceScheduled.config.guestsAllowMic) {
                 setShowMicOption(false);
+                toggleMic(false);
             }
-
-            toggleMic(false);
-            toggleCamera(false);
 
             return;
         }
@@ -96,20 +81,15 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
 
     const handleJoinRoom = async (event: React.FormEvent) => {
-        event.preventDefault(); // Prevent default form submission behavior
+        event.preventDefault();
 
         setLoading(true);
         try {
-
-            let user = api.getCurrentUser();
-            if (user.role === "admin" || user.role === "user") {
-                // Admin can create a new conference and join it
-                createConferenceOrJoin(conferenceScheduled.id, conferenceCode);
+            if (api.isUser()) {
+                createConferenceOrJoin(conferenceScheduled.id, conferenceCode, micEnabled, cameraEnabled);
             } else {
                 if (conferenceScheduled.conferenceRoomId) {
-                    // Assuming joinConference takes the conference details and the entered code
-                    joinConference(conferenceCode, conferenceScheduled); // You might need to adjust parameters based on your useCall hook
-                    // The useEffect above will handle navigation if isCallActive becomes true
+                    joinConference(conferenceCode, conferenceScheduled, micEnabled, cameraEnabled);
                 } else {
                     ui.showToast("conference is not active.");
                 }
@@ -123,8 +103,12 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
     };
 
     const handleCancelClick = () => {
-        onClose(); // Call the onClose prop to hide the modal
+        onClose();
     };
+
+    useEffect(() => {
+        console.log(`JoinRoomPopUpProps conferenceScheduled`, conferenceScheduled);
+    }, []);
 
     return (
         <Modal show={show} centered backdrop="static" keyboard={false} onHide={onClose}>
@@ -158,7 +142,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                         <Form.Group className="mb-3" controlId="micEnabled">
                             <Form.Check
                                 type="checkbox"
-                                label="Mic Enabled"
+                                label="Join with Microphone Enabled"
                                 checked={micEnabled}
                                 onChange={(e) => toggleMic(e.target.checked)}
                                 disabled={loading}
@@ -170,7 +154,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                         <Form.Group className="mb-3" controlId="cameraEnabled">
                             <Form.Check
                                 type="checkbox"
-                                label="Camera Enabled"
+                                label="Join with Camera Enabled"
                                 checked={cameraEnabled}
                                 onChange={(e) => toggleCamera(e.target.checked)}
                                 disabled={loading}
@@ -178,6 +162,20 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                         </Form.Group>
                     ) : null}
 
+
+
+                    {/* {
+                        api.isAdmin() || api.isUser() ? ( */}
+                    <div className="row">
+                        <div className="col-md-6">
+                            <strong>Guests Allow Camera:</strong> {conferenceScheduled.config.guestsAllowCamera.toString()}
+                        </div>
+                        <div className="col-md-6">
+                            <strong>Guests Allow Mic:</strong> {conferenceScheduled.config.guestsAllowMic.toString()}
+                        </div>
+                    </div>
+                    {/* ) : null
+                    } */}
 
                     <div className="d-grid gap-2 mt-4"> {/* Added margin-top for spacing */}
                         <Button variant="primary" type="submit" disabled={loading}>

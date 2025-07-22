@@ -6,7 +6,7 @@ import { ArrowRepeat, Circle, CircleFill } from 'react-bootstrap-icons';
 
 const ParticipantsOnlinePane: React.FC = () => {
 
-    const { isAuthenticated, isConnected, participantsOnline, getParticipantsOnline, sendInvite, isCallActive, inviteInfoSend, localParticipant } = useCall();
+    const { isAuthenticated, isConnected, participantsOnline, getParticipantsOnline, sendInvite, isCallActive, inviteInfoSend, localParticipant, setSelectedDevices, selectedDevices } = useCall();
 
     // Handle initial loading state
     useEffect(() => {
@@ -25,7 +25,7 @@ const ParticipantsOnlinePane: React.FC = () => {
 
     const handleContactClick = (participant: ParticipantInfo) => {
         if (!isCallActive && !inviteInfoSend) {
-            sendInvite(participant);
+            sendInvite(participant, selectedDevices.isAudioEnabled, selectedDevices.isVideoEnabled);
         }
     };
 
