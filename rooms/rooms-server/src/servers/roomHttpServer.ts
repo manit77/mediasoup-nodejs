@@ -6,9 +6,9 @@ import {
     RoomNewTokenMsg,
     RoomServerAPIRoutes,
     RoomTerminateMsg,
+    AuthUserRoles,
 } from "@rooms/rooms-models";
 import { RoomServer, RoomServerConfig } from '../roomServer/roomServer.js';
-import { AuthUserRoles } from '../models/tokenPayloads.js';
 import * as roomUtils from "../roomServer/utils.js";
 
 const DSTR = "RoomHTTPServer";

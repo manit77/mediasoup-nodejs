@@ -36,7 +36,15 @@ describe("roomServerTests", () => {
     it("createRoom", async () => {
 
         //send invalid token, this should not generate a room
-        let room = await roomServer.createRoom("", "a", "", new RoomConfig());
+        let room = await roomServer.createRoom({
+            roomId: "",
+            roomName: "room1",
+            adminTrackingId: "",
+            config: new RoomConfig(),
+            roomToken: "",
+            trackingId: ""
+
+        });
         expect(room).toBeFalsy();
 
         //generate a room tokn
@@ -44,10 +52,24 @@ describe("roomServerTests", () => {
         expect(payload).toBeTruthy();
 
         //should not return a room, we need the roomid
-        room = await roomServer.createRoom("", roomtoken, "", new RoomConfig());
+        room = await roomServer.createRoom({
+            roomId: "",
+            roomName: "room1",
+            roomToken: roomtoken,
+            adminTrackingId: "",
+            trackingId: "",
+            config: new RoomConfig()
+        });
         expect(room).toBeFalsy();
 
-        room = await roomServer.createRoom(payload.roomId, roomtoken, "", new RoomConfig());
+        room = await roomServer.createRoom({
+            roomId: payload.roomId as string,
+            roomToken: roomtoken, 
+            roomName: "room1", 
+            adminTrackingId: "",
+            trackingId: "",
+            config: new RoomConfig()
+        });
         expect(room).toBeTruthy();
         room.close("test");
 
@@ -70,11 +92,11 @@ describe("roomServerTests", () => {
         let resultNewToken = await onAuthUserNewToken(1, userTrackingId);
         //we should have an authtoken
         expect(resultNewToken.data.authToken).toBeTruthy();
-        authToken = resultNewToken.data.authToken;
+        authToken = resultNewToken.data.authToken as string;
 
         //USER: get new peerid
         let resultRegister = await onRegisterPeer(authToken, displayName)
-        let peerId = resultRegister.data.peerId;
+        let peerId = resultRegister.data.peerId as string;
 
         //we should have a peerid
         expect(resultRegister.data.peerId).toBeTruthy();
@@ -83,8 +105,8 @@ describe("roomServerTests", () => {
 
         //create a new room token, this will return a roomId
         let resultNewRoomToken = await roomNewToken();
-        roomId = resultNewRoomToken.data.roomId
-        roomToken = resultNewRoomToken.data.roomToken;
+        roomId = resultNewRoomToken.data.roomId as string
+        roomToken = resultNewRoomToken.data.roomToken as string;
 
         expect(resultNewRoomToken.data.roomToken).toBeTruthy();
         expect(resultNewRoomToken.data.roomId).toBeTruthy();
@@ -132,21 +154,21 @@ describe("roomServerTests", () => {
             let authUserNewTokenRes = await onAuthUserNewToken(1, "peer_" + i.toString());
             let peerTrack = {
                 peerId: "",
-                authToken: authUserNewTokenRes.data.authToken
+                authToken: authUserNewTokenRes.data.authToken as string            
             };
 
             localPeers.push(peerTrack);
 
             let res = await onRegisterPeer(peerTrack.authToken, "");
-            peerTrack.peerId = res.data.peerId;
+            peerTrack.peerId = res.data.peerId as string;
         }
 
         //create a room token        
         let roomNewTokenRes = await roomNewToken();
-        localRoom.roomToken = roomNewTokenRes.data.roomToken;
+        localRoom.roomToken = roomNewTokenRes.data.roomToken as string;
 
         //create room requires a peerid, use the first peer
-        let roomNewRes = await onRoomNew(localPeers[0].peerId, roomNewTokenRes.data.roomId, roomNewTokenRes.data.roomToken);
+        let roomNewRes = await onRoomNew(localPeers[0].peerId, roomNewTokenRes.data.roomId as string, roomNewTokenRes.data.roomToken as string);
         localRoom.roomId = roomNewRes.data.roomId;
         localRoom.roomToken = roomNewRes.data.roomToken;
 

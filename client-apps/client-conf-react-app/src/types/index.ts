@@ -23,8 +23,12 @@ export class SelectedDevices {
 }
 
 export class ConferenceRoomScheduled {
-    id: string = "";
+    /**
+     * third party unique id, this will always have a value
+     */
+    externalId: string = "";
     conferenceRoomId: string = "";
+    roomId: string = "";
     roomStatus: string = "";
     roomName: string = "";
     roomDescription: string = "";
@@ -39,8 +43,8 @@ export class ConferenceRoomScheduled {
         guestsAllowCamera: boolean;
     }
 
-    constructor(uniqeId: string, name: string) {
-        this.id = uniqeId;
+    constructor(externalId: string, name: string) {
+        this.externalId = externalId;
         this.roomName = name;
     }
 

@@ -4,7 +4,7 @@ import { AbstractEventHandler } from "../utils/evenHandler.js";
 
 export interface IAuthPayload {
     username: string,
-    role: ParticipantRole
+    role: ParticipantRole | string,
 }
 
 type onSocketTimeout = (conn: SocketConnection) => void;
@@ -66,7 +66,7 @@ export class Participant {
     username: string = ""; //username for the user, unique, used to login ie from a database
     displayName: string = ""; //display name for the user
     conferenceRoom?: ConferenceRoom = undefined; //reference to a conf room
-    role: ParticipantRole = ParticipantRole.guest;
+    role: ParticipantRole | string = ParticipantRole.guest;
     clientData: {} = {}; //passed down from the user login or the query string from a client    
     connection: SocketConnection;
    
@@ -79,7 +79,7 @@ export type conferenceStatus = "none" | "initializing" | "ready" | "closed";
 
 export class ConferenceRoom  {
     id: string;
-    trackingId: string;
+    externalId: string;
     timeoutId: any;
     timeoutSecs: number = 0;
     roomName: string;

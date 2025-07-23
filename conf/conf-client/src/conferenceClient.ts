@@ -23,7 +23,7 @@ export class Participant {
 export class Conference {
     conferenceRoomId: string;
     conferenceRoomName: string;
-    conferenceRoomTrackingId: string;
+    conferenceRoomExternalId: string;
     conferenceType: conferenceType = "p2p"; // default to p2p
     conferenceRoomConfig: ConferenceRoomConfig;
     roomAuthToken: string;
@@ -510,10 +510,10 @@ export class ConferenceClient {
     }
 
     createConferenceRoom(args: CreateConferenceParams) {
-        console.log(`createConferenceRoom trackingId: ${args.trackingId}, roomName: ${args.roomName}`);
+        console.log(`createConferenceRoom trackingId: ${args.externalId}, roomName: ${args.roomName}`);
 
         const msg = new CreateConfMsg();
-        msg.data.conferenceRoomTrackingId = args.trackingId;
+        msg.data.conferenceRoomExternalId = args.externalId;
         msg.data.roomName = args.roomName;
         msg.data.conferenceCode = args.conferenceCode;
         msg.data.conferenceRoomConfig = args.config;
@@ -530,7 +530,7 @@ export class ConferenceClient {
      * @returns 
      */
     waitCreateConferenceRoom(args: CreateConferenceParams) {
-        console.log(`waitCreateConferenceRoom trackingId: ${args.trackingId}, roomName: ${args.roomName}, conferenceCode: ${args.conferenceCode}`);
+        console.log(`waitCreateConferenceRoom externalId: ${args.externalId}, roomName: ${args.roomName}, conferenceCode: ${args.conferenceCode}`);
         return new Promise<CreateConfResultMsg>((resolve, reject) => {
             let _onmessage: (event: any) => void;
 
@@ -622,6 +622,12 @@ export class ConferenceClient {
         });
     }
 
+    /**
+     * join a conference room
+     * send JoinConfMsg wait for JoinConfResultMsg
+     * @param args 
+     * @returns 
+     */
     async joinConferenceRoom(args: JoinConferenceParams) {
         console.log(`joinConferenceRoom conferenceRoomId: ${args.conferenceRoomId} conferenceCode: ${args.conferenceCode}`);
 
@@ -635,13 +641,13 @@ export class ConferenceClient {
         //get the conference config first
         if (!this.conferenceRoom.conferenceRoomConfig) {
 
-            if (!args.trackingId) {
+            if (!args.externalId) {
                 console.error(`trackingId is required.`);
                 return;
             }
 
-            console.log(`getConferenceScheduled config `, args.trackingId, args.clientData);
-            let scheduled = await this.apiClient.getConferenceScheduled(args.trackingId, args.clientData);
+            console.log(`getConferenceScheduled config `, args.externalId, args.clientData);
+            let scheduled = await this.apiClient.getConferenceScheduled(args.externalId, args.clientData);
             if (scheduled.data.error) {
                 console.error(scheduled.data.error);
                 return;
@@ -663,6 +669,7 @@ export class ConferenceClient {
         msg.data.conferenceCode = args.conferenceCode;
 
         this.conferenceRoom.conferenceRoomId = args.conferenceRoomId;
+
         this.sendToServer(msg);
     }
 
@@ -736,7 +743,7 @@ export class ConferenceClient {
 
         this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
         this.conferenceRoom.conferenceRoomName = message.data.conferenceRoomName || `Call with ${message.data.displayName}`;
-        this.conferenceRoom.conferenceRoomTrackingId = message.data.conferenceRoomTrackingId;
+        this.conferenceRoom.conferenceRoomExternalId = message.data.conferenceRoomExternalId;
         this.conferenceRoom.conferenceType = message.data.conferenceType;
 
         this.startCallConnectTimer();
@@ -759,7 +766,7 @@ export class ConferenceClient {
         this.callState = "answering";
         this.conferenceRoom.conferenceRoomId = message.data.conferenceRoomId;
         this.conferenceRoom.conferenceRoomName = message.data.conferenceRoomName || `Call with ${message.data.displayName}`;
-        this.conferenceRoom.conferenceRoomTrackingId = message.data.conferenceRoomTrackingId;
+        this.conferenceRoom.conferenceRoomExternalId = message.data.conferenceRoomExternalId;
         this.conferenceRoom.conferenceType = message.data.conferenceType;
 
         this.inviteReceivedMsg = message;
@@ -1011,7 +1018,7 @@ export class ConferenceClient {
         }
 
         //!!! don't send event for EventTypes.conferenceJoined, wait for room client to send event
-        //!!! next event recieved is onConferenceReady
+        //!!! next event received is onConferenceReady
 
     }
 
@@ -1028,16 +1035,16 @@ export class ConferenceClient {
             return;
         }
 
-        this.conferenceRoom.conferenceRoomTrackingId = message.data.conferenceRoomId;
+        this.conferenceRoom.conferenceRoomExternalId = message.data.conferenceRoomId;
         this.conferenceRoom.conferenceRoomName = message.data.conferenceRoomName || `Call with ${message.data.displayName}`;
-        this.conferenceRoom.conferenceRoomTrackingId = message.data.conferenceRoomTrackingId;
+        this.conferenceRoom.conferenceRoomExternalId = message.data.conferenceRoomExternalId;
         this.conferenceRoom.conferenceType = message.data.conferenceType;
         this.conferenceRoom.conferenceRoomConfig = message.data.conferenceRoomConfig;
 
         this.conferenceRoom.roomId = message.data.roomId;
         this.conferenceRoom.roomToken = message.data.roomToken;
         this.conferenceRoom.roomURI = message.data.roomURI;
-        this.conferenceRoom.roomAuthToken = message.data.authToken;
+        this.conferenceRoom.roomAuthToken = message.data.roomAuthToken;
 
         if (!this.conferenceRoom.roomId) {
             console.error("ERROR: no roomId");

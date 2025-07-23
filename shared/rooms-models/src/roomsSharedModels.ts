@@ -69,6 +69,12 @@ export interface IMsg {
     data: any;
 }
 
+export enum AuthUserRoles {
+    admin = "admin"
+    , user = "user"
+    , guest = "guest"    
+}
+
 export class ErrorMsg implements IMsg {
     type = payloadTypeServer.error;
     data = {
@@ -103,7 +109,7 @@ export class RegisterPeerMsg implements IMsg {
         /**
          * your app's unique to track the room
          */
-        trackingId?: string,
+        peerTrackingId?: string,
     } = {}
 }
 
@@ -217,8 +223,8 @@ export class RoomNewMsg implements IMsg {
         roomId?: string,
         roomToken?: string,
         roomName?: string,
-        trackingId?: string,
-        ownerTrackingId?: string,
+        roomTrackingId?: string,
+        adminTrackingId?: string,
         roomConfig?: RoomConfig;
     } = {
             roomConfig: new RoomConfig()
@@ -228,6 +234,7 @@ export class RoomNewMsg implements IMsg {
 export class AuthUserNewTokenMsg implements IMsg {
     type = payloadTypeClient.authUserNewToken;
     data: {
+        role?: AuthUserRoles;
         expiresInMin?: number
     } = {}
 }
@@ -236,7 +243,8 @@ export class AuthUserNewTokenResultMsg implements IMsg {
     type = payloadTypeServer.authUserNewTokenResult;
     data: {
         authToken?: string,
-        expiresIn?: number
+        expiresIn?: number,
+        role?: AuthUserRoles;
         error?: string
     } = {
         }
@@ -269,7 +277,7 @@ export class RoomNewResultMsg implements IMsg {
         /**
          * your app's unique to track the room
          */
-        trackingId?: string,
+        roomTrackingId?: string,
         error?: string,
     } = {}
 }
@@ -428,7 +436,7 @@ export class RoomProducerToggleStreamMsg {
 }
 
 export class RoomProducerMuteStreamMsg {
-    type = payloadTypeClient.roomProducerToggleStream
+    type = payloadTypeClient.roomProducerMuteStream
     data: {
         roomId?: string,
         peerId?: string,
@@ -483,7 +491,7 @@ export class RoomCallBackMsg implements IMsg {
     type: payloadTypeCallBacks.roomCallBackMsg;
     data: {
         roomId?: string;
-        trackingId?: string;
+        roomTrackingId?: string;
         status?: "open" | "closed";
         peers?: RoomPeerCallBackMsg[];
     } = {}

@@ -26,7 +26,7 @@ import {
 import { ConferenceRoom, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
-import { IMsg, RoomConfig } from '@rooms/rooms-models';
+import { AuthUserRoles, IMsg, RoomConfig } from '@rooms/rooms-models';
 import express from 'express';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { getDemoSchedules } from '../demoData/demoData.js';
@@ -168,28 +168,28 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         return part;
     }
 
-    getOrCreateConference(conferenceId?: string, trackingId?: string, roomName?: string, config?: ConferenceRoomConfig) {
+    getOrCreateConference(conferenceId?: string, externalId?: string, roomName?: string, config?: ConferenceRoomConfig) {
 
         //find room by tracking id
         let conference: ConferenceRoom;
 
-        if (trackingId) {
-            conference = [...this.conferences.values()].find(c => c.trackingId === trackingId);
+        if (externalId) {
+            conference = [...this.conferences.values()].find(c => c.externalId === externalId);
             if (conference) {
-                console.log("conference found by trackingid", trackingId)
+                console.log("conference found by externalId", externalId)
                 return conference;
             }
         } else if (conferenceId) {
             conference = [...this.conferences.values()].find(c => c.id === conferenceId);
             if (conference) {
-                console.log("conference found by conferenceId", trackingId)
+                console.log("conference found by externalId", externalId)
                 return conference;
             }
         }
 
         conference = new ConferenceRoom();
         conference.id = conferenceId ?? this.generateConferenceId();
-        conference.trackingId = trackingId;
+        conference.externalId = externalId;
         conference.roomName = roomName;
         if (config) {
             conference.config = config;
@@ -311,11 +311,13 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         //broadcast to all participants of conferences that have a trackingId
         let msg = new GetConferencesResultMsg();
-        msg.data.conferences = [...this.conferences.values()].filter(c => c.trackingId).map(c => ({
+        msg.data.conferences = [...this.conferences.values()].filter(c => c.externalId).map(c => ({
             conferenceRoomId: c.id,
+            externalId: c.externalId,
+            roomId: c.roomId,
             roomName: c.roomName,
             roomStatus: c.status,
-            roomTrackingId: c.trackingId,
+            roomTrackingId: c.id,
             participantCount: c.participants.size
         }) as ConferenceRoomInfo);
 
@@ -432,7 +434,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.displayName = participant.displayName;
         msg.data.conferenceRoomId = conference.id;
         msg.data.conferenceRoomName = conference.roomName;
-        msg.data.conferenceRoomTrackingId = conference.trackingId;
+        msg.data.conferenceRoomExternalId = conference.externalId;
         msg.data.conferenceType = conference.confType;
 
         if (!this.send(remote, msg)) {
@@ -453,7 +455,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         inviteResultMsg.data.displayName = remote.displayName;
         inviteResultMsg.data.conferenceRoomId = conference.id;
         inviteResultMsg.data.conferenceRoomName = conference.roomName;
-        inviteResultMsg.data.conferenceRoomTrackingId = conference.trackingId;
+        inviteResultMsg.data.conferenceRoomExternalId = conference.externalId;
         inviteResultMsg.data.conferenceType = conference.confType;
 
         return inviteResultMsg;
@@ -593,14 +595,14 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         console.log("onCreateConference");
 
         //must be admin or a user
-        if (![ParticipantRole.admin, ParticipantRole.user].includes(participant.role)) {
+        if (![ParticipantRole.admin, ParticipantRole.user].includes(participant.role as ParticipantRole)) {
             console.error("participant must be an authenticated user");
             return;
         }
 
         //tracking id is required
-        if (!msgIn.data.conferenceRoomTrackingId) {
-            console.error("conferenceRoomTrackingId is required.");
+        if (!msgIn.data.conferenceRoomExternalId) {
+            console.error("conferenceRoomExternalId is required.");
             return;
         }
 
@@ -611,10 +613,10 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
         let roomName = msgIn.data.roomName;
 
-        if (msgIn.data.conferenceRoomTrackingId) {
+        if (msgIn.data.conferenceRoomExternalId) {
             //tracking id was passed fetch config from external datasource
             if (this.config.conf_data_urls.getScheduledConferenceURL) {
-                let resultMsg = await this.thirdParty.getScheduledConference(msgIn.data.conferenceRoomTrackingId, participant.clientData);
+                let resultMsg = await this.thirdParty.getScheduledConference(msgIn.data.conferenceRoomExternalId, participant.clientData);
                 if (resultMsg) {
                     confConfig.conferenceCode = resultMsg.data.conference.config.conferenceCode;
                     confConfig.guestsAllowCamera = resultMsg.data.conference.config.guestsAllowCamera;
@@ -629,7 +631,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 }
             } else {
                 //get from demo data                
-                let demoSchedule = getDemoSchedules().find(s => s.id === msgIn.data.conferenceRoomTrackingId);
+                let demoSchedule = getDemoSchedules().find(s => s.externalId === msgIn.data.conferenceRoomExternalId);
                 if (demoSchedule) {
                     confConfig.conferenceCode = demoSchedule.config.conferenceCode;
                     confConfig.guestsAllowCamera = demoSchedule.config.guestsAllowCamera;
@@ -658,7 +660,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         if (conference) {
             console.log("conference already created");
         } else {
-            conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomTrackingId, roomName, confConfig);
+            conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomExternalId, roomName, confConfig);
             conference.confType = "room";
             if (!await this.startRoom(conference)) {
                 console.error("unable to start a conference");
@@ -670,7 +672,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         let resultMsg = new CreateConfResultMsg();
         resultMsg.data.conferenceRoomId = conference.id;
-        resultMsg.data.trackingId = conference.trackingId;
+        resultMsg.data.externalId = conference.externalId;
         resultMsg.data.roomName = conference.roomName;
 
         return resultMsg;
@@ -686,9 +688,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
     private async onJoinConference(participant: Participant, msgIn: JoinConfMsg) {
         console.log("onJoinConference");
 
-        //conferenceRoomId or trackingId is required
-        if (!msgIn.data.conferenceRoomId && !msgIn.data.trackingId) {
-            console.error("conferenceRoomId or trackingId is required.");
+        //conferenceRoomId or externalId is required
+        if (!msgIn.data.conferenceRoomId && !msgIn.data.externalId) {
+            console.error("conferenceRoomId or externalId is required.");
 
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "invalid room data.";
@@ -708,8 +710,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         let conference: ConferenceRoom;
         if (msgIn.data.conferenceRoomId) {
             conference = this.conferences.get(msgIn.data.conferenceRoomId);
-        } else if (msgIn.data.trackingId) {
-            conference = [...this.conferences.values()].find(c => c.trackingId === msgIn.data.trackingId);
+        } else if (msgIn.data.externalId) {
+            conference = [...this.conferences.values()].find(c => c.externalId === msgIn.data.externalId);
         }
 
         if (!conference) {
@@ -785,7 +787,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         let roomsAPI = new RoomsAPI(conference.roomURI, this.config.room_access_token);
 
         //create an authtoken per user
-        let authUserTokenResult = await roomsAPI.newAuthUserToken();
+        let authUserTokenResult = await roomsAPI.newAuthUserToken(participant.role as any);
         if (!authUserTokenResult || authUserTokenResult?.data?.error) {
             console.error("failed to create new authUser token in rooms");
             let errorMsg = new InviteResultMsg();
@@ -799,7 +801,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         let msg = new ConferenceReadyMsg()
         msg.data.conferenceRoomId = conference.id;
         msg.data.conferenceRoomName = conference.roomName;
-        msg.data.conferenceRoomTrackingId = conference.trackingId;
+        msg.data.conferenceRoomExternalId = conference.externalId;
         msg.data.conferenceType = conference.confType;
         msg.data.participantId = participant.participantId;
         msg.data.displayName = participant.displayName;
@@ -807,7 +809,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         msg.data.roomId = conference.roomId;
         msg.data.roomToken = conference.roomToken;
-        msg.data.authToken = authUserTokenResult.data.authToken;
+        msg.data.roomAuthToken = authUserTokenResult.data.authToken;
         msg.data.roomURI = conference.roomURI;
         msg.data.roomRtpCapabilities = conference.roomRtpCapabilities;
 
@@ -925,7 +927,14 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         console.log("getConferences");
         return [...this.conferences.values()]
             .map(c => {
-                return { conferenceRoomId: c.id, roomName: c.roomName, roomStatus: c.status, roomTrackingId: c.trackingId, participantCount: c.participants.size };
+                return { 
+                    conferenceRoomId: c.id, 
+                    externalId: c.externalId,
+                    roomId: c.roomId,                    
+                    roomName: c.roomName, 
+                    roomStatus: c.status, 
+                    roomTrackingId: c.externalId, 
+                    participantCount: c.participants.size };
             });
     }
 

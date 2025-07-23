@@ -341,13 +341,13 @@ class WebRTCService {
     public async createConferenceAndJoin(createArgs: CreateConferenceParams, joinArgs: JoinConferenceParams): Promise<boolean> {
         console.log("createConferenceAndJoin", createArgs, joinArgs);
 
-        if (!createArgs.trackingId) {
-            console.error("createArgs trackingId is required.");
+        if (!createArgs.externalId) {
+            console.error("createArgs externalId is required.");
             return false;
         }
 
-        if (!joinArgs.trackingId) {
-            console.error("joinArgs trackingId is required.");
+        if (!joinArgs.externalId) {
+            console.error("joinArgs externalId is required.");
             return false;
         }
 
@@ -496,7 +496,7 @@ class WebRTCService {
 
         if (msg.data.error) {
             console.error("failed to create conference.");
-            await this.onConferenceEnded(msg.data.trackingId, "failed to create conference");
+            await this.onConferenceEnded(msg.data.externalId, "failed to create conference");
             this.removeTracks();
             return;
         }

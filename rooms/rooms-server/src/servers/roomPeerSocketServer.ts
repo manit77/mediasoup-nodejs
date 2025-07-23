@@ -6,11 +6,11 @@ import {
     payloadTypeServer,
     RegisterPeerMsg,
     TerminatePeerMsg,
-    UnauthorizedMsg
+    UnauthorizedMsg,
+    AuthUserRoles
 } from "@rooms/rooms-models";
 import { RoomServer, RoomServerConfig } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
-import { AuthUserRoles } from '../models/tokenPayloads.js';
 import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
 
 const LOG = "RoomSocketServer";
@@ -22,19 +22,20 @@ export type RoomPeerSocketSecurityMap = {
 export let defaultPeerSocketServerSecurityMap: RoomPeerSocketSecurityMap = {} as any;
 defaultPeerSocketServerSecurityMap[payloadTypeClient.authUserNewToken] = [AuthUserRoles.admin, AuthUserRoles.user]; //only valid users can create a new authtoken
 defaultPeerSocketServerSecurityMap[payloadTypeClient.registerPeer] = []; //any one can register
-defaultPeerSocketServerSecurityMap[payloadTypeClient.connectConsumerTransport] = [AuthUserRoles.user];
-defaultPeerSocketServerSecurityMap[payloadTypeClient.connectProducerTransport] = [AuthUserRoles.user];
-defaultPeerSocketServerSecurityMap[payloadTypeClient.roomConsumeStream] = [AuthUserRoles.user];
-defaultPeerSocketServerSecurityMap[payloadTypeClient.createConsumerTransport] = [AuthUserRoles.user];
-defaultPeerSocketServerSecurityMap[payloadTypeClient.createProducerTransport] = [AuthUserRoles.user];
-defaultPeerSocketServerSecurityMap[payloadTypeClient.roomProduceStream] = [AuthUserRoles.user];
-defaultPeerSocketServerSecurityMap[payloadTypeClient.roomProducerToggleStream] = [AuthUserRoles.user];
-defaultPeerSocketServerSecurityMap[payloadTypeClient.roomJoin] = [AuthUserRoles.user];
-defaultPeerSocketServerSecurityMap[payloadTypeClient.roomLeave] = [AuthUserRoles.user];
-defaultPeerSocketServerSecurityMap[payloadTypeClient.roomNew] = [AuthUserRoles.user];
-defaultPeerSocketServerSecurityMap[payloadTypeClient.roomNewToken] = [AuthUserRoles.user];
-defaultPeerSocketServerSecurityMap[payloadTypeClient.roomTerminate] = [AuthUserRoles.user];
-defaultPeerSocketServerSecurityMap[payloadTypeClient.terminatePeer] = [AuthUserRoles.user];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.connectConsumerTransport] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.connectProducerTransport] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.roomConsumeStream] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.createConsumerTransport] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.createProducerTransport] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.roomProduceStream] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.roomProducerToggleStream] = []; //anyone can toggle their own stream
+defaultPeerSocketServerSecurityMap[payloadTypeClient.roomProducerMuteStream] = [AuthUserRoles.admin, AuthUserRoles.user];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.roomJoin] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.roomLeave] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.roomNew] = [AuthUserRoles.admin, AuthUserRoles.user];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.roomNewToken] = [AuthUserRoles.admin, AuthUserRoles.user];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.roomTerminate] = [AuthUserRoles.admin, AuthUserRoles.user];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.terminatePeer] = [AuthUserRoles.admin, AuthUserRoles.user];
 
 export class SocketConnection {
     peerId: string;
@@ -128,7 +129,6 @@ export class RoomPeerSocketServer {
                             return resultMsg;
                         } else {
                             consoleLog(`${msgIn.type} peer not found by socket`);
-
                         }
                     }
 

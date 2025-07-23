@@ -122,7 +122,7 @@ class ApiService {
         }
 
         this.conferencesScheduled = result.data.conferences.map(c => ({
-            id: c.id,
+            externalId: c.externalId,
             roomName: c.name,
             roomDescription: c.description,
             config: {

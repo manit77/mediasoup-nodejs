@@ -1,4 +1,5 @@
-import { AuthUserTokenPayload, AuthUserRoles } from "../models/tokenPayloads.js";
+import { AuthUserRoles } from "@rooms/rooms-models";
+import { AuthUserTokenPayload } from "../models/tokenPayloads.js";
 import { jwtSign } from "./jwtUtil.js";
 
 

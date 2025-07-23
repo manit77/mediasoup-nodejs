@@ -2,7 +2,8 @@ import * as mediasoup from 'mediasoup';
 import { randomUUID } from "crypto";
 import * as jwt from '../utils/jwtUtil.js';
 import { Room } from "./room.js";
-import { AuthUserRoles, AuthUserTokenPayload, RoomTokenPayload } from "../models/tokenPayloads.js";
+import { AuthUserTokenPayload, RoomTokenPayload } from "../models/tokenPayloads.js";
+import { AuthUserRoles } from '@rooms/rooms-models';
 
 export function GetRoomId() {
     return "room-" + randomUUID().toString();

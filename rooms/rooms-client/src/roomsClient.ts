@@ -215,6 +215,7 @@ export class RoomsClient {
 
   /**
    * register a client connection and wait for a result
+   * @param authToken 
    * @param trackingId 
    * @param displayName 
    * @returns 
@@ -439,7 +440,7 @@ export class RoomsClient {
     msg.data = {
       authToken: authToken,
       displayName: this.localPeer.displayName,
-      trackingId: trackingId
+      peerTrackingId: trackingId
     }
 
     this.send(msg);
@@ -576,7 +577,7 @@ export class RoomsClient {
   }
 
   muteParticipantTrack = async (peerId: string, audioEnabled: boolean, videoEnabled: boolean) => {
-    console.log(`roomProducerToggleStream`);
+    console.log(`muteParticipantTrack audioEnabled: ${audioEnabled}, videoEnabled:${videoEnabled}`);
 
     let msg = new RoomProducerMuteStreamMsg();
     msg.data.peerId = peerId;

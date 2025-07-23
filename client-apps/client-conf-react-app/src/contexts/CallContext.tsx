@@ -36,9 +36,9 @@ interface CallContextType {
     getConferenceRoomsOnline: () => void;
     getParticipantsOnline: () => void;
 
-    createConference: (trackingId: string, roomName: string) => void;
+    createConference: (externalId: string, roomName: string) => void;
     joinConference: (conferenceCode: string, scheduled: ConferenceRoomScheduled, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => void;
-    createConferenceOrJoin: (trackingId: string, conferenceCode: string, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => void;
+    createConferenceOrJoin: (externalId: string, conferenceCode: string, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => void;
 
     sendInvite: (participantInfo: ParticipantInfo, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => Promise<void>;
     acceptInvite: () => Promise<void>;
@@ -335,7 +335,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 conferenceCode: "",
                 conferenceRoomId: "",
                 roomName: "",
-                trackingId: "",
+                externalId: "",
                 videoEnabledOnStart: startWithVideoEnabled
             }
 
@@ -382,11 +382,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setInviteInfoReceived(null);
     }, []);
 
-    const createConference = useCallback((trackingId: string, roomName: string) => {
+    const createConference = useCallback((externalId: string, roomName: string) => {
         console.log("CallContext: createConference");
         let createArgs: CreateConferenceParams = {
             conferenceCode: "",
-            trackingId: trackingId,
+            externalId: externalId,
             roomName: roomName,
             conferenceRoomId: "",
             config: null
@@ -408,21 +408,21 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             conferenceCode: conferenceCode,
             conferenceRoomId: scheduled.conferenceRoomId,
             roomName: "",
-            trackingId: scheduled.id,
+            externalId: scheduled.externalId,
             videoEnabledOnStart: startWithVideoEnabled
         }
 
         webRTCService.joinConferenceRoom(joinArgs)
     }, [api]);
 
-    const createConferenceOrJoin = useCallback((trackingId: string, conferenceCode: string, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => {
-        console.log("CallContext: createConferenceOrJoin ", trackingId, conferenceCode);
+    const createConferenceOrJoin = useCallback((externalId: string, conferenceCode: string, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => {
+        console.log("CallContext: createConferenceOrJoin ", externalId, conferenceCode);
         let createArgs: CreateConferenceParams = {
             conferenceCode: conferenceCode,
             conferenceRoomId: "",
             config: null,
             roomName: "",
-            trackingId: trackingId
+            externalId: externalId
         };
 
         let joinArgs: JoinConferenceParams = {
@@ -431,7 +431,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             conferenceCode: conferenceCode,
             conferenceRoomId: "",
             roomName: "",
-            trackingId: trackingId,
+            externalId: externalId,
             videoEnabledOnStart: startWithVideoEnabled
         }
 
@@ -440,7 +440,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [api]);
   
     const muteParticipantTrack = useCallback((participantId: string, audioEnabled: boolean, videoEnabled: boolean) => {
-        console.log("CallContext: enableTrack");
+        console.warn("CallContext: muteParticipantTrack");
 
         let participant = webRTCService.participants.get(participantId);
         if (!participant) {

@@ -218,7 +218,7 @@ export class Room {
             roomCallBackData.data.peers = [];
             roomCallBackData.data.roomId = this.id;
             roomCallBackData.data.status = "closed";
-            roomCallBackData.data.trackingId = this.trackingId;
+            roomCallBackData.data.roomTrackingId = this.trackingId;
 
 
             axios.post(this.config.callBackURL_OnRoomClosed, roomCallBackData);

@@ -86,7 +86,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
         setLoading(true);
         try {
             if (api.isUser()) {
-                createConferenceOrJoin(conferenceScheduled.id, conferenceCode, micEnabled, cameraEnabled);
+                createConferenceOrJoin(conferenceScheduled.externalId, conferenceCode, micEnabled, cameraEnabled);
             } else {
                 if (conferenceScheduled.conferenceRoomId) {
                     joinConference(conferenceCode, conferenceScheduled, micEnabled, cameraEnabled);

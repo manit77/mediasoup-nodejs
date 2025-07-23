@@ -1,7 +1,4 @@
-export enum AuthUserRoles {
-    admin = "admin"
-    , user = "user"
-}
+import { AuthUserRoles } from '@rooms/rooms-models';
 
 export interface AuthUserTokenPayload {
     role: AuthUserRoles

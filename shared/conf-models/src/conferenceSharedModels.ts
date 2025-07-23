@@ -105,7 +105,7 @@ export class RegisterResultMsg {
     data: {
         username?: string,        
         participantId?: string,
-        role?: ParticipantRole,
+        role?: ParticipantRole | string,
         error?: string
     } = {
         }
@@ -153,11 +153,11 @@ export class GetConferencesResultMsg {
 export class CreateConfMsg {
     type = CallMessageType.createConf;
     data: {
-        conferenceRoomTrackingId?: string,
+        conferenceRoomExternalId?: string,
         conferenceRoomConfig?: ConferenceRoomConfig,
         roomName?: string,
         /**
-         * a user trying to create a conference room with a trackingid
+         * a user trying to create a conference room with a externalId
          * the conference config requires a conference code
          * the user must pass a conference code to start it
          */
@@ -171,7 +171,7 @@ export class CreateConfResultMsg {
     type = CallMessageType.createConfResult;
     data: {
         conferenceRoomId?: string,
-        trackingId?: string,
+        externalId?: string,
         roomName?: string,
         error?: string
     } = {
@@ -183,7 +183,7 @@ export class JoinConfMsg {
     data: {
         conferenceRoomId?: string,
         conferenceCode?: string,
-        trackingId?: string,
+        externalId?: string,
         error?: string
     } = {
         }
@@ -205,7 +205,7 @@ export class InviteMsg {
         displayName?: string,
         conferenceRoomId?: string,
         conferenceRoomName?: string,
-        conferenceRoomTrackingId?: string,
+        conferenceRoomExternalId?: string,
         conferenceType?: conferenceType,
     } = {
         }
@@ -227,7 +227,7 @@ export class InviteResultMsg {
         displayName?: string,
         conferenceRoomId?: string,
         conferenceRoomName?: string,
-        conferenceRoomTrackingId?: string,
+        conferenceRoomExternalId?: string,
         conferenceType?: conferenceType,
         error?: string
     } = {
@@ -275,12 +275,14 @@ export class ConferenceReadyMsg {
     data: {
         participantId?: string,
         displayName?: string,
+        
         conferenceRoomId?: string,
         conferenceRoomName?: string,
-        conferenceRoomTrackingId?: string,
+        conferenceRoomExternalId?: string,
         conferenceType?: conferenceType,
         conferenceRoomConfig?: ConferenceRoomConfig,
-        authToken?: string,
+
+        roomAuthToken?: string,
         roomId?: string,
         roomToken?: string,
         roomURI?: string,
@@ -300,7 +302,7 @@ export interface CreateConferenceParams {
     conferenceRoomId: string,
     conferenceCode: string,
     roomName: string,
-    trackingId: string,    
+    externalId: string,    
     config: ConferenceRoomConfig,
 }
 
@@ -308,7 +310,7 @@ export interface JoinConferenceParams {
     conferenceRoomId: string,
     conferenceCode: string,
     roomName: string,
-    trackingId: string,
+    externalId: string,
     audioEnabledOnStart: boolean,
     videoEnabledOnStart: boolean,
     clientData: {},
@@ -327,14 +329,15 @@ export class ConferenceRoomConfig {
 
 export class ConferenceRoomInfo {
     conferenceRoomId: string = "";
-    roomTrackingId: string = "";
+    externalId: string = "";
+    roomId: string = "";    
     roomName: string = "";
     roomStatus: string = "";
     participantCount = 0;
 }
 
 export class ConferenceScheduledInfo {
-    id: string = "";
+    externalId: string = "";
     name: string = "";
     description: string = "";
     config: ConferenceRoomConfig = new ConferenceRoomConfig();

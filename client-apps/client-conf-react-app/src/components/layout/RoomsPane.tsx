@@ -55,7 +55,7 @@ const RoomsPane: React.FC = () => {
       console.log("conferencesOnline.length", conferencesOnline.length);
 
       const merged = conferencesScheduled.map(scheduled => {
-        const conf = conferencesOnline.find(c => scheduled.id === c.roomTrackingId);
+        const conf = conferencesOnline.find(conf => scheduled.externalId === conf.externalId);
         return {
           ...scheduled,
           conferenceRoomId: conf?.conferenceRoomId || undefined, // Ensure it's undefined if not found
@@ -108,7 +108,7 @@ const RoomsPane: React.FC = () => {
         <ListGroup>
           {mergedConferences.map((schedule) => (
             <ListGroup.Item
-              key={schedule.id}
+              key={schedule.externalId}
               action
               // Now passes the schedule to the new handler to show the pop-up
               onClick={() => handleScheduledConferenceClick(schedule)}
