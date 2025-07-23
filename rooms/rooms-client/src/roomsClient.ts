@@ -587,7 +587,7 @@ export class RoomsClient {
 
     this.send(msg);
 
-    console.log(`this.localPeer.tracksInfo:`, this.localPeer.tracksInfo);
+    console.warn(`${this.localPeer.displayName} sent PeerTracksInfoMsg:`, this.localPeer.tracksInfo);
     this.eventOnPeerTrackInfoUpdated(this.localPeer);
 
   }
@@ -744,7 +744,7 @@ export class RoomsClient {
           this.onRoomNewProducer(msgIn);
           break;
         case payloadTypeClient.peerTracksInfo:
-          this.onRoomProducerToggleStream(msgIn);
+          this.onPeerTracksInfoMsg(msgIn);
           break;
         case payloadTypeServer.roomPeerLeft:
           this.onRoomPeerLeft(msgIn);
@@ -966,8 +966,8 @@ export class RoomsClient {
     await this.eventOnRoomPeerLeft(roomid, peer);
   }
 
-  private onRoomProducerToggleStream(msgIn: PeerTracksInfoMsg) {
-    console.log("onRoomProducerToggleStream");
+  private onPeerTracksInfoMsg(msgIn: PeerTracksInfoMsg) {
+    console.warn("onPeerTracksInfoMsg");
 
     if (!this.localPeer.roomId) {
       console.error("not in a room.");
@@ -978,17 +978,12 @@ export class RoomsClient {
       console.error("not the same room.");
       return;
     }
-
     
-    let peer: IPeer;
-    let tracks: MediaStreamTrack[];
-    //some remote person shut me off
+    let peer: IPeer;    
     if (this.localPeer.peerId == msgIn.data.peerId) {
       peer = this.localPeer;
-      tracks = this.localPeer.getTracks();
     } else {
       peer = this.peers.get(msgIn.data.peerId);
-      tracks = (peer as Peer).getConsumers().map(c => c.consumer.track);
     }
 
     if (!peer) {
@@ -996,24 +991,8 @@ export class RoomsClient {
       return;
     }
 
-    if (!tracks || tracks.length == 0) {
-      console.error(`no tracks found`);
-      return;
-    }
-
     peer.tracksInfo = msgIn.data.tracksInfo;
-    
-    for (const track of tracks) {
-      console.log(`track ${track.id} ${track.kind} ${track.enabled}`);
-      let trackEnabled = track.kind == "audio" ? msgIn.data.tracksInfo.isAudioEnabled : msgIn.data.tracksInfo.isVideoEnabled;
-      if (trackEnabled !== track.enabled) {
-        track.enabled = trackEnabled
-        console.log(`track toggled to: ${track.enabled}`);        
-      } else {
-        console.log(`no change to track state. ${peer.displayName}'s ${track.kind}`);
-      }
-    }
-
+    console.warn(`received tracksInfo from ${peer.displayName}:`, peer.tracksInfo);
     this.eventOnPeerTrackInfoUpdated(peer);
   }
 

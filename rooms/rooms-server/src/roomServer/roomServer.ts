@@ -343,6 +343,7 @@ export class RoomServer {
         room.roomRtpCapabilities = router.rtpCapabilities;
 
         room.onClosedEvent = (r, peers) => {
+            consoleLog(`room.onClosedEvent ${r.id} ${r.roomName}`);
             this.removeRoomGlobal(r);
 
             //alert all peers that the room is closed

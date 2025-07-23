@@ -478,12 +478,12 @@ export class ConferenceClient {
     }
 
     /**
-     * send an invite to a participant that is online
+     * send an invite to a participant
      * this is a p2p conference room
      * send InviteMsg, wait to receive InviteResultMsg
      * @param participantId 
      */
-    invite(participantId: string, args: JoinConferenceParams): InviteMsg {
+    sendInvite(participantId: string, args: JoinConferenceParams): InviteMsg {
         console.log(`invite() ${participantId}`, args);
         if (this.isInConference()) {
             console.error("invite() - already in a conference.");
@@ -496,9 +496,15 @@ export class ConferenceClient {
         }
 
         this.callState = "calling";
-        this.inviteSendMsg = new InviteMsg();
-        this.inviteSendMsg.data.participantId = participantId;
-        this.sendToServer(this.inviteSendMsg);
+        let inviteMsg = new InviteMsg();
+        inviteMsg.data.participantId = participantId;
+        if (!this.sendToServer(inviteMsg)) {
+            console.error(`failed to send inviteSendMsg`);
+            this.resetConferenceRoom();
+            return null;
+        }
+
+        this.inviteSendMsg = inviteMsg;
 
         this.startCallConnectTimer();
         this.conferenceRoom.joinParams = args;
@@ -525,7 +531,7 @@ export class ConferenceClient {
         msg.data.roomName = args.roomName;
         msg.data.conferenceCode = args.conferenceCode;
         msg.data.conferenceRoomConfig = args.config;
-        this.sendToServer(msg);
+        return this.sendToServer(msg);
     }
 
     /**
@@ -573,7 +579,9 @@ export class ConferenceClient {
                 };
 
                 this.socket.addEventHandler("onmessage", _onmessage);
-                this.createConferenceRoom(args);
+                if (!this.createConferenceRoom(args)) {
+                    reject("failed send conference room msg.");
+                }
 
             } catch (err: any) {
                 console.log(err);
@@ -620,7 +628,9 @@ export class ConferenceClient {
                 };
 
                 this.socket.addEventHandler("onmessage", _onmessage);
-                this.joinConferenceRoom(args);
+                if (!this.joinConferenceRoom(args)) {
+                    reject(`failed to send joinConferenceRoom`);
+                }
 
             } catch (err: any) {
                 console.log(err);
@@ -641,7 +651,7 @@ export class ConferenceClient {
 
         if (this.conferenceRoom.conferenceId) {
             console.error(`already in conferenceroom ${this.conferenceRoom.conferenceId}`);
-            return;
+            return false;
         }
 
         this.conferenceRoom.joinParams = args;
@@ -651,14 +661,14 @@ export class ConferenceClient {
 
             if (!args.externalId) {
                 console.error(`trackingId is required.`);
-                return;
+                return false;
             }
 
             console.log(`getConferenceScheduled config `, args.externalId, args.clientData);
             let scheduled = await this.apiClient.getConferenceScheduled(args.externalId, args.clientData);
             if (scheduled.data.error) {
                 console.error(scheduled.data.error);
-                return;
+                return false;
             }
             console.log(`getConferenceScheduled result `, scheduled);
             this.conferenceRoom.conferenceRoomConfig = scheduled.data.conference.config;
@@ -666,7 +676,7 @@ export class ConferenceClient {
 
         if (!this.conferenceRoom.conferenceRoomConfig) {
             console.error(`not conference config found.`);
-            return;
+            return false;
         }
 
         this.startCallConnectTimer();
@@ -678,7 +688,7 @@ export class ConferenceClient {
 
         this.conferenceRoom.conferenceId = args.conferenceId;
 
-        this.sendToServer(msg);
+        return this.sendToServer(msg);
     }
 
     private checkTrackAllowed(track: MediaStreamTrack) {
@@ -749,6 +759,8 @@ export class ConferenceClient {
         console.log(`onInviteResult() - received a new conferenceId ${message.data.conferenceId}`);
         console.log(`set conferenceId ${message.data.conferenceId}`);
 
+        //clear the inviteSendMsg, set the conference variables
+        this.inviteSendMsg = null;
         this.conferenceRoom.conferenceId = message.data.conferenceId;
         this.conferenceRoom.conferenceName = message.data.conferenceName || `Call with ${message.data.displayName}`;
         this.conferenceRoom.conferenceExternalId = message.data.conferenceExternalId;
@@ -989,15 +1001,9 @@ export class ConferenceClient {
             return;
         }
 
-        this.clearCallConnectTimer();
-
         await this.onEvent(EventTypes.rejectReceived, message);
-
-        this.callState = "disconnected";
-        this.conferenceRoom.conferenceId = "";
-        this.inviteSendMsg = null;
+        this.resetConferenceRoom();
         this.disconnectRoomsClient("onRejectReceived");
-
     }
 
     /**
@@ -1241,11 +1247,11 @@ export class ConferenceClient {
 
             let msg = {
                 type: EventTypes.conferenceClosed,
-                data : {
-                    conferenceId : this.conferenceRoom.conferenceId,
-                    reason : "room closed"
+                data: {
+                    conferenceId: this.conferenceRoom.conferenceId,
+                    reason: "room closed"
                 }
-            };            
+            };
             await this.onEvent(msg.type, msg);
 
             this.resetConferenceRoom();
@@ -1333,7 +1339,7 @@ export class ConferenceClient {
         };
 
         this.roomsClient.eventOnPeerTrackInfoUpdated = async (peer: IPeer) => {
-            console.log(`eventOnTrackToggled peerId: ${peer.peerId} trackingId: ${peer.trackingId} displayName: ${peer.displayName}`);
+            console.log(`eventOnPeerTrackInfoUpdated peerId: ${peer.peerId} trackingId: ${peer.trackingId} displayName: ${peer.displayName}`);
 
             console.log(`participants:`, this.conferenceRoom.participants);
 

@@ -140,7 +140,7 @@ export class Peer {
     }
 
     close() {
-        console.log(`peer close() - ${this.id}`);
+        console.log(`peer close() - ${this.id} ${this.displayName}`);
 
         this.producerTransport?.close();
         this.consumerTransport?.close();
@@ -166,7 +166,7 @@ export class Peer {
             this.room.removePeer(this.id);
         }
 
-        console.log(`peer close() - all room instances removed.`);
+        console.log(`peer closed`);
 
     }
 

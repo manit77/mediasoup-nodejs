@@ -377,7 +377,7 @@ class WebRTCService {
      */
     public async sendInvite(participantId: string, args: JoinConferenceParams): Promise<InviteMsg> {
         console.log(`sendInvite ${participantId}`, args);
-        return this.confClient.invite(participantId, args);
+        return this.confClient.sendInvite(participantId, args);
     }
 
     /**

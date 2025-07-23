@@ -1,6 +1,7 @@
 import { ConferenceRoomConfig, conferenceType, ParticipantRole } from "@conf/conf-models";
 import { WebSocket } from "ws";
 import { AbstractEventHandler } from "../utils/evenHandler.js";
+import { consoleLog } from "../utils/utils.js";
 
 export interface IAuthPayload {
     username: string,
@@ -23,13 +24,13 @@ export class SocketConnection {
     }
 
     dispose() {
-        console.log(`SocketConnection dispose()`);
+        consoleLog(`SocketConnection dispose()`);
         this.eventHandlers = [];
 
         if (this.ws) {
             this.ws.close();
             this.ws = null;
-            console.log(`SocketConnection ws close`);
+            consoleLog(`SocketConnection ws close`);
         }
     }
 
@@ -38,18 +39,18 @@ export class SocketConnection {
     }
 
     restartSocketTimeout = () => {
-        console.log(`restartSocketTimeout`);
+        consoleLog(`restartSocketTimeout`);
 
         if (this.socketTimeoutId) {
             clearTimeout(this.socketTimeoutId);
             this.socketTimeoutId = null;
         }
 
-        console.log(`SocketConnection socketTimeout started:`, this.timeoutSecs);
+        consoleLog(`SocketConnection socketTimeout started:`, this.timeoutSecs);
         this.socketTimeoutId = setTimeout(() => {
-            console.log(`SocketConnection socketTimeout reached ${this.eventHandlers.length}`);
+            consoleLog(`SocketConnection socketTimeout reached ${this.eventHandlers.length}`);
             for (let cb of this.eventHandlers) {
-                console.log(`SocketConnection socketTimeout fire event`);
+                consoleLog(`SocketConnection socketTimeout fire event`);
                 cb(this);
             }
         }, this.timeoutSecs * 1000);
@@ -69,15 +70,15 @@ export class Participant {
     role: ParticipantRole | string = ParticipantRole.guest;
     clientData: {} = {}; //passed down from the user login or the query string from a client    
     connection: SocketConnection;
-   
+
     constructor() {
-       
+
     }
 }
 
 export type conferenceStatus = "none" | "initializing" | "ready" | "closed";
 
-export class ConferenceRoom  {
+export class ConferenceRoom {
     id: string;
     externalId: string;
     timeoutId: any;
@@ -100,7 +101,7 @@ export class ConferenceRoom  {
     onClose: (conf: ConferenceRoom, participants: Participant[], reason: string) => void;
 
     constructor() {
-       
+
     }
 
     addOnReadyListener(cb: () => void) {
@@ -116,7 +117,7 @@ export class ConferenceRoom  {
     }
 
     updateStatus(status: conferenceStatus) {
-        console.log(`updateStatus ${status}`);
+        consoleLog(`updateStatus ${status}`);
 
         this.status = status;
 
@@ -129,23 +130,23 @@ export class ConferenceRoom  {
     }
 
     removeParticipant(id: string) {
-        console.log("removeParticipant");
+        consoleLog("removeParticipant");
 
         let part = this.participants.get(id);
         if (part) {
             part.conferenceRoom = null;
             this.participants.delete(id);
-            console.log("participant removed");
+            consoleLog("participant removed");
         }
 
         if (this.participants.size == 0) {
-            console.log("closing room, no participants.");
+            consoleLog("closing room, no participants.");
             this.close();
         }
     }
 
     addParticipant(part: Participant): boolean {
-        console.log(`addParticipant. ${part.participantId} ${part.displayName}`);
+        consoleLog(`addParticipant. ${part.participantId} ${part.displayName}`);
 
         if (this.participants.has(part.participantId)) {
             console.error("participant already exists");
@@ -178,10 +179,10 @@ export class ConferenceRoom  {
     }
 
     close(reason: string = "") {
-        console.log(`conference close. ${this.id} reason: ${reason}`);
+        consoleLog(`conference close. ${this.id} reason: ${reason}`);
 
         if (this.status === "closed") {
-            console.log("conference already closed.");
+            consoleLog("conference already closed.");
             return;
         }
 
@@ -224,16 +225,16 @@ export class ConferenceRoom  {
      * @param timeoutSeconds 
      */
     startTimerMinParticipants(timeoutSeconds: number) {
-        console.log("startTimerMinParticipants");
+        consoleLog("startTimerMinParticipants");
 
         if (this.minParticipantsTimerId) {
             clearTimeout(this.minParticipantsTimerId);
         }
 
         if (this.minParticipants > 0) {
-            console.log(`startTimerMinParticipants started ${this.minParticipants}`);
+            consoleLog(`startTimerMinParticipants started ${this.minParticipants}`);
             this.minParticipantsTimerId = setTimeout(() => {
-                console.log("TimerMinParticipants executed.");
+                consoleLog("TimerMinParticipants executed.");
                 this.close();
             }, timeoutSeconds * 1000);
         }
