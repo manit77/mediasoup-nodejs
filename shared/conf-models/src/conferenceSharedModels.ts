@@ -153,7 +153,7 @@ export class GetConferencesResultMsg {
 export class CreateConfMsg {
     type = CallMessageType.createConf;
     data: {
-        conferenceRoomExternalId?: string,
+        conferenceExternalId?: string,
         conferenceRoomConfig?: ConferenceRoomConfig,
         roomName?: string,
         /**
@@ -170,7 +170,7 @@ export class CreateConfMsg {
 export class CreateConfResultMsg {
     type = CallMessageType.createConfResult;
     data: {
-        conferenceRoomId?: string,
+        conferenceId?: string,
         externalId?: string,
         roomName?: string,
         error?: string
@@ -181,7 +181,7 @@ export class CreateConfResultMsg {
 export class JoinConfMsg {
     type = CallMessageType.joinConf;
     data: {
-        conferenceRoomId?: string,
+        conferenceId?: string,
         conferenceCode?: string,
         externalId?: string,
         error?: string
@@ -192,7 +192,7 @@ export class JoinConfMsg {
 export class JoinConfResultMsg {
     type = CallMessageType.joinConfResult;
     data: {
-        conferenceRoomId?: string,
+        conferenceId?: string,
         error?: string
     } = {
         }
@@ -203,9 +203,9 @@ export class InviteMsg {
     data: {
         participantId?: string,
         displayName?: string,
-        conferenceRoomId?: string,
-        conferenceRoomName?: string,
-        conferenceRoomExternalId?: string,
+        conferenceId?: string,
+        conferenceName?: string,
+        conferenceExternalId?: string,
         conferenceType?: conferenceType,
     } = {
         }
@@ -214,7 +214,7 @@ export class InviteMsg {
 export class InviteCancelledMsg {
     type = CallMessageType.inviteCancelled;
     data: {
-        conferenceRoomId?: string,
+        conferenceId?: string,
         participantId?: string
     } = {
         }
@@ -225,9 +225,9 @@ export class InviteResultMsg {
     data: {
         participantId?: string,
         displayName?: string,
-        conferenceRoomId?: string,
-        conferenceRoomName?: string,
-        conferenceRoomExternalId?: string,
+        conferenceId?: string,
+        conferenceName?: string,
+        conferenceExternalId?: string,
         conferenceType?: conferenceType,
         error?: string
     } = {
@@ -237,7 +237,7 @@ export class InviteResultMsg {
 export class RejectMsg {
     type = CallMessageType.reject;
     data: {
-        conferenceRoomId?: string,
+        conferenceId?: string,
         fromParticipantId?: string,
         toParticipantId?: string,
     } = {
@@ -247,7 +247,7 @@ export class RejectMsg {
 export class AcceptMsg {
     type = CallMessageType.accept;
     data: {
-        conferenceRoomId?: string,
+        conferenceId?: string,
         error?: string
     } = {
         }
@@ -256,7 +256,7 @@ export class AcceptMsg {
 export class AcceptResultMsg {
     type = CallMessageType.acceptResult;
     data: {
-        conferenceRoomId?: string,
+        conferenceId?: string,
         error?: string
     } = {
         }
@@ -265,7 +265,7 @@ export class AcceptResultMsg {
 export class LeaveMsg {
     type = CallMessageType.leave;
     data = {
-        conferenceRoomId: "",
+        conferenceId: "",
         participantId: ""
     }
 }
@@ -276,9 +276,9 @@ export class ConferenceReadyMsg {
         participantId?: string,
         displayName?: string,
         
-        conferenceRoomId?: string,
-        conferenceRoomName?: string,
-        conferenceRoomExternalId?: string,
+        conferenceId?: string,
+        conferenceName?: string,
+        conferenceExternalId?: string,
         conferenceType?: conferenceType,
         conferenceRoomConfig?: ConferenceRoomConfig,
 
@@ -293,13 +293,13 @@ export class ConferenceReadyMsg {
 export class ConferenceClosedMsg {
     type = CallMessageType.conferenceClosed;
     data: {
-        conferenceRoomId?: string,
+        conferenceId?: string,
         reason?: string
     } = {}
 }
 
 export interface CreateConferenceParams {
-    conferenceRoomId: string,
+    conferenceId: string,
     conferenceCode: string,
     roomName: string,
     externalId: string,    
@@ -307,7 +307,7 @@ export interface CreateConferenceParams {
 }
 
 export interface JoinConferenceParams {
-    conferenceRoomId: string,
+    conferenceId: string,
     conferenceCode: string,
     roomName: string,
     externalId: string,
@@ -328,7 +328,7 @@ export class ConferenceRoomConfig {
 }
 
 export class ConferenceRoomInfo {
-    conferenceRoomId: string = "";
+    conferenceId: string = "";
     externalId: string = "";
     roomId: string = "";    
     roomName: string = "";

@@ -58,7 +58,7 @@ const RoomsPane: React.FC = () => {
         const conf = conferencesOnline.find(conf => scheduled.externalId === conf.externalId);
         return {
           ...scheduled,
-          conferenceRoomId: conf?.conferenceRoomId || undefined, // Ensure it's undefined if not found
+          conferenceId: conf?.conferenceId || undefined, // Ensure it's undefined if not found
           roomStatus: conf?.roomStatus || "",
         };
       });
@@ -69,7 +69,7 @@ const RoomsPane: React.FC = () => {
   // Function to handle showing the JoinRoomPopUp
   const handleShowJoinPopUp = (conference: ConferenceRoomScheduled) => {
 
-    if (isAdmin() || isUser() || conference.conferenceRoomId) {
+    if (isAdmin() || isUser() || conference.conferenceId) {
       setSelectedConferenceToJoin(conference);
       setShowJoinPopUp(true);
       return;

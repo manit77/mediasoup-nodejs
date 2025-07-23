@@ -358,7 +358,7 @@ class WebRTCService {
                 return false;
             }
 
-            joinArgs.conferenceRoomId = newResult.data.conferenceRoomId;
+            joinArgs.conferenceId = newResult.data.conferenceId;
 
             let joinResult = await this.confClient.waitJoinConferenceRoom(joinArgs);
             if (joinResult.data.error) {
@@ -460,7 +460,7 @@ class WebRTCService {
 
         if (msg.data.error) {
             console.error("eventInviteResult failed", msg.data.error);
-            await this.onConferenceEnded(msg.data.conferenceRoomId, msg.data.error);
+            await this.onConferenceEnded(msg.data.conferenceId, msg.data.error);
             this.removeTracks();
             return;
         }
@@ -470,7 +470,7 @@ class WebRTCService {
     private async eventInviteCancelled(msg: any) {
         console.log("eventInviteCancelled", msg);
 
-        await this.onConferenceEnded(msg.data.conferenceRoomId, "call cancelled");
+        await this.onConferenceEnded(msg.data.conferenceId, "call cancelled");
         this.removeTracks();
     }
 
@@ -479,7 +479,7 @@ class WebRTCService {
 
         if (msg.data.error) {
             console.error(msg.data.error);
-            await this.onConferenceEnded(msg.data.conferenceRoomId, "accept failed.");
+            await this.onConferenceEnded(msg.data.conferenceId, "accept failed.");
             this.removeTracks();
         }
     }
@@ -487,7 +487,7 @@ class WebRTCService {
     private async eventRejectReceived(msg: any) {
         console.log("eventRejectReceived", msg);
 
-        await this.onConferenceEnded(msg.data.conferenceRoomId, "call rejected");
+        await this.onConferenceEnded(msg.data.conferenceId, "call rejected");
         this.removeTracks();
     }
 
@@ -507,19 +507,19 @@ class WebRTCService {
         if (this.localStream) {            
             this.confClient.publishTracks(this.localStream.getTracks());
         }
-        await this.onConferenceJoined(msg.data.conferenceRoomId);
+        await this.onConferenceJoined(msg.data.conferenceId);
     }
 
     private async eventConferenceFailed(msg: any) {
         console.log("eventConferenceFailed", msg);
-        await this.onConferenceEnded(msg.data.conferenceRoomId, msg.data.error || "conference failed.");
+        await this.onConferenceEnded(msg.data.conferenceId, msg.data.error || "conference failed.");
         this.removeTracks();
     }
 
     private async eventConferenceClosed(msg: ConferenceClosedMsg) {
         console.log("eventConferenceClosed", msg);
 
-        await this.onConferenceEnded(msg.data.conferenceRoomId, msg.data.reason ?? "call ended.");
+        await this.onConferenceEnded(msg.data.conferenceId, msg.data.reason ?? "call ended.");
         this.removeTracks();
     }
 

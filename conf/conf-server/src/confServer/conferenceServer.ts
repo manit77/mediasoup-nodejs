@@ -210,7 +210,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
             //alert any existing participants the room is closed
             let msgClosed = new ConferenceClosedMsg();
-            msgClosed.data.conferenceRoomId = conf.id;
+            msgClosed.data.conferenceId = conf.id;
             msgClosed.data.reason = reason;
             participants.forEach(p => this.send(p, msgClosed));
 
@@ -312,7 +312,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         //broadcast to all participants of conferences that have a trackingId
         let msg = new GetConferencesResultMsg();
         msg.data.conferences = [...this.conferences.values()].filter(c => c.externalId).map(c => ({
-            conferenceRoomId: c.id,
+            conferenceId: c.id,
             externalId: c.externalId,
             roomId: c.roomId,
             roomName: c.roomName,
@@ -392,7 +392,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             console.error("caller already in a conference room.");
 
             let errorMsg = new InviteResultMsg();
-            errorMsg.data.conferenceRoomId = participant.conferenceRoom.id;
+            errorMsg.data.conferenceId = participant.conferenceRoom.id;
             errorMsg.data.error = "already in a conference room.";
 
             return errorMsg;
@@ -432,9 +432,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         let msg = new InviteMsg();
         msg.data.participantId = participant.participantId;
         msg.data.displayName = participant.displayName;
-        msg.data.conferenceRoomId = conference.id;
-        msg.data.conferenceRoomName = conference.roomName;
-        msg.data.conferenceRoomExternalId = conference.externalId;
+        msg.data.conferenceId = conference.id;
+        msg.data.conferenceName = conference.roomName;
+        msg.data.conferenceExternalId = conference.externalId;
         msg.data.conferenceType = conference.confType;
 
         if (!this.send(remote, msg)) {
@@ -443,7 +443,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
             let errorMsg = new InviteResultMsg();
             //send InviteResult back to the caller
-            errorMsg.data.conferenceRoomId = conference.id;
+            errorMsg.data.conferenceId = conference.id;
             errorMsg.data.error = "invite failed.";
 
             return errorMsg;
@@ -453,9 +453,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         //send InviteResult back to the caller
         inviteResultMsg.data.participantId = remote.participantId;
         inviteResultMsg.data.displayName = remote.displayName;
-        inviteResultMsg.data.conferenceRoomId = conference.id;
-        inviteResultMsg.data.conferenceRoomName = conference.roomName;
-        inviteResultMsg.data.conferenceRoomExternalId = conference.externalId;
+        inviteResultMsg.data.conferenceId = conference.id;
+        inviteResultMsg.data.conferenceName = conference.roomName;
+        inviteResultMsg.data.conferenceExternalId = conference.externalId;
         inviteResultMsg.data.conferenceType = conference.confType;
 
         return inviteResultMsg;
@@ -471,7 +471,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return;
         }
 
-        let conf = this.conferences.get(msgIn.data.conferenceRoomId);
+        let conf = this.conferences.get(msgIn.data.conferenceId);
         if (!conf) {
             console.error("conference not found.");
             return;
@@ -488,7 +488,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         let resultMsg = new InviteCancelledMsg();
-        resultMsg.data.conferenceRoomId = conf.id;
+        resultMsg.data.conferenceId = conf.id;
         resultMsg.data.participantId = participant.participantId;
 
         return resultMsg;
@@ -510,7 +510,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return;
         }
 
-        let conf = this.conferences.get(msgIn.data.conferenceRoomId);
+        let conf = this.conferences.get(msgIn.data.conferenceId);
         if (!conf) {
             console.error("onReject - conference not found.");
             return;
@@ -535,12 +535,12 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
     private async onAccept(participant: Participant, msgIn: AcceptMsg) {
         console.log("onAccept()");
 
-        let conference = this.conferences.get(msgIn.data.conferenceRoomId);
+        let conference = this.conferences.get(msgIn.data.conferenceId);
 
         if (!conference) {
             console.error("ERROR: conference room does not exist");
             let msg = new AcceptResultMsg();
-            msg.data.conferenceRoomId = msgIn.data.conferenceRoomId;
+            msg.data.conferenceId = msgIn.data.conferenceId;
             msg.data.error = "unable to join conference";
             return msg;
         }
@@ -552,7 +552,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         if (conference.status == "closed") {
             let msg = new AcceptResultMsg();
-            msg.data.conferenceRoomId = msgIn.data.conferenceRoomId;
+            msg.data.conferenceId = msgIn.data.conferenceId;
             msg.data.error = "conference is closed";
             return msg;
         }
@@ -566,7 +566,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         let timeoutid = setTimeout(() => {
             console.error("timeout waiting to join conference.");
             let msg = new AcceptResultMsg();
-            msg.data.conferenceRoomId = msgIn.data.conferenceRoomId;
+            msg.data.conferenceId = msgIn.data.conferenceId;
             msg.data.error = "timeout, unable to join conference";
             this.send(participant, msg);
         }, 5000);
@@ -578,7 +578,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
             //send the answer result back
             let msg = new AcceptResultMsg();
-            msg.data.conferenceRoomId = msgIn.data.conferenceRoomId;
+            msg.data.conferenceId = msgIn.data.conferenceId;
             this.send(participant, msg);
         });
 
@@ -601,8 +601,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         //tracking id is required
-        if (!msgIn.data.conferenceRoomExternalId) {
-            console.error("conferenceRoomExternalId is required.");
+        if (!msgIn.data.conferenceExternalId) {
+            console.error("conferenceExternalId is required.");
             return;
         }
 
@@ -613,10 +613,10 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
         let roomName = msgIn.data.roomName;
 
-        if (msgIn.data.conferenceRoomExternalId) {
+        if (msgIn.data.conferenceExternalId) {
             //tracking id was passed fetch config from external datasource
             if (this.config.conf_data_urls.getScheduledConferenceURL) {
-                let resultMsg = await this.thirdParty.getScheduledConference(msgIn.data.conferenceRoomExternalId, participant.clientData);
+                let resultMsg = await this.thirdParty.getScheduledConference(msgIn.data.conferenceExternalId, participant.clientData);
                 if (resultMsg) {
                     confConfig.conferenceCode = resultMsg.data.conference.config.conferenceCode;
                     confConfig.guestsAllowCamera = resultMsg.data.conference.config.guestsAllowCamera;
@@ -631,7 +631,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 }
             } else {
                 //get from demo data                
-                let demoSchedule = getDemoSchedules().find(s => s.externalId === msgIn.data.conferenceRoomExternalId);
+                let demoSchedule = getDemoSchedules().find(s => s.externalId === msgIn.data.conferenceExternalId);
                 if (demoSchedule) {
                     confConfig.conferenceCode = demoSchedule.config.conferenceCode;
                     confConfig.guestsAllowCamera = demoSchedule.config.guestsAllowCamera;
@@ -660,7 +660,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         if (conference) {
             console.log("conference already created");
         } else {
-            conference = this.getOrCreateConference(null, msgIn.data.conferenceRoomExternalId, roomName, confConfig);
+            conference = this.getOrCreateConference(null, msgIn.data.conferenceExternalId, roomName, confConfig);
             conference.confType = "room";
             if (!await this.startRoom(conference)) {
                 console.error("unable to start a conference");
@@ -671,7 +671,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         let resultMsg = new CreateConfResultMsg();
-        resultMsg.data.conferenceRoomId = conference.id;
+        resultMsg.data.conferenceId = conference.id;
         resultMsg.data.externalId = conference.externalId;
         resultMsg.data.roomName = conference.roomName;
 
@@ -688,9 +688,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
     private async onJoinConference(participant: Participant, msgIn: JoinConfMsg) {
         console.log("onJoinConference");
 
-        //conferenceRoomId or externalId is required
-        if (!msgIn.data.conferenceRoomId && !msgIn.data.externalId) {
-            console.error("conferenceRoomId or externalId is required.");
+        //conferenceId or externalId is required
+        if (!msgIn.data.conferenceId && !msgIn.data.externalId) {
+            console.error("conferenceId or externalId is required.");
 
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "invalid room data.";
@@ -708,14 +708,14 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         let conference: ConferenceRoom;
-        if (msgIn.data.conferenceRoomId) {
-            conference = this.conferences.get(msgIn.data.conferenceRoomId);
+        if (msgIn.data.conferenceId) {
+            conference = this.conferences.get(msgIn.data.conferenceId);
         } else if (msgIn.data.externalId) {
             conference = [...this.conferences.values()].find(c => c.externalId === msgIn.data.externalId);
         }
 
         if (!conference) {
-            console.error(`conference room not found ${msgIn.data.conferenceRoomId}`);
+            console.error(`conference room not found ${msgIn.data.conferenceId}`);
 
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "conference room not found.";
@@ -773,7 +773,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         this.sendConferenceReady(conference, participant);
 
         let resultMsg = new JoinConfResultMsg();
-        resultMsg.data.conferenceRoomId = conference.roomId;
+        resultMsg.data.conferenceId = conference.roomId;
 
         return resultMsg;
     }
@@ -799,9 +799,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         console.log("authUserTokenResult", authUserTokenResult);
 
         let msg = new ConferenceReadyMsg()
-        msg.data.conferenceRoomId = conference.id;
-        msg.data.conferenceRoomName = conference.roomName;
-        msg.data.conferenceRoomExternalId = conference.externalId;
+        msg.data.conferenceId = conference.id;
+        msg.data.conferenceName = conference.roomName;
+        msg.data.conferenceExternalId = conference.externalId;
         msg.data.conferenceType = conference.confType;
         msg.data.participantId = participant.participantId;
         msg.data.displayName = participant.displayName;
@@ -884,7 +884,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     private async onLeave(participant: Participant, msgIn: LeaveMsg): Promise<IMsg | null> {
         console.log("onLeave");
-        let conf = this.conferences.get(msgIn.data.conferenceRoomId);
+        let conf = this.conferences.get(msgIn.data.conferenceId);
 
         if (!conf) {
             console.error("conference room not found.");
@@ -910,7 +910,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         //forward leave to all other participants
         for (let p of conf.participants.values()) {
             let msg = new LeaveMsg();
-            msg.data.conferenceRoomId = conf.id;
+            msg.data.conferenceId = conf.id;
             msg.data.participantId = participant.participantId;
             this.send(p, msg);
         }
@@ -928,7 +928,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         return [...this.conferences.values()]
             .map(c => {
                 return { 
-                    conferenceRoomId: c.id, 
+                    conferenceId: c.id, 
                     externalId: c.externalId,
                     roomId: c.roomId,                    
                     roomName: c.roomName, 

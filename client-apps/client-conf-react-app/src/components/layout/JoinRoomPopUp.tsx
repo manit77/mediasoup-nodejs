@@ -88,7 +88,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             if (api.isUser()) {
                 createConferenceOrJoin(conferenceScheduled.externalId, conferenceCode, micEnabled, cameraEnabled);
             } else {
-                if (conferenceScheduled.conferenceRoomId) {
+                if (conferenceScheduled.conferenceId) {
                     joinConference(conferenceCode, conferenceScheduled, micEnabled, cameraEnabled);
                 } else {
                     ui.showToast("conference is not active.");

@@ -27,7 +27,7 @@ export class ConferenceRoomScheduled {
      * third party unique id, this will always have a value
      */
     externalId: string = "";
-    conferenceRoomId: string = "";
+    conferenceId: string = "";
     roomId: string = "";
     roomStatus: string = "";
     roomName: string = "";

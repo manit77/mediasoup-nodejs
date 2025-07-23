@@ -238,7 +238,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         webRTCService.onInviteReceived = async (inviteReceivedMsg: InviteMsg) => {
-            console.log(`CallContext: onInviteReceived ${inviteReceivedMsg.data.displayName} ${inviteReceivedMsg.data.participantId} ${inviteReceivedMsg.data.conferenceRoomName}`);
+            console.log(`CallContext: onInviteReceived ${inviteReceivedMsg.data.displayName} ${inviteReceivedMsg.data.participantId} ${inviteReceivedMsg.data.conferenceName}`);
             // Auto-decline if already in a call
             if (isCallActive) {
                 console.log("CallContext: already in a call, declining invite");
@@ -252,7 +252,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         webRTCService.onConferenceJoined = async (conferenceId: string) => {
-            console.log(`CallContext: onConferenceJoined ${conferenceId}, conferenceRoomName:${webRTCService.getConferenceRoom()?.conferenceRoomName}`);
+            console.log(`CallContext: onConferenceJoined ${conferenceId}, conferenceName:${webRTCService.getConferenceRoom()?.conferenceName}`);
 
             if (localParticipant.current.stream.getTracks().length === 0) {
                 await getLocalMedia();
@@ -333,7 +333,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 audioEnabledOnStart: startWithAudioEnabled,
                 clientData: api.getCurrentUser()?.clientData,
                 conferenceCode: "",
-                conferenceRoomId: "",
+                conferenceId: "",
                 roomName: "",
                 externalId: "",
                 videoEnabledOnStart: startWithVideoEnabled
@@ -356,7 +356,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const acceptInvite = useCallback(async () => {
         try {
             await webRTCService.acceptInvite();
-            console.log(`Call with ${inviteInfoReceived.data.displayName} accepted in room ${inviteInfoReceived.data.conferenceRoomName}`);
+            console.log(`Call with ${inviteInfoReceived.data.displayName} accepted in room ${inviteInfoReceived.data.conferenceName}`);
             setInviteInfoReceived(null);
         } catch (error) {
             console.error('error" acceptInvite:', error);
@@ -388,7 +388,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             conferenceCode: "",
             externalId: externalId,
             roomName: roomName,
-            conferenceRoomId: "",
+            conferenceId: "",
             config: null
         }
 
@@ -398,15 +398,15 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const joinConference = useCallback((conferenceCode: string, scheduled: ConferenceRoomScheduled, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => {
         console.log("CallContext: joinConference");
 
-        if (!scheduled.conferenceRoomId) {
-            console.error("CallContext: joinConference: conferenceRoomId is required");
+        if (!scheduled.conferenceId) {
+            console.error("CallContext: joinConference: conferenceId is required");
             return;
         }
         let joinArgs: JoinConferenceParams = {
             audioEnabledOnStart: startWithAudioEnabled,
             clientData: api.getCurrentUser()?.clientData,
             conferenceCode: conferenceCode,
-            conferenceRoomId: scheduled.conferenceRoomId,
+            conferenceId: scheduled.conferenceId,
             roomName: "",
             externalId: scheduled.externalId,
             videoEnabledOnStart: startWithVideoEnabled
@@ -419,7 +419,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log("CallContext: createConferenceOrJoin ", externalId, conferenceCode);
         let createArgs: CreateConferenceParams = {
             conferenceCode: conferenceCode,
-            conferenceRoomId: "",
+            conferenceId: "",
             config: null,
             roomName: "",
             externalId: externalId
@@ -429,7 +429,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             audioEnabledOnStart: startWithAudioEnabled,
             clientData: api.getCurrentUser()?.clientData,
             conferenceCode: conferenceCode,
-            conferenceRoomId: "",
+            conferenceId: "",
             roomName: "",
             externalId: externalId,
             videoEnabledOnStart: startWithVideoEnabled

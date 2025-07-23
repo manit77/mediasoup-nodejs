@@ -190,7 +190,7 @@ export class ConferenceAPI {
 
             } else {
                 //get from demo data
-                console.log(`${WebRoutes.getConferencesScheduled}`);
+                //console.log(`${WebRoutes.getConferencesScheduled}`);
 
                 //map and delete the conference code
                 resultMsg = new GetConferencesScheduledResultMsg();
@@ -242,7 +242,7 @@ export class ConferenceAPI {
 
             } else {
                 //get from demo data
-                console.log(`${WebRoutes.getConferencesScheduled}`);
+                //console.log(`${WebRoutes.getConferencesScheduled}`);
 
                 //map and delete the conference code
                 resultMsg = new GetConferencesScheduledResultMsg();
