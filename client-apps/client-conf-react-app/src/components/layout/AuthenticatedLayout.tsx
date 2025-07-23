@@ -31,7 +31,7 @@ const AuthenticatedLayout: React.FC = () => {
     }
 
     const constraints = getMediaConstraints();
-    console.warn('Fetching preview with constraints:', constraints); // Debug log
+    console.log('Fetching preview with constraints:', constraints); // Debug log
 
     navigator.mediaDevices.getUserMedia(constraints)
       .then((stream) => {
@@ -66,7 +66,7 @@ const AuthenticatedLayout: React.FC = () => {
 
   // Separate effect for stream changes: Assign srcObject and stop old tracks to release device
   useEffect(() => {
-    console.warn(`set preview stream`);
+    console.log(`set preview stream`);
     
     if (previewStream && videoRef.current) {
       videoRef.current.srcObject = previewStream;

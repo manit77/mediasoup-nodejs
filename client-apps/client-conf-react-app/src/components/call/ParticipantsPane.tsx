@@ -21,31 +21,16 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
     const [audioEnabled, setAudioEnabled] = useState(false);
 
     useEffect(() => {
-        console.warn(`participant updated, set video srcObject ${participant.displayName}`);
+        console.log(`participant updated, set video srcObject ${participant.displayName}`, participant.peer?.tracksInfo);
         if (participant.stream && videoRef.current) {
             videoRef.current.srcObject = participant.stream;
-            console.warn(`set srcObject ${participant.displayName}`);
+            console.log(`videoRef set srcObject ${participant.displayName}`);
         }
 
-        if (participant.stream) {
-            console.warn(`participant tracks:`, participant.stream.getTracks());
+        setAudioEnabled(participant.peer?.tracksInfo?.isAudioEnabled ?? false);
+        setVideoEnabled(participant.peer?.tracksInfo?.isVideoEnabled ?? false);
 
-            let audioTrack = participant.stream.getAudioTracks()[0];
-            if (audioTrack) {
-                setAudioEnabled(audioTrack.enabled);
-                console.warn(`audioTrack.enabled`, audioTrack.enabled);
-            }
-
-            let videoTrack = participant.stream.getVideoTracks()[0];
-            if (videoTrack) {
-                setVideoEnabled(videoTrack.enabled);
-                console.warn(`videoTrack.enabled`, videoTrack.enabled);
-            }
-        } else {
-            console.warn(`not participant stream ${participant.displayName}`);
-        }
-
-    }, [participant, callParticipants]);
+    }, [callParticipants]);
 
     const onVideoClick = useCallback(async () => {
         console.log("onVideoClick ", participant);
@@ -73,22 +58,22 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         }
 
         //toggle video track, this affects the local stream only
-        console.warn(`toggle video track`);
+        console.log(`toggle video track`);
 
         let track = participant.stream.getVideoTracks()[0];
         if (!track) {
-            console.warn(`no video track found.`);
+            console.log(`no video track found.`);
             ui.showToast("not video track found.");
             return;
         }
-        console.warn(`audio video enabled: ${track.enabled}`);
+        console.log(`audio video enabled: ${track.enabled}`);
 
         let isVideoEnabled = participant.stream.getVideoTracks()[0]?.enabled;
-        console.warn(`isVideoEnabled ${isVideoEnabled} change to ${!isVideoEnabled}`);
+        console.log(`isVideoEnabled ${isVideoEnabled} change to ${!isVideoEnabled}`);
         track.enabled = !isVideoEnabled;
         setVideoEnabled(track.enabled);
 
-        console.warn(`track.enabled:`, track.enabled);
+        console.log(`track.enabled:`, track.enabled);
         if (track.enabled) {
             ui.showToast("video track enabled.");
         } else {
@@ -104,11 +89,11 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
             //if remote user            
             if (api.isUser()) {
                 //an authorized user can mute another participant
-                muteParticipantTrack(participant.participantId, audioEnabled, videoEnabled)
+                muteParticipantTrack(participant.participantId, audioEnabled, track.enabled)
             }
         }
 
-    }, [api, audioEnabled, conferenceRoom, getLocalMedia, localParticipant, muteParticipantTrack, participant, ui, updateTrackEnabled, videoEnabled]);
+    }, [api, audioEnabled, conferenceRoom, getLocalMedia, localParticipant, muteParticipantTrack, participant, ui, updateTrackEnabled]);
 
     const onAudioClick = useCallback(async () => {
         console.log("onAudioClick ", participant);
@@ -169,12 +154,12 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
             //TODO: create another function to mute unmute remote participants
             if (api.isUser()) {
                 //an authorized user can mute another participant
-                muteParticipantTrack(participant.participantId, audioEnabled, videoEnabled)
+                muteParticipantTrack(participant.participantId, track.enabled, videoEnabled)
                 ui.showToast(`participant ${track.kind} ${track.enabled ? 'enabled' : 'disabled'}.`);
             }
         }
 
-    }, [api, audioEnabled, conferenceRoom, getLocalMedia, localParticipant, muteParticipantTrack, participant, ui, updateTrackEnabled, videoEnabled]);
+    }, [api, conferenceRoom, getLocalMedia, localParticipant, muteParticipantTrack, participant, ui, updateTrackEnabled, videoEnabled]);
 
 
     return (

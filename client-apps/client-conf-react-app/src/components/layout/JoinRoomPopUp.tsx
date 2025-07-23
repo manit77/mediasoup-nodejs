@@ -60,7 +60,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
     }, []);
 
     useEffect(() => {
-        console.warn(`useEffect guest`);
+        console.log(`useEffect guest`);
 
         let user = api.getCurrentUser();
         if (user.role === "guest") {

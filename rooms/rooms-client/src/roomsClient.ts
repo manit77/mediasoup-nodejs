@@ -7,8 +7,8 @@ import {
   ErrorMsg, IMsg, OkMsg, payloadTypeClient, payloadTypeServer, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg,
   RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeStreamMsg, RoomConsumeStreamResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
   RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
-  RoomProducerMuteStreamMsg,
-  RoomProducerToggleStreamMsg,
+  PeerMuteTracksMsg,
+  PeerTracksInfoMsg,
   RoomProduceStreamMsg,
   RoomProduceStreamResultMsg,
   UniqueMap,
@@ -53,7 +53,8 @@ export class RoomsClient {
   eventOnPeerNewTrack: (peer: IPeer, track: MediaStreamTrack) => Promise<void> = async () => { };
   eventOnRoomPeerLeft: (roomId: string, peer: IPeer) => Promise<void> = async () => { };
   eventOnRoomClosed: (roomId: string, peers: IPeer[]) => Promise<void> = async () => { };
-  eventOnPeerTrackToggled: (peer: IPeer, track: MediaStreamTrack, enabled: boolean) => Promise<void> = async () => { };
+  //eventOnPeerTrackToggled: (peer: IPeer, track: MediaStreamTrack, enabled: boolean) => Promise<void> = async () => { };
+  eventOnPeerTrackInfoUpdated: (peer: IPeer) => Promise<void> = async () => { };
   eventOnRoomSocketClosed: () => Promise<void> = async () => { };
 
   inititalize = async (options: { rtp_capabilities?: any }) => {
@@ -76,7 +77,8 @@ export class RoomsClient {
     this.eventOnPeerNewTrack = null;
     this.eventOnRoomPeerLeft = null;
     this.eventOnRoomClosed = null;
-    this.eventOnPeerTrackToggled = null;
+    //this.eventOnPeerTrackToggled = null;
+    this.eventOnPeerTrackInfoUpdated = null;
     this.eventOnRoomSocketClosed = null;
     console.log("dispose() - complete");
   };
@@ -459,10 +461,15 @@ export class RoomsClient {
   };
 
   publishTracks = async (tracks: MediaStreamTrack[]) => {
-    console.log("publishTracks");
+    console.log(`publishTracks: ${tracks.length}`);
 
     if (!tracks) {
       console.error("ERROR: tracks is required.")
+      return;
+    }
+
+    if (tracks.length == 0) {
+      console.error("ERROR: no tracks.")
       return;
     }
 
@@ -472,10 +479,10 @@ export class RoomsClient {
     }
 
     let localTracks = this.localPeer.getTracks();
-    console.log(`localTracks`, localTracks);
+    console.log(`publishTracks: current localTracks`, localTracks);
     for (const track of tracks) {
       try {
-        console.log(`track ${track.kind}`);
+        console.log(`publishTracks: track ${track.kind}`);
         let existingTrack = localTracks.find(t => t.kind === track.kind);
         if (existingTrack) {
           console.error(`existingTrack of kind ${track.kind}, track must be replaced or unpublished.`);
@@ -483,16 +490,17 @@ export class RoomsClient {
         }
 
         let producer = await this.localPeer.createProducer(track);
-        console.log("producer add with track added: " + producer.track.kind);
+        console.log("publishTracks: producer add with track added: " + producer.track.kind);
       } catch (error) {
         console.error(`Failed to produce track: ${error.message}`);
         console.error(error);
       }
     }
 
-    console.log(`local producers:`, this.localPeer.getProducers());
-    console.log(`local tracks:`, this.localPeer.getTracks());
+    console.log(`publishTracks: local producers:`, this.localPeer.getProducers());
+    console.log(`publishTracks: local tracks:`, this.localPeer.getTracks());
 
+    this.updateLocalPeerTrackInfo();
 
   };
 
@@ -508,6 +516,8 @@ export class RoomsClient {
         console.log(`track removed ${track.kind}`);
       }
     }
+
+    this.updateLocalPeerTrackInfo();
 
   };
 
@@ -538,62 +548,57 @@ export class RoomsClient {
       console.error(`producer not found, existing track not found. ${existingTrack.kind} ${existingTrack.id}`);
     }
 
+    this.updateLocalPeerTrackInfo();
+
   };
 
-  roomProducerToggleStream = async () => {
-    console.log(`roomProducerToggleStream`);
+  updateLocalPeerTrackInfo = async () => {
+    console.log(`updateLocalPeerTrackInfo`);
 
     let tracks = this.localPeer.getTracks();    
     if (!tracks || tracks.length == 0) {
-      console.warn("no tracks found.");
+      console.log("no tracks found.");
       return;
     }
 
     //pause unpause track    
     tracks.forEach(t => {
+      
+      if(t.kind == "audio") {
+        this.localPeer.tracksInfo.isAudioEnabled = t.enabled;
+      } else {
+        this.localPeer.tracksInfo.isVideoEnabled = t.enabled;
+      }
+
       let producer = [...this.localPeer.getProducers().values()].find(p => p.kind === t.kind);
       if (t.enabled) {
-        console.warn(`${t.kind}: resume producer`);
-        producer.resume();
+        console.log(`${t.kind}: resume producer`);
+        //producer.resume();        
       } else {
-        console.warn(`${t.kind}: pause producer`);
-        producer.pause();
+        console.log(`${t.kind}: pause producer`);
+        //producer.pause();
       }
     });
 
-    let msg = new RoomProducerToggleStreamMsg();
+    let msg = new PeerTracksInfoMsg();
     msg.data.peerId = this.localPeer.peerId;
     msg.data.roomId = this.localPeer.roomId;
-    msg.data.tracksInfo = [];
-
-    for (const track of tracks) {
-      msg.data.tracksInfo.push({
-        enabled: track.enabled,
-        kind: track.kind
-      });
-    }
+    msg.data.tracksInfo = this.localPeer.tracksInfo;
 
     this.send(msg);
+
+    console.log(`this.localPeer.tracksInfo:`, this.localPeer.tracksInfo);
+    this.eventOnPeerTrackInfoUpdated(this.localPeer);
+
   }
 
   muteParticipantTrack = async (peerId: string, audioEnabled: boolean, videoEnabled: boolean) => {
     console.log(`muteParticipantTrack audioEnabled: ${audioEnabled}, videoEnabled:${videoEnabled}`);
 
-    let msg = new RoomProducerMuteStreamMsg();
+    let msg = new PeerMuteTracksMsg();
     msg.data.peerId = peerId;
     msg.data.roomId = this.localPeer.roomId;
-    msg.data.tracksInfo = [];
-
-    msg.data.tracksInfo.push({
-      enabled: audioEnabled,
-      kind: "audio"
-    });
-
-    msg.data.tracksInfo.push({
-      enabled: videoEnabled,
-      kind: "video"
-    });
-
+    msg.data.tracksInfo = { isAudioEnabled: audioEnabled, isVideoEnabled: videoEnabled };
     this.send(msg);
   }
 
@@ -738,7 +743,7 @@ export class RoomsClient {
         case payloadTypeServer.roomNewProducer:
           this.onRoomNewProducer(msgIn);
           break;
-        case payloadTypeClient.roomProducerToggleStream:
+        case payloadTypeClient.peerTracksInfo:
           this.onRoomProducerToggleStream(msgIn);
           break;
         case payloadTypeServer.roomPeerLeft:
@@ -897,25 +902,27 @@ export class RoomsClient {
 
     //connect to existing peers  
     if (msgIn.data && msgIn.data.peers) {
-      for (const p of msgIn.data.peers) {
+      for (const peerInfo of msgIn.data.peers) {
 
-        let newpeer: Peer = this.createPeer(p.peerId, p.peerTrackingId, p.displayName);
+        let newpeer: Peer = this.createPeer(peerInfo.peerId, peerInfo.peerTrackingId, peerInfo.displayName);
+        newpeer.tracksInfo = peerInfo.trackInfo;
 
         //save the existing producers for later to consume
-        newpeer.producersToConsume.push(...p.producers.map(p => ({ producerId: p.producerId, kind: p.kind })));
+        newpeer.producersToConsume.push(...peerInfo.producers.map(p => ({ producerId: p.producerId, kind: p.kind })));
 
-        console.log(p.peerId);
-        console.log("** onRoomJoinResult producers :" + p.producers?.length);
+        console.log(peerInfo.peerId);
+        console.log("** onRoomJoinResult producers :" + peerInfo.producers?.length);
 
       }
     }
+
+    await this.eventOnRoomJoined(this.localPeer.roomId);
 
     for (const peer of this.peers.values()) {
       await this.consumePeerProducers(peer);
       await this.eventOnRoomPeerJoined(this.localPeer.roomId, peer);
     }
-
-    await this.eventOnRoomJoined(this.localPeer.roomId);
+    
   }
 
   private createPeer(peerId: string, trackingId: string, displayName: string) {
@@ -935,6 +942,7 @@ export class RoomsClient {
     console.log(`new PeeerJoined ${msgIn.data?.peerId} `);
 
     let newpeer: Peer = this.createPeer(msgIn.data.peerId, msgIn.data.peerTrackingId, msgIn.data.displayName);
+    newpeer.tracksInfo = msgIn.data.trackInfo;
     if (msgIn.data?.producers) {
       for (const producerInfo of msgIn.data.producers) {
         await this.consumeProducer(msgIn.data.peerId, producerInfo.producerId, producerInfo.kind);
@@ -958,7 +966,7 @@ export class RoomsClient {
     await this.eventOnRoomPeerLeft(roomid, peer);
   }
 
-  private onRoomProducerToggleStream(msgIn: RoomProducerToggleStreamMsg) {
+  private onRoomProducerToggleStream(msgIn: PeerTracksInfoMsg) {
     console.log("onRoomProducerToggleStream");
 
     if (!this.localPeer.roomId) {
@@ -971,8 +979,7 @@ export class RoomsClient {
       return;
     }
 
-    let kinds = msgIn.data.tracksInfo.map(i => i.kind);
-
+    
     let peer: IPeer;
     let tracks: MediaStreamTrack[];
     //some remote person shut me off
@@ -984,33 +991,30 @@ export class RoomsClient {
       tracks = (peer as Peer).getConsumers().map(c => c.consumer.track);
     }
 
-    tracks = tracks.filter(t => kinds.includes(t.kind));
-
     if (!peer) {
       console.error(`peer not found ${msgIn.data.peerId}`);
       return;
     }
 
     if (!tracks || tracks.length == 0) {
-      console.error(`no tracks found for kinds:`, kinds);
+      console.error(`no tracks found`);
       return;
     }
 
+    peer.tracksInfo = msgIn.data.tracksInfo;
+    
     for (const track of tracks) {
       console.log(`track ${track.id} ${track.kind} ${track.enabled}`);
-      let info = msgIn.data.tracksInfo.find(i => i.kind === track.kind);
-      if (!info) {
-        console.log(`info not found for track of kind ${track.kind}`);
-        continue;
-      }
-      if (info.enabled !== track.enabled) {
-        track.enabled = info.enabled;
-        console.log(`track toggled to: ${track.enabled}`);
-        this.eventOnPeerTrackToggled(peer, track, track.enabled);
+      let trackEnabled = track.kind == "audio" ? msgIn.data.tracksInfo.isAudioEnabled : msgIn.data.tracksInfo.isVideoEnabled;
+      if (trackEnabled !== track.enabled) {
+        track.enabled = trackEnabled
+        console.log(`track toggled to: ${track.enabled}`);        
       } else {
         console.log(`no change to track state. ${peer.displayName}'s ${track.kind}`);
       }
     }
+
+    this.eventOnPeerTrackInfoUpdated(peer);
   }
 
   private onRoomClosed = async (msgIn: RoomClosedMsg) => {

@@ -23,8 +23,8 @@ export enum payloadTypeClient {
     roomProduceStream = "roomProduceStream",
     roomConsumeStream = "roomConsumeStream",
 
-    roomProducerToggleStream = "roomProducerToggleStream",
-    roomProducerMuteStream = "roomProducerMuteStream",
+    peerTracksInfo = "peerTracksInfo",
+    peerMuteTracks = "peerMuteTracks",
 }
 
 
@@ -72,7 +72,7 @@ export interface IMsg {
 export enum AuthUserRoles {
     admin = "admin"
     , user = "user"
-    , guest = "guest"    
+    , guest = "guest"
 }
 
 export class ErrorMsg implements IMsg {
@@ -149,7 +149,7 @@ export class CreateProducerTransportMsg implements IMsg {
 
 export class ProducerTransportCreatedMsg implements IMsg {
     type = payloadTypeServer.producerTransportCreated;
-    data: {        
+    data: {
         roomId?: string,
         transportId?: string,
         iceParameters?: any,
@@ -187,7 +187,7 @@ export class CreateConsumerTransportMsg implements IMsg {
 
 export class ConsumerTransportCreatedMsg implements IMsg {
     type = payloadTypeServer.consumerTransportCreated;
-    data: {       
+    data: {
         roomId?: string,
         transportId?: string,
         iceParameters?: any,
@@ -326,7 +326,8 @@ export class RoomJoinResultMsg implements IMsg {
             peerId: string,
             peerTrackingId: string,
             displayName: string,
-            producers?: { producerId: string, kind: "audio" | "video" }[]
+            producers?: { producerId: string, kind: "audio" | "video" }[],
+            trackInfo?: PeerTracksInfo,
         }[],
         error?: string,
     } = { peers: [] };
@@ -335,11 +336,12 @@ export class RoomJoinResultMsg implements IMsg {
 export class RoomNewPeerMsg implements IMsg {
     type = payloadTypeServer.roomNewPeer;
     data: {
-        peerId?: string;
-        peerTrackingId?: string;
-        roomId?: string;
-        displayName?: string;
-        producers?: { producerId: string, kind: "audio" | "video" }[]
+        peerId?: string,
+        peerTrackingId?: string,
+        roomId?: string,
+        displayName?: string,
+        producers?: { producerId: string, kind: "audio" | "video" }[],
+        trackInfo?: PeerTracksInfo,
     } = {};
 }
 
@@ -423,28 +425,27 @@ export class RoomConsumeStreamResultMsg implements IMsg {
     } = {};
 }
 
-export class RoomProducerToggleStreamMsg {
-    type = payloadTypeClient.roomProducerToggleStream
+export class PeerTracksInfoMsg {
+    type = payloadTypeClient.peerTracksInfo
     data: {
         roomId?: string,
         peerId?: string,
-        tracksInfo?: {
-            kind?: "audio" | "video" | string,
-            enabled?: boolean
-        }[];
+        tracksInfo?: PeerTracksInfo;
     } = {}
 }
 
-export class RoomProducerMuteStreamMsg {
-    type = payloadTypeClient.roomProducerMuteStream
+export class PeerMuteTracksMsg {
+    type = payloadTypeClient.peerMuteTracks
     data: {
         roomId?: string,
         peerId?: string,
-        tracksInfo?: {
-            kind?: "audio" | "video" | string,
-            enabled?: boolean
-        }[];
+        tracksInfo?: PeerTracksInfo;
     } = {}
+}
+
+export interface PeerTracksInfo {
+    isAudioEnabled:boolean,
+    isVideoEnabled?: boolean
 }
 
 export class UnauthorizedMsg implements IMsg {

@@ -20,7 +20,7 @@ class WebRTCService {
     maxRegisterAttempts = 3;
 
     constructor() {
-        console.log(`*** new WebRTCService initialized.`)
+        console.log(`WebRTCService: *** new WebRTCService initialized.`)
     }
 
     get localStream(): MediaStream | null {
@@ -66,12 +66,12 @@ class WebRTCService {
     public onConferenceJoined: (conferenceId: string) => Promise<void> = async () => { };
     public onConferenceEnded: (conferenceId: string, reason: string) => Promise<void> = async () => { };
     public onParticipantTrack: (participantId: string, track: MediaStreamTrack) => Promise<void> = async () => { };
-    public onParticipantTrackToggled: (participantId: string, track: MediaStreamTrack) => Promise<void> = async () => { };
+    public onParticipantTrackInfoUpdated: (participantId: string) => Promise<void> = async () => { };
     public onParticipantJoined: (participantId: string, displayName: string) => Promise<void> = async () => { };
     public onParticipantLeft: (participantId: string) => Promise<void> = async () => { };
 
     public dispose() {
-        console.log("dispose");
+        console.log("WebRTCService: dispose");
         this.onServerConnected = null;
         this.onServerDisconnected = null;
         this.onRegistered = null;
@@ -82,8 +82,9 @@ class WebRTCService {
         this.onConferenceJoined = null;
         this.onConferenceEnded = null;
         this.onParticipantTrack = null;
+        this.onParticipantTrackInfoUpdated = null;
         this.onParticipantJoined = null;
-        this.onParticipantLeft = null;
+        this.onParticipantLeft = null;        
 
         this.removeTracks();
 
@@ -93,7 +94,7 @@ class WebRTCService {
     }
 
     public connectSignaling(user: User): void {
-        console.log("connectSignaling.");
+        console.log("WebRTCService: connectSignaling.");
         this.localUser = user;
 
         if (!user.authToken || !user.username) {
@@ -181,12 +182,12 @@ class WebRTCService {
                     await this.eventParticipantNewTrack(payload);
                     break;
                 }
-                case EventTypes.participantTrackToggled: {
-                    await this.eventParticipantTrackToggled(payload);
+                case EventTypes.participantTrackInfoUpdated: {
+                    await this.eventParticipantTrackInfoUpdated(payload);
                     break;
                 }
                 default: {
-                    console.log("Unknown event type:", eventType);
+                    console.error("WebRTCService: Unknown event type:", eventType);
                     break;
                 }
             }
@@ -281,11 +282,7 @@ class WebRTCService {
             this.localStream?.addTrack(track);
         });
 
-        console.log("localStream tracks after publish:", this.localStream?.getTracks());
-
-        tracks.forEach(track => {
-            this.onParticipantTrackToggled(this.localParticipant.participantId, track);
-        });
+        console.log("localStream tracks after publish:", this.localStream?.getTracks());        
     }
 
     public async unPublishTracks(tracks: MediaStreamTrack[]) {
@@ -295,11 +292,7 @@ class WebRTCService {
             track.enabled = false;
             this.localStream?.removeTrack(track);
         });
-        this.confClient.unPublishTracks(tracks);
-
-        tracks.forEach(track => {
-            this.onParticipantTrackToggled(this.localParticipant.participantId, track);
-        });
+        this.confClient.unPublishTracks(tracks);        
     }
 
     public async getScreenTrack(): Promise<MediaStreamTrack | null> {
@@ -541,10 +534,10 @@ class WebRTCService {
         await this.onParticipantTrack(msg.data.participantId, msg.data.track)
     }
 
-    private async eventParticipantTrackToggled(msg: any) {
-        console.log("eventParticipantTrackToggled", msg.data);
+    private async eventParticipantTrackInfoUpdated(msg: any) {
+        console.log("eventParticipanTrackInfoUpdated", msg.data);
 
-        await this.onParticipantTrackToggled(msg.data.participantId, msg.data.track)
+        await this.onParticipantTrackInfoUpdated(msg.data.participantId)
     }
 
 }

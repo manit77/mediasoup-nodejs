@@ -65,7 +65,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const api = useAPI();
 
     const [isConnected, setIsConnected] = useState<boolean>(webRTCService.isConnected);
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(webRTCService.isConnected && webRTCService.localParticipant.peerId ? true : false);
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(webRTCService.isConnected && webRTCService.localParticipant.peer ? true : false);
     const [isLoggedOff, setIsLoggedOff] = useState<boolean>(false);
 
     const localParticipant = useRef<Participant>(webRTCService.localParticipant);
@@ -85,7 +85,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         console.log(`** CallProvider mounted isAuthenticated:${isAuthenticated} isConnected: ${isConnected}`);
-        console.log(`** CallProvider mounted webRTCService.localParticipant.peerId:${webRTCService.localParticipant.peerId} webRTCService.isConnected: ${webRTCService.isConnected}`);
+        console.log(`** CallProvider mounted webRTCService.localParticipant.peerId:${webRTCService.localParticipant.peer?.peerId} webRTCService.isConnected: ${webRTCService.isConnected}`);
 
         return () => console.log("CallProvider unmounted");
     }, [isAuthenticated, isConnected]);
@@ -203,7 +203,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         webRTCService.onParticipantTrack = async (participantId, track) => {
-            console.warn('CallContext: onParticipantTrack');
+            console.log('CallContext: onParticipantTrack');
 
             if (!participantId) {
                 console.error("CallContext: no participantId");
@@ -220,17 +220,12 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         };
 
-        webRTCService.onParticipantTrackToggled = async (participantId, track) => {
-            console.log(`CallContext: onParticipantTrackToggled ${participantId}, kind:${track.kind}, enabled:${track.enabled}`);
-            console.log(`call participants: `, callParticipants);
+        webRTCService.onParticipantTrackInfoUpdated = async (participantId: string) => {
+            console.log(`CallContext: onParticipantTrackInfoUpdated ${participantId}`);
+            console.log(`CallContext: call participants: `, callParticipants);
 
             if (!participantId) {
                 console.error("CallContext: no participantId");
-                return;
-            }
-
-            if (!track) {
-                console.error("CallContext: no track");
                 return;
             }
 
@@ -255,10 +250,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log(`CallContext: onConferenceJoined ${conferenceId}, conferenceName:${webRTCService.getConferenceRoom()?.conferenceName}`);
 
             if (localParticipant.current.stream.getTracks().length === 0) {
+                //this will get new media streams and publish them
                 await getLocalMedia();
             }
 
             console.log(`participants in room: ${callParticipants.size}`)
+            console.log(`localParticipant tracksInfo:`, localParticipant.current.peer?.tracksInfo);
+
 
             setIsCallActive(true);
             setInviteInfoReceived(null);
@@ -286,7 +284,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         webRTCService.onParticipantJoined = async (participantId: string, displayName: string) => {
-            console.warn(`CallContext: onParticipantJoined ${displayName} (${participantId})`);
+            console.log(`CallContext: onParticipantJoined ${displayName} (${participantId})`);
             if (!participantId) {
                 console.error("no participantId");
                 return;
@@ -440,7 +438,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [api]);
   
     const muteParticipantTrack = useCallback((participantId: string, audioEnabled: boolean, videoEnabled: boolean) => {
-        console.warn("CallContext: muteParticipantTrack");
+        console.log("CallContext: muteParticipantTrack");
 
         let participant = webRTCService.participants.get(participantId);
         if (!participant) {

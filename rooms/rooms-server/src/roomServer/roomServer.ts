@@ -18,8 +18,8 @@ import {
     RoomProduceStreamResultMsg,
     RoomConsumeStreamMsg,
     RoomConsumeStreamResultMsg,
-    RoomProducerToggleStreamMsg,
-    RoomProducerMuteStreamMsg
+    PeerTracksInfoMsg,
+    PeerMuteTracksMsg
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
@@ -194,10 +194,10 @@ export class RoomServer {
             case payloadTypeClient.roomConsumeStream: {
                 return this.onRoomConsumeStream(peerId, msgIn);
             }
-            case payloadTypeClient.roomProducerToggleStream: {
+            case payloadTypeClient.peerTracksInfo: {
                 return this.onRoomToggleProducerStream(peerId, msgIn);
             }
-            case payloadTypeClient.roomProducerMuteStream: {
+            case payloadTypeClient.peerMuteTracks: {
                 return this.onRoomProducerMuteStream(peerId, msgIn);
             }
         }
@@ -846,11 +846,15 @@ export class RoomServer {
 
         let otherPeers = room.otherPeers(peer.id);
         for (let [, otherPeer] of otherPeers) {
-            joinRoomResult.data.peers.push({
+            joinRoomResult.data.peers.push({                
                 peerId: otherPeer.id,
                 peerTrackingId: otherPeer.trackingId,
                 displayName: otherPeer.displayName,
-                producers: [...otherPeer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }))
+                producers: [...otherPeer.producers.values()].map(producer => ({
+                    producerId: producer.id,
+                    kind: producer.kind                    
+                })),
+                trackInfo: otherPeer.trackInfo
             });
         }
 
@@ -861,7 +865,11 @@ export class RoomServer {
             msg.data.peerId = peer.id;
             msg.data.peerTrackingId = peer.trackingId;
             msg.data.displayName = peer.displayName;
-            msg.data.producers = [...peer.producers.values()].map(producer => ({ producerId: producer.id, kind: producer.kind }));
+            msg.data.producers = [...peer.producers.values()].map(producer => ({
+                producerId: producer.id,
+                kind: producer.kind                
+            }));
+            msg.data.trackInfo = otherPeer.trackInfo
             this.send(otherPeer.id, msg);
         }
 
@@ -1045,7 +1053,7 @@ export class RoomServer {
     /**
      * toggle self only, alert other peers
      */
-    private async onRoomToggleProducerStream(peerId: string, msgIn: RoomProducerToggleStreamMsg): Promise<IMsg> {
+    private async onRoomToggleProducerStream(peerId: string, msgIn: PeerTracksInfoMsg): Promise<IMsg> {
         consoleWarn("onRoomToggleProducerStream");
 
         let peer = this.peers.get(peerId);
@@ -1071,34 +1079,22 @@ export class RoomServer {
             return;
         }
 
-        if (msgIn.data.tracksInfo.length === 0) {
-            consoleError("no tracksInfo received.");
-            return;
-        }
 
-        //enable the producer
+        peer.trackInfo = msgIn.data.tracksInfo;
+
+        //resume / pause the producer
         for (let producer of peer.producers.values()) {
-            let trackInfo = msgIn.data.tracksInfo.find(p => p.kind === producer.kind);
-            if (!trackInfo) {
-                consoleError(`${peer.displayName}: producer kind ${producer.kind} not found in the request.`);
-                continue;
-            }
+
+            let trackEnabled = producer.kind == "audio" ? peer.trackInfo.isAudioEnabled : peer.trackInfo.isVideoEnabled;
+
             //toggle the producer track
-            if (trackInfo.enabled && producer.paused) {
+            if (trackEnabled && producer.paused) {
                 await producer.resume();
                 consoleWarn(`${peer.displayName}:Producer ${producer.id} ${producer.kind} resumed.`);
-            } else if (!trackInfo.enabled && !producer.paused) {
+            } else if (!trackEnabled && !producer.paused) {
                 await producer.pause();
                 consoleWarn(`${peer.displayName}:Producer ${producer.id} ${producer.kind} paused.`);
             }
-
-            if (trackInfo.enabled != !producer.paused) {
-                consoleWarn(`${peer.displayName}: trackInfo and producer is not at the same state`);
-                //send the actual state back to the peer
-                trackInfo.enabled = !producer.paused;
-            }
-
-            consoleWarn(`${peer.displayName}: TrackInfo.enabled: ${trackInfo.enabled} producer.paused: ${producer.paused}`);
         }
 
         //send to all peers in the room
@@ -1112,7 +1108,7 @@ export class RoomServer {
      * @param msgIn 
      * @returns 
      */
-    private async onRoomProducerMuteStream(peerId: string, msgIn: RoomProducerMuteStreamMsg): Promise<IMsg> {
+    private async onRoomProducerMuteStream(peerId: string, msgIn: PeerMuteTracksMsg): Promise<IMsg> {
         consoleWarn("onRoomToggleProducerMuteStream");
 
         let peer = this.peers.get(peerId);
@@ -1144,44 +1140,30 @@ export class RoomServer {
             return;
         }
 
-        if (msgIn.data.tracksInfo.length === 0) {
-            consoleError("no tracksInfo received.");
-            return;
-        }
-
 
         consoleWarn(`updating ${peer.displayName} ${peer.id}`);
         for (const p of peer.producers.values()) {
             consoleWarn(`producer state: ${p.id} ${p.kind} ${p.paused}`);
         }
+        remotePeer.trackInfo = msgIn.data.tracksInfo;
 
         //the peer has mute/unmute a remotePeer
         for (let producer of remotePeer.producers.values()) {
-            let trackInfo = msgIn.data.tracksInfo.find(p => p.kind === producer.kind);
-            if (!trackInfo) {
-                consoleError(`${remotePeer.displayName}: producer kind ${producer.kind} not found in the request.`);
-                continue;
-            }
+            
+            let trackEnabled = producer.kind == "audio" ? peer.trackInfo.isAudioEnabled : peer.trackInfo.isVideoEnabled;
+                        
             //toggle the producer track
-            if (trackInfo.enabled && producer.paused) {
+            if (trackEnabled && producer.paused) {
                 await producer.resume();
                 consoleWarn(`${remotePeer.displayName}:Producer ${producer.id} ${producer.kind} resumed.`);
-            } else if (!trackInfo.enabled && !producer.paused) {
+            } else if (!trackEnabled && !producer.paused) {
                 await producer.pause();
                 consoleWarn(`${remotePeer.displayName}:Producer ${producer.id} ${producer.kind} paused.`);
             }
-
-            if (trackInfo.enabled != !producer.paused) {
-                consoleWarn(`${remotePeer.displayName}: trackInfo and producer is not at the same state`);
-                //send the actual state back to the peer
-                trackInfo.enabled = !producer.paused;
-            }
-
-            consoleWarn(`${remotePeer.displayName}: TrackInfo.enabled: ${trackInfo.enabled} producer.paused: ${producer.paused}`);
         }
 
         //send the track state to all peers so they can update their UI
-        let msg = new RoomProducerToggleStreamMsg();
+        let msg = new PeerTracksInfoMsg();
         msg.data.peerId = msgIn.data.peerId;
         msg.data.roomId = msgIn.data.roomId;
         msg.data.tracksInfo = msgIn.data.tracksInfo;

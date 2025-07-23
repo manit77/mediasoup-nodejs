@@ -1,9 +1,10 @@
 import * as mediasoupClient from 'mediasoup-client';
 import { Consumer, Producer } from 'mediasoup-client/types';
 import { ConsumerInfo } from './models.js';
-import { UniqueMap } from '@rooms/rooms-models';
+import { PeerTracksInfo, UniqueMap } from '@rooms/rooms-models';
 
 export class LocalPeer implements IPeer {
+  tracksInfo: PeerTracksInfo = {  isAudioEnabled: false, isVideoEnabled: false};
   peerId: string = "";
   trackingId: string = "";
   displayName: string = "";
@@ -44,6 +45,11 @@ export class LocalPeer implements IPeer {
   async createProducer(track: MediaStreamTrack) {
     console.log(`createProducer ${track.kind}`);
 
+    if(!this.transportSend) {
+      console.error(`cannot create producer, no transportSend.`)
+      return;
+    }
+
     //if the producer exists by kind throw an error
     let existingProducer = this.producers.get(track.kind);
     if (existingProducer) {
@@ -52,8 +58,8 @@ export class LocalPeer implements IPeer {
 
     let producer = await this.transportSend.produce({ track });
     if (!track.enabled) {
-      console.warn(`*** pause the producer`);
-      producer.pause();
+      //console.log(`*** pause the producer`);
+      //producer.pause();
     }
 
     this.addProducer(producer);
@@ -66,7 +72,7 @@ export class LocalPeer implements IPeer {
     producer.on("trackended", () => {
       console.log(`producer - ${producer.track?.kind} track ended ${producer.track?.id} ${producer.track?.kind}`);
     });
-    
+
     producer.observer.on('pause', () => {
       console.log(`producer - ${producer.track?.kind} track paused (muted)`);
     });
@@ -84,12 +90,14 @@ export interface IPeer {
   trackingId: string;
   displayName: string;
   //tracks: UniqueTracks;
+  tracksInfo: PeerTracksInfo
 }
 
 export class Peer implements IPeer {
   peerId: string = "";
   trackingId: string = "";
   displayName: string = "";
+  tracksInfo: PeerTracksInfo = { isAudioEnabled: false, isVideoEnabled: false }
 
   //tracks: UniqueTracks = new UniqueTracks();
 
@@ -140,6 +148,11 @@ export class Peer implements IPeer {
  */
   async createConsumer(transportReceive: mediasoupClient.types.Transport, peerId: string, serverConsumerId: string, serverProducerId: string, kind: "audio" | "video", rtpParameters: any) {
     console.log(`createConsumer peerId:${peerId}, serverConsumerId:${serverConsumerId}, serverProducerId: ${serverProducerId}, kind: ${kind}`);
+
+    if(!transportReceive) {
+      console.error(`cannot create producer, no transportSend.`)
+      return;
+    }
 
     let existingConsumer = this.consumers.find(c => c.peerId == peerId && c.consumer.kind === kind);
     if (existingConsumer) {
