@@ -6,6 +6,7 @@ import { Conference, Participant } from '@conf/conf-client';
 import { useUI } from '../hooks/useUI';
 import { useAPI } from '../hooks/useAPI';
 import { useCall } from '../hooks/useCall';
+import { useConfig } from '../hooks/useConfig';
 
 interface CallContextType {
     isConnected: boolean;
@@ -63,6 +64,7 @@ export const CallContext = createContext<CallContextType>(undefined);
 export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const ui = useUI();
     const api = useAPI();
+    const { config } = useConfig();
 
     const [isConnected, setIsConnected] = useState<boolean>(webRTCService.isConnected);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(webRTCService.isConnected && webRTCService.localParticipant.peerId ? true : false);
@@ -82,6 +84,28 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const [isLocalStreamUpdated, setIsLocalStreamUpdated] = useState<boolean>(false);
     const [availableDevices, setAvailableDevices] = useState<{ video: Device[]; audioIn: Device[]; audioOut: Device[] }>({ video: [], audioIn: [], audioOut: [] });
+
+    useEffect(() => {
+        webRTCService.init(config);
+        
+        //init all default values
+        setIsConnected(webRTCService.isConnected);
+        setIsAuthenticated(webRTCService.isConnected && webRTCService.localParticipant.peerId ? true : false);
+        localParticipant.current = webRTCService.localParticipant;
+        setIsCallActive(webRTCService.isOnCall());
+        setConferenceRoom(webRTCService.conference);
+        setCallParticipants(webRTCService.participants);
+
+        setIsScreenSharing(webRTCService.isScreenSharing);
+        setSelectedDevices(webRTCService.selectedDevices);
+
+        setParticipantsOnline(webRTCService.participantsOnline);
+        setConferencesOnline(webRTCService.conferencesOnline);
+        setInviteInfoSend(webRTCService.inviteSendMsg);
+        setInviteInfoReceived(webRTCService.inviteRecievedMsg);
+
+
+    }, [config])
 
     useEffect(() => {
         console.log(`** CallProvider mounted isAuthenticated:${isAuthenticated} isConnected: ${isConnected}`);
@@ -419,7 +443,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             conferenceCode: conferenceCode,
             conferenceId: scheduled.conferenceId,
             roomName: "",
-            externalId: scheduled.externalId,            
+            externalId: scheduled.externalId,
         }
 
         webRTCService.joinConferenceRoom(joinArgs)
@@ -443,7 +467,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             conferenceId: "",
             roomName: "",
             externalId: externalId,
-            
+
         }
 
         webRTCService.createConferenceAndJoin(createArgs, joinArgs);
@@ -512,7 +536,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setIsScreenSharing(false);
                 setIsLocalStreamUpdated(true);
             }
-            
+
             await webRTCService.publishTracks(newTracks);
 
         } catch (error) {

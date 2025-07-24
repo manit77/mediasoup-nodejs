@@ -1,7 +1,6 @@
-import { ConferenceScheduledInfo, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
 import { User, ConferenceRoomScheduled } from '../types';
 import { ConferenceAPIClient } from '@conf/conf-client';
-import { conferenceClientConfig } from './ConferenceConfig';
+import { ConferenceClientConfig } from '@conf/conf-client/src/models';
 
 export interface LoginResponse {
     user: User;
@@ -9,9 +8,13 @@ export interface LoginResponse {
 }
 
 class ApiService {
-    conferenceAPIClient: ConferenceAPIClient = new ConferenceAPIClient(conferenceClientConfig);
+    conferenceAPIClient: ConferenceAPIClient;
     conferencesScheduled: ConferenceRoomScheduled[] = [];
     startFetchConferencesScheduledTimerId = null;
+
+    init(config: ConferenceClientConfig) {
+        this.conferenceAPIClient = new ConferenceAPIClient(config);
+    }
 
     getClientData = () => {
         return {};

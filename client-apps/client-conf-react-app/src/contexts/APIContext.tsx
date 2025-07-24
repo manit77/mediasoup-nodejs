@@ -2,6 +2,7 @@ import React, { createContext, useState, ReactNode, useEffect, useCallback, useM
 import { ConferenceRoomScheduled, User } from '../types';
 import { webRTCService } from '../services/WebRTCService';
 import { apiService, LoginResponse } from '../services/ApiService';
+import { useConfig } from '../hooks/useConfig';
 
 interface APIContextType {
     isAuthenticated: boolean;
@@ -20,9 +21,14 @@ interface APIContextType {
 export const APIContext = createContext<APIContextType | undefined>(undefined);
 
 export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    let { config } = useConfig();
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceRoomScheduled[]>(apiService.conferencesScheduled);    
+    const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceRoomScheduled[]>(apiService.conferencesScheduled);
+
+    useEffect(() => {
+        apiService.init(config);
+    }, [config]);
 
     const getCurrentUser = useCallback((): User | null => {
         const storedUser = localStorage.getItem('user');
@@ -157,7 +163,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setUpConnections();
         }
     }, [isAuthenticated, setUpConnections]);
-    
+
     const value = useMemo(() => ({
         conferencesScheduled,
         getCurrentUser,

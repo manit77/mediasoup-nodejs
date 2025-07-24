@@ -3,24 +3,21 @@ import { SelectedDevices, User } from '../types';
 import { AcceptResultMsg, ConferenceClosedMsg, ConferenceRoomInfo, CreateConferenceParams, CreateConfResultMsg, GetConferencesResultMsg, InviteMsg, InviteResultMsg, JoinConferenceParams, JoinConfResultMsg, ParticipantInfo } from '@conf/conf-models';
 import { ConferenceClientConfig } from '@conf/conf-client/src/models';
 
-let confConfig: ConferenceClientConfig = {
-    conf_server_url: "https://localhost:3100",
-    conf_ws_url: "https://localhost:3100",
-    socket_enable_logs: false,
-    rooms_ws_url: "https://localhost:3000",
-}
-
 class WebRTCService {
 
-    confClient: ConferenceClient = new ConferenceClient(confConfig);
+    config: ConferenceClientConfig;
+    confClient: ConferenceClient;
     participantsOnline: ParticipantInfo[] = [];
     conferencesOnline: ConferenceRoomInfo[] = [];
     localUser: User;
     registerAttempts = 0;
     maxRegisterAttempts = 3;
 
-    constructor() {
-        console.log(`WebRTCService: *** new WebRTCService initialized.`)
+
+    init(config: ConferenceClientConfig) {
+        console.log(`WebRTCService: *** new WebRTCService initialized.`, config);
+        this.config = config;
+        this.confClient =  new ConferenceClient(this.config);
     }
 
     get localStream(): MediaStream | null {
@@ -104,7 +101,7 @@ class WebRTCService {
 
         if (!this.confClient) {
             console.error(`conference client not initialized.`);
-            this.confClient = new ConferenceClient(confConfig);
+            this.confClient = new ConferenceClient(this.config);
         }
 
         this.confClient.connect();

@@ -95,7 +95,7 @@ export class ConferenceClient {
     CallConnectTimeoutTimerIds = new Set<any>();
 
     constructor(private config: ConferenceClientConfig) {
-        console.log(`*** new ConferenceClient`);
+        console.log(`*** new ConferenceClient`, config);
         this.apiClient = new ConferenceAPIClient(config);
     }
 
