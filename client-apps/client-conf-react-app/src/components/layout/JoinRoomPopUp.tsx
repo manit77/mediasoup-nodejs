@@ -49,13 +49,15 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
     const toggleMic = useCallback((enabled: boolean) => {
         console.log(`toggleMic`);
+        localParticipant.tracksInfo.isAudioEnabled = enabled;
         setMicEnabled(enabled);
-    }, []);
+    }, [localParticipant]);
 
     const toggleCamera = useCallback((enabled: boolean) => {
         console.log(`toggleCamera`);
+        localParticipant.tracksInfo.isVideoEnabled = enabled;
         setCameraEnabled(enabled);
-    }, []);
+    }, [localParticipant]);
 
     useEffect(() => {
         console.log(`useEffect guest`);
@@ -65,17 +67,19 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             console.log(`guest user`);
             //guests cannot oveeride conference configs
             if (!conferenceScheduled.config.guestsAllowCamera) {
+                localParticipant.tracksInfo.isVideoEnabled = false;
                 setShowCameraOption(false);
                 toggleCamera(false);
             }
             if (!conferenceScheduled.config.guestsAllowMic) {
+                localParticipant.tracksInfo.isAudioEnabled = false;
                 setShowMicOption(false);
                 toggleMic(false);
             }
 
             return;
         }
-    }, [api, conferenceScheduled, toggleCamera, toggleMic]);
+    }, [api, conferenceScheduled, localParticipant, toggleCamera, toggleMic]);
 
 
     const handleJoinRoom = async (event: React.FormEvent) => {
@@ -170,6 +174,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                             />
                         </Form.Group>
                     ) : null}
+                    
 
                     {showCameraOption ? (
                         <Form.Group className="mb-3" controlId="cameraEnabled">
@@ -182,16 +187,16 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                             />
                         </Form.Group>
                     ) : null}
-
-
-
+                    
                     {/* {
                         api.isAdmin() || api.isUser() ? ( */}
                     <div className="row">
                         <div className="col-md-6">
+                            <strong>Local Audio Enabled:</strong> {localParticipant.tracksInfo.isAudioEnabled.toString() }  <br />                         
                             <strong>Guests Allow Camera:</strong> {conferenceScheduled.config.guestsAllowCamera.toString()}
                         </div>
                         <div className="col-md-6">
+                            <strong>Local video Enabled</strong>: {localParticipant.tracksInfo.isVideoEnabled.toString() }  <br />
                             <strong>Guests Allow Mic:</strong> {conferenceScheduled.config.guestsAllowMic.toString()}
                         </div>
                     </div>

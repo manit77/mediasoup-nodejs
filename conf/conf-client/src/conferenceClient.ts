@@ -1174,8 +1174,8 @@ export class ConferenceClient {
             if (!registerResult.data.error) {
                 console.log(`-- room socket registered. new peerId ${this.roomsClient.localPeer.peerId}`);
                 this.localParticipant.peerId = this.roomsClient.localPeer.peerId;
-
-                console.warn("update the tracksInfo on the rooms clicent", this.localParticipant.tracksInfo);
+                
+                console.warn("update the tracksInfo on the rooms clicent", this.localParticipant.tracksInfo);                
                 await this.roomsClient.broadCastTrackInfo(this.localParticipant.tracksInfo);
             } else {
                 console.log("-- room socket failed to register.");

@@ -551,7 +551,8 @@ export class RoomsClient {
     console.log(`broadCastTrackInfo`);
 
     this.localPeer.tracksInfo = tracksInfo;
-
+    console.warn(`localPeer tracksInfo updated`, this.localPeer.tracksInfo);
+    
     let msg = new PeerTracksInfoMsg();
     msg.data.peerId = this.localPeer.peerId;
     msg.data.tracksInfo = this.localPeer.tracksInfo;

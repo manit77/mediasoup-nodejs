@@ -858,8 +858,8 @@ export class RoomServer {
                 trackInfo: otherPeer.trackInfo
             });
         }
-
-        //alert the other participants
+        
+        //alert the other participants in the room of the peer joining
         for (let [, otherPeer] of otherPeers) {
             let msg = new RoomNewPeerMsg();
             msg.data.roomId = room.id;
@@ -870,12 +870,13 @@ export class RoomServer {
                 producerId: producer.id,
                 kind: producer.kind
             }));
-            msg.data.trackInfo = otherPeer.trackInfo
+            msg.data.trackInfo = peer.trackInfo
             this.send(otherPeer.id, msg);
         }
 
         this.printStats();
 
+        //send back the the peer that joined
         return joinRoomResult;
     }
 
