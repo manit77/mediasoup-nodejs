@@ -8,7 +8,7 @@ import OnCallScreen from './components/call/OnCallScreen';
 import { useAPI } from './hooks/useAPI';
 import { useCall } from './hooks/useCall';
 import { UIProvider } from './contexts/UIContext';
-import { webRTCService } from './services/WebRTCService';
+import { conferenceService } from './services/ConferenceService';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAPI();
@@ -18,7 +18,7 @@ const AppRoutes: React.FC = () => {
     console.log('loading app');
     return () => {
       console.log('unmounting app');
-      webRTCService.dispose();
+      conferenceService.dispose();
     }
   }, [])
 

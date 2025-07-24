@@ -1,6 +1,6 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { ConferenceRoomScheduled, User } from '../types';
-import { webRTCService } from '../services/WebRTCService';
+import { conferenceService } from '../services/ConferenceService';
 import { apiService, LoginResponse } from '../services/ApiService';
 import { useConfig } from '../hooks/useConfig';
 
@@ -126,7 +126,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const logout = useCallback(async () => {
         try {
             setIsLoading(true);
-            webRTCService.disconnectSignaling("user clicked logout"); // Disconnect signaling on logout            
+            conferenceService.disconnectSignaling("user clicked logout"); // Disconnect signaling on logout            
             await apiService.logout();
             setIsAuthenticated(false);
             localStorage.removeItem('user');
@@ -152,7 +152,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         let user = apiService.getUser();
         if (user) {
-            webRTCService.connectSignaling(user);
+            conferenceService.connectSignaling(user);
             fetchConferencesScheduled();
             apiService.startFetchConferencesScheduled();
         }

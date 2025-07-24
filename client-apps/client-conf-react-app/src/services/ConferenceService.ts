@@ -3,7 +3,7 @@ import { SelectedDevices, User } from '../types';
 import { AcceptResultMsg, ConferenceClosedMsg, ConferenceRoomInfo, CreateConferenceParams, CreateConfResultMsg, GetConferencesResultMsg, InviteMsg, InviteResultMsg, JoinConferenceParams, JoinConfResultMsg, ParticipantInfo } from '@conf/conf-models';
 import { ConferenceClientConfig } from '@conf/conf-client/src/models';
 
-class WebRTCService {
+class ConferenceService {
 
     config: ConferenceClientConfig;
     confClient: ConferenceClient;
@@ -13,9 +13,8 @@ class WebRTCService {
     registerAttempts = 0;
     maxRegisterAttempts = 3;
 
-
     init(config: ConferenceClientConfig) {
-        console.log(`WebRTCService: *** new WebRTCService initialized.`, config);
+        console.log(`ConferenceService: *** new ConferenceService initialized.`, config);
         this.config = config;
         this.confClient =  new ConferenceClient(this.config);
     }
@@ -68,7 +67,7 @@ class WebRTCService {
     public onParticipantLeft: (participantId: string) => Promise<void> = async () => { };
 
     public dispose() {
-        console.log("WebRTCService: dispose");
+        console.log("ConferenceService: dispose");
         this.onServerConnected = null;
         this.onServerDisconnected = null;
         this.onRegistered = null;
@@ -91,7 +90,7 @@ class WebRTCService {
     }
 
     public connectSignaling(user: User): void {
-        console.log("WebRTCService: connectSignaling.");
+        console.log("ConferenceService: connectSignaling.");
         this.localUser = user;
 
         if (!user.authToken || !user.username) {
@@ -184,7 +183,7 @@ class WebRTCService {
                     break;
                 }
                 default: {
-                    console.error("WebRTCService: Unknown event type:", eventType);
+                    console.error("ConferenceService: Unknown event type:", eventType);
                     break;
                 }
             }
@@ -534,4 +533,4 @@ class WebRTCService {
 
 }
 
-export const webRTCService = new WebRTCService(); // Singleton instance
+export const conferenceService = new ConferenceService(); // Singleton instance
