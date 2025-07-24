@@ -1,7 +1,7 @@
 import { ConferenceRoomConfig, conferenceType, ParticipantRole } from "@conf/conf-models";
 import { WebSocket } from "ws";
 import { AbstractEventHandler } from "../utils/evenHandler.js";
-import { consoleLog } from "../utils/utils.js";
+import { consoleLog, consoleWarn } from "../utils/utils.js";
 
 export interface IAuthPayload {
     username: string,
@@ -17,6 +17,7 @@ export class SocketConnection {
     timeoutSecs: number;
     participantId: string;
     eventHandlers: onSocketTimeout[] = [];
+    dateOfLastMsg : Date = new Date();
 
     constructor(webSocket: WebSocket, socketTimeoutSecs: number) {
         this.ws = webSocket;
@@ -46,11 +47,16 @@ export class SocketConnection {
             this.socketTimeoutId = null;
         }
 
+        if(this.timeoutSecs <= 0) {
+             consoleWarn(`not timeout set for this connection.`);
+            return;
+        }
+
         consoleLog(`SocketConnection socketTimeout started:`, this.timeoutSecs);
         this.socketTimeoutId = setTimeout(() => {
             consoleLog(`SocketConnection socketTimeout reached ${this.eventHandlers.length}`);
             for (let cb of this.eventHandlers) {
-                consoleLog(`SocketConnection socketTimeout fire event`);
+                consoleWarn(`SocketConnection socketTimeout fire event`);
                 cb(this);
             }
         }, this.timeoutSecs * 1000);

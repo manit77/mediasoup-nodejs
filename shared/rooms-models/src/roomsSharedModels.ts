@@ -427,8 +427,7 @@ export class RoomConsumeStreamResultMsg implements IMsg {
 
 export class PeerTracksInfoMsg {
     type = payloadTypeClient.peerTracksInfo
-    data: {
-        roomId?: string,
+    data: {       
         peerId?: string,
         tracksInfo?: PeerTracksInfo;
     } = {}

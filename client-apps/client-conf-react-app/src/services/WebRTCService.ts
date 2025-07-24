@@ -84,7 +84,7 @@ class WebRTCService {
         this.onParticipantTrack = null;
         this.onParticipantTrackInfoUpdated = null;
         this.onParticipantJoined = null;
-        this.onParticipantLeft = null;        
+        this.onParticipantLeft = null;
 
         this.removeTracks();
 
@@ -248,16 +248,8 @@ class WebRTCService {
         }
     }
 
-    public async getNewTracks(constraints?: MediaStreamConstraints) {
-        console.log(`getNewTracks constraints:`, constraints);
-        let stream = await this.confClient.getUserMedia(constraints);
-        let tracks = stream.getTracks();
-
-        if (this.confClient.isInConference()) {
-            await this.publishTracks(tracks);
-        }
-
-        return tracks;
+    public async getNewTracksForLocalParticipant(constraints?: MediaStreamConstraints) {
+        return this.confClient.getNewTracksForLocalParticipant(constraints);
     }
 
     async publishTracks(tracks: MediaStreamTrack[]) {
@@ -282,17 +274,12 @@ class WebRTCService {
             this.localStream?.addTrack(track);
         });
 
-        console.log("localStream tracks after publish:", this.localStream?.getTracks());        
+        console.log("localStream tracks after publish:", this.localStream?.getTracks());
     }
 
     public async unPublishTracks(tracks: MediaStreamTrack[]) {
         console.log("unPublishTracks");
-
-        tracks.forEach(track => {
-            track.enabled = false;
-            this.localStream?.removeTrack(track);
-        });
-        this.confClient.unPublishTracks(tracks);        
+        this.confClient.unPublishTracks(tracks);
     }
 
     public async getScreenTrack(): Promise<MediaStreamTrack | null> {
@@ -313,9 +300,9 @@ class WebRTCService {
         this.confClient?.muteParticipantTrack(participantId, audioEnabled, videoEnabled);
     }
 
-    public updateTrackEnabled() {
-        console.log(`updateTrackEnabled`);        
-        this.confClient?.updateTrackEnabled();
+    public broadCastTrackInfo() {
+        console.log(`broadCastTrackInfo`);
+        this.confClient?.broadCastTrackInfo();
 
     }
 
@@ -367,8 +354,15 @@ class WebRTCService {
         }
     }
 
-    public joinConferenceRoom(args: JoinConferenceParams) {
-        this.confClient.joinConferenceRoom(args);
+    public async joinConferenceRoom(joinArgs: JoinConferenceParams) {      
+        let joinResult = await this.confClient.waitJoinConferenceRoom(joinArgs);
+        if (joinResult.data.error) {
+            console.error(joinResult.data.error);
+            return false;
+        }
+
+        console.log("join conference, waiting for room ready message");
+        return true;
     }
 
     /**
@@ -383,9 +377,10 @@ class WebRTCService {
     /**
      * accepts an invite
      */
-    public async acceptInvite(): Promise<void> {
+    public async acceptInvite(args: JoinConferenceParams): Promise<boolean> {
         console.log(`acceptInvite:`, this.inviteRecievedMsg);
-        this.confClient.acceptInvite(this.inviteRecievedMsg);
+
+        return this.confClient.acceptInvite(this.inviteRecievedMsg, args);
     }
 
     public declineInvite(): void {
@@ -496,8 +491,8 @@ class WebRTCService {
     }
 
     private async eventConferenceJoined(msg: JoinConfResultMsg) {
-        console.log("eventConferenceJoined, try to publishTracks", msg);        
-        if (this.localStream) {            
+        console.log("eventConferenceJoined, try to publishTracks", msg);
+        if (this.localStream) {
             this.confClient.publishTracks(this.localStream.getTracks());
         }
         await this.onConferenceJoined(msg.data.conferenceId);

@@ -15,153 +15,140 @@ interface ParticipantVideoPreviewProps {
 const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, getLocalMedia, updateTrackEnabled, conferenceRoom, callParticipants, muteParticipantTrack } = useCall();
+    const { localParticipant, broadCastTrackInfo, conferenceRoom, callParticipants, muteParticipantTrack } = useCall();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [videoEnabled, setVideoEnabled] = useState(false);
     const [audioEnabled, setAudioEnabled] = useState(false);
 
     useEffect(() => {
-        console.log(`participant updated, set video srcObject ${participant.displayName}`, participant.peer?.tracksInfo);
+        console.log(`participant updated, set video srcObject ${participant.displayName}`, participant.tracksInfo);
         if (participant.stream && videoRef.current) {
             videoRef.current.srcObject = participant.stream;
             console.log(`videoRef set srcObject ${participant.displayName}`);
         }
 
-        setAudioEnabled(participant.peer?.tracksInfo?.isAudioEnabled ?? false);
-        setVideoEnabled(participant.peer?.tracksInfo?.isVideoEnabled ?? false);
+        setAudioEnabled(participant.tracksInfo?.isAudioEnabled ?? false);
+        setVideoEnabled(participant.tracksInfo?.isVideoEnabled ?? false);
+
+        //check if tracks are in sync
+        let audioTrackEnabled = participant.stream.getAudioTracks()[0]?.enabled
+        let videoTrackEnabled = participant.stream.getVideoTracks()[0]?.enabled
+
+        if (participant.tracksInfo?.isAudioEnabled !== audioTrackEnabled) {
+            console.error(`${participant.displayName} audioTrackEnabled not in sync ${participant.tracksInfo?.isAudioEnabled} ${audioTrackEnabled}`);
+        } else {
+            console.warn(`${participant.displayName} audioTrackEnabled in sync`);
+        }
+
+        if (participant.tracksInfo?.isVideoEnabled !== videoTrackEnabled) {
+            console.error(`${participant.displayName} videoTrackEnabled not in sync ${participant.tracksInfo?.isVideoEnabled} ${videoTrackEnabled}`);
+        } else {
+            console.warn(`${participant.displayName} videoTrackEnabled in sync`);
+        }
+
 
     }, [callParticipants]);
 
-    const onVideoClick = useCallback(async () => {
+    const onAudioClick = useCallback(() => {
+        console.log(`onAudioClick.`);
+
+        const isLocalParticipant = participant.participantId === localParticipant.participantId;
+
+        // Determine if the target participant (the one being toggled) is a guest
+        const targetIsGuest = isLocalParticipant ? !api.isUser() : (participant.role === "guest");
+
+        // Guests cannot mute/unmute remote participants
+        if (!isLocalParticipant && !api.isUser()) {
+            console.warn(`Guests cannot mute/unmute remote participants.`);
+            ui.showToast(`Guests cannot mute/unmute remote participants.`);
+            return;
+        }
+
+        // Get the audio track and current enabled state
+        const audioTrack = participant.stream.getAudioTracks()[0];
+        const currentEnabled = audioTrack ? audioTrack.enabled : false;
+
+        // Calculate the intended new state (toggle)
+        const newEnabled = !currentEnabled;
+
+        // Prevent enabling the mic for a guest if not allowed
+        if (newEnabled && targetIsGuest && !conferenceRoom.conferenceRoomConfig.guestsAllowMic) {
+            console.warn(`Cannot enable mic for guest when not allowed.`);
+            ui.showToast(`Cannot enable mic for guest when not allowed.`);
+            return;
+        }
+
+        // Apply the toggle locally for immediate effect
+        if (audioTrack) {
+            audioTrack.enabled = newEnabled;
+            ui.showToast(`audio track ${newEnabled ? "enabled" : "disabled"}.`);
+        }
+
+        setAudioEnabled(audioTrack ? audioTrack.enabled : newEnabled); // Fallback to newEnabled if no track
+
+        // Update the server with the new state
+        if (isLocalParticipant) {
+            localParticipant.tracksInfo.isAudioEnabled = audioTrack ? audioTrack.enabled : newEnabled;
+            console.warn(`update tracksInfo.isAudioEnabled to `, localParticipant.tracksInfo.isAudioEnabled);
+            broadCastTrackInfo();
+        } else {
+            // For remote, send the new audio state (video unchanged)
+            const isVideoEnabled = participant.stream.getVideoTracks()[0]?.enabled ?? false;
+            muteParticipantTrack(participant.participantId, newEnabled, isVideoEnabled);
+        }
+    }, [api, conferenceRoom, localParticipant, muteParticipantTrack, participant, ui, broadCastTrackInfo]);
+
+
+    const onVideoClick = useCallback(() => {
         console.log("onVideoClick ", participant);
 
-        //toggle local participant
-        if (localParticipant.participantId === participant.participantId) {
+        const isLocalParticipant = participant.participantId === localParticipant.participantId;
 
-            if (!api.isUser() && !conferenceRoom.conferenceRoomConfig.guestsAllowCamera) {
-                console.log(`camera not allowed for guests.`);
-                return;
-            }
+        // Determine if the target participant (the one being toggled) is a guest
+        const targetIsGuest = isLocalParticipant ? !api.isUser() : (participant.role === "guest");
 
-            if (participant.stream == null) {
-                console.log("participant stream is null, get user media");
-                await getLocalMedia();
-                participant.stream = localParticipant.stream;
-                setVideoEnabled(participant.stream.getVideoTracks()[0]?.enabled ?? false);
-                setAudioEnabled(participant.stream.getAudioTracks()[0]?.enabled ?? false);
-
-                if (videoRef.current) {
-                    videoRef.current.srcObject = participant.stream;
-                }
-                return;
-            }
-        }
-
-        //toggle video track, this affects the local stream only
-        console.log(`toggle video track`);
-
-        let track = participant.stream.getVideoTracks()[0];
-        if (!track) {
-            console.log(`no video track found.`);
-            ui.showToast("not video track found.");
+        // Guests cannot mute/unmute remote participants
+        if (!isLocalParticipant && !api.isUser()) {
+            console.warn(`Guests cannot mute/unmute remote participants.`);
+            ui.showToast(`Guests cannot mute/unmute remote participants.`);
             return;
         }
-        console.log(`audio video enabled: ${track.enabled}`);
 
-        let isVideoEnabled = participant.stream.getVideoTracks()[0]?.enabled;
-        console.log(`isVideoEnabled ${isVideoEnabled} change to ${!isVideoEnabled}`);
-        track.enabled = !isVideoEnabled;
-        setVideoEnabled(track.enabled);
+        // Get the video track and current enabled state
+        const videoTrack = participant.stream.getVideoTracks()[0];
+        const currentEnabled = videoTrack ? videoTrack.enabled : false;
 
-        console.log(`track.enabled:`, track.enabled);
-        if (track.enabled) {
-            ui.showToast("video track enabled.");
-        } else {
-            ui.showToast("video track disabled.");
-        }
+        // Calculate the intended new state (toggle)
+        const newEnabled = !currentEnabled;
 
-        if (localParticipant.participantId === participant.participantId) {
-            //if local participant
-            //toggle track on the server
-            updateTrackEnabled(track);
-
-        } else {
-            //if remote user            
-            if (api.isUser()) {
-                //an authorized user can mute another participant
-                muteParticipantTrack(participant.participantId, audioEnabled, track.enabled)
-            }
-        }
-
-    }, [api, audioEnabled, conferenceRoom, getLocalMedia, localParticipant, muteParticipantTrack, participant, ui, updateTrackEnabled]);
-
-    const onAudioClick = useCallback(async () => {
-        console.log("onAudioClick ", participant);
-
-        //if localParticipant
-        if (localParticipant.participantId === participant.participantId) {
-            console.log(`localParticipant`);
-
-            //if is guest and mic not allowed            
-            if (!api.isUser() && !conferenceRoom.conferenceRoomConfig.guestsAllowMic) {
-                console.log(`audio not allowed for guests.`);
-                return;
-            }
-
-            if (participant.stream == null) {
-                //get user media
-                console.log(`getting localMedia`);
-                await getLocalMedia();
-                participant.stream = localParticipant.stream;
-                setVideoEnabled(participant.stream.getVideoTracks()[0]?.enabled ?? false);
-                setAudioEnabled(participant.stream.getAudioTracks()[0]?.enabled ?? false);
-
-                if (videoRef.current) {
-                    videoRef.current.srcObject = participant.stream;
-                }
-
-                return;
-            }
-        }
-
-        //toggle audio track of remote participant
-        //the local user can always pause tracks of remote participants
-        console.log(`toggle audio track`);
-
-        let track = participant.stream.getAudioTracks()[0];
-        if (!track) {
-            console.log(`no audio track found.`);
-            ui.showToast(`no audio track found.`);
+        // Prevent enabling the camera for a guest if not allowed
+        if (newEnabled && targetIsGuest && !conferenceRoom.conferenceRoomConfig.guestsAllowCamera) {
+            console.warn(`Cannot enable camera for guest when not allowed.`);
+            ui.showToast(`Cannot enable camera for guest when not allowed.`);
             return;
         }
-        console.log(`audio track enabled: ${track.enabled}`);
 
-        let isAudioEnabled = participant.stream.getAudioTracks()[0]?.enabled;
-        console.log(`isAudioEnabled ${isAudioEnabled} change to ${!isAudioEnabled}`);
-        track.enabled = !isAudioEnabled;
-        setAudioEnabled(track.enabled);
-
-        if (track.enabled) {
-            ui.showToast("audio track enabled.");
-        } else {
-            ui.showToast("audio track disabled.");
+        // Apply the toggle locally for immediate effect
+        if (videoTrack) {
+            videoTrack.enabled = newEnabled;
+            ui.showToast(`video track ${newEnabled ? "enabled" : "disabled"}.`);
         }
 
-        if (localParticipant.participantId === participant.participantId) {
-            //toggle local audio track
-            updateTrackEnabled(track);
+        setVideoEnabled(videoTrack ? videoTrack.enabled : newEnabled); // Fallback to newEnabled if no track
+
+        // Update the server with the new state
+        if (isLocalParticipant) {
+            localParticipant.tracksInfo.isVideoEnabled = videoTrack ? videoTrack.enabled : newEnabled;
+            console.warn(`update tracksInfo.isVideoEnabled to `, localParticipant.tracksInfo.isVideoEnabled);
+            broadCastTrackInfo();
         } else {
-            //TODO: create another function to mute unmute remote participants
-            if (api.isUser()) {
-                //an authorized user can mute another participant
-                muteParticipantTrack(participant.participantId, track.enabled, videoEnabled)
-                ui.showToast(`participant ${track.kind} ${track.enabled ? 'enabled' : 'disabled'}.`);
-            }
+            // For remote, send the new video state (audio unchanged)
+            const isAudioEnabled = participant.stream.getAudioTracks()[0]?.enabled ?? false;
+            muteParticipantTrack(participant.participantId, isAudioEnabled, newEnabled);
         }
+    }, [api, conferenceRoom, localParticipant, muteParticipantTrack, participant, ui, broadCastTrackInfo]);
 
-    }, [api, conferenceRoom, getLocalMedia, localParticipant, muteParticipantTrack, participant, ui, updateTrackEnabled, videoEnabled]);
-
-
+    
     return (
         <Card className={`mb-2 participant-preview ${isSelected ? 'border-primary' : ''}`} onClick={onClick} style={{ cursor: 'pointer' }}>
             <div style={{ position: 'relative', width: '100%', paddingTop: '75%' /* 4:3 Aspect Ratio */ }}>

@@ -17,7 +17,7 @@ interface JoinRoomPopUpProps {
 const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show, onClose }) => {
     const api = useAPI();
     const ui = useUI();
-    const { isCallActive, createConferenceOrJoin, joinConference, selectedDevices } = useCall();
+    const { localParticipant, isCallActive, createConferenceOrJoin, joinConference, getLocalMedia, selectedDevices } = useCall();
     const navigate = useNavigate();
 
     // State to hold the conference code entered by the user
@@ -32,19 +32,17 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
 
     useEffect(() => {
-        console.log("useEffect selectedDevices:", selectedDevices);
-        if (selectedDevices) {
-            setMicEnabled(selectedDevices.isAudioEnabled)
-            setCameraEnabled(selectedDevices.isVideoEnabled);
-        }
+        console.log("useEffect localParticipant:", localParticipant.tracksInfo);
+        setMicEnabled(selectedDevices.isAudioEnabled)
+        setCameraEnabled(selectedDevices.isVideoEnabled);
 
-    }, [selectedDevices])
+    }, [localParticipant])
 
     useEffect(() => {
         console.log(`isCallActive`, isCallActive);
         if (isCallActive) {
             console.log("Navigating to on-call screen.");
-            navigate('/on-call');            
+            navigate('/on-call');
             onClose();
         }
     }, [isCallActive, navigate, onClose]);
@@ -85,11 +83,34 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
         setLoading(true);
         try {
+            //make sure we have a stream before making a call
+
+            //up the tracksInfo for localParticipant from the check boxes on the form 
+            localParticipant.tracksInfo.isAudioEnabled = micEnabled;
+            localParticipant.tracksInfo.isVideoEnabled = cameraEnabled;
+            console.warn(`localParticipant.tracksInfo`, localParticipant.tracksInfo);
+
+            if (!localParticipant.stream) {
+                console.error(`stream is null`);
+                ui.showPopUp("error: media stream not initialized");
+                return;
+            }
+
+            if (localParticipant?.stream.getTracks().length === 0) {
+                console.warn(`media stream not initialized`);
+                ui.showToast("media stream not initialized");
+                let tracks = await getLocalMedia();
+                if (tracks.length === 0) {
+                    ui.showPopUp("ERROR: could not start media devices.");
+                    return;
+                }
+            }
+
             if (api.isUser()) {
-                createConferenceOrJoin(conferenceScheduled.externalId, conferenceCode, micEnabled, cameraEnabled);
+                createConferenceOrJoin(conferenceScheduled.externalId, conferenceCode, localParticipant.tracksInfo.isAudioEnabled, localParticipant.tracksInfo.isVideoEnabled);
             } else {
                 if (conferenceScheduled.conferenceId) {
-                    joinConference(conferenceCode, conferenceScheduled, micEnabled, cameraEnabled);
+                    joinConference(conferenceCode, conferenceScheduled, localParticipant.tracksInfo.isAudioEnabled, localParticipant.tracksInfo.isVideoEnabled);
                 } else {
                     ui.showToast("conference is not active.");
                 }

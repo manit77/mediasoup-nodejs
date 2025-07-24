@@ -311,8 +311,8 @@ export interface JoinConferenceParams {
     conferenceCode: string,
     roomName: string,
     externalId: string,
-    audioEnabledOnStart: boolean,
-    videoEnabledOnStart: boolean,
+    //audioEnabledOnStart: boolean,
+    //videoEnabledOnStart: boolean,
     clientData: {},
 }
 

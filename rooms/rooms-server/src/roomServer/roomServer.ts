@@ -195,10 +195,10 @@ export class RoomServer {
                 return this.onRoomConsumeStream(peerId, msgIn);
             }
             case payloadTypeClient.peerTracksInfo: {
-                return this.onRoomToggleProducerStream(peerId, msgIn);
+                return this.onPeerTracksInfo(peerId, msgIn);
             }
             case payloadTypeClient.peerMuteTracks: {
-                return this.onRoomProducerMuteStream(peerId, msgIn);
+                return this.onPeerMuteTracks(peerId, msgIn);
             }
         }
         return null;
@@ -421,10 +421,10 @@ export class RoomServer {
         }
     }
 
-    private async broadCastExcept(room: Room, except: Peer, msg: IMsg) {
-        console.log("broadCastExcept()", except.id);
+    private async broadCastExcept(room: Room, exceptArr: Peer[], msg: IMsg) {
+        console.log("broadCastExcept()");
         for (let peer of room.getPeers()) {
-            if (except != peer) {
+            if (!exceptArr.includes(peer)) {
                 this.send(peer.id, msg);
             }
         }
@@ -847,13 +847,13 @@ export class RoomServer {
 
         let otherPeers = room.otherPeers(peer.id);
         for (let [, otherPeer] of otherPeers) {
-            joinRoomResult.data.peers.push({                
+            joinRoomResult.data.peers.push({
                 peerId: otherPeer.id,
                 peerTrackingId: otherPeer.trackingId,
                 displayName: otherPeer.displayName,
                 producers: [...otherPeer.producers.values()].map(producer => ({
                     producerId: producer.id,
-                    kind: producer.kind                    
+                    kind: producer.kind
                 })),
                 trackInfo: otherPeer.trackInfo
             });
@@ -868,7 +868,7 @@ export class RoomServer {
             msg.data.displayName = peer.displayName;
             msg.data.producers = [...peer.producers.values()].map(producer => ({
                 producerId: producer.id,
-                kind: producer.kind                
+                kind: producer.kind
             }));
             msg.data.trackInfo = otherPeer.trackInfo
             this.send(otherPeer.id, msg);
@@ -959,7 +959,7 @@ export class RoomServer {
                 producerId: producer.id,
                 kind: producer.kind
             }
-            this.broadCastExcept(peer.room, peer, newProducerMsg)
+            this.broadCastExcept(peer.room, [peer], newProducerMsg)
         }
 
         let producedMsg = new RoomProduceStreamResultMsg();
@@ -1054,8 +1054,8 @@ export class RoomServer {
     /**
      * toggle self only, alert other peers
      */
-    private async onRoomToggleProducerStream(peerId: string, msgIn: PeerTracksInfoMsg): Promise<IMsg> {
-        consoleWarn("onRoomToggleProducerStream");
+    private async onPeerTracksInfo(peerId: string, msgIn: PeerTracksInfoMsg): Promise<IMsg> {
+        consoleWarn("onPeerTracksInfo", msgIn.data.tracksInfo);
 
         let peer = this.peers.get(peerId);
         if (!peer) {
@@ -1063,44 +1063,13 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeServer.error, "peer not found.");
         }
 
-        //the peer must have a producerTransport
-        if (!peer.producerTransport) {
-            consoleError("no producerTransport for the peer");
-            return;
-        }
-
-        //the peer must be in room
-        if (!peer.room) {
-            consoleError("peer not in room.");
-            return;
-        }
-
-        if (peer.room.id !== msgIn.data.roomId) {
-            consoleError("invalid roomid");
-            return;
-        }
-
-
         peer.trackInfo = msgIn.data.tracksInfo;
-
-        //resume / pause the producer
-        for (let producer of peer.producers.values()) {
-
-            let trackEnabled = producer.kind == "audio" ? peer.trackInfo.isAudioEnabled : peer.trackInfo.isVideoEnabled;
-
-            //toggle the producer track
-            if (trackEnabled && producer.paused) {
-                await producer.resume();
-                consoleWarn(`${peer.displayName}:Producer ${producer.id} ${producer.kind} resumed.`);
-            } else if (!trackEnabled && !producer.paused) {
-                await producer.pause();
-                consoleWarn(`${peer.displayName}:Producer ${producer.id} ${producer.kind} paused.`);
-            }
-        }
+        //we don't need to pause/resume the producer on the server side, the client will enable/disable the track
 
         //send to all peers in the room
-        this.broadCastExcept(peer.room, peer, msgIn);
-
+        if(peer.room) {
+            this.broadCastExcept(peer.room, [peer], msgIn);
+        }
     }
 
     /**
@@ -1109,8 +1078,8 @@ export class RoomServer {
      * @param msgIn 
      * @returns 
      */
-    private async onRoomProducerMuteStream(peerId: string, msgIn: PeerMuteTracksMsg): Promise<IMsg> {
-        consoleWarn("onRoomToggleProducerMuteStream");
+    private async onPeerMuteTracks(peerId: string, msgIn: PeerMuteTracksMsg): Promise<IMsg> {
+        consoleWarn("onPeerMuteTracks");
 
         let peer = this.peers.get(peerId);
         if (!peer) {
@@ -1150,9 +1119,9 @@ export class RoomServer {
 
         //the peer has mute/unmute a remotePeer
         for (let producer of remotePeer.producers.values()) {
-            
+
             let trackEnabled = producer.kind == "audio" ? peer.trackInfo.isAudioEnabled : peer.trackInfo.isVideoEnabled;
-                        
+
             //toggle the producer track
             if (trackEnabled && producer.paused) {
                 await producer.resume();
@@ -1166,11 +1135,14 @@ export class RoomServer {
         //send the track state to all peers so they can update their UI
         let msg = new PeerTracksInfoMsg();
         msg.data.peerId = msgIn.data.peerId;
-        msg.data.roomId = msgIn.data.roomId;
         msg.data.tracksInfo = msgIn.data.tracksInfo;
 
-        //send to all peers in the room
-        this.broadCastExcept(peer.room, peer, msg);
+        //send to all peers in the room, except the sender and the one being muted
+        this.broadCastExcept(peer.room, [peer, remotePeer], msg);
+
+        //send the mute message to the remote peer
+        this.send(remotePeer.id, msgIn);
+
     }
 
     async printStats() {

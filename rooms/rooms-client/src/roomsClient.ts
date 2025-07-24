@@ -12,6 +12,7 @@ import {
   RoomProduceStreamMsg,
   RoomProduceStreamResultMsg,
   UniqueMap,
+  PeerTracksInfo,
 } from "@rooms/rooms-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { Transport } from 'mediasoup-client/types';
@@ -500,8 +501,6 @@ export class RoomsClient {
     console.log(`publishTracks: local producers:`, this.localPeer.getProducers());
     console.log(`publishTracks: local tracks:`, this.localPeer.getTracks());
 
-    this.updateLocalPeerTrackInfo();
-
   };
 
   unPublishTracks = async (tracks: MediaStreamTrack[]) => {
@@ -516,8 +515,6 @@ export class RoomsClient {
         console.log(`track removed ${track.kind}`);
       }
     }
-
-    this.updateLocalPeerTrackInfo();
 
   };
 
@@ -548,47 +545,21 @@ export class RoomsClient {
       console.error(`producer not found, existing track not found. ${existingTrack.kind} ${existingTrack.id}`);
     }
 
-    this.updateLocalPeerTrackInfo();
-
   };
 
-  updateLocalPeerTrackInfo = async () => {
-    console.log(`updateLocalPeerTrackInfo`);
+  broadCastTrackInfo = async (tracksInfo: PeerTracksInfo) => {
+    console.log(`broadCastTrackInfo`);
 
-    let tracks = this.localPeer.getTracks();    
-    if (!tracks || tracks.length == 0) {
-      console.log("no tracks found.");
-      return;
-    }
-
-    //pause unpause track    
-    tracks.forEach(t => {
-      
-      if(t.kind == "audio") {
-        this.localPeer.tracksInfo.isAudioEnabled = t.enabled;
-      } else {
-        this.localPeer.tracksInfo.isVideoEnabled = t.enabled;
-      }
-
-      let producer = [...this.localPeer.getProducers().values()].find(p => p.kind === t.kind);
-      if (t.enabled) {
-        console.log(`${t.kind}: resume producer`);
-        //producer.resume();        
-      } else {
-        console.log(`${t.kind}: pause producer`);
-        //producer.pause();
-      }
-    });
+    this.localPeer.tracksInfo = tracksInfo;
 
     let msg = new PeerTracksInfoMsg();
     msg.data.peerId = this.localPeer.peerId;
-    msg.data.roomId = this.localPeer.roomId;
     msg.data.tracksInfo = this.localPeer.tracksInfo;
 
     this.send(msg);
 
     console.warn(`${this.localPeer.displayName} sent PeerTracksInfoMsg:`, this.localPeer.tracksInfo);
-    this.eventOnPeerTrackInfoUpdated(this.localPeer);
+    await this.eventOnPeerTrackInfoUpdated(this.localPeer);
 
   }
 
@@ -744,7 +715,10 @@ export class RoomsClient {
           this.onRoomNewProducer(msgIn);
           break;
         case payloadTypeClient.peerTracksInfo:
-          this.onPeerTracksInfoMsg(msgIn);
+          this.onPeerTracksInfo(msgIn);
+          break;
+        case payloadTypeClient.peerMuteTracks:
+          this.onPeerMuteTracks(msgIn);
           break;
         case payloadTypeServer.roomPeerLeft:
           this.onRoomPeerLeft(msgIn);
@@ -904,13 +878,9 @@ export class RoomsClient {
     if (msgIn.data && msgIn.data.peers) {
       for (const peerInfo of msgIn.data.peers) {
 
-        let newpeer: Peer = this.createPeer(peerInfo.peerId, peerInfo.peerTrackingId, peerInfo.displayName);
-        newpeer.tracksInfo = peerInfo.trackInfo;
-
+        let newpeer: Peer = this.createPeer(peerInfo.peerId, peerInfo.peerTrackingId, peerInfo.displayName, peerInfo.trackInfo);
         //save the existing producers for later to consume
         newpeer.producersToConsume.push(...peerInfo.producers.map(p => ({ producerId: p.producerId, kind: p.kind })));
-
-        console.log(peerInfo.peerId);
         console.log("** onRoomJoinResult producers :" + peerInfo.producers?.length);
 
       }
@@ -920,17 +890,19 @@ export class RoomsClient {
 
     for (const peer of this.peers.values()) {
       await this.consumePeerProducers(peer);
+      console.warn(`fire eventOnRoomPeerJoined onRoomJoinResult`);
       await this.eventOnRoomPeerJoined(this.localPeer.roomId, peer);
     }
-    
+
   }
 
-  private createPeer(peerId: string, trackingId: string, displayName: string) {
-    console.log(`createPeer() - ${displayName}, peerId:${peerId}, trackingId:${trackingId} `);
+  private createPeer(peerId: string, trackingId: string, displayName: string, tracksInfo: PeerTracksInfo) {
+    console.warn(`createPeer() - ${displayName}, peerId:${peerId}, trackingId:${trackingId},tracksInfo:`, tracksInfo);
     let newpeer: Peer = new Peer();
     newpeer.peerId = peerId;
     newpeer.trackingId = trackingId;
     newpeer.displayName = displayName;
+    newpeer.tracksInfo = tracksInfo
 
     this.addPeer(newpeer);
 
@@ -938,17 +910,17 @@ export class RoomsClient {
   }
 
   private onRoomNewPeer = async (msgIn: RoomNewPeerMsg) => {
-    console.log("onRoomNewPeer " + msgIn.data?.peerId + " producers: " + msgIn.data?.producers?.length);
-    console.log(`new PeeerJoined ${msgIn.data?.peerId} `);
+    console.warn("onRoomNewPeer " + msgIn.data?.peerId + " producers: " + msgIn.data?.producers?.length);
+    console.warn(`new PeeerJoined ${msgIn.data?.peerId} `);
 
-    let newpeer: Peer = this.createPeer(msgIn.data.peerId, msgIn.data.peerTrackingId, msgIn.data.displayName);
+    let newpeer: Peer = this.createPeer(msgIn.data.peerId, msgIn.data.peerTrackingId, msgIn.data.displayName, msgIn.data.trackInfo);
     newpeer.tracksInfo = msgIn.data.trackInfo;
     if (msgIn.data?.producers) {
       for (const producerInfo of msgIn.data.producers) {
         await this.consumeProducer(msgIn.data.peerId, producerInfo.producerId, producerInfo.kind);
       }
     }
-
+    console.warn(`fire eventOnRoomPeerJoined onRoomNewPeer`);
     await this.eventOnRoomPeerJoined(msgIn.data.roomId, newpeer);
   }
 
@@ -966,34 +938,73 @@ export class RoomsClient {
     await this.eventOnRoomPeerLeft(roomid, peer);
   }
 
-  private onPeerTracksInfoMsg(msgIn: PeerTracksInfoMsg) {
-    console.warn("onPeerTracksInfoMsg");
+
+  private onPeerTracksInfo(msgIn: PeerTracksInfoMsg) {
+    console.warn("onPeerTracksInfo");
 
     if (!this.localPeer.roomId) {
       console.error("not in a room.");
       return;
     }
 
-    if (this.localPeer.roomId !== msgIn.data.roomId) {
-      console.error("not the same room.");
-      return;
-    }
-    
-    let peer: IPeer;    
-    if (this.localPeer.peerId == msgIn.data.peerId) {
-      peer = this.localPeer;
-    } else {
-      peer = this.peers.get(msgIn.data.peerId);
-    }
-
+    let peer = this.peers.get(msgIn.data.peerId);
     if (!peer) {
       console.error(`peer not found ${msgIn.data.peerId}`);
       return;
     }
 
     peer.tracksInfo = msgIn.data.tracksInfo;
-    console.warn(`received tracksInfo from ${peer.displayName}:`, peer.tracksInfo);
+    console.warn(`updated tracksInfo for ${peer.displayName}:`, peer.tracksInfo);
+
+    let audioTrack = peer.getTracks().find(t => t.kind == "audio");
+    if (audioTrack) {
+      audioTrack.enabled = peer.tracksInfo.isAudioEnabled;
+      console.warn(`track updated, audio enabled:`, audioTrack.enabled);
+    }
+
+    let videoTrack = peer.getTracks().find(t => t.kind == "video");
+    if (videoTrack) {
+      videoTrack.enabled = peer.tracksInfo.isVideoEnabled;
+      console.warn(`track updated, video enabled:`, videoTrack.enabled);
+    }
+
     this.eventOnPeerTrackInfoUpdated(peer);
+  }
+
+  private onPeerMuteTracks(msgIn: PeerMuteTracksMsg) {
+    console.warn("PeerMuteTracksMsg, someone muted me!");
+
+    //someone muted me!
+    if (!this.localPeer.roomId) {
+      console.error("localPeer not in a room.");
+      return;
+    }
+
+    if (this.localPeer.peerId != msgIn.data.peerId) {
+      console.error("invalid peer");
+      return;
+    }
+
+    if (this.localPeer.roomId != msgIn.data.roomId) {
+      console.error("not the same room.", msgIn.data.roomId);
+      return;
+    }
+
+    this.localPeer.tracksInfo = msgIn.data.tracksInfo;
+    console.warn(`updated localPeer tracksInfo:`, msgIn.data.tracksInfo);
+
+    //mute the track
+    let audioTrack = this.localPeer.getTracks().find(t => t.kind == "audio");
+    if (audioTrack) {
+      audioTrack.enabled = this.localPeer.tracksInfo.isAudioEnabled;
+    }
+
+    let videoTrack = this.localPeer.getTracks().find(t => t.kind == "video");
+    if (videoTrack) {
+      videoTrack.enabled = this.localPeer.tracksInfo.isVideoEnabled;
+    }
+
+    this.eventOnPeerTrackInfoUpdated(this.localPeer);
   }
 
   private onRoomClosed = async (msgIn: RoomClosedMsg) => {
@@ -1299,11 +1310,19 @@ export class RoomsClient {
     }
 
     const consumer = await peer.createConsumer(this.localPeer.transportReceive, msgIn.data.peerId, msgIn.data.consumerId, msgIn.data.producerId, msgIn.data.kind, msgIn.data.rtpParameters);
-    console.log(`add track for ${peer.displayName} of type ${consumer.track.kind}`);
+    console.warn(`new track for remote peer ${peer.displayName} of type ${consumer.track.kind}`);
+    //sync the tracks with tracksinfo
 
-    if (this.eventOnPeerNewTrack) {
-      await this.eventOnPeerNewTrack(peer, consumer.track);
+    if (consumer.track.kind === "audio") {
+      consumer.track.enabled = peer.tracksInfo.isAudioEnabled;
+    } else {
+      consumer.track.enabled = peer.tracksInfo.isVideoEnabled;
     }
+
+    console.warn(`updated track: consumer track ${consumer.kind} set to enabled=${consumer.track.enabled}`);
+
+    await this.eventOnPeerNewTrack(peer, consumer.track);
+
   };
 
   private onProduced = async (msgIn: RoomProduceStreamResultMsg) => {

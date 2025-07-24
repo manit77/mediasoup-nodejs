@@ -125,8 +125,7 @@ export class Peer implements IPeer {
     let idx = this.consumers.findIndex(c => c.consumer === consumer);
     if (idx > -1) {
       let removed = this.consumers.splice(idx, 1);
-      console.log(`consumer with kind ${consumer.track.kind} removed.`, this.consumers);
-
+      console.warn(`consumer with kind ${consumer.track.kind} removed.`, this.consumers);
       // for (let consumer of removed) {
       //   console.log(`remove track ${consumer.consumer.track.kind}`)
       //   this.tracks.removeTrack(consumer.consumer.track.kind);
