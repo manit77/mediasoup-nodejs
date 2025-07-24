@@ -9,7 +9,7 @@ import { Navigate } from 'react-router-dom';
 
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
-    const { localParticipant, isCallActive, callParticipants, conferenceRoom } = useCall();
+    const { localParticipant, isCallActive, callParticipants, conference } = useCall();
     const [mainStream, setMainStream] = useState<MediaStream | null>(null);
 
     useEffect(() => {

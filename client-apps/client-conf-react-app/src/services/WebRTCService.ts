@@ -43,12 +43,12 @@ class WebRTCService {
         return this.confClient?.localParticipant;
     }
 
-    get conferenceRoom(): Conference {
-        return this.confClient?.conferenceRoom;
+    get conference(): Conference {
+        return this.confClient?.conference;
     }
 
     get participants(): Map<string, Participant> {
-        return this.confClient?.conferenceRoom.participants;
+        return this.confClient?.conference.participants;
     }
 
     isScreenSharing = false;
@@ -311,7 +311,7 @@ class WebRTCService {
     }
 
     public getConferenceRoom() {
-        return this.confClient?.conferenceRoom;
+        return this.confClient?.conference;
     }
 
     public createConferenceRoom(createArgs: CreateConferenceParams) {

@@ -23,7 +23,7 @@ import {
     GetParticipantsMsg,
     ParticipantRole
 } from '@conf/conf-models';
-import { ConferenceRoom, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
+import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
 import { AuthUserRoles, IMsg, RoomConfig } from '@rooms/rooms-models';
@@ -59,7 +59,7 @@ export enum ConferenceServerEventTypes {
 export class ConferenceServer extends AbstractEventHandler<ConferenceServerEventTypes> {
 
     participants = new Map<string, Participant>();
-    conferences = new Map<string, ConferenceRoom>();
+    conferences = new Map<string, Conference>();
     config: ConferenceServerConfig;
     nextRoomURIIdx = 0;
     app: express.Express;
@@ -82,8 +82,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             this.participants.delete(participant.participantId);
             consoleLog(`participant removed`, participant.participantId);
 
-            if (participant.conferenceRoom) {
-                participant.conferenceRoom.removeParticipant(participant.participantId);
+            if (participant.conference) {
+                participant.conference.removeParticipant(participant.participantId);
             }
 
             consoleLog(`participant ${participant.participantId} disconnected. participants: ${this.participants.size} rooms: ${this.conferences.size}`);
@@ -172,7 +172,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
     getOrCreateConference(conferenceId?: string, externalId?: string, roomName?: string, config?: ConferenceRoomConfig) {
 
         //find room by tracking id
-        let conference: ConferenceRoom;
+        let conference: Conference;
 
         if (externalId) {
             conference = [...this.conferences.values()].find(c => c.externalId === externalId);
@@ -188,7 +188,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             }
         }
 
-        conference = new ConferenceRoom();
+        conference = new Conference();
         conference.id = conferenceId ?? this.generateConferenceId();
         conference.externalId = externalId;
         conference.roomName = roomName;
@@ -205,7 +205,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         this.conferences.set(conference.id, conference);
 
-        conference.onClose = (conf: ConferenceRoom, participants: Participant[], reason: string) => {
+        conference.onClose = (conf: Conference, participants: Participant[], reason: string) => {
             this.conferences.delete(conf.id);
             consoleLog(`conference removed. ${conf.id}`);
 
@@ -389,11 +389,11 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
     private async onInvite(participant: Participant, msgIn: InviteMsg) {
         consoleLog("onInvite");
 
-        if (participant.conferenceRoom) {
+        if (participant.conference) {
             consoleError("caller already in a conference room.");
 
             let errorMsg = new InviteResultMsg();
-            errorMsg.data.conferenceId = participant.conferenceRoom.id;
+            errorMsg.data.conferenceId = participant.conference.id;
             errorMsg.data.error = "already in a conference room.";
 
             return errorMsg;
@@ -414,8 +414,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return errorMsg;
         }
 
-        if (remote.conferenceRoom) {
-            consoleError(`receiver is in another conference room. ${remote.conferenceRoom.id}`);
+        if (remote.conference) {
+            consoleError(`receiver is in another conference room. ${remote.conference.id}`);
 
             let errorMsg = new InviteResultMsg();
             errorMsg.data.error = "remote party is on another call.";
@@ -478,7 +478,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return;
         }
 
-        if (participant.conferenceRoom != conf) {
+        if (participant.conference != conf) {
             consoleError("not the same conference room.");
             return;
         }
@@ -518,7 +518,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         //the participant is not in the same conference room as the reject message
-        if (conf !== remoteParticipant.conferenceRoom) {
+        if (conf !== remoteParticipant.conference) {
             consoleError("not the same confererence room");
             return;
         }
@@ -657,7 +657,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             }
         }
 
-        let conference = participant.conferenceRoom;
+        let conference = participant.conference;
         if (conference) {
             consoleLog("conference already created");
         } else {
@@ -699,8 +699,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         //is user is already in a conference room throw an error
-        if (participant.conferenceRoom) {
-            consoleError(`already in a conference room: ${participant.conferenceRoom.id}`);
+        if (participant.conference) {
+            consoleError(`already in a conference room: ${participant.conference.id}`);
 
             let errorMsg = new JoinConfResultMsg();
             errorMsg.data.error = "already in a room.";
@@ -708,7 +708,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return errorMsg;
         }
 
-        let conference: ConferenceRoom;
+        let conference: Conference;
         if (msgIn.data.conferenceId) {
             conference = this.conferences.get(msgIn.data.conferenceId);
         } else if (msgIn.data.externalId) {
@@ -779,7 +779,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         return resultMsg;
     }
 
-    async sendConferenceReady(conference: ConferenceRoom, participant: Participant) {
+    async sendConferenceReady(conference: Conference, participant: Participant) {
         consoleLog("conferenceReady");
 
         conference.addParticipant(participant);
@@ -822,7 +822,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
      * @param conference 
      * @returns 
      */
-    async startRoom(conference: ConferenceRoom) {
+    async startRoom(conference: Conference) {
         consoleLog("startConference");
 
         if (conference.status != "none") {

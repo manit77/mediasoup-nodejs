@@ -16,7 +16,7 @@ interface CallContextType {
     isLocalStreamUpdated: boolean;
 
     isCallActive: boolean;
-    conferenceRoom: Conference;
+    conference: Conference;
     callParticipants: Map<string, Participant>;
 
     isScreenSharing: boolean;
@@ -70,7 +70,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const localParticipant = useRef<Participant>(webRTCService.localParticipant);
     const [isCallActive, setIsCallActive] = useState<boolean>(webRTCService.isOnCall());
-    const [conferenceRoom, setConferenceRoom] = useState<Conference>(webRTCService.conferenceRoom);
+    const [conference, setConferenceRoom] = useState<Conference>(webRTCService.conference);
     const [callParticipants, setCallParticipants] = useState<Map<string, Participant>>(webRTCService.participants);
     const [isScreenSharing, setIsScreenSharing] = useState<boolean>(webRTCService.isScreenSharing);
     const [selectedDevices, setSelectedDevices] = useState<SelectedDevices>(webRTCService.selectedDevices);
@@ -187,7 +187,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsConnected(false);
             setIsAuthenticated(false);
             setIsCallActive(false);
-            setConferenceRoom(webRTCService.conferenceRoom);
+            setConferenceRoom(webRTCService.conference);
 
             ui.showToast("disconnected from server. trying to reconnect...");
         }
@@ -216,7 +216,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
 
             //update the call participants
-            setCallParticipants(prev => new Map(webRTCService.conferenceRoom.participants));
+            setCallParticipants(prev => new Map(webRTCService.conference.participants));
 
         };
 
@@ -229,7 +229,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 return;
             }
 
-            setCallParticipants(prev => new Map(webRTCService.conferenceRoom.participants));
+            setCallParticipants(prev => new Map(webRTCService.conference.participants));
         };
 
         webRTCService.onInviteReceived = async (inviteReceivedMsg: InviteMsg) => {
@@ -255,8 +255,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsCallActive(true);
             setInviteInfoReceived(null);
             setInviteInfoSend(null);
-            setCallParticipants(prev => new Map(webRTCService.conferenceRoom.participants));
-            setConferenceRoom(webRTCService.conferenceRoom);
+            setCallParticipants(prev => new Map(webRTCService.conference.participants));
+            setConferenceRoom(webRTCService.conference);
             ui.showToast("conference joined");
 
         };
@@ -266,7 +266,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsCallActive(false);
             setInviteInfoSend(null);
             setInviteInfoReceived(null);
-            setConferenceRoom(webRTCService.conferenceRoom);
+            setConferenceRoom(webRTCService.conference);
 
             ui.hidePopUp();
 
@@ -284,7 +284,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 return;
             }
 
-            setCallParticipants(prev => new Map(webRTCService.conferenceRoom.participants));
+            setCallParticipants(prev => new Map(webRTCService.conference.participants));
 
         };
 
@@ -294,7 +294,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 console.error('CallContext: Invalid participantId');
                 return;
             }
-            setCallParticipants(prev => new Map(webRTCService.conferenceRoom.participants));
+            setCallParticipants(prev => new Map(webRTCService.conference.participants));
         };
 
 
@@ -577,7 +577,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isLocalStreamUpdated,
 
             isCallActive: isCallActive,
-            conferenceRoom: conferenceRoom,
+            conference: conference,
             callParticipants,
             isScreenSharing: isScreenSharing,
             participantsOnline: participantsOnline,

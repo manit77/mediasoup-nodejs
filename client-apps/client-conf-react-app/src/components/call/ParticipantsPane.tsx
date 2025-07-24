@@ -15,7 +15,7 @@ interface ParticipantVideoPreviewProps {
 const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, broadCastTrackInfo, conferenceRoom, callParticipants, muteParticipantTrack } = useCall();
+    const { localParticipant, broadCastTrackInfo, conference, callParticipants, muteParticipantTrack } = useCall();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [videoEnabled, setVideoEnabled] = useState(false);
     const [audioEnabled, setAudioEnabled] = useState(false);
@@ -72,7 +72,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         const newEnabled = !currentEnabled;
 
         // Prevent enabling the mic for a guest if not allowed
-        if (newEnabled && targetIsGuest && !conferenceRoom.conferenceRoomConfig.guestsAllowMic) {
+        if (newEnabled && targetIsGuest && !conference.conferenceRoomConfig.guestsAllowMic) {
             console.warn(`Cannot enable mic for guest when not allowed.`);
             ui.showToast(`Cannot enable mic for guest when not allowed.`);
             return;
@@ -96,7 +96,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
             const isVideoEnabled = participant.stream.getVideoTracks()[0]?.enabled ?? false;
             muteParticipantTrack(participant.participantId, newEnabled, isVideoEnabled);
         }
-    }, [api, conferenceRoom, localParticipant, muteParticipantTrack, participant, ui, broadCastTrackInfo]);
+    }, [api, conference, localParticipant, muteParticipantTrack, participant, ui, broadCastTrackInfo]);
 
 
     const onVideoClick = useCallback(() => {
@@ -122,7 +122,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         const newEnabled = !currentEnabled;
 
         // Prevent enabling the camera for a guest if not allowed
-        if (newEnabled && targetIsGuest && !conferenceRoom.conferenceRoomConfig.guestsAllowCamera) {
+        if (newEnabled && targetIsGuest && !conference.conferenceRoomConfig.guestsAllowCamera) {
             console.warn(`Cannot enable camera for guest when not allowed.`);
             ui.showToast(`Cannot enable camera for guest when not allowed.`);
             return;
@@ -146,7 +146,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
             const isAudioEnabled = participant.stream.getAudioTracks()[0]?.enabled ?? false;
             muteParticipantTrack(participant.participantId, isAudioEnabled, newEnabled);
         }
-    }, [api, conferenceRoom, localParticipant, muteParticipantTrack, participant, ui, broadCastTrackInfo]);
+    }, [api, conference, localParticipant, muteParticipantTrack, participant, ui, broadCastTrackInfo]);
 
     
     return (
