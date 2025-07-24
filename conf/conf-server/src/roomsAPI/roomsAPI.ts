@@ -4,7 +4,8 @@ import {
     , RoomServerAPIRoutes, RoomTerminateMsg, RoomConfig,
     RoomLeaveMsg,
     RoomLeaveResultMsg,
-    RoomNewResultMsg
+    RoomNewResultMsg,
+    AuthUserRoles,    
 } from "@rooms/rooms-models";
 import https from "https"
 
@@ -28,12 +29,14 @@ export class RoomsAPI {
     }
 
     async newRoomToken(): Promise<RoomNewTokenResultMsg> {
-        let msgIn = new RoomNewTokenMsg();
+        let msgIn = new RoomNewTokenMsg();        
         return await this.post(RoomServerAPIRoutes.newRoomToken, msgIn) as RoomNewTokenResultMsg;
     }
 
-    async newAuthUserToken() {
-        let msgIn = new AuthUserNewTokenMsg();
+    async newAuthUserToken(role: AuthUserRoles) {
+        let msgIn = new AuthUserNewTokenMsg();       
+        msgIn.data.expiresInMin = 0;      
+        msgIn.data.role = role;  
         return await this.post(RoomServerAPIRoutes.newAuthUserToken, msgIn) as AuthUserNewTokenResultMsg;
     }
 
@@ -42,7 +45,7 @@ export class RoomsAPI {
         msgIn.data.roomId = roomId;
         msgIn.data.roomToken = roomToken;
         msgIn.data.roomName = roomName;
-        msgIn.data.trackingId = trackingId;
+        msgIn.data.roomTrackingId = trackingId;
         msgIn.data.roomConfig = config;
 
         return await this.post(RoomServerAPIRoutes.newRoom, msgIn) as RoomNewResultMsg;

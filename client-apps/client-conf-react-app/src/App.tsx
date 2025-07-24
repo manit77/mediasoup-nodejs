@@ -1,18 +1,27 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { APIProvider } from './contexts/APIContext';
 import { CallProvider } from './contexts/CallContext';
 import LoginPage from './components/auth/LoginPage';
 import AuthenticatedLayout from './components/layout/AuthenticatedLayout';
 import OnCallScreen from './components/call/OnCallScreen';
-import IncomingCallPopup from './components/call/IncomingCallPopup';
-import CallingPopup from './components/call/CallingPopup';
-import { useAuth } from './hooks/useAuth';
+import { useAPI } from './hooks/useAPI';
 import { useCall } from './hooks/useCall';
+import { UIProvider } from './contexts/UIContext';
+import { conferenceService } from './services/ConferenceService';
 
 const AppRoutes: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
-  const { isCallActive, inviteInfoSend, localParticipant } = useCall();
+  const { isAuthenticated, isLoading } = useAPI();
+  const { isCallActive } = useCall();
+
+  useEffect(() => {
+    console.log('loading app');
+    return () => {
+      console.log('unmounting app');
+      conferenceService.dispose();
+    }
+  }, [])
+
 
   if (isLoading) {
     return <div className="d-flex justify-content-center align-items-center vh-100">Loading...</div>;
@@ -37,7 +46,7 @@ const AppRoutes: React.FC = () => {
           </>
         )}
       </Routes>
-      
+
     </>
   );
 };
@@ -45,11 +54,13 @@ const AppRoutes: React.FC = () => {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <CallProvider>
-          <AppRoutes />
-        </CallProvider>
-      </AuthProvider>
+      <UIProvider>
+        <APIProvider>
+          <CallProvider>
+            <AppRoutes />
+          </CallProvider>
+        </APIProvider>
+      </UIProvider>
     </Router>
   );
 }

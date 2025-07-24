@@ -1,7 +1,9 @@
 export interface User {
-    id: string;
+    username: string;
     displayName: string;
-    role: "admin" | "user" | "guest";
+    role: "admin" | "user" | "guest" | "monitor";
+    authToken: string;
+    clientData: {};
 }
 
 export interface Device {
@@ -11,22 +13,40 @@ export interface Device {
 
 export class SelectedDevices {
     videoId?: string;
+    videoLabel?: string;
     audioInId?: string;
+    audioInLabel?: string;
     audioOutId?: string;
-    isVideoEnabled = false;
-    isAudioEnabled = false;
+    audioOutLabel?: string;
+    isVideoEnabled = true;
+    isAudioEnabled = true;
 }
 
 export class ConferenceRoomScheduled {
-    id: string;
-    conferenceRoomId: string;
-    roomStatus : string;
-    roomName: string;
+    /**
+     * third party unique id, this will always have a value
+     */
+    externalId: string = "";
+    conferenceId: string = "";
+    roomId: string = "";
+    roomStatus: string = "";
+    roomName: string = "";
+    roomDescription: string = "";
+    config: {
+        roomTimeoutSecs: number;
+        conferenceCode: string;
+        requireConferenceCode: boolean;
+        usersMax: number;
+        guestsMax: number;
+        guestsAllowed: boolean;
+        guestsAllowMic: boolean;
+        guestsAllowCamera: boolean;
+    }
 
-    constructor(uniqeId: string, name: string) {
-        this.id = uniqeId;
+    constructor(externalId: string, name: string) {
+        this.externalId = externalId;
         this.roomName = name;
     }
 
-    
+
 }

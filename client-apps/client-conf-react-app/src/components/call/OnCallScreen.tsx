@@ -9,8 +9,8 @@ import { Navigate } from 'react-router-dom';
 
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
-    const { localParticipant, isCallActive, callParticipants } = useCall();
-    const [mainStream, setMainStream] = useState<MediaStream | null>(null); 
+    const { localParticipant, isCallActive, callParticipants, conference } = useCall();
+    const [mainStream, setMainStream] = useState<MediaStream | null>(null);
 
     useEffect(() => {
         if (localParticipant.stream && !mainStream) {
@@ -33,7 +33,7 @@ const OnCallScreen: React.FC = () => {
 
     return (
         <div className="d-flex flex-column vh-100 bg-dark text-light">
-            <CallTopMenu               
+            <CallTopMenu
                 onShowSettings={() => setShowSettings(true)}
             />
             <Container fluid className="flex-grow-1 p-0 m-0">
@@ -48,7 +48,6 @@ const OnCallScreen: React.FC = () => {
                     </Col>
                 </Row>
             </Container>
-
             <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />
         </div>
     );

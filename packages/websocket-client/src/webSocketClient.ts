@@ -20,7 +20,7 @@ interface CallMessage {
 const logPre = "WebSocketClient";
 
 export class WebSocketClient {
-    
+
     socket: WebSocket | null = null;
     callbacks: Map<eventsTypes, Function[]> = new Map();
     state: "" | "connecting" | "connected" | "disconnected" | "reconnecting" = "";
@@ -34,7 +34,7 @@ export class WebSocketClient {
     }
 
     writeLog(...params: any) {
-        if (this.enableLogs) {            
+        if (this.enableLogs) {
             console.log(logPre, ...params);
         }
     }
@@ -55,14 +55,14 @@ export class WebSocketClient {
         this.socket.onopen = async () => {
             this.writeLog("socket server connected");
 
-            this.state = "connected";            
+            this.state = "connected";
             await this.fireEvent("onopen");
         };
 
         this.socket.onerror = async (error) => {
             console.error("socket server error:", error);
 
-            this.state = "disconnected";            
+            this.state = "disconnected";
             await this.fireEvent("onerror");
         };
 
@@ -74,7 +74,7 @@ export class WebSocketClient {
                 this.state = "reconnecting";
                 await this.fireEvent("onclose");
                 setTimeout(() => {
-                    this.socket = null; // Reset socket                    
+                    this.socket = null; // Reset socket
                     this.connect(uri, this.autoReconnect);
                 }, reconnectSecs * 1000);
             } else {
@@ -151,6 +151,11 @@ export class WebSocketClient {
     // Register a callback for a specific message type
     addEventHandler(type: eventsTypes, callback: Function) {
         this.writeLog(`addEventHandler for ${type}`);
+
+        if (!callback) {
+            this.writeLog("ERROR: call is null");
+            return false;
+        }
 
         if (!this.callbacks.has(type)) {
             this.callbacks.set(type, []);

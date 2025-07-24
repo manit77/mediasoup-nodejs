@@ -2,6 +2,8 @@ import * as mediasoup from 'mediasoup';
 import { Room } from './room.js';
 import * as roomUtils from "./utils.js";
 import { setTimeout, setInterval } from 'node:timers';
+import chalk, { Chalk } from 'chalk';
+import { PeerTracksInfo } from '@rooms/rooms-models';
 
 export class Peer {
 
@@ -22,6 +24,8 @@ export class Peer {
 
     recordings?: Map<string, any> = new Map();
     room?: Room;
+
+    trackInfo: PeerTracksInfo = { isAudioEnabled: false, isVideoEnabled: false };
 
     async createProducerTransport() {
         console.log(`createProducerTransport()`);
@@ -114,21 +118,29 @@ export class Peer {
 
         // Auto-cleanup when producer closes
         producer.on('@close', () => {
-            console.log(`Producer ${producer.id} closed, removing from peer ${this.id}`);
+            console.log(chalk.yellow(`Producer ${producer.id} closed, removing from peer ${this.id} for ${this.id} ${this.displayName}`));
             this.producers.delete(producer.id);
         });
 
         // Handle transport close events
         producer.on('transportclose', () => {
-            console.log(`Producer ${producer.id} transport closed`);
+            console.log(chalk.yellow(`Producer ${producer.id} transport closed for ${this.id} ${this.displayName}`));
             this.producers.delete(producer.id);
         });
 
+        producer.on("videoorientationchange", (args) => {
+            console.log(chalk.yellow(`Producer ${producer.id} videoorientationchange for ${this.id} ${this.displayName}`));
+            console.log(args);
+        });
+
+        producer.on("listenererror", (args) => {
+            console.log(chalk.yellow(`Producer ${producer.id} listenererror for ${this.id} ${this.displayName}`));
+            console.log(args);
+        });        
     }
 
-
     close() {
-        console.log(`peer close() - ${this.id}`);
+        console.log(`peer close() - ${this.id} ${this.displayName}`);
 
         this.producerTransport?.close();
         this.consumerTransport?.close();
@@ -154,7 +166,7 @@ export class Peer {
             this.room.removePeer(this.id);
         }
 
-        console.log(`peer close() - all room instances removed.`);
+        console.log(`peer closed`);
 
     }
 

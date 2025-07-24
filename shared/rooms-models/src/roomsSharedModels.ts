@@ -23,7 +23,8 @@ export enum payloadTypeClient {
     roomProduceStream = "roomProduceStream",
     roomConsumeStream = "roomConsumeStream",
 
-    roomProducerToggleStream = "roomProducerToggleStream",
+    peerTracksInfo = "peerTracksInfo",
+    peerMuteTracks = "peerMuteTracks",
 }
 
 
@@ -61,12 +62,17 @@ export enum payloadTypeServer {
     error = "error",
     ok = "ok",
     unauthorized = "",
-
 }
 
 export interface IMsg {
     type: any;
     data: any;
+}
+
+export enum AuthUserRoles {
+    admin = "admin"
+    , user = "user"
+    , guest = "guest"
 }
 
 export class ErrorMsg implements IMsg {
@@ -85,9 +91,13 @@ export class OkMsg implements IMsg {
     type = payloadTypeServer.ok;
     data = {}
 
-    constructor(msgType: any, data: {}) {
-        this.type = msgType;
-        this.data = data
+    constructor(msgType?: any, data?: {}) {
+        if (msgType) {
+            this.type = msgType;
+        }
+        if (data) {
+            this.data = data
+        }
     }
 }
 
@@ -99,7 +109,7 @@ export class RegisterPeerMsg implements IMsg {
         /**
          * your app's unique to track the room
          */
-        trackingId?: string,
+        peerTrackingId?: string,
     } = {}
 }
 
@@ -140,7 +150,7 @@ export class CreateProducerTransportMsg implements IMsg {
 export class ProducerTransportCreatedMsg implements IMsg {
     type = payloadTypeServer.producerTransportCreated;
     data: {
-        authToken?: string,
+        roomId?: string,
         transportId?: string,
         iceParameters?: any,
         iceServers?: any,
@@ -153,7 +163,8 @@ export class ProducerTransportCreatedMsg implements IMsg {
 export class ProducerTransportConnectedMsg implements IMsg {
     type = payloadTypeServer.producerTransportConnected;
     data: {
-        error?: any
+        roomId?: string,
+        error?: any,
     } = {};
 }
 
@@ -177,7 +188,7 @@ export class CreateConsumerTransportMsg implements IMsg {
 export class ConsumerTransportCreatedMsg implements IMsg {
     type = payloadTypeServer.consumerTransportCreated;
     data: {
-        authToken?: string,
+        roomId?: string,
         transportId?: string,
         iceParameters?: any,
         iceServers?: any,
@@ -190,7 +201,8 @@ export class ConsumerTransportCreatedMsg implements IMsg {
 export class ConsumerTransportConnectedMsg implements IMsg {
     type = payloadTypeServer.consumerTransportConnected;
     data: {
-        error?: any
+        roomId?: string,
+        error?: any,
     } = {};
 }
 
@@ -211,8 +223,8 @@ export class RoomNewMsg implements IMsg {
         roomId?: string,
         roomToken?: string,
         roomName?: string,
-        trackingId?: string,
-        ownerTrackingId?: string,
+        roomTrackingId?: string,
+        adminTrackingId?: string,
         roomConfig?: RoomConfig;
     } = {
             roomConfig: new RoomConfig()
@@ -222,7 +234,7 @@ export class RoomNewMsg implements IMsg {
 export class AuthUserNewTokenMsg implements IMsg {
     type = payloadTypeClient.authUserNewToken;
     data: {
-        authToken?: string,
+        role?: AuthUserRoles;
         expiresInMin?: number
     } = {}
 }
@@ -231,7 +243,8 @@ export class AuthUserNewTokenResultMsg implements IMsg {
     type = payloadTypeServer.authUserNewTokenResult;
     data: {
         authToken?: string,
-        expiresIn?: number
+        expiresIn?: number,
+        role?: AuthUserRoles;
         error?: string
     } = {
         }
@@ -264,7 +277,7 @@ export class RoomNewResultMsg implements IMsg {
         /**
          * your app's unique to track the room
          */
-        trackingId?: string,
+        roomTrackingId?: string,
         error?: string,
     } = {}
 }
@@ -313,7 +326,8 @@ export class RoomJoinResultMsg implements IMsg {
             peerId: string,
             peerTrackingId: string,
             displayName: string,
-            producers?: { producerId: string, kind: "audio" | "video" }[]
+            producers?: { producerId: string, kind: "audio" | "video" }[],
+            trackInfo?: PeerTracksInfo,
         }[],
         error?: string,
     } = { peers: [] };
@@ -322,11 +336,12 @@ export class RoomJoinResultMsg implements IMsg {
 export class RoomNewPeerMsg implements IMsg {
     type = payloadTypeServer.roomNewPeer;
     data: {
-        peerId?: string;
-        peerTrackingId?: string;
-        roomId?: string;
-        displayName?: string;
-        producers?: { producerId: string, kind: "audio" | "video" }[]
+        peerId?: string,
+        peerTrackingId?: string,
+        roomId?: string,
+        displayName?: string,
+        producers?: { producerId: string, kind: "audio" | "video" }[],
+        trackInfo?: PeerTracksInfo,
     } = {};
 }
 
@@ -410,16 +425,26 @@ export class RoomConsumeStreamResultMsg implements IMsg {
     } = {};
 }
 
-export class RoomProducerToggleStreamMsg {
-    type = payloadTypeClient.roomProducerToggleStream
+export class PeerTracksInfoMsg {
+    type = payloadTypeClient.peerTracksInfo
+    data: {       
+        peerId?: string,
+        tracksInfo?: PeerTracksInfo;
+    } = {}
+}
+
+export class PeerMuteTracksMsg {
+    type = payloadTypeClient.peerMuteTracks
     data: {
         roomId?: string,
         peerId?: string,
-        tracksInfo?: {
-            kind?: "audio" | "video" | string,
-            enabled?: boolean
-        }[];
+        tracksInfo?: PeerTracksInfo;
     } = {}
+}
+
+export interface PeerTracksInfo {
+    isAudioEnabled:boolean,
+    isVideoEnabled?: boolean
 }
 
 export class UnauthorizedMsg implements IMsg {
@@ -438,10 +463,6 @@ export enum RoomServerAPIRoutes {
 
 export class RoomConfig {
     maxPeers = 99;
-    peerAllowMic = true;
-    peerAllowCamera = true;
-    monitorAllowMic = false;
-    monitorAllowCamera = false;
     newRoomTokenExpiresInMinutes = 30; //room token expiration from date created
     maxRoomDurationMinutes = 30; // room max duration, starts when the room is created
     timeOutNoParticipantsSecs = 5 * 60; //when no participants in the room, timer starts and will close the room 
@@ -451,18 +472,29 @@ export class RoomConfig {
     callBackURL_OnPeerJoined: string;
 }
 
-export interface RoomPeerCallBackData {
-    peerId: string;
-    peerTrackingId: string;
-    roomId: string;
-    roomTrackingId: string;
+export enum payloadTypeCallBacks {
+    roomPeerCallBackMsg = "roomPeerCallBackMsg",
+    roomCallBackMsg = "roomCallBackMsg",
+
+}
+export class RoomPeerCallBackMsg implements IMsg {
+    type: payloadTypeCallBacks.roomPeerCallBackMsg;
+    data: {
+        peerId?: string;
+        peerTrackingId?: string;
+        roomId?: string;
+        roomTrackingId?: string;
+    } = {}
 }
 
-export interface RoomCallBackData {
-    roomId: string;
-    trackingId: string;
-    status: "open" | "closed";
-    peers: RoomPeerCallBackData[];
+export class RoomCallBackMsg implements IMsg {
+    type: payloadTypeCallBacks.roomCallBackMsg;
+    data: {
+        roomId?: string;
+        roomTrackingId?: string;
+        status?: "open" | "closed";
+        peers?: RoomPeerCallBackMsg[];
+    } = {}
 }
 
 export enum RoomLogAction {
@@ -489,4 +521,43 @@ export class RoomGetLogsResultMsg implements IMsg {
     data: {
         logs: RoomLog[]
     } = { logs: [] };
+}
+
+export class UniqueMap<T> {
+
+    private items = new Map<string, T>()
+
+    set(key: string, item: T) {
+        if (this.items.has(key)) {
+            throw `already has and item with ${key}`;
+        }
+        this.items.set(key, item);
+    }
+
+    has(key: string) {
+        return this.items.has(key);
+    }
+
+    delete(key: string) {
+        return this.items.delete(key);
+    }
+
+    keys() {
+        return [...this.items.keys()];
+    }
+
+    values() {
+        return [...this.items.values()];
+    }
+
+    get(key: string) {
+        return this.items.get(key);
+    }
+
+    clear() {
+        this.items.clear();
+    }
+    get size() {
+        return this.items.size;
+    }
 }

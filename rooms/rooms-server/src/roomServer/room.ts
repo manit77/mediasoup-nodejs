@@ -1,6 +1,6 @@
 import * as mediasoup from 'mediasoup';
 import { Peer } from './peer.js';
-import { RoomCallBackData, RoomConfig, RoomLog, RoomLogAction, RoomPeerCallBackData } from "@rooms/rooms-models";
+import { RoomCallBackMsg, RoomConfig, RoomLog, RoomLogAction, RoomPeerCallBackMsg } from "@rooms/rooms-models";
 import { setTimeout, setInterval } from 'node:timers';
 import axios from 'axios';
 
@@ -104,13 +104,11 @@ export class Room {
 
         if (peer.role != "monitor") {
             if (this.config.callBackURL_OnPeerJoined) {
-                let cbData: RoomPeerCallBackData = {
-                    peerId: peer.id,
-                    roomId: this.id,
-                    peerTrackingId: peer.trackingId,
-                    roomTrackingId: this.trackingId
-                }
-
+                let cbData = new RoomPeerCallBackMsg();
+                cbData.data.peerId = peer.id;
+                cbData.data.roomId = this.id;
+                cbData.data.peerTrackingId = peer.trackingId;
+                cbData.data.roomTrackingId = this.trackingId;
                 axios.post(this.config.callBackURL_OnPeerJoined, cbData);
             }
         }
@@ -119,7 +117,7 @@ export class Room {
     }
 
     removePeer(peerId: string): void {
-        console.log("removePeer() - ", peerId);
+        console.log("room.removePeer() - ", peerId);
         let peer = this.peers.get(peerId);
 
         if (!peer) {
@@ -151,12 +149,12 @@ export class Room {
         });
 
         if (this.config.callBackURL_OnPeerLeft) {
-            let cbData: RoomPeerCallBackData = {
-                peerId: peer.id,
-                roomId: this.id,
-                peerTrackingId: peer.trackingId,
-                roomTrackingId: this.trackingId
-            }
+
+            let cbData = new RoomPeerCallBackMsg();
+            cbData.data.peerId = peer.id;
+            cbData.data.roomId = this.id;
+            cbData.data.peerTrackingId = peer.trackingId;
+            cbData.data.roomTrackingId = this.trackingId;
 
             axios.post(this.config.callBackURL_OnPeerLeft, cbData);
         }
@@ -216,12 +214,12 @@ export class Room {
         });
 
         if (this.config.callBackURL_OnRoomClosed) {
-            let roomCallBackData: RoomCallBackData = {
-                peers: [],
-                roomId: this.id,
-                status: "closed",
-                trackingId: this.trackingId
-            }
+            let roomCallBackData = new RoomCallBackMsg();
+            roomCallBackData.data.peers = [];
+            roomCallBackData.data.roomId = this.id;
+            roomCallBackData.data.status = "closed";
+            roomCallBackData.data.roomTrackingId = this.trackingId;
+
 
             axios.post(this.config.callBackURL_OnRoomClosed, roomCallBackData);
         }

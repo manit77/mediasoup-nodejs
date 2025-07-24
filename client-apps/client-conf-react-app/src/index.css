@@ -5,6 +5,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  padding: 0;
 }
 
 code {
@@ -16,4 +17,17 @@ code {
     background-color: #ff9800;
     padding: 5px;
 }
+
+.nav-bar {
+  background-color: #0B5ED7;  
+}
+
+/* App.css */
+:root, .navbar {
+  --bs-navbar-brand-color: #ffffff !important; /* White for testing */
+}
+:root {
+  --bs-border-color: #000000;
+}
+
 

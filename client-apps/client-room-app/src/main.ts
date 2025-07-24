@@ -94,7 +94,7 @@ import { getUserMedia } from "@rooms/webrtc-client";
         }
         let stream = await getUserMedia();
 
-        roomsClient.publishTracks(stream);
+        roomsClient.publishTracks(stream.getTracks());
 
         ctlVideo.srcObject = stream;
     }
@@ -259,7 +259,7 @@ import { getUserMedia } from "@rooms/webrtc-client";
     }
 
     async function roomLeave() {
-        for (let peer of roomsClient.peers) {
+        for (let peer of roomsClient.peers.values()) {
             destroyRemoteVideo(peer.peerId);
         }
         roomsClient.roomLeave();
