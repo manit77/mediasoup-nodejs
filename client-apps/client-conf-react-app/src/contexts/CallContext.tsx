@@ -87,7 +87,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         webRTCService.init(config);
-        
+
         //init all default values
         setIsConnected(webRTCService.isConnected);
         setIsAuthenticated(webRTCService.isConnected && webRTCService.localParticipant.peerId ? true : false);
@@ -103,7 +103,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setConferencesOnline(webRTCService.conferencesOnline);
         setInviteInfoSend(webRTCService.inviteSendMsg);
         setInviteInfoReceived(webRTCService.inviteRecievedMsg);
-
 
     }, [config])
 
