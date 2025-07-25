@@ -9,13 +9,14 @@ interface APIContextType {
     isLoading: boolean;
     isAdmin: () => boolean;
     isUser: () => boolean;
-    loginGuest: (displayName: string) => Promise<LoginResponse>;
-    login: (username: string, password: string) => Promise<LoginResponse>;
-    logout: () => Promise<void>;
+    loginGuest: (displayName: string, clientData: {}) => Promise<LoginResponse>;
+    login: (username: string, password: string, clientData: {}) => Promise<LoginResponse>;
+    logout: () => {};
     fetchConferencesScheduled: () => Promise<ConferenceRoomScheduled[]>;
     getCurrentUser: () => User | null;
     conferencesScheduled: ConferenceRoomScheduled[];
     setConferencesScheduled: React.Dispatch<React.SetStateAction<ConferenceRoomScheduled[]>>;
+    getClientData: () => {};
 }
 
 export const APIContext = createContext<APIContextType | undefined>(undefined);
@@ -31,16 +32,11 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, [config]);
 
     const getCurrentUser = useCallback((): User | null => {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            try {
-                const user = JSON.parse(storedUser) as User;
-                return user;
-            } catch (error) {
-                console.error("Failed to parse stored user", error);
-            }
-        }
-        return null;
+        return apiService.getUser();
+    }, []);
+
+    const getClientData = useCallback((): {} | null => {
+        return apiService.getClientData();
     }, []);
 
     const isAdmin = useCallback((): boolean => {
@@ -59,25 +55,11 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return false;
     }, [getCurrentUser]);
 
-    useEffect(() => {
-        console.log("AuthProvider triggered.");
-        let currentUser = getCurrentUser();
-        if (currentUser) {
-            console.log("user found.");
-            setIsAuthenticated(true);
-            setUpConnections();
-            return;
-        } else {
-            console.log("user not found. ");
-        }
-        setIsAuthenticated(false);
-    }, [getCurrentUser]);
-
-    const loginGuest = useCallback(async (displayName: string) => {
+    const loginGuest = useCallback(async (displayName: string, clientData: {}) => {
         console.log("loginGuest");
         try {
             setIsLoading(true);
-            const loginResult = await apiService.loginGuest(displayName);
+            const loginResult = await apiService.loginGuest(displayName, clientData);
 
             if (loginResult.error) {
                 setIsAuthenticated(false);
@@ -99,10 +81,10 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, []);
 
-    const login = useCallback(async (username: string, password: string) => {
+    const login = useCallback(async (username: string, password: string, clientData: {}) => {
         try {
             setIsLoading(true);
-            const loginResult = await apiService.login(username, password);
+            const loginResult = await apiService.login(username, password, clientData);
 
             if (loginResult.error) {
                 setIsAuthenticated(false);
@@ -127,16 +109,12 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             setIsLoading(true);
             conferenceService.disconnectSignaling("user clicked logout"); // Disconnect signaling on logout            
-            await apiService.logout();
-            setIsAuthenticated(false);
-            localStorage.removeItem('user');
-            setIsLoading(false);
+            return apiService.logout();
         } catch (error) {
-            setIsLoading(false);
             console.error('Logout failed:', error);
+        } finally {
             setIsAuthenticated(false);
-            localStorage.removeItem('user');
-            throw error;
+            setIsLoading(false);
         }
     }, []);
 
@@ -159,6 +137,20 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, [fetchConferencesScheduled]);
 
     useEffect(() => {
+        console.log("AuthProvider triggered.");
+        let currentUser = getCurrentUser();
+        if (currentUser) {
+            console.log("user found.");
+            setIsAuthenticated(true);
+            setUpConnections();
+            return;
+        } else {
+            console.log("user not found. ");
+        }
+        setIsAuthenticated(false);
+    }, [getCurrentUser, setUpConnections]);
+
+    useEffect(() => {
         if (isAuthenticated) {
             setUpConnections();
         }
@@ -175,8 +167,10 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         login,
         logout,
         fetchConferencesScheduled,
-        setConferencesScheduled
-    }), [conferencesScheduled, getCurrentUser, isAuthenticated, isAdmin, isUser, isLoading, loginGuest, login, logout, fetchConferencesScheduled]);
+        setConferencesScheduled,
+        getClientData
+    }), [conferencesScheduled, getCurrentUser, isAuthenticated, isAdmin, isUser, isLoading, loginGuest, login, logout, fetchConferencesScheduled, getClientData]);
+
 
     return (
         <APIContext.Provider value={value}>

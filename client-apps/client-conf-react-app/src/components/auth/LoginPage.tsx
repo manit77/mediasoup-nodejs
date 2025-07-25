@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
 import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
+import { getQueryParams } from '../../utils/utils';
 
 const LoginPage: React.FC = () => {
     const [username, setUsername] = useState('');
@@ -13,15 +14,20 @@ const LoginPage: React.FC = () => {
     const ui = useUI();
     const navigate = useNavigate();
 
+    useEffect(() => {
+        console.warn("getQueryParams:", getQueryParams());
+    }, []);
+
     const handleSubmitAdmin = async (e: React.FormEvent) => {
-        e.preventDefault();        
+        e.preventDefault();
         if (!username.trim()) {
             setError('Display name is required.');
             return;
         }
         setLoading(true);
         try {
-            let response = await api.login(username, password);
+            let clientData = getQueryParams();
+            let response = await api.login(username, password, clientData);
             if (response.error) {
                 setError(response.error);
                 ui.showToast(`Login failed. ${response.error}`, 3);
@@ -30,7 +36,7 @@ const LoginPage: React.FC = () => {
             setError('');
             navigate('/app'); // Navigate to authenticated area
         } catch (err: any) {
-            setError('Login failed. Please try again.');            
+            setError('Login failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -45,7 +51,8 @@ const LoginPage: React.FC = () => {
         }
         setLoading(true);
         try {
-            let response = await api.loginGuest(username);
+            let clientData = getQueryParams();
+            let response = await api.loginGuest(username, clientData);
             if (response.error) {
                 setError(response.error);
                 ui.showToast(`Login failed. ${response.error}`, 3);

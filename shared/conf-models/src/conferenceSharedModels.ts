@@ -75,7 +75,7 @@ export class LoginResultMsg {
         authToken?: string,
         role?: string,
         error?: string,
-        clientData?: string,
+        clientData?: {},
     } = {}
 }
 
@@ -103,7 +103,7 @@ export class RegisterMsg {
 export class RegisterResultMsg {
     type = CallMessageType.registerResult;
     data: {
-        username?: string,        
+        username?: string,
         participantId?: string,
         role?: ParticipantRole | string,
         error?: string
@@ -275,7 +275,7 @@ export class ConferenceReadyMsg {
     data: {
         participantId?: string,
         displayName?: string,
-        
+
         conferenceId?: string,
         conferenceName?: string,
         conferenceExternalId?: string,
@@ -302,7 +302,7 @@ export interface CreateConferenceParams {
     conferenceId: string,
     conferenceCode: string,
     roomName: string,
-    externalId: string,    
+    externalId: string,
     config: ConferenceRoomConfig,
 }
 
@@ -330,7 +330,7 @@ export class ConferenceRoomConfig {
 export class ConferenceRoomInfo {
     conferenceId: string = "";
     externalId: string = "";
-    roomId: string = "";    
+    roomId: string = "";
     roomName: string = "";
     roomStatus: string = "";
     participantCount = 0;

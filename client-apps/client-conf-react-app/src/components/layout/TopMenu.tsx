@@ -3,19 +3,33 @@ import { Navbar, Nav, NavDropdown, Container } from 'react-bootstrap';
 import { useAPI } from '../../hooks/useAPI';
 import { useNavigate } from 'react-router-dom';
 import { BoxArrowRight, Gear, Person, PersonGear } from 'react-bootstrap-icons';
+import { objectToQueryString } from '../../utils/utils';
+import { flushSync } from 'react-dom';
 
 interface TopMenuProps {
     onShowSettings: () => void;
 }
 
 const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
-    const { getCurrentUser, logout } = useAPI();
+    const { getCurrentUser, logout, getClientData } = useAPI();
     const navigate = useNavigate();
 
     const handleLogout = async () => {
         try {
-            await logout();
-            navigate('/login');
+            let clientData = getClientData();
+            console.warn(`logout clientData:`, clientData);
+            flushSync(() => {
+                logout();
+            });
+
+            if (clientData) {
+                let url = "/login?" + objectToQueryString(clientData);
+                console.log(`navigate to`, url);
+                navigate(url);
+            } else {
+                //navigate("/login");
+            }
+
         } catch (error) {
             console.error("Logout failed", error);
             // Handle logout error display if necessary
@@ -38,7 +52,7 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
                             Settings
                         </Nav.Link>
                         <Nav.Link onClick={handleLogout}>
-                            <BoxArrowRight className="me-1" size={16} />                            
+                            <BoxArrowRight className="me-1" size={16} />
                             Logout
                         </Nav.Link>
                     </Nav>

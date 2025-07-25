@@ -98,9 +98,9 @@ const AuthenticatedLayout: React.FC = () => {
 
   useEffect(() => {
     if(isLoggedOff) {            
-      console.log("useEffect isLoggedOff");
+      console.warn("useEffect isLoggedOff");
       api.logout();
-      navigate("/login");  
+      //navigate("/login");  
       setIsLoggedOff(false);    
     }
   }, [api, isLoggedOff, navigate, setIsLoggedOff]);
