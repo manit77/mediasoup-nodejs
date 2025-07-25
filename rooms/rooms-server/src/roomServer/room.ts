@@ -1,8 +1,11 @@
 import * as mediasoup from 'mediasoup';
 import { Peer } from './peer.js';
-import { RoomCallBackMsg, RoomConfig, RoomLog, RoomLogAction, RoomPeerCallBackMsg } from "@rooms/rooms-models";
+import { PeerTracksInfo, RoomCallBackMsg, RoomConfig, RoomLog, RoomLogAction, RoomPeerCallBackMsg, UniqueMap } from "@rooms/rooms-models";
 import { setTimeout, setInterval } from 'node:timers';
 import axios from 'axios';
+import { RoomPeer } from './roomPeer.js';
+import { consoleError, consoleWarn } from '../utils/utils.js';
+import { MediaKind, Producer } from 'mediasoup/types';
 
 export interface RoomLogAdapter {
     save: (log: RoomLog) => Promise<void>;
@@ -15,7 +18,7 @@ export class Room {
     trackingId: string;
     adminTrackingId: string;
     admin: Peer;
-    private peers: Map<string, Peer> = new Map();
+    private roomPeers: UniqueMap<Peer, RoomPeer> = new UniqueMap();
     roomToken: string;
 
     config = new RoomConfig();
@@ -59,10 +62,10 @@ export class Room {
     private startTimerNoParticipants() {
         console.log(`startTimerNoParticipants() ${this.config.timeOutNoParticipantsSecs}`);
 
-        if (this.peers.size == 0 && this.config.timeOutNoParticipantsSecs > 0) {
+        if (this.roomPeers.size == 0 && this.config.timeOutNoParticipantsSecs > 0) {
 
             this.timerIdNoParticipants = setTimeout(async () => {
-                if (this.peers.size == 0) {
+                if (this.roomPeers.size == 0) {
                     console.log("timerIdNoParticipantsSecs timed out");
                     this.close("timerIdNoParticipantsSecs");
                 }
@@ -82,10 +85,14 @@ export class Room {
             return false;
         }
 
-        peer.room = this;
+        if (peer.room) {
+            consoleWarn(`peer already in a room. ${peer.id} ${peer.displayName}`);
+            return false;
+        }
 
-        console.log("addPeer", peer.id);
-        this.peers.set(peer.id, peer);
+        peer.room = this;
+        this.roomPeers.set(peer, new RoomPeer(this, peer));
+        consoleWarn(`peer added to room. ${peer.id} ${peer.displayName}`);
 
         if (!this.admin && this.adminTrackingId && peer.trackingId && this.adminTrackingId === peer.trackingId) {
             this.admin = peer;
@@ -116,20 +123,19 @@ export class Room {
         return true;
     }
 
-    removePeer(peerId: string): void {
-        console.log("room.removePeer() - ", peerId);
-        let peer = this.peers.get(peerId);
+    removePeer(peer: Peer): void {
+        console.log(`room.removePeer() - ${peer.id} ${peer.displayName}`);
+        let roomPeer = this.roomPeers.get(peer);
 
-        if (!peer) {
-            console.error("removePeer() - peer not found.");
+        if (!roomPeer) {
+            console.error(`peer not found in room.`);
             return;
         }
-        if (peer) {
-            peer.room = null;
-            this.peers.delete(peerId);
-        }
 
-        if (this.peers.size == 0) {
+        this.roomPeers.delete(peer);
+        consoleWarn(`peer removed from room ${peer.id} ${peer.displayName}`);
+
+        if (this.roomPeers.size == 0) {
             this.startTimerNoParticipants();
         }
 
@@ -137,7 +143,7 @@ export class Room {
             this.onPeerRemovedEvent(this, peer);
         }
 
-        if (this.config.closeRoomOnPeerCount == this.peers.size) {
+        if (this.config.closeRoomOnPeerCount == this.roomPeers.size) {
             this.close("closeRoomOnPeerCount");
         }
 
@@ -161,19 +167,109 @@ export class Room {
     }
 
     getPeers(): Peer[] {
-        return [...this.peers.values()];
+        return this.roomPeers.values().map(p => p.peer);
     }
 
     getPeer(peerId: string) {
-        return this.peers.get(peerId);
+        return this.roomPeers.values().find(p => p.peer.id === peerId)?.peer;
+    }
+
+    getRoomPeer(peer: Peer) {
+        return this.roomPeers.get(peer);
     }
 
     getPeerCount() {
-        return this.peers.size;
+        return this.roomPeers.size;
     }
 
     otherPeers(peerId: string) {
-        return [...this.peers].filter(([id,]) => id !== peerId);
+        return this.roomPeers.values().filter(p => p.peer.id !== peerId).map(p => p.peer);
+    }
+
+    otherRoomPeers(peerId: string) {
+        return this.roomPeers.values().filter(p => p.peer.id !== peerId);
+    }
+
+    getProducerTransport(peer: Peer) {
+        console.log(`getProducerTransport ${peer.id} ${peer.displayName}`);
+
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return;
+        }
+        return roomPeer.producerTransport;
+    }
+
+    getConsumerTransport(peer: Peer) {
+        console.log(`getConsumerTransport ${peer.id} ${peer.displayName}`);
+
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return;
+        }
+        return roomPeer.consumerTransport;
+    }
+
+    createProducerTransport(peer: Peer) {
+        console.log(`createProducerTransport ${peer.id} ${peer.displayName}`);
+
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return;
+        }
+        return roomPeer.createProducerTransport();
+    }
+
+    createConsumerTransport(peer: Peer) {
+        console.log(`createConsumerTransport ${peer.id} ${peer.displayName}`);
+
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return;
+        }
+        return roomPeer.createConsumerTransport();
+    }
+
+    createProducer(peer: Peer, kind: MediaKind, rtpParameters: mediasoup.types.RtpParameters) {
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return;
+        }
+        return roomPeer.createProducer(kind, rtpParameters);
+    }
+
+    createConsumer(peer: Peer, remotePeer: Peer, producerId: string, rtpParameters: mediasoup.types.RtpCapabilities) {
+
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return;
+        }
+
+        let remoteRoomPeer = this.roomPeers.get(remotePeer);
+
+        let producer = remoteRoomPeer.producers.values().find(p => p.id === producerId);
+        if (!producer) {
+            consoleError(`producer not found ${producer.id}`);
+        }
+
+        return roomPeer.createConsumer(producer, rtpParameters);
+
+    }
+
+    async muteProducer(peer: Peer) {
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return;
+        }
+
+       roomPeer.muteProducer();
     }
 
     /**
@@ -181,14 +277,13 @@ export class Room {
      */
     close(reason: string) {
         console.log(`room - close(), reason: ${reason}`);
-        let peersCopy = [...this.peers.values()];
+        let peersCopy = this.roomPeers.values().map(p => p.peer);
 
-        this.peers.forEach(p => {
-            p.close();
-            p.room = null;
+        this.roomPeers.values().forEach(roomPeer => {
+            roomPeer.close();
         });
 
-        this.peers.clear();
+        this.roomPeers.clear();
         this.admin = null;
 
         if (this.timerIdNoParticipants) {
