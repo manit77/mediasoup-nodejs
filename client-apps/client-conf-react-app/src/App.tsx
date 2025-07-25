@@ -11,9 +11,6 @@ import { UIProvider } from './contexts/UIContext';
 import { conferenceService } from './services/ConferenceService';
 import { useLocation } from 'react-router-dom';
 
-function checkpath(){
-  
-}
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAPI();
   const { isCallActive } = useCall();

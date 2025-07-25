@@ -1,10 +1,9 @@
 import * as mediasoupClient from 'mediasoup-client';
 import { Consumer, Producer } from 'mediasoup-client/types';
-import { ConsumerInfo } from './models.js';
 import { PeerTracksInfo, UniqueMap } from '@rooms/rooms-models';
 
 export class LocalPeer implements IPeer {
-  tracksInfo: PeerTracksInfo = {  isAudioEnabled: false, isVideoEnabled: false};
+  tracksInfo: PeerTracksInfo = { isAudioEnabled: false, isVideoEnabled: false };
   peerId: string = "";
   trackingId: string = "";
   displayName: string = "";
@@ -16,7 +15,7 @@ export class LocalPeer implements IPeer {
   transportSend: mediasoupClient.types.Transport;
   transportReceive: mediasoupClient.types.Transport;
 
-  private producers: UniqueMap<mediasoupClient.types.Producer> = new UniqueMap();
+  private producers: UniqueMap<"audio" | "video", mediasoupClient.types.Producer> = new UniqueMap();
 
   getTracks() {
     return this.producers.values().map(p => p.track);
@@ -45,23 +44,18 @@ export class LocalPeer implements IPeer {
   async createProducer(track: MediaStreamTrack) {
     console.log(`createProducer ${track.kind}`);
 
-    if(!this.transportSend) {
+    if (!this.transportSend) {
       console.error(`cannot create producer, no transportSend.`)
       return;
     }
 
     //if the producer exists by kind throw an error
-    let existingProducer = this.producers.get(track.kind);
+    let existingProducer = this.producers.get(track.kind as any);
     if (existingProducer) {
       throw `producer already exists for kind ${existingProducer.kind}`;
     }
 
     let producer = await this.transportSend.produce({ track });
-    if (!track.enabled) {
-      //console.log(`*** pause the producer`);
-      //producer.pause();
-    }
-
     this.addProducer(producer);
     return producer;
   }
@@ -99,16 +93,14 @@ export class Peer implements IPeer {
   displayName: string = "";
   tracksInfo: PeerTracksInfo = { isAudioEnabled: false, isVideoEnabled: false }
 
-  //tracks: UniqueTracks = new UniqueTracks();
-
   producersToConsume: {
     producerId: string, kind: "audio" | "video" | string
   }[] = []
 
-  private consumers: ConsumerInfo[] = [];
+  private consumers: UniqueMap<"audio" | "video", mediasoupClient.types.Consumer> = new UniqueMap();
 
   getTracks() {
-    return this.consumers.map(c => c.consumer.track);
+    return this.consumers.values().map(c => c.track);
   }
 
   getConsumers() {
@@ -116,24 +108,19 @@ export class Peer implements IPeer {
   }
 
   clearConsumers() {
-    this.consumers.forEach(c => c.consumer.close());
-    this.consumers = [];
+    console.log(`clearConsumers`);
+    this.consumers.values().forEach(c => c.close());
+    this.consumers.clear();
   }
 
   removeConsumer(consumer: Consumer) {
     console.log(`removeConsumer ${consumer.kind}`);
-    let idx = this.consumers.findIndex(c => c.consumer === consumer);
-    if (idx > -1) {
-      let removed = this.consumers.splice(idx, 1);
-      console.warn(`consumer with kind ${consumer.track.kind} removed.`, this.consumers);
-      // for (let consumer of removed) {
-      //   console.log(`remove track ${consumer.consumer.track.kind}`)
-      //   this.tracks.removeTrack(consumer.consumer.track.kind);
-      // }
+    if(this.consumers.delete(consumer.kind)){
+      console.warn(`consumer of type ${consumer.kind} deleted.`);
+    } else {
+      console.warn(`consumer of type ${consumer.kind} not found.`);
     }
     console.log(this.consumers);
-
-
   }
 
   /**
@@ -145,17 +132,17 @@ export class Peer implements IPeer {
  * @param rtpParameters 
  * @returns 
  */
-  async createConsumer(transportReceive: mediasoupClient.types.Transport, peerId: string, serverConsumerId: string, serverProducerId: string, kind: "audio" | "video", rtpParameters: any) {
-    console.log(`createConsumer peerId:${peerId}, serverConsumerId:${serverConsumerId}, serverProducerId: ${serverProducerId}, kind: ${kind}`);
+  async createConsumer(transportReceive: mediasoupClient.types.Transport, serverConsumerId: string, serverProducerId: string, kind: "audio" | "video", rtpParameters: any) {
+    console.log(`createConsumer peerId:${this.peerId} ${this.displayName}, serverConsumerId:${serverConsumerId}, serverProducerId: ${serverProducerId}, kind: ${kind}`);
 
-    if(!transportReceive) {
+    if (!transportReceive) {
       console.error(`cannot create producer, no transportSend.`)
       return;
     }
 
-    let existingConsumer = this.consumers.find(c => c.peerId == peerId && c.consumer.kind === kind);
+    let existingConsumer = this.consumers.get(kind);
     if (existingConsumer) {
-      throw `consumer of ${existingConsumer.consumer.kind} already exists for peerId: ${peerId}`;
+      throw `consumer of ${existingConsumer.kind} already exists for peerId: ${this.peerId} ${this.displayName}`;
     }
 
     let consumer = await transportReceive.consume({
@@ -165,13 +152,18 @@ export class Peer implements IPeer {
       rtpParameters: rtpParameters
     });
 
-    this.addConsumer(peerId, consumer);
+    this.addConsumer(consumer);
 
     return consumer;
   }
 
-  private addConsumer(peerId: string, consumer: Consumer) {
+  private addConsumer(consumer: Consumer) {
     console.log(`addConsumer ${consumer.kind}`);
+
+    if(this.consumers.get(consumer.kind)) {
+      throw `consumer with ${consumer.kind} already exists. remove it first then add.`;
+    }
+    this.consumers.set(consumer.kind, consumer);
 
     consumer.on("trackended", () => {
       console.log(`consumer - track ended ${consumer.track?.id} ${consumer.track?.kind}`);
@@ -185,7 +177,7 @@ export class Peer implements IPeer {
       console.log('consumer - resumed (unmuted)');
     });
 
-    this.consumers.push({ peerId, consumer });
+    
   }
 
 

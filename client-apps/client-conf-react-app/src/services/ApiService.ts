@@ -81,16 +81,16 @@ class ApiService {
         }
 
         console.log(`LoginResponse`, result);
-        localStorage.setItem('user', JSON.stringify(result.user));        
+        localStorage.setItem('user', JSON.stringify(result.user));
         return result;
     };
 
-    logout = () => {     
+    logout = () => {
         console.log('ApiService: Logging out user');
         let clientData = this.getClientData();
-        console.warn(`clientData:`, clientData);
+        console.log(`clientData:`, clientData);
         localStorage.removeItem('user');
-        return clientData;        
+        return clientData;
     };
 
     getUser() {
@@ -107,11 +107,17 @@ class ApiService {
     }
 
     getClientData() {
-       return this.getUser()?.clientData;
+        return this.getUser()?.clientData;
     }
 
     fetchConferencesScheduled = async (): Promise<ConferenceRoomScheduled[]> => {
-        console.warn("fetchConferencesScheduled", this.conferenceAPIClient.clientData);
+        console.log("fetchConferencesScheduled", this.conferenceAPIClient?.clientData);
+
+        if (!this.conferenceAPIClient) {
+            console.error(`conferenceAPIClient not initialized.`);
+            return;
+        }
+
         //get rooms from API
         let result = await this.conferenceAPIClient.getConferencesScheduled(this.conferenceAPIClient.clientData);
 

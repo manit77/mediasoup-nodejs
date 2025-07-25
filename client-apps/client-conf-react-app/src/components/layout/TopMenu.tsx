@@ -17,7 +17,7 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
     const handleLogout = async () => {
         try {
             let clientData = getClientData();
-            console.warn(`logout clientData:`, clientData);
+            console.log(`logout clientData:`, clientData);
             flushSync(() => {
                 logout();
             });

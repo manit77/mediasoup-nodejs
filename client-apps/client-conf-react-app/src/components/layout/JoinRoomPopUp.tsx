@@ -17,7 +17,7 @@ interface JoinRoomPopUpProps {
 const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show, onClose }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, isCallActive, createConferenceOrJoin, joinConference, getLocalMedia, selectedDevices } = useCall();
+    const { localParticipant, isCallActive, createConferenceOrJoin, joinConference, getLocalMedia } = useCall();
     const navigate = useNavigate();
 
     // State to hold the conference code entered by the user
@@ -30,11 +30,14 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
     const [showMicOption, setShowMicOption] = useState<boolean>(true); // Default to true
     const [showCameraOption, setShowCameraOption] = useState<boolean>(true); // Default to true
 
-
     useEffect(() => {
         console.log("useEffect localParticipant:", localParticipant.tracksInfo);
-        setMicEnabled(selectedDevices.isAudioEnabled)
-        setCameraEnabled(selectedDevices.isVideoEnabled);
+        setMicEnabled(true);
+        setCameraEnabled(false);
+
+        localParticipant.tracksInfo.isAudioEnabled = true;
+        localParticipant.tracksInfo.isAudioEnabled = false;
+
 
     }, [localParticipant])
 
@@ -92,7 +95,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             //up the tracksInfo for localParticipant from the check boxes on the form 
             localParticipant.tracksInfo.isAudioEnabled = micEnabled;
             localParticipant.tracksInfo.isVideoEnabled = cameraEnabled;
-            console.warn(`localParticipant.tracksInfo`, localParticipant.tracksInfo);
+            console.log(`localParticipant.tracksInfo`, localParticipant.tracksInfo);
 
             if (!localParticipant.stream) {
                 console.error(`stream is null`);
@@ -101,9 +104,9 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             }
 
             if (localParticipant?.stream.getTracks().length === 0) {
-                console.warn(`media stream not initialized`);
+                console.log(`media stream not initialized`);
                 ui.showToast("media stream not initialized");
-                let tracks = await getLocalMedia();
+                let tracks = await getLocalMedia(localParticipant.tracksInfo.isAudioEnabled, localParticipant.tracksInfo.isVideoEnabled);
                 if (tracks.length === 0) {
                     ui.showPopUp("ERROR: could not start media devices.");
                     return;
@@ -133,7 +136,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
     useEffect(() => {
         console.log(`JoinRoomPopUpProps conferenceScheduled`, conferenceScheduled);
-    }, []);
+    }, [conferenceScheduled]);
 
     return (
         <Modal show={show} centered backdrop="static" keyboard={false} onHide={onClose}>
@@ -174,7 +177,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                             />
                         </Form.Group>
                     ) : null}
-                    
+
 
                     {showCameraOption ? (
                         <Form.Group className="mb-3" controlId="cameraEnabled">
@@ -187,16 +190,16 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                             />
                         </Form.Group>
                     ) : null}
-                    
+
                     {/* {
                         api.isAdmin() || api.isUser() ? ( */}
                     <div className="row">
                         <div className="col-md-6">
-                            <strong>Local Audio Enabled:</strong> {localParticipant.tracksInfo.isAudioEnabled.toString() }  <br />                         
+                            {/* <strong>Local Audio Enabled:</strong> {localParticipant.tracksInfo.isAudioEnabled.toString()}  <br /> */}
                             <strong>Guests Allow Camera:</strong> {conferenceScheduled.config.guestsAllowCamera.toString()}
                         </div>
                         <div className="col-md-6">
-                            <strong>Local video Enabled</strong>: {localParticipant.tracksInfo.isVideoEnabled.toString() }  <br />
+                            {/* <strong>Local video Enabled</strong>: {localParticipant.tracksInfo.isVideoEnabled.toString()}  <br /> */}
                             <strong>Guests Allow Mic:</strong> {conferenceScheduled.config.guestsAllowMic.toString()}
                         </div>
                     </div>

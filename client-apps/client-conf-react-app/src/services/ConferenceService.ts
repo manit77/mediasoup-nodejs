@@ -16,7 +16,7 @@ class ConferenceService {
     init(config: ConferenceClientConfig) {
         console.log(`ConferenceService: *** new ConferenceService initialized.`, config);
         this.config = config;
-        this.confClient =  new ConferenceClient(this.config);
+        this.confClient = new ConferenceClient(this.config);
     }
 
     get localStream(): MediaStream | null {
@@ -350,7 +350,7 @@ class ConferenceService {
         }
     }
 
-    public async joinConferenceRoom(joinArgs: JoinConferenceParams) {      
+    public async joinConferenceRoom(joinArgs: JoinConferenceParams) {
         let joinResult = await this.confClient.waitJoinConferenceRoom(joinArgs);
         if (joinResult.data.error) {
             console.error(joinResult.data.error);
@@ -487,10 +487,7 @@ class ConferenceService {
     }
 
     private async eventConferenceJoined(msg: JoinConfResultMsg) {
-        console.log("eventConferenceJoined, try to publishTracks", msg);
-        if (this.localStream) {
-            this.confClient.publishTracks(this.localStream.getTracks());
-        }
+        console.warn("eventConferenceJoined", msg);
         await this.onConferenceJoined(msg.data.conferenceId);
     }
 
@@ -529,6 +526,27 @@ class ConferenceService {
         console.log("eventParticipanTrackInfoUpdated", msg.data);
 
         await this.onParticipantTrackInfoUpdated(msg.data.participantId)
+    }
+
+    isVideoAllowedFor(conference:Conference, participant: Participant) {
+        if(participant.role === "admin" || participant.role === "user") {
+            return true;
+        }
+
+        if(participant.role === "guest" && conference.conferenceRoomConfig.guestsAllowCamera) {
+            return true;
+        }
+    }
+
+
+    isAudioAllowedFor(conference:Conference, participant: Participant) {
+        if(participant.role === "admin" || participant.role === "user") {
+            return true;
+        }
+
+        if(participant.role === "guest" && conference.conferenceRoomConfig.guestsAllowMic) {
+            return true;
+        }
     }
 
 }

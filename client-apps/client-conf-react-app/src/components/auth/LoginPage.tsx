@@ -15,7 +15,7 @@ const LoginPage: React.FC = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        console.warn("getQueryParams:", getQueryParams());
+        console.log("getQueryParams:", getQueryParams());
     }, []);
 
     const handleSubmitAdmin = async (e: React.FormEvent) => {

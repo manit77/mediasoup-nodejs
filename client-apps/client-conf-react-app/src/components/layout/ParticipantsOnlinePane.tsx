@@ -3,17 +3,17 @@ import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { ParticipantInfo } from '@conf/conf-models';
 import { ArrowRepeat, Circle, CircleFill } from 'react-bootstrap-icons';
-import { useUI } from '../../hooks/useUI';
 
 const ParticipantsOnlinePane: React.FC = () => {
-    const ui = useUI();
     const {
-        getLocalMedia,
-        broadCastTrackInfo,
         localParticipant,
         isAuthenticated,
-        isConnected, participantsOnline, getParticipantsOnline, sendInvite,
-        isCallActive, inviteInfoSend, selectedDevices } = useCall();
+        isConnected,
+        participantsOnline,
+        getParticipantsOnline,
+        sendInvite,
+        isCallActive,
+        inviteInfoSend } = useCall();
 
     // Handle initial loading state
     useEffect(() => {
@@ -31,30 +31,9 @@ const ParticipantsOnlinePane: React.FC = () => {
     };
 
     const handleContactClick = async (participant: ParticipantInfo) => {
-                
-        if (!localParticipant.stream) {
-            console.error(`stream is null`);
-            ui.showPopUp("error: media stream not initialized");
-            return;
-        }
-
-        if (localParticipant?.stream.getTracks().length === 0) {
-            console.warn(`media stream not initialized`);
-            ui.showToast("media stream not initialized");
-            let tracks = await getLocalMedia();
-            if (tracks.length === 0) {
-                ui.showPopUp("ERROR: could not start media devices.");
-                return;
-            }
-
-            //up the tracks info for localPart 
-            localParticipant.tracksInfo.isAudioEnabled = selectedDevices.isAudioEnabled;
-            localParticipant.tracksInfo.isVideoEnabled = selectedDevices.isVideoEnabled;
-        }
-
-        if (!isCallActive && !inviteInfoSend) {
-            sendInvite(participant, localParticipant.tracksInfo.isAudioEnabled, localParticipant.tracksInfo.isVideoEnabled);
-        }
+        localParticipant.tracksInfo.isAudioEnabled = true;
+        localParticipant.tracksInfo.isVideoEnabled = true;
+        sendInvite(participant, localParticipant.tracksInfo.isAudioEnabled, localParticipant.tracksInfo.isVideoEnabled);
     };
 
     return (

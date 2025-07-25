@@ -1,8 +1,10 @@
 import {
-    AcceptMsg,
-    AcceptResultMsg,
-    CallMessageType, ConferenceClosedMsg, ConferenceReadyMsg, ConferenceRoomConfig, ConferenceRoomInfo, ConferenceRoomJoinConfig, conferenceType, CreateConferenceParams, CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg, GetParticipantsResultMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg
-    , JoinConferenceParams, JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo, ParticipantRole, RegisterMsg, RegisterResultMsg, RejectMsg
+    AcceptMsg, AcceptResultMsg, CallMessageType, ConferenceClosedMsg, ConferenceReadyMsg,
+    ConferenceRoomConfig, ConferenceRoomInfo, conferenceType, CreateConferenceParams, 
+    CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg, 
+    GetParticipantsResultMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg,
+    JoinConferenceParams, JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo, 
+    ParticipantRole, RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
@@ -158,24 +160,30 @@ export class ConferenceClient {
         console.log("clearCallConnectTimer - All timers cleared");
     }
 
+    /**
+     * gets usermedia from browser, removes all tracks from localstream
+     * @param constraints 
+     * @returns 
+     */
     async getNewTracksForLocalParticipant(constraints: MediaStreamConstraints = { video: true, audio: true }) {
-        console.log(`getNewTracks constraints:`, constraints);
+        console.log(`getNewTracksForLocalParticipant constraints:`, constraints);
+
         let newStream = await this.getBrowserUserMedia(constraints);
         let newTracks = newStream.getTracks();
         this.localParticipant.stream.getTracks().forEach(t => this.localParticipant.stream.removeTrack(t));
         newTracks.forEach(t => this.localParticipant.stream.addTrack(t));
-        console.warn(`new tracks created for localParticipant tracksInfo`, this.localParticipant.tracksInfo);
+        console.log(`new tracks created for localParticipant tracksInfo`, this.localParticipant.tracksInfo);
 
         let audioTrack = newTracks.find(t => t.kind === "audio");
-        if (audioTrack) {            
+        if (audioTrack) {
             audioTrack.enabled = this.localParticipant.tracksInfo.isAudioEnabled;
-            console.warn(`track of type audio enabled set to `, audioTrack.enabled);
+            console.log(`track of type audio enabled set to `, audioTrack.enabled);
         }
 
         let videoTrack = newTracks.find(t => t.kind === "video");
         if (videoTrack) {
             videoTrack.enabled = this.localParticipant.tracksInfo.isVideoEnabled;
-            console.warn(`track of type video enabled set to `, videoTrack.enabled);
+            console.log(`track of type video enabled set to `, videoTrack.enabled);
         }
 
         return newTracks;
@@ -195,7 +203,7 @@ export class ConferenceClient {
         }
 
         if (this.isInConference() && this.conference.joinParams) {
-            console.warn(`disable mic or cam based on user preference`, this.conference.joinParams);
+            console.log(`disable mic or cam based on user preference`, this.conference.joinParams);
 
             let joinParams = this.conference.joinParams;
             let videoTrack = tracks.find(t => t.kind === "video");
@@ -209,8 +217,8 @@ export class ConferenceClient {
                 audioTrack.enabled = this.localParticipant.tracksInfo.isAudioEnabled;
                 this.checkTrackAllowed(audioTrack);
             }
-            console.warn(`track status audioTrack: ${audioTrack?.enabled}, videoTrack: ${videoTrack?.enabled}`);
-            console.warn(`localParticipant.tracksInfo:`, this.localParticipant.tracksInfo);
+            console.log(`track status audioTrack: ${audioTrack?.enabled}, videoTrack: ${videoTrack?.enabled}`);
+            console.log(`localParticipant.tracksInfo:`, this.localParticipant.tracksInfo);
 
         }
 
@@ -1021,7 +1029,7 @@ export class ConferenceClient {
     }
 
     private async onRegisterResult(message: RegisterResultMsg) {
-        console.log("onRegisterResult");
+        console.warn("onRegisterResult");
 
         if (message.data.error) {
             console.error(message.data.error);
@@ -1032,6 +1040,8 @@ export class ConferenceClient {
             this.localParticipant.role = message.data.role;
             console.log('Registered with participantId:', this.localParticipant.participantId, this.localParticipant.displayName);
             await this.onEvent(EventTypes.registerResult, message);
+
+            this.getParticipantsOnline();
         }
     }
 
@@ -1175,7 +1185,7 @@ export class ConferenceClient {
                 console.log(`-- room socket registered. new peerId ${this.roomsClient.getPeerId()}`);
                 this.localParticipant.peerId = this.roomsClient.getPeerId();
 
-                console.warn("update the tracksInfo on the rooms clicent", this.localParticipant.tracksInfo);                
+                console.log("update the tracksInfo on the rooms clicent", this.localParticipant.tracksInfo);
                 await this.roomsClient.broadCastTrackInfo(this.localParticipant.tracksInfo);
             } else {
                 console.log("-- room socket failed to register.");
@@ -1279,7 +1289,7 @@ export class ConferenceClient {
 
         this.roomsClient.eventOnRoomJoined = async (roomId: string) => {
             //confirmation for local user has joined a room
-            console.warn("onRoomJoinedEvent roomId:", roomId);
+            console.log("onRoomJoinedEvent roomId:", roomId);
             this.clearCallConnectTimer();
             this.callState = "connected";
 
@@ -1287,6 +1297,8 @@ export class ConferenceClient {
             this.conference.participants.set(this.localParticipant.participantId, this.localParticipant);
             console.log(`add self to conference.participants ${this.conference.participants.size}`);
 
+            this.publishTracks(this.localParticipant.stream.getTracks());
+                        
             let msg = {
                 type: EventTypes.conferenceJoined,
                 data: {
@@ -1321,7 +1333,7 @@ export class ConferenceClient {
         };
 
         this.roomsClient.eventOnRoomPeerJoined = async (roomId: string, peer: Peer) => {
-            console.warn(`onRoomPeerJoinedEvent roomId: ${roomId} ${peer.peerId} ${peer.displayName} `);
+            console.log(`onRoomPeerJoinedEvent roomId: ${roomId} ${peer.peerId} ${peer.displayName} `);
 
             //the peer.trackingId is the participantId
             let participant = this.conference.participants.get(peer.trackingId);
@@ -1354,7 +1366,7 @@ export class ConferenceClient {
         };
 
         this.roomsClient.eventOnPeerNewTrack = async (peer: IPeer, track: MediaStreamTrack) => {
-            console.warn(`onPeerNewTrackEvent peerId: ${peer.peerId}, ${peer.trackingId} ${peer.displayName}`, this.conference.participants);
+            console.log(`onPeerNewTrackEvent peerId: ${peer.peerId}, ${peer.trackingId} ${peer.displayName}`, this.conference.participants);
 
             let participant = this.conference.participants.get(peer.trackingId);
             if (!participant) {
@@ -1383,7 +1395,7 @@ export class ConferenceClient {
         };
 
         this.roomsClient.eventOnRoomPeerLeft = async (roomId: string, peer: IPeer) => {
-            console.warn("eventOnRoomPeerLeft roomId:", roomId);
+            console.log("eventOnRoomPeerLeft roomId:", roomId);
 
             let participant = this.conference.participants.get(peer.trackingId);
             if (!participant) {
@@ -1404,7 +1416,7 @@ export class ConferenceClient {
         };
 
         this.roomsClient.eventOnPeerTrackInfoUpdated = async (peer: IPeer) => {
-            console.warn(`eventOnPeerTrackInfoUpdated peerId: ${peer.peerId} trackingId: ${peer.trackingId} displayName: ${peer.displayName}`);
+            console.log(`eventOnPeerTrackInfoUpdated peerId: ${peer.peerId} trackingId: ${peer.trackingId} displayName: ${peer.displayName}`);
             console.log(`participants:`, this.conference.participants);
 
             let participant: Participant;
@@ -1418,9 +1430,9 @@ export class ConferenceClient {
                 console.error(`participant not found. ${peer.trackingId} ${peer.displayName}`, participant, this.conference.participants);
                 return;
             }
-            
+
             participant.tracksInfo = peer.tracksInfo;
-            console.warn(`participant tracksInfo updated:`, participant.tracksInfo);
+            console.log(`participant tracksInfo updated:`, participant.tracksInfo);
 
             let msg = {
                 type: EventTypes.participantTrackInfoUpdated,

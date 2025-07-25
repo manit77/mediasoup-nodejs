@@ -17,9 +17,7 @@ export class SelectedDevices {
     audioInId?: string;
     audioInLabel?: string;
     audioOutId?: string;
-    audioOutLabel?: string;
-    isVideoEnabled = true;
-    isAudioEnabled = true;
+    audioOutLabel?: string; 
 }
 
 export class ConferenceRoomScheduled {

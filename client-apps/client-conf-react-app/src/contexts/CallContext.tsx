@@ -31,9 +31,8 @@ interface CallContextType {
     selectedDevices: SelectedDevices;
     setSelectedDevices: React.Dispatch<React.SetStateAction<SelectedDevices>>;
 
-
-    getLocalMedia: () => Promise<MediaStreamTrack[]>;
-    getMediaConstraints: () => MediaStreamConstraints;
+    getLocalMedia: (getAudio: boolean, getVideo: boolean) => Promise<MediaStreamTrack[]>;
+    getMediaConstraints: (getAudio: boolean, getVideo: boolean) => MediaStreamConstraints;
     getConferenceRoomsOnline: () => void;
     getParticipantsOnline: () => void;
 
@@ -55,7 +54,7 @@ interface CallContextType {
     stopScreenShare: () => void;
 
     getMediaDevices: () => Promise<void>;
-    switchDevices: (videoId: string, audioId: string, audioOutId: string, isAudioEnabled: boolean, isVideoEnabled: boolean) => Promise<void>;
+    switchDevicesOnCall: () => Promise<void>;//, isAudioEnabled: boolean, isVideoEnabled: boolean) => Promise<void>;
 
 }
 
@@ -145,20 +144,27 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [selectedDevices]);
 
-    const getMediaConstraints = useCallback((): MediaStreamConstraints => {
-        const constraints = {
-            audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
-            video: selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true
-        };
+    const getMediaConstraints = useCallback((getAudio: boolean, getVideo: boolean): MediaStreamConstraints => {
+        const constraints: { audio?: any, video?: any } = {};
+
+        if (getAudio) {
+            constraints.audio = selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true;
+        }
+        if (getVideo) {
+            constraints.video = selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true;
+        }
         return constraints;
     }, [selectedDevices]);
 
-    const getLocalMedia = useCallback(async () => {
+    const getLocalMedia = useCallback(async (getAudio: boolean, getVideo: boolean) => {
         console.log("getLocalMedia");
-        let tracks = await conferenceService.getNewTracksForLocalParticipant(getMediaConstraints());
+
+        let tracks = await conferenceService.getNewTracksForLocalParticipant(getMediaConstraints(getAudio, getVideo));
         setIsLocalStreamUpdated(true);
         console.log("setIsLocalStreamUpdated");
+
         return tracks;
+
     }, [getMediaConstraints]);
 
     useEffect(() => {
@@ -168,6 +174,14 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             navigator.mediaDevices.removeEventListener('devicechange', getMediaDevices);
         };
     }, [getMediaDevices]);
+
+    const getParticipantsOnline = useCallback(() => {
+        conferenceService.getParticipantsOnline();
+    }, []);
+
+    const getConferenceRoomsOnline = useCallback(() => {
+        conferenceService.getConferenceRoomsOnline();
+    }, []);
 
     const setupWebRTCEvents = useCallback(() => {
 
@@ -324,25 +338,41 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return () => { // Cleanup
             conferenceService.disconnectSignaling("callContext cleanup");
         }
-    }, [ui, callParticipants, isCallActive, getLocalMedia]);
-
-    const getParticipantsOnline = useCallback(() => {
-        conferenceService.getParticipantsOnline();
-    }, []);
-
-    const getConferenceRoomsOnline = useCallback(() => {
-        conferenceService.getConferenceRoomsOnline();
-    }, []);
+    }, [getConferenceRoomsOnline, ui, callParticipants, isCallActive]);
 
     const sendInvite = useCallback(async (participantInfo: ParticipantInfo, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => {
         console.log(`sendInvite to ${participantInfo.participantId} ${participantInfo.displayName}`);
 
         try {
-            //at least one device must be enabled
-            if (!selectedDevices.isAudioEnabled && !selectedDevices.isVideoEnabled) {
-                ui.showPopUp("at least one device must be enabled. please check your settings.");
+
+            if (isCallActive) {
+                console.error(`call isCallActive`);
+                ui.showPopUp("error: call is active.");
                 return;
             }
+
+            if (inviteInfoSend) {
+                console.error(`inviteInfoSend is not null`);
+                ui.showPopUp("error: there is a pending invite.");
+                return;
+            }
+
+            if (!localParticipant.current.stream) {
+                console.error(`stream is null`);
+                ui.showPopUp("error: media stream not initialized");
+                return;
+            }
+
+            if (localParticipant.current.stream.getTracks().length === 0) {
+                console.log(`media stream not initialized`);
+                ui.showToast("initializing media stream");
+                let tracks = await getLocalMedia(startWithAudioEnabled, startWithVideoEnabled);
+                if (tracks.length === 0) {
+                    ui.showPopUp("ERROR: could not start media devices.");
+                    return;
+                }
+            }
+
             //if no local tracks
             if (localParticipant.current.stream.getTracks().length === 0) {
                 console.error(`no media tracks`);
@@ -351,8 +381,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
 
             let joinArgs: JoinConferenceParams = {
-                //audioEnabledOnStart: startWithAudioEnabled,
-                //videoEnabledOnStart: startWithVideoEnabled,
                 clientData: api.getCurrentUser()?.clientData,
                 conferenceCode: "",
                 conferenceId: "",
@@ -372,7 +400,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } catch (error) {
             console.error('Failed to initiate call:', error);
         }
-    }, [api, selectedDevices.isAudioEnabled, selectedDevices.isVideoEnabled, ui]);
+    }, [api, getLocalMedia, inviteInfoSend, isCallActive, ui]);
 
     const acceptInvite = useCallback(async () => {
         try {
@@ -394,21 +422,23 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } catch (error) {
             console.error('error" acceptInvite:', error);
         }
-    }, [api, inviteInfoReceived, selectedDevices]);
+    }, [api, inviteInfoReceived]);
 
     const declineInvite = useCallback(() => {
         conferenceService.declineInvite();
         setInviteInfoReceived(null);
-    }, []);
+        ui.showToast("call declined.");
+    }, [ui]);
 
     const cancelInvite = useCallback(() => {
         console.log(`Call to ${conferenceService.inviteSendMsg?.data.displayName} cancelled.`);
         conferenceService.endCall();
         setInviteInfoSend(null);
-    }, []);
+        ui.showToast("call cancelled.");
+    }, [ui]);
 
     const endCurrentCall = useCallback(() => {
-        console.log("Ending current call context-wise.");
+        console.log("Ending current call.");
         conferenceService.endCall();
         setIsCallActive(false);
         setInviteInfoSend(null);
@@ -527,8 +557,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 console.error("screen track not found")
             }
 
-            let newTracks = await conferenceService.getNewTracksForLocalParticipant(getMediaConstraints());
-            let cameraTrack = newTracks.find(t => t.kind === "video");
+            let constraints = getMediaConstraints(false, true);
+            let newStream = await conferenceService.confClient.getBrowserUserMedia(constraints);
+            let newTracks = newStream.getTracks();
+            let cameraTrack = newStream.getTracks().find(t => t.kind === "video");
 
             if (cameraTrack) {
                 console.log(`Using cameraTrack: ${cameraTrack.readyState} ${cameraTrack.kind} ${cameraTrack.id}`);
@@ -543,49 +575,71 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [getMediaConstraints]);
 
-    const switchDevices = useCallback(async (videoId: string, audioId: string, speakerId: string, isAudioEnabled: boolean, isVideoEnabled: boolean) => {
-        console.log(`switchDevices videoId:${videoId}, audioId:${audioId}, speakerId:${speakerId}, micEnabled:${selectedDevices.isAudioEnabled}, cameraEnabled:${selectedDevices.isVideoEnabled}`);
+    const switchDevicesOnCall = useCallback(async () => { //), isAudioEnabled: boolean, isVideoEnabled: boolean) => {
+        console.log(`switchDevicesOnCall`);
 
-        //set selected devices
-        if (selectedDevices.videoId !== videoId) {
-            selectedDevices.videoId = videoId ?? selectedDevices.videoId;
-        }
+        const tracks = localParticipant.current.stream.getTracks();
+        console.log(selectedDevices);
 
-        if (selectedDevices.audioInId !== audioId) {
-            selectedDevices.audioInId = audioId ?? selectedDevices.audioInId;
-        }
+        let videoChanged = false;
+        let audioChanged = false;
 
-        if (selectedDevices.audioOutId !== speakerId) {
-            selectedDevices.audioOutId = speakerId ?? selectedDevices.audioOutId;
-        }
-
-        selectedDevices.isAudioEnabled = isAudioEnabled;
-        selectedDevices.isVideoEnabled = isVideoEnabled;
-
-        const constraints = {
-            audio: selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true,
-            video: selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true
-        };
-
-        //get new stream based on devices
-        await conferenceService.getNewTracksForLocalParticipant(constraints);
-
-        let videoTrack = conferenceService.localStream.getVideoTracks()[0];
+        // Check video input
+        let videoTrack = tracks.find(track => track.kind === 'video');
         if (videoTrack) {
-            videoTrack.enabled = selectedDevices.isVideoEnabled;
+            const currentVideoId = videoTrack.getSettings().deviceId;
+            videoChanged = currentVideoId !== selectedDevices.videoId;
+            console.log(`Video device changed: ${videoChanged} (Current ID: ${currentVideoId}, Selected: ${selectedDevices.videoId})`);
         }
 
-        let audioTrack = conferenceService.localStream.getAudioTracks()[0];
+        let audioTrack = tracks.find(track => track.kind === 'audio');
         if (audioTrack) {
-            audioTrack.enabled = selectedDevices.isAudioEnabled;
+            const currentAudioId = audioTrack.getSettings().deviceId;
+            audioChanged = currentAudioId !== selectedDevices.audioInId;
+            console.log(`Audio device changed: ${audioChanged} (Current ID: ${currentAudioId}, Selected: ${selectedDevices.audioInId})`);
         }
-        console.log(`selected Device settings:`, selectedDevices);
 
-        setSelectedDevices(selectedDevices);
+        if (!audioChanged && !videoChanged) {
+            console.warn(`no changes to devices.`);
+            return;
+        }
 
-        setIsLocalStreamUpdated(true);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        let constraints = getMediaConstraints();
+
+        if (!audioChanged) {
+            delete constraints.audio;
+        }
+
+        if (!videoChanged) {
+            delete constraints.video;
+        }
+
+        console.warn(`constraints:`, constraints);
+
+        // let newStream = await conferenceService.confClient.getBrowserUserMedia(constraints);
+        // conferenceService.publishTracks(newStream.getTracks());;
+
+        // if (audioChanged || videoChanged) {
+        //     let constraints = getMediaConstraints();
+        // }
+        // conferenceService.unPublishTracks(oldTracks);
+
+
+
+        // videoTrack = conferenceService.localStream.getVideoTracks()[0];
+        // if (videoTrack) {
+        //     videoTrack.enabled = localParticipant.current.tracksInfo.isVideoEnabled;
+        // }
+
+        // audioTrack = conferenceService.localStream.getAudioTracks()[0];
+        // if (audioTrack) {
+        //     audioTrack.enabled = localParticipant.current.tracksInfo.isAudioEnabled;
+        // }
+
+        // conferenceService.publishTracks(newTracks);
+        // setIsLocalStreamUpdated(true);
+
+    }, [getMediaConstraints]);
 
     useEffect(() => {
         setupWebRTCEvents();
@@ -636,7 +690,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             stopScreenShare,
 
             getMediaDevices,
-            switchDevices,
+            switchDevicesOnCall,
 
         }}>
             {children}

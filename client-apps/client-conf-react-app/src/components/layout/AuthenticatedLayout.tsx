@@ -30,7 +30,7 @@ const AuthenticatedLayout: React.FC = () => {
       return;
     }
 
-    const constraints = getMediaConstraints();
+    const constraints = getMediaConstraints(false, true);
     console.log('Fetching preview with constraints:', constraints); // Debug log
 
     navigator.mediaDevices.getUserMedia(constraints)
@@ -98,7 +98,7 @@ const AuthenticatedLayout: React.FC = () => {
 
   useEffect(() => {
     if(isLoggedOff) {            
-      console.warn("useEffect isLoggedOff");
+      console.log("useEffect isLoggedOff");
       api.logout();
       //navigate("/login");  
       setIsLoggedOff(false);    
