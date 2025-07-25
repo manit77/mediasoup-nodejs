@@ -523,22 +523,22 @@ export class RoomGetLogsResultMsg implements IMsg {
     } = { logs: [] };
 }
 
-export class UniqueMap<T> {
+export class UniqueMap<K, T> {
 
-    private items = new Map<string, T>()
+    private items = new Map<K, T>()
 
-    set(key: string, item: T) {
+    set(key: K, item: T) {
         if (this.items.has(key)) {
             throw `already has and item with ${key}`;
         }
         this.items.set(key, item);
     }
 
-    has(key: string) {
+    has(key: K) {
         return this.items.has(key);
     }
 
-    delete(key: string) {
+    delete(key: K) {
         return this.items.delete(key);
     }
 
@@ -550,7 +550,7 @@ export class UniqueMap<T> {
         return [...this.items.values()];
     }
 
-    get(key: string) {
+    get(key: K) {
         return this.items.get(key);
     }
 
