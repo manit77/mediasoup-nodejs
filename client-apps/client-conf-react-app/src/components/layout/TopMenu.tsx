@@ -25,14 +25,13 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
             if (clientData) {
                 let url = "/login?" + objectToQueryString(clientData);
                 console.log(`navigate to`, url);
-                navigate(url);
+                navigate(url, { replace: true });
             } else {
-                //navigate("/login");
+                navigate('/login', { replace: true });
             }
 
         } catch (error) {
             console.error("Logout failed", error);
-            // Handle logout error display if necessary
         }
     };
 

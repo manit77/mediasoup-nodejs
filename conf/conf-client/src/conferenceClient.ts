@@ -1172,8 +1172,8 @@ export class ConferenceClient {
 
             let registerResult = await this.roomsClient.waitForRegister(this.conference.roomAuthToken, this.localParticipant.participantId, this.localParticipant.displayName);
             if (!registerResult.data.error) {
-                console.log(`-- room socket registered. new peerId ${this.roomsClient.localPeer.peerId}`);
-                this.localParticipant.peerId = this.roomsClient.localPeer.peerId;
+                console.log(`-- room socket registered. new peerId ${this.roomsClient.getPeerId()}`);
+                this.localParticipant.peerId = this.roomsClient.getPeerId();
 
                 console.warn("update the tracksInfo on the rooms clicent", this.localParticipant.tracksInfo);                
                 await this.roomsClient.broadCastTrackInfo(this.localParticipant.tracksInfo);
@@ -1434,7 +1434,7 @@ export class ConferenceClient {
         await this.roomsClient.inititalize({ rtp_capabilities: roomRtpCapabilities });
     }
 
-    private disconnectRoomsClient(reason: string, inSeconds: number = 10) {
+    private disconnectRoomsClient(reason: string, inSeconds: number = 0) {
         console.log(`disconnectRoomsClient in ${inSeconds} seconds ${reason}`);
 
         if (this.roomsClientDisconnectTimerId) {

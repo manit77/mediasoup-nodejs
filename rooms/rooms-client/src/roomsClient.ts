@@ -21,7 +21,11 @@ import { IPeer, LocalPeer, Peer } from './models/peers.js';
 export class RoomsClient {
 
   private ws: WebSocketClient;
-  public localPeer: LocalPeer = new LocalPeer();
+  private localPeer: LocalPeer = new LocalPeer();
+
+  public getPeerId() {
+    return this.localPeer.peerId;
+  }
 
   peers: UniqueMap<Peer> = new UniqueMap();
   audioEnabled = true;
@@ -118,7 +122,7 @@ export class RoomsClient {
   };
 
   resetLocalPeer() {
-    console.log(`resetLocalPeer`);
+    console.warn(`*** resetLocalPeer`);
     //this.localPeer.tracks = new UniqueTracks();
     this.localPeer.clearProducers();
     this.localPeer.transportReceive?.close();
@@ -130,7 +134,7 @@ export class RoomsClient {
   }
 
   resetPeers() {
-    console.log(`resetPeers`);
+    console.warn(`*** resetPeers`);
 
     for (let peer of this.peers.values()) {
       peer.clearConsumers();
@@ -829,7 +833,8 @@ export class RoomsClient {
       return;
     }
 
-    this.localPeer.roomId = msgIn.data.roomId
+    this.localPeer.roomId = msgIn.data.roomId;
+    console.warn("roomId set", msgIn.data.roomId)
     this.localPeer.roomToken = msgIn.data.roomToken;
     console.log("room token set " + this.localPeer.roomToken, this.localPeer.roomId);
 
@@ -854,7 +859,7 @@ export class RoomsClient {
 
   private onRoomJoinResult = async (msgIn: RoomJoinResultMsg) => {
 
-    console.log("** onRoomJoinResult()");
+    console.warn("** onRoomJoinResult()", msgIn.data);
     if (msgIn.data.error) {
       console.error(msgIn.data.error);
       await this.eventOnRoomJoinFailed(this.localPeer.roomId);
@@ -863,8 +868,8 @@ export class RoomsClient {
 
     this.localPeer.roomId = msgIn.data.roomId;
 
-    console.log("joined room " + msgIn.data!.roomId);
-    console.log(`-- onRoomJoinResult() peers : ${msgIn.data?.peers.length}`);
+    console.warn("roomId set, joined room " + msgIn.data!.roomId);
+    console.warn(`-- onRoomJoinResult() peers : ${msgIn.data?.peers.length}`);
 
     let transports = await this.waitForRoomTransports();
 
@@ -1020,8 +1025,8 @@ export class RoomsClient {
   private roomClose() {
     console.log("** roomClose");
 
-    if (!this.localPeer.roomId) {
-      console.error("not in a room.")
+    if (!this.isInRoom()) {
+      console.error("not in a room.", this.localPeer)
       return;
     }
 
@@ -1258,7 +1263,7 @@ export class RoomsClient {
     }
 
     if (!this.isInRoom()) {
-      console.error("not in a room");
+      console.error("not in a room", this.localPeer);
       return;
     }
 
@@ -1274,7 +1279,7 @@ export class RoomsClient {
     }
 
     if (!this.isInRoom()) {
-      console.error("not in a room");
+      console.error("not in a room", this.localPeer);
       return;
     }
 
@@ -1306,7 +1311,7 @@ export class RoomsClient {
 
     let peer = this.peers.get(msgIn.data.peerId);
     if (!peer) {
-      console.error(`onConsumed - peer not found, peerId: ${msgIn.data.peerId}`);
+      console.error(`onConsumed - peer not found, peerId: ${msgIn.data.peerId}`, this.peers);
       return;
     }
 
