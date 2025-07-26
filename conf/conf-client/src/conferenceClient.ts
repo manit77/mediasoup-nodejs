@@ -1,9 +1,9 @@
 import {
     AcceptMsg, AcceptResultMsg, CallMessageType, ConferenceClosedMsg, ConferenceReadyMsg,
-    ConferenceRoomConfig, ConferenceRoomInfo, conferenceType, CreateConferenceParams, 
-    CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg, 
+    ConferenceRoomConfig, ConferenceRoomInfo, conferenceType, CreateConferenceParams,
+    CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg,
     GetParticipantsResultMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg,
-    JoinConferenceParams, JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo, 
+    JoinConferenceParams, JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo,
     ParticipantRole, RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
@@ -194,7 +194,7 @@ export class ConferenceClient {
         return navigator.mediaDevices.getUserMedia(constraints);
     }
 
-    publishTracks(tracks: MediaStreamTrack[]) {
+    async publishTracks(tracks: MediaStreamTrack[]) {
         console.log(`publishTracks, length: ${tracks?.length}`);
 
         if (tracks.length == 0) {
@@ -202,10 +202,20 @@ export class ConferenceClient {
             return false;
         }
 
-        if (this.isInConference() && this.conference.joinParams) {
+        let kinds = tracks.map(t => t.kind);
+        //remove existing tracks with the same kind
+        this.localParticipant.stream.getTracks().forEach(t => {
+            if (kinds.includes(t.kind)) {
+                this.localParticipant.stream.removeTrack(t);
+                t.enabled = false;
+                console.warn(`track ${t.kind} removed from localParticipant and disabled.`);
+            }
+        });
+
+        //check whether new tracks should be enabled
+        if (this.isInConference()) {
             console.log(`disable mic or cam based on user preference`, this.conference.joinParams);
 
-            let joinParams = this.conference.joinParams;
             let videoTrack = tracks.find(t => t.kind === "video");
             if (videoTrack) {
                 videoTrack.enabled = this.localParticipant.tracksInfo.isVideoEnabled;
@@ -219,26 +229,29 @@ export class ConferenceClient {
             }
             console.log(`track status audioTrack: ${audioTrack?.enabled}, videoTrack: ${videoTrack?.enabled}`);
             console.log(`localParticipant.tracksInfo:`, this.localParticipant.tracksInfo);
-
         }
 
-        tracks.forEach(t => {
-            this.checkTrackAllowed(t);
-        });
-
+        //publish the tracks
         if (this.roomsClient) {
-            this.roomsClient.publishTracks(tracks);
+            await this.roomsClient.publishTracks(tracks);
+        }
+
+        //add new tracks to the localParticipant
+        for (let track of tracks) {
+            this.localParticipant.stream.addTrack(track);
         }
 
         return true;
     }
 
     unPublishTracks(tracks: MediaStreamTrack[]) {
-        console.log(`unpublishTracks`);
+        console.warn(`unpublishTracks:`, tracks);
 
         tracks.forEach(track => {
             track.enabled = false;
+            track.stop();
             this.localParticipant?.stream?.removeTrack(track);
+            console.warn(`track remoted and stopped ${track.kind}`);
         });
 
         if (this.roomsClient) {
@@ -606,6 +619,12 @@ export class ConferenceClient {
     waitCreateConferenceRoom(args: CreateConferenceParams) {
         console.log(`waitCreateConferenceRoom externalId: ${args.externalId}, roomName: ${args.roomName}, conferenceCode: ${args.conferenceCode}`);
         return new Promise<CreateConfResultMsg>((resolve, reject) => {
+
+            if (!args.externalId) {
+                console.error("createArgs externalId is required.");
+                reject(`externalId is required.`);
+            }
+
             let _onmessage: (event: any) => void;
 
             let _removeEvents = () => {
@@ -653,7 +672,13 @@ export class ConferenceClient {
 
     waitJoinConferenceRoom(args: JoinConferenceParams) {
         console.log(`waitJoinConferenceRoom trackingId: ${args.conferenceId}, conferenceCode: ${args.conferenceCode}`);
+        
         return new Promise<JoinConfResultMsg>((resolve, reject) => {
+            if (!args.externalId) {
+                console.error("createArgs externalId is required.");
+                reject(`externalId is required.`);
+            }
+
             let _onmessage: (event: any) => void;
 
             let _removeEvents = () => {
@@ -1298,7 +1323,7 @@ export class ConferenceClient {
             console.log(`add self to conference.participants ${this.conference.participants.size}`);
 
             this.publishTracks(this.localParticipant.stream.getTracks());
-                        
+
             let msg = {
                 type: EventTypes.conferenceJoined,
                 data: {

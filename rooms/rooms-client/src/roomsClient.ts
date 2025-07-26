@@ -461,12 +461,18 @@ export class RoomsClient {
         console.log(`publishTracks: track ${track.kind}`);
         let existingTrack = localTracks.find(t => t.kind === track.kind);
         if (existingTrack) {
-          console.error(`existingTrack of kind ${track.kind}, track must be replaced or unpublished.`);
+          console.warn(`existingTrack of kind ${track.kind}, track must be replaced or unpublished.`);
+          //swap the track          
+          let producer = this.localRoom.getProducers()?.values().find(p => p.kind === track.kind);
+          if (producer) {
+            await producer.replaceTrack({ track: track });
+            console.warn(`replacing existing track`);
+          }
           return;
         }
-
         let producer = await this.localRoom.createProducer(track);
-        console.log("publishTracks: producer add with track added: " + producer.track.kind);
+        console.log("publishing new track: " + producer.track.kind);
+
       } catch (error) {
         console.error(`Failed to produce track: ${error.message}`);
         console.error(error);
@@ -486,7 +492,6 @@ export class RoomsClient {
       if (producer) {
         console.log(`producer found, closing ${track.kind}`)
         producer.close();
-        this.localRoom.removeProducer(track.kind as any);
         console.log(`track removed ${track.kind}`);
       }
     }
@@ -1193,6 +1198,7 @@ export class RoomsClient {
         roomId: this.localRoom.roomId,
         dtlsParameters: dtlsParameters
       };
+
       this.send(msg);
 
       callback();

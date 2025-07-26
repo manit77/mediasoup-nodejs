@@ -3,9 +3,9 @@ import { Consumer, MediaKind, Producer } from 'mediasoup-client/types';
 import { PeerTracksInfo, UniqueMap } from '@rooms/rooms-models';
 import { IPeer, Peer } from './peers.js';
 
-export class LocalRoom  {
-    
-    roomId: string = "";    
+export class LocalRoom {
+
+    roomId: string = "";
     transportSend: mediasoupClient.types.Transport;
     transportReceive: mediasoupClient.types.Transport;
     producersToConsume = new UniqueMap<Peer, { producerId: string, kind: MediaKind | string }[]>();
@@ -14,7 +14,7 @@ export class LocalRoom  {
     private peerConsumers: UniqueMap<IPeer, UniqueMap<MediaKind, mediasoupClient.types.Consumer>> = new UniqueMap();
 
     constructor() {
-        
+
     }
 
     close() {
@@ -34,8 +34,8 @@ export class LocalRoom  {
     }
 
     dispose() {
-        this.close();       
-       
+        this.close();
+
     }
 
     getProducerTracks() {
@@ -78,6 +78,12 @@ export class LocalRoom  {
 
     private addProducer(producer: Producer) {
         console.log(`addProducer ${producer.kind}`);
+
+        producer.on("@close", () => {
+            console.log(`producer - ${producer.track?.kind} closed`);
+            this.producers.delete(producer.kind);
+            console.warn(`producer - deleted`);
+        });
 
         producer.on("trackended", () => {
             console.log(`producer - ${producer.track?.kind} track ended ${producer.track?.id} ${producer.track?.kind}`);

@@ -144,7 +144,7 @@ export class RoomPeer {
 
         this.producers.set(kind, producer);
 
-        // Auto-cleanup when producer closes
+        // Auto-cleanup when producer closes                
         producer.on('@close', () => {
             console.log(chalk.yellow(`Producer ${producer.id} closed, removing from peer ${this.peer.id} ${this.peer.displayName}`));
             this.producers.delete(kind);

@@ -111,7 +111,7 @@ class ApiService {
     }
 
     fetchConferencesScheduled = async (): Promise<ConferenceRoomScheduled[]> => {
-        console.log("fetchConferencesScheduled", this.conferenceAPIClient?.clientData);
+        // console.log("fetchConferencesScheduled", this.conferenceAPIClient?.clientData);
 
         if (!this.conferenceAPIClient) {
             console.error(`conferenceAPIClient not initialized.`);

@@ -13,7 +13,7 @@ const OnCallScreen: React.FC = () => {
     const [mainStream, setMainStream] = useState<MediaStream | null>(null);
 
     useEffect(() => {
-        console.log(`selectedDevices triggered `, localParticipant.stream.getTracks());
+        console.warn(`try to switch devices, selectedDevices triggered `, localParticipant.stream.getTracks());
         switchDevicesOnCall();
     }, [selectedDevices, switchDevicesOnCall]);
 

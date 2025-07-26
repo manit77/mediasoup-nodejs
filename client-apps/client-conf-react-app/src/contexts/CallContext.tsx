@@ -575,7 +575,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [getMediaConstraints]);
 
-    const switchDevicesOnCall = useCallback(async () => { //), isAudioEnabled: boolean, isVideoEnabled: boolean) => {
+    const switchDevicesOnCall = useCallback(async () => {
         console.log(`switchDevicesOnCall`);
 
         const tracks = localParticipant.current.stream.getTracks();
@@ -604,7 +604,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return;
         }
 
-        let constraints = getMediaConstraints();
+        let constraints = getMediaConstraints(audioChanged, videoChanged);
 
         if (!audioChanged) {
             delete constraints.audio;
@@ -616,30 +616,23 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         console.warn(`constraints:`, constraints);
 
-        // let newStream = await conferenceService.confClient.getBrowserUserMedia(constraints);
-        // conferenceService.publishTracks(newStream.getTracks());;
+        let newStream = await conferenceService.confClient.getBrowserUserMedia(constraints);
+        await conferenceService.publishTracks(newStream.getTracks());;
 
-        // if (audioChanged || videoChanged) {
-        //     let constraints = getMediaConstraints();
-        // }
-        // conferenceService.unPublishTracks(oldTracks);
+       
+        videoTrack = newStream.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.enabled = localParticipant.current.tracksInfo.isVideoEnabled;
+        }
 
+        audioTrack = newStream.getAudioTracks()[0];
+        if (audioTrack) {
+            audioTrack.enabled = localParticipant.current.tracksInfo.isAudioEnabled;
+        }
+        
+        setIsLocalStreamUpdated(true);
 
-
-        // videoTrack = conferenceService.localStream.getVideoTracks()[0];
-        // if (videoTrack) {
-        //     videoTrack.enabled = localParticipant.current.tracksInfo.isVideoEnabled;
-        // }
-
-        // audioTrack = conferenceService.localStream.getAudioTracks()[0];
-        // if (audioTrack) {
-        //     audioTrack.enabled = localParticipant.current.tracksInfo.isAudioEnabled;
-        // }
-
-        // conferenceService.publishTracks(newTracks);
-        // setIsLocalStreamUpdated(true);
-
-    }, [getMediaConstraints]);
+    }, [getMediaConstraints, selectedDevices]);
 
     useEffect(() => {
         setupWebRTCEvents();

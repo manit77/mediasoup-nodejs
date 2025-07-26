@@ -249,37 +249,14 @@ class ConferenceService {
     }
 
     async publishTracks(tracks: MediaStreamTrack[]) {
-        console.log("publishTracks tracks:", tracks);
-
-        if (!this.confClient.isInConference()) {
-            console.info(`cannot publish tracks, not in a conference.`);
-            return;
-        }
-
-        let kinds = tracks.map(t => t.kind);
-
-        let tracksToRemove = this.localStream?.getTracks().filter(t => kinds.includes(t.kind));
-        tracksToRemove.forEach(t => {
-            this.localStream?.removeTrack(t);
-        });
-
-        this.confClient.unPublishTracks(tracksToRemove);
         this.confClient.publishTracks(tracks);
-
-        tracks.forEach(track => {
-            this.localStream?.addTrack(track);
-        });
-
-        console.log("localStream tracks after publish:", this.localStream?.getTracks());
     }
 
     public async unPublishTracks(tracks: MediaStreamTrack[]) {
-        console.log("unPublishTracks");
         this.confClient.unPublishTracks(tracks);
     }
 
     public async getScreenTrack(): Promise<MediaStreamTrack | null> {
-        console.log("getScreenShareTrack");
         return (await this.confClient.getDisplayMedia()).getVideoTracks()[0] || null;
     }
 
@@ -296,8 +273,7 @@ class ConferenceService {
         this.confClient?.muteParticipantTrack(participantId, audioEnabled, videoEnabled);
     }
 
-    public broadCastTrackInfo() {
-        console.log(`broadCastTrackInfo`);
+    public broadCastTrackInfo() {        
         this.confClient?.broadCastTrackInfo();
 
     }
@@ -315,17 +291,7 @@ class ConferenceService {
     }
 
     public async createConferenceAndJoin(createArgs: CreateConferenceParams, joinArgs: JoinConferenceParams): Promise<boolean> {
-        console.log("createConferenceAndJoin", createArgs, joinArgs);
-
-        if (!createArgs.externalId) {
-            console.error("createArgs externalId is required.");
-            return false;
-        }
-
-        if (!joinArgs.externalId) {
-            console.error("joinArgs externalId is required.");
-            return false;
-        }
+        console.log("createConferenceAndJoin", createArgs, joinArgs);               
 
         try {
             let newResult = await this.confClient.waitCreateConferenceRoom(createArgs);
@@ -366,7 +332,6 @@ class ConferenceService {
      * @param participantId 
      */
     public async sendInvite(participantId: string, args: JoinConferenceParams): Promise<InviteMsg> {
-        console.log(`sendInvite ${participantId}`, args);
         return this.confClient.sendInvite(participantId, args);
     }
 
@@ -374,8 +339,6 @@ class ConferenceService {
      * accepts an invite
      */
     public async acceptInvite(args: JoinConferenceParams): Promise<boolean> {
-        console.log(`acceptInvite:`, this.inviteRecievedMsg);
-
         return this.confClient.acceptInvite(this.inviteRecievedMsg, args);
     }
 
@@ -398,15 +361,12 @@ class ConferenceService {
         this.removeTracks();
     }
 
-    private async eventSignalingConnected() {
-        console.log("eventSignalingConnected");
+    private async eventSignalingConnected() {        
         await this.onServerConnected();
     }
 
     private async eventSignalingDisconnected() {
-        console.log("eventSignalingDisconnected");
         await this.onServerDisconnected();
-
     }
 
     private async eventRegisterResult(msg: any) {
@@ -528,23 +488,23 @@ class ConferenceService {
         await this.onParticipantTrackInfoUpdated(msg.data.participantId)
     }
 
-    isVideoAllowedFor(conference:Conference, participant: Participant) {
-        if(participant.role === "admin" || participant.role === "user") {
+    isVideoAllowedFor(conference: Conference, participant: Participant) {
+        if (participant.role === "admin" || participant.role === "user") {
             return true;
         }
 
-        if(participant.role === "guest" && conference.conferenceRoomConfig.guestsAllowCamera) {
+        if (participant.role === "guest" && conference.conferenceRoomConfig.guestsAllowCamera) {
             return true;
         }
     }
 
 
-    isAudioAllowedFor(conference:Conference, participant: Participant) {
-        if(participant.role === "admin" || participant.role === "user") {
+    isAudioAllowedFor(conference: Conference, participant: Participant) {
+        if (participant.role === "admin" || participant.role === "user") {
             return true;
         }
 
-        if(participant.role === "guest" && conference.conferenceRoomConfig.guestsAllowMic) {
+        if (participant.role === "guest" && conference.conferenceRoomConfig.guestsAllowMic) {
             return true;
         }
     }
