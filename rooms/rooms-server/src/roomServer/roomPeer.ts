@@ -113,6 +113,15 @@ export class RoomPeer {
         this.consumers.set(consumer.id, consumer);
 
         // Auto-cleanup when consumer closes
+        consumer.on("producerclose", ()=>{
+            console.log(`Consumer ${consumer.id} closed, removing from peer ${this.peer.id} ${this.peer.displayName}. producerid: ${consumer.producerId}`);
+            consumer.close();
+            this.consumers.delete(consumer.id);
+
+            //TODO: need to send, alert all consumers
+            this.room.onConsumerClosed(this.peer, consumer);
+        });
+
         consumer.on('@close', () => {
             console.log(`Consumer ${consumer.id} closed, removing from peer ${this.peer.id}`);
             this.consumers.delete(consumer.id);
@@ -167,6 +176,14 @@ export class RoomPeer {
         });
 
         return producer;
+    }
+
+    async closeProducer(kind: MediaKind) {
+        console.log(`closeProducuer ${kind} - ${this.peer.id} ${this.peer.displayName}`);
+        let producer = this.producers.get(kind);
+        if(producer) {
+            producer.close();
+        }
     }
 
     close() {

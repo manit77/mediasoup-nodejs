@@ -194,6 +194,14 @@ export class ConferenceClient {
         return navigator.mediaDevices.getUserMedia(constraints);
     }
 
+    /**
+     * remove existing tracks with the same kind from localParticipant
+     * if in conference, check if track is allowed based on conference configs
+     * publish tracks too rooms
+     * add tracks to localParticipant
+     * @param tracks 
+     * @returns 
+     */
     async publishTracks(tracks: MediaStreamTrack[]) {
         console.log(`publishTracks, length: ${tracks?.length}`);
 
@@ -244,6 +252,11 @@ export class ConferenceClient {
         return true;
     }
 
+    /**
+     * stop all tracks and remove from localParticipant
+     * unpublish tracks
+     * @param tracks 
+     */
     unPublishTracks(tracks: MediaStreamTrack[]) {
         console.warn(`unpublishTracks:`, tracks);
 
@@ -672,7 +685,7 @@ export class ConferenceClient {
 
     waitJoinConferenceRoom(args: JoinConferenceParams) {
         console.log(`waitJoinConferenceRoom trackingId: ${args.conferenceId}, conferenceCode: ${args.conferenceCode}`);
-        
+
         return new Promise<JoinConfResultMsg>((resolve, reject) => {
             if (!args.externalId) {
                 console.error("createArgs externalId is required.");

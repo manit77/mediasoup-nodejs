@@ -11,6 +11,7 @@ import {
   RoomProduceStreamMsg,
   RoomProduceStreamResultMsg,
   PeerTracksInfo,
+  RoomCloseProducerMsg,
 } from "@rooms/rooms-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { MediaKind, Transport } from 'mediasoup-client/types';
@@ -487,15 +488,19 @@ export class RoomsClient {
   unPublishTracks = async (tracks: MediaStreamTrack[]) => {
     console.log(`unPublishTracks`);
 
+    let msg = new RoomCloseProducerMsg();
+    msg.data.kinds = [];
+
     for (const track of tracks) {
       let producer = this.localRoom.getProducers().get(track.kind as any);
       if (producer) {
         console.log(`producer found, closing ${track.kind}`)
         producer.close();
-        console.log(`track removed ${track.kind}`);
+        msg.data.kinds.push(producer.kind);
       }
     }
 
+    this.send(msg);
   };
 
   // findTrack = (kind: string) => {

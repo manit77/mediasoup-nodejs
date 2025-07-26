@@ -5,7 +5,7 @@ import { setTimeout, setInterval } from 'node:timers';
 import axios from 'axios';
 import { RoomPeer } from './roomPeer.js';
 import { consoleError, consoleWarn } from '../utils/utils.js';
-import { MediaKind, Producer } from 'mediasoup/types';
+import { Consumer, MediaKind, Producer } from 'mediasoup/types';
 
 export interface RoomLogAdapter {
     save: (log: RoomLog) => Promise<void>;
@@ -31,6 +31,7 @@ export class Room {
     roomRtpCapabilities: mediasoup.types.RtpCapabilities;
     onClosedEvent: (room: Room, peers: Peer[], reason: string) => void;
     onPeerRemovedEvent: (room: Room, peers: Peer) => void;
+    onConsumerClosed: (peer: Peer, consumer: Consumer) => void;
 
     constructor() {
 
@@ -262,6 +263,24 @@ export class Room {
 
     }
 
+    // getProducer(peer: Peer, kind: MediaKind) {
+    //     let roomPeer = this.roomPeers.get(peer);
+    //     if (!roomPeer) {
+    //         consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+    //         return;
+    //     }
+    //     return roomPeer.producers.get(kind);
+    // }
+
+    closeProducer(peer: Peer, kind: MediaKind) {
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return;
+        }
+        roomPeer.closeProducer(kind);
+    }
+
     async muteProducer(peer: Peer) {
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -269,7 +288,7 @@ export class Room {
             return;
         }
 
-       roomPeer.muteProducer();
+        roomPeer.muteProducer();
     }
 
     /**

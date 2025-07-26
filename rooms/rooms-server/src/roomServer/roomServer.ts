@@ -19,7 +19,9 @@ import {
     RoomConsumeStreamMsg,
     RoomConsumeStreamResultMsg,
     PeerTracksInfoMsg,
-    PeerMuteTracksMsg
+    PeerMuteTracksMsg,
+    RoomCloseProducerMsg,
+    RoomConsumerClosedMsg
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
@@ -190,6 +192,9 @@ export class RoomServer {
             }
             case payloadTypeClient.roomProduceStream: {
                 return this.onRoomProduceStream(peerId, msgIn);
+            }
+            case payloadTypeClient.roomCloseProducer: {
+                return this.onRoomCloseProducer(peerId, msgIn);
             }
             case payloadTypeClient.roomConsumeStream: {
                 return this.onRoomConsumeStream(peerId, msgIn);
@@ -366,6 +371,16 @@ export class RoomServer {
                 this.send(p.id, msg);
             }
 
+        };
+
+        room.onConsumerClosed = (peer, consumer) => {
+            //alert the peer the consumer is closed
+            //the peer should close on the client
+            let msg = new RoomConsumerClosedMsg();
+            msg.data.consumerId = consumer.id;
+            msg.data.kind = consumer.kind;
+            msg.data.roomId = room.id;
+            this.send(peer.id, msg);
         };
 
         this.addRoomGlobal(room);
@@ -928,7 +943,7 @@ export class RoomServer {
     }
 
     private async onRoomProduceStream(peerId: string, msgIn: RoomProduceStreamMsg): Promise<IMsg> {
-        console.log("onProduce");
+        console.log("onRoomProduceStream");
 
         //client is requesting to produce/send audio or video
         //one producer per kind: audio, video, or data
@@ -973,6 +988,31 @@ export class RoomServer {
             kind: msgIn.data.kind
         };
         return producedMsg;
+    }
+
+    private async onRoomCloseProducer(peerId: string, msgIn: RoomCloseProducerMsg): Promise<IMsg> {
+        console.log("onRoomCloseProducer");
+
+        let peer = this.peers.get(peerId);
+        if (!peer) {
+            consoleError("error peer not found.");
+            return new ErrorMsg(payloadTypeServer.error, "error peer not found.");
+        }
+
+        if (!peer.room) {
+            consoleError('peer is not in a room', peer.id);
+            return new ErrorMsg(payloadTypeServer.error, "peer is not in a room.");
+        }
+
+        if (peer.room.id !== msgIn.data.roomId) {
+            consoleError('invalid roomid', msgIn.data.roomId);
+            return new ErrorMsg(payloadTypeServer.error, "invalid roomid.");
+        }
+
+        for (let kind of msgIn.data.kinds) {
+            peer.room.closeProducer(peer, kind);
+        }
+        return new OkMsg(payloadTypeServer.ok, "producers closed");
     }
 
     private async onRoomConsumeStream(peerId: string, msgIn: RoomConsumeStreamMsg): Promise<IMsg> {

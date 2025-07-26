@@ -21,6 +21,7 @@ export enum payloadTypeClient {
     roomGetLogs = "roomGetLogs",
 
     roomProduceStream = "roomProduceStream",
+    roomCloseProducer = "roomCloseProducer",
     roomConsumeStream = "roomConsumeStream",
 
     peerTracksInfo = "peerTracksInfo",
@@ -47,6 +48,7 @@ export enum payloadTypeServer {
 
     roomProduceStreamResult = "roomProduceStreamResult",
     roomConsumeStreamResult = "roomConsumeStreamResult",
+    roomConsumerClosed = "roomConsumerClosed",
 
     roomNewResult = "roomNewResult",
     roomNewTokenResult = "roomNewTokenResult",
@@ -382,10 +384,17 @@ export class RoomTerminateResultMsg implements IMsg {
     } = {}
 }
 
+export class RoomCloseProducerMsg implements IMsg {
+    type = payloadTypeClient.roomCloseProducer;
+    data: {
+        roomId?: string,
+        kinds?: ("audio" | "video")[]
+    } = {};
+}
+
 export class RoomProduceStreamMsg implements IMsg {
     type = payloadTypeClient.roomProduceStream;
     data: {
-        authToken?: string,
         roomId?: string,
         kind?: "audio" | "video",
         rtpParameters?: any
@@ -403,7 +412,6 @@ export class RoomProduceStreamResultMsg implements IMsg {
 export class RoomConsumeStreamMsg implements IMsg {
     type = payloadTypeClient.roomConsumeStream;
     data: {
-        authToken?: string,
         roomId?: string,
         remotePeerId?: string,
         producerId?: string,
@@ -425,9 +433,18 @@ export class RoomConsumeStreamResultMsg implements IMsg {
     } = {};
 }
 
+export class RoomConsumerClosedMsg implements IMsg {
+    type = payloadTypeServer.roomConsumerClosed;
+    data: {
+        roomId?: string
+        consumerId?: string,
+        kind?: "audio" | "video",
+    } = {};
+}
+
 export class PeerTracksInfoMsg {
     type = payloadTypeClient.peerTracksInfo
-    data: {       
+    data: {
         peerId?: string,
         tracksInfo?: PeerTracksInfo;
     } = {}
@@ -443,7 +460,7 @@ export class PeerMuteTracksMsg {
 }
 
 export interface PeerTracksInfo {
-    isAudioEnabled:boolean,
+    isAudioEnabled: boolean,
     isVideoEnabled?: boolean
 }
 
