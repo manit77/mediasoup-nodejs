@@ -1087,6 +1087,9 @@ class ConferenceClient {
         this.inviteReceivedMsg = null;
         this.clearCallConnectTimer();
         this.localParticipant.peerId = "";
+
+        //remove all tracks when conference ends.        
+        this.localParticipant.stream.getTracks().forEach(t=> this.localParticipant.stream.removeTrack(t));
     }
 
     private resetParticipant() {
