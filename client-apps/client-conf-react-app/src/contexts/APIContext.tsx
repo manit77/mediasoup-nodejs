@@ -1,8 +1,8 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { ConferenceRoomScheduled, User } from '../types';
-import { conferenceService } from '../services/ConferenceService';
 import { apiService, LoginResponse } from '../services/ApiService';
 import { useConfig } from '../hooks/useConfig';
+import { conferenceClient } from '@conf/conf-client';
 
 interface APIContextType {
     isAuthenticated: boolean;
@@ -108,7 +108,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const logout = useCallback(async () => {
         try {
             setIsLoading(true);
-            conferenceService.disconnectSignaling("user clicked logout"); // Disconnect signaling on logout            
+            conferenceClient.disconnect(); // Disconnect signaling on logout            
             return apiService.logout();
         } catch (error) {
             console.error('Logout failed:', error);
@@ -130,7 +130,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         let user = apiService.getUser();
         if (user) {
-            conferenceService.connectSignaling(user);
+            conferenceClient.connect(user.username, user.authToken);
             fetchConferencesScheduled();
             apiService.startFetchConferencesScheduled();
         }

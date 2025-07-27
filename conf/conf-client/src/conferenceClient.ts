@@ -4,87 +4,35 @@ import {
     CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg,
     GetParticipantsResultMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg,
     JoinConferenceParams, JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo,
-    ParticipantRole, RegisterMsg, RegisterResultMsg, RejectMsg
+    RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
-import { ConferenceClientConfig } from "./models.js";
+import { callStates, Conference, ConferenceClientConfig, Participant, SelectedDevices } from "./models.js";
+import { EventParticpantNewTrackMsg, EventTypes } from "./conferenceEvents.js";
 import { ConferenceAPIClient } from "./conferenceAPIClient.js";
 import { IMsg, OkMsg, PeerTracksInfo } from "@rooms/rooms-models";
+import { getBrowserUserMedia } from "./conferenceUtils.js";
 
-export type callStates = "calling" | "answering" | "connecting" | "connected" | "disconnected";
+export type ConferenceEvent = (eventType: EventTypes, payload: IMsg) => Promise<void>;
 
-export class Participant {
-    participantId: string;
-    displayName: string;
-    stream: MediaStream = new MediaStream();
-    role: string = ParticipantRole.guest;
-
-    peerId: string;
-    tracksInfo: PeerTracksInfo = { isAudioEnabled: true, isVideoEnabled: true };
-}
-
-export class Conference {
-    conferenceId: string;
-    conferenceName: string;
-    conferenceExternalId: string;
-    conferenceType: conferenceType = "p2p"; // default to p2p
-    conferenceRoomConfig: ConferenceRoomConfig;
-    roomAuthToken: string;
-    roomToken: string;
-    roomId: string;
-    roomURI: string;
-    joinParams: JoinConferenceParams;
-
-    /**
-     * remote participants
-     */
-    participants: Map<string, Participant> = new Map();
-}
-
-export enum EventTypes {
-
-    connected = "connected",
-    disconnected = "disconnected",
-
-    registerResult = "registerResult",
-
-    participantsReceived = "participantsReceived",
-    conferencesReceived = "conferencesReceived",
-
-    acceptResult = "acceptResult",
-    inviteResult = "inviteResult",
-    inviteReceived = "inviteReceived",
-    inviteCancelled = "inviteCancelled",
-    rejectReceived = "rejectReceived",
-
-    conferenceCreatedResult = "conferenceCreatedResult",
-    conferenceJoined = "conferenceJoined",
-    conferenceClosed = "conferenceClosed",
-    conferenceFailed = "conferenceFailed",
-
-    participantNewTrack = "participantNewTrack",
-    participantTrackInfoUpdated = "participantTrackInfoUpdated",
-    participantJoined = "participantJoined",
-    participantLeft = "participantLeft",
-}
-
-type ConferenceEvent = (eventType: EventTypes, payload: IMsg) => Promise<void>;
-
-export class ConferenceClient {
+class ConferenceClient {
 
     private socket: WebSocketClient;
     localParticipant = new Participant();
+    username: string = "";
     authToken: string = "";
     conference: Conference = new Conference();
     callState: callStates = "disconnected";
 
     public participantsOnline: ParticipantInfo[] = [];
-    public conferences: ConferenceRoomInfo[] = [];
+    public conferencesOnline: ConferenceRoomInfo[] = [];
     private roomsClient: RoomsClient;
     private roomsClientDisconnectTimerId: any;
 
     isConnected = false;
+    isScreenSharing = false;
+    selectedDevices: SelectedDevices = new SelectedDevices();
 
     inviteSendMsg: InviteMsg;
     inviteReceivedMsg: InviteMsg;
@@ -95,9 +43,15 @@ export class ConferenceClient {
     apiClient: ConferenceAPIClient;
 
     CallConnectTimeoutTimerIds = new Set<any>();
+    private config: ConferenceClientConfig;
 
-    constructor(private config: ConferenceClientConfig) {
-        console.log(`*** new ConferenceClient`, config);
+    constructor() {
+        console.warn(`*** new instance of ConferenceClient`);
+    }
+
+    init(config: ConferenceClientConfig) {
+        console.warn(`*** init ConferenceClient`, config);
+        this.config = config;
         this.apiClient = new ConferenceAPIClient(config);
     }
 
@@ -168,7 +122,7 @@ export class ConferenceClient {
     async getNewTracksForLocalParticipant(constraints: MediaStreamConstraints = { video: true, audio: true }) {
         console.log(`getNewTracksForLocalParticipant constraints:`, constraints);
 
-        let newStream = await this.getBrowserUserMedia(constraints);
+        let newStream = await getBrowserUserMedia(constraints);
         let newTracks = newStream.getTracks();
         this.localParticipant.stream.getTracks().forEach(t => this.localParticipant.stream.removeTrack(t));
         newTracks.forEach(t => this.localParticipant.stream.addTrack(t));
@@ -187,11 +141,6 @@ export class ConferenceClient {
         }
 
         return newTracks;
-    }
-
-    getBrowserUserMedia(constraints: MediaStreamConstraints = { video: true, audio: true }): Promise<MediaStream> {
-        console.log(`getUserMedia constraints:`, constraints);
-        return navigator.mediaDevices.getUserMedia(constraints);
     }
 
     /**
@@ -307,51 +256,44 @@ export class ConferenceClient {
     }
 
     //toggles the local track, does not update the server
-    toggleTrack(participantId: string, enabled: boolean, kind: "audio" | "video") {
-        let part = this.conference.participants.get(participantId);
-        if (!part) {
-            if (part.participantId == this.localParticipant.participantId) {
-                part = this.localParticipant;
-            }
-        }
+    // toggleTrack(participantId: string, enabled: boolean, kind: "audio" | "video") {
+    //     let part = this.conference.participants.get(participantId);
+    //     if (!part) {
+    //         if (part.participantId == this.localParticipant.participantId) {
+    //             part = this.localParticipant;
+    //         }
+    //     }
 
-        if (!part) {
-            console.error(`participant not found. ${participantId}`);
+    //     if (!part) {
+    //         console.error(`participant not found. ${participantId}`);
+    //         return;
+    //     }
+
+    //     if (!part.stream) {
+    //         console.error(`participant stream not found.`);
+    //         return;
+    //     }
+
+    //     let track = part.stream.getTracks().find(t => t.kind === kind);
+    //     if (track) {
+    //         track.enabled = enabled;
+    //         part.tracksInfo.isAudioEnabled = enabled;
+    //     }
+    // }
+
+
+    connect(username: string, authToken: string, options?: { socket_ws_uri?: string }) {
+        console.log(`connect to socket server.`, this.config);
+
+        if (!this.config) {
+            console.error(`config is not initialized.`);
             return;
         }
-
-        if (!part.stream) {
-            console.error(`participant stream not found.`);
-            return;
-        }
-
-        let track = part.stream.getTracks().find(t => t.kind === kind);
-        if (track) {
-            track.enabled = enabled;
-            part.tracksInfo.isAudioEnabled = enabled;
-        }
-    }
-
-    async getDisplayMedia(): Promise<MediaStream | null> {
-        console.log(`getDisplayMedia`);
-
-        if (!this.roomsClient) {
-            console.error("roomsClient not initialized.");
-            return null;
-        }
-
-        return await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: false
-        });
-    }
-
-    connect(options?: { socket_ws_uri?: string }) {
-        console.log(`connect to socket server.`);
-
         if (options && options.socket_ws_uri) {
             this.config.conf_ws_url = options.socket_ws_uri;
         }
+        this.username = username;
+        this.authToken = authToken;
 
         if (this.socket) {
             console.log(`socket already exists, disconnect.`);
@@ -360,7 +302,7 @@ export class ConferenceClient {
         }
 
         // Connect to WebSocket server
-        console.log("new socket created");
+        console.warn("new socket created, ", this.config);
         this.socket = new WebSocketClient({ enableLogs: this.config.socket_enable_logs });
 
         this.socket.addEventHandler("onopen", async () => {
@@ -390,6 +332,12 @@ export class ConferenceClient {
 
     private async onSocketConnected() {
         console.log("onSocketConnected()");
+
+        if (this.username && this.authToken) {
+            await this.waitRegisterConnection(this.username, this.authToken);
+        } else {
+            console.warn("not credentials registerConnection");
+        }
 
         await this.onEvent(EventTypes.connected, new OkMsg());
     }
@@ -479,8 +427,13 @@ export class ConferenceClient {
         return this.conference.conferenceId > "";
     }
 
+    isRegistered() {
+        console.warn(`*** isRegistered`, this.socket?.state, this.localParticipant.participantId);
+        return this.socket && this.socket.state === "connected" && this.localParticipant.participantId;
+    }
+
     waitRegisterConnection(username: string, authToken: string) {
-        console.log("waitRegisterConnection");
+        console.warn("waitRegisterConnection");
         return new Promise<CreateConfResultMsg>((resolve, reject) => {
             let _onmessage: (event: any) => void;
 
@@ -529,17 +482,24 @@ export class ConferenceClient {
      * @param username 
      * @param authToken 
      */
-    registerConnection(username: string, authToken: string) {
-        console.log("registerConnection");
+    private registerConnection(username: string, authToken: string) {
+        console.warn("registerConnection");
+
+        if (this.isRegistered()) {
+            console.error(`connection already registered.`);
+            return;
+        }
 
         if (!username) {
-            console.error(`username is requied.`);
+            console.error(`username is required.`);
             return;
         }
         if (!authToken) {
-            console.error(`authToken is requied.`);
+            console.error(`authToken is required.`);
             return;
         }
+
+        console.warn(`sending server registration`);
 
         // Register with the server
         const registerMsg: RegisterMsg = new RegisterMsg();
@@ -552,12 +512,22 @@ export class ConferenceClient {
     getParticipantsOnline() {
         console.log("getParticipantsOnline");
 
+        if (!this.isRegistered()) {
+            console.error("not registered");
+            return;
+        }
+
         const getParticipantsMsg = new GetParticipantsMsg();
         this.sendToServer(getParticipantsMsg);
     }
 
     getConferenceRoomsOnline() {
         console.log("getConferenceRooms");
+
+        if (!this.isRegistered()) {
+            console.error("not registered");
+            return;
+        }
 
         const msg = new GetConferencesMsg();
         this.sendToServer(msg);
@@ -571,6 +541,12 @@ export class ConferenceClient {
      */
     sendInvite(participantId: string, args: JoinConferenceParams): InviteMsg {
         console.log(`sendInvite() ${participantId}`, args);
+
+        if (!this.isRegistered()) {
+            console.error(`connection not registered.`);
+            return null;
+        }
+
         if (this.isInConference()) {
             console.error("invite() - already in a conference.");
             return null;
@@ -601,6 +577,11 @@ export class ConferenceClient {
     cancelInvite(invite: InviteMsg) {
         console.log(`cancelInvite() ${invite.data.participantId} ${invite.data.conferenceId}`);
 
+        if (!this.isRegistered()) {
+            console.error(`connection not registered.`);
+            return null;
+        }
+
         const callMsg = new InviteCancelledMsg();
         callMsg.data.participantId = invite.data.participantId;
         callMsg.data.conferenceId = invite.data.conferenceId;
@@ -609,8 +590,13 @@ export class ConferenceClient {
         this.resetConferenceRoom();
     }
 
-    createConferenceRoom(args: CreateConferenceParams) {
+    createConferenceRoom(args: CreateConferenceParams): boolean {
         console.log(`createConferenceRoom trackingId: ${args.externalId}, roomName: ${args.roomName}`);
+
+        if (!this.isRegistered()) {
+            console.error(`connection not registered.`);
+            return false;
+        }
 
         const msg = new CreateConfMsg();
         msg.data.conferenceExternalId = args.externalId;
@@ -630,8 +616,13 @@ export class ConferenceClient {
      * @returns 
      */
     waitCreateConferenceRoom(args: CreateConferenceParams) {
-        console.log(`waitCreateConferenceRoom externalId: ${args.externalId}, roomName: ${args.roomName}, conferenceCode: ${args.conferenceCode}`);
+        console.warn(`waitCreateConferenceRoom externalId: ${args.externalId}, roomName: ${args.roomName}, conferenceCode: ${args.conferenceCode}`);
         return new Promise<CreateConfResultMsg>((resolve, reject) => {
+
+            if (!this.isRegistered()) {
+                console.error(`connection not registered.`);
+                reject(`connection not registered.`);
+            }
 
             if (!args.externalId) {
                 console.error("createArgs externalId is required.");
@@ -687,6 +678,12 @@ export class ConferenceClient {
         console.log(`waitJoinConferenceRoom trackingId: ${args.conferenceId}, conferenceCode: ${args.conferenceCode}`);
 
         return new Promise<JoinConfResultMsg>((resolve, reject) => {
+
+            if (!this.isRegistered()) {
+                console.error(`connection not registered.`);
+                reject(`connection not registered.`);
+            }
+
             if (!args.externalId) {
                 console.error("createArgs externalId is required.");
                 reject(`externalId is required.`);
@@ -738,6 +735,38 @@ export class ConferenceClient {
         });
     }
 
+    async waitCreateAndJoinConference(createArgs: CreateConferenceParams, joinArgs: JoinConferenceParams) {
+        console.warn(`waitCreateAndJoinConference`, createArgs, joinArgs);
+
+        try {
+            if (!this.isRegistered()) {
+                console.error(`connection not registered.`);
+                throw (`connection not registered.`);
+            }
+
+            let newResult = await this.waitCreateConferenceRoom(createArgs);
+            if (newResult.data.error) {
+                console.error(newResult.data.error);
+                return false;
+            }
+
+            joinArgs.conferenceId = newResult.data.conferenceId;
+
+            let joinResult = await this.waitJoinConferenceRoom(joinArgs);
+            if (joinResult.data.error) {
+                console.error(joinResult.data.error);
+                return false;
+            }
+
+            console.log("join conference, waiting for room ready message");
+            return true;
+
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    }
+
     /**
      * join a conference room
      * send JoinConfMsg wait for JoinConfResultMsg
@@ -746,6 +775,11 @@ export class ConferenceClient {
      */
     async joinConferenceRoom(args: JoinConferenceParams) {
         console.log(`joinConferenceRoom conferenceId: ${args.conferenceId} conferenceCode: ${args.conferenceCode}`);
+
+        if (!this.isRegistered()) {
+            console.error(`connection not registered.`);
+            return false;
+        }
 
         if (this.conference.conferenceId) {
             console.error(`already in conferenceroom ${this.conference.conferenceId}`);
@@ -922,6 +956,11 @@ export class ConferenceClient {
     acceptInvite(message: InviteMsg, joinArgs: JoinConferenceParams) {
         console.log("acceptInvite()");
 
+        if (!this.isRegistered()) {
+            console.error(`connection not registered.`);
+            return;
+        }
+
         if (!this.inviteReceivedMsg) {
             console.error(`not invite received.`);
             return;
@@ -979,6 +1018,11 @@ export class ConferenceClient {
     rejectInvite(message: InviteMsg) {
         console.log("reject()");
 
+        if (!this.isRegistered()) {
+            console.error(`connection not registered.`);
+            return;
+        }
+
         if (!this.inviteReceivedMsg) {
             console.error(`no invite received.`);
         }
@@ -1008,6 +1052,14 @@ export class ConferenceClient {
      */
     leave() {
         console.log("leave()");
+
+        if (this.inviteSendMsg) {
+            this.cancelInvite(this.inviteSendMsg);
+        }
+
+        if (this.inviteReceivedMsg) {
+            this.rejectInvite(this.inviteReceivedMsg);
+        }
 
         if (this.roomsClient) {
             this.roomsClient.roomLeave();
@@ -1076,7 +1128,7 @@ export class ConferenceClient {
             this.localParticipant.participantId = message.data.participantId;
             this.localParticipant.displayName = message.data.username;
             this.localParticipant.role = message.data.role;
-            console.log('Registered with participantId:', this.localParticipant.participantId, this.localParticipant.displayName);
+            console.warn('*** Registered with participantId:', this.localParticipant);
             await this.onEvent(EventTypes.registerResult, message);
 
             this.getParticipantsOnline();
@@ -1086,14 +1138,14 @@ export class ConferenceClient {
     private async onParticipantsReceived(message: GetParticipantsResultMsg) {
         console.log("onParticipantsReceived");
 
-        this.participantsOnline = message.data.filter(c => c.participantId !== this.localParticipant.participantId);
+        this.participantsOnline = message.data.participants.filter(c => c.participantId !== this.localParticipant.participantId);
         await this.onEvent(EventTypes.participantsReceived, message);
     }
 
     private async onConferencesReceived(message: GetConferencesResultMsg) {
         console.log("onConferencesReceived");
 
-        this.conferences = message.data.conferences;
+        this.conferencesOnline = message.data.conferences;
         await this.onEvent(EventTypes.conferencesReceived, message);
     }
 
@@ -1343,7 +1395,7 @@ export class ConferenceClient {
                     conferenceId: this.conference.conferenceId
                 }
             }
-            await this.onEvent(msg.type, msg);
+            await this.onEvent(EventTypes.conferenceJoined, msg);
 
         };
 
@@ -1365,7 +1417,7 @@ export class ConferenceClient {
                     reason: "room closed"
                 }
             };
-            await this.onEvent(msg.type, msg);
+            await this.onEvent(EventTypes.conferenceClosed, msg);
 
             this.resetConferenceRoom();
         };
@@ -1400,7 +1452,7 @@ export class ConferenceClient {
                     roomId: roomId
                 }
             }
-            await this.onEvent(msg.type, msg);
+            await this.onEvent(EventTypes.participantJoined, msg);
         };
 
         this.roomsClient.eventOnPeerNewTrack = async (peer: IPeer, track: MediaStreamTrack) => {
@@ -1421,14 +1473,10 @@ export class ConferenceClient {
             }
             participant.stream.addTrack(track);
 
-            let msg = {
-                type: EventTypes.participantNewTrack,
-                data: {
-                    participantId: participant.participantId,
-                    track: track
-                }
-            }
-            await this.onEvent(msg.type, msg);
+            let msg = new EventParticpantNewTrackMsg();
+            msg.data.participantId = participant.participantId;
+            msg.data.track = track;
+            await this.onEvent(EventTypes.participantNewTrack, msg);
 
         };
 
@@ -1446,10 +1494,11 @@ export class ConferenceClient {
             let msg = {
                 type: EventTypes.participantLeft,
                 data: {
+                    conferenceId: this.conference.conferenceId,
                     participantId: participant.participantId
                 }
             }
-            await this.onEvent(msg.type, msg);
+            await this.onEvent(EventTypes.participantLeft, msg);
 
         };
 
@@ -1475,10 +1524,11 @@ export class ConferenceClient {
             let msg = {
                 type: EventTypes.participantTrackInfoUpdated,
                 data: {
-                    participantId: participant.participantId
+                    participantId: participant.participantId,
+                    tracksInfo: participant.tracksInfo
                 }
             }
-            await this.onEvent(msg.type, msg);
+            await this.onEvent(EventTypes.participantTrackInfoUpdated, msg);
         };
 
         await this.roomsClient.inititalize({ rtp_capabilities: roomRtpCapabilities });
@@ -1515,3 +1565,5 @@ export class ConferenceClient {
     }
 
 }
+
+export const conferenceClient = new ConferenceClient(); //single instance

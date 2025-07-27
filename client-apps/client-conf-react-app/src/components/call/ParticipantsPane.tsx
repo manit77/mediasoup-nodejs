@@ -3,9 +3,8 @@ import { Card, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { useAPI } from '../../hooks/useAPI';
 import { MicFill, MicMuteFill, CameraVideoFill, CameraVideoOffFill } from 'react-bootstrap-icons';
-import { Participant } from '@conf/conf-client';
+import { conferenceClient, getBrowserUserMedia, isAudioAllowedFor, isVideoAllowedFor, Participant } from '@conf/conf-client';
 import { useUI } from '../../hooks/useUI';
-import { conferenceService } from '../../services/ConferenceService';
 
 interface ParticipantVideoPreviewProps {
     participant?: Participant
@@ -53,8 +52,8 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
     const onAudioClick = useCallback(async () => {
         console.log(`onAudioClick.`);
 
-        let isAudioAllowedFor = conferenceService.isVideoAllowedFor(conference, participant);
-        if(!isAudioAllowedFor) {
+        let audioAllowedFor = isAudioAllowedFor(conference, participant);
+        if(!audioAllowedFor) {
             console.error(`audio is not allowed for ${participant.displayName} ${participant.role}`);
             ui.showToast(`audio not allowed.`);
             return;
@@ -76,9 +75,9 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         let audioTrack = participant.stream.getAudioTracks()[0];
         if(isLocalParticipant && !audioTrack) {            
             //get a new stream for the local participant
-            let newStream = await conferenceService.confClient.getBrowserUserMedia(getMediaConstraints(true, false));
+            let newStream = await getBrowserUserMedia(getMediaConstraints(true, false));
             audioTrack = newStream.getVideoTracks()[0];            
-            conferenceService.publishTracks([audioTrack]);
+            conferenceClient.publishTracks([audioTrack]);
         }
 
         const currentEnabled = audioTrack ? audioTrack.enabled : false;
@@ -116,8 +115,8 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
     const onVideoClick = useCallback(async () => {
         console.log("onVideoClick ", participant);
 
-        let isVideoAllowedFor = conferenceService.isVideoAllowedFor(conference, participant);
-        if(!isVideoAllowedFor) {
+        let videoAllowedFor = isVideoAllowedFor(conference, participant);
+        if(!videoAllowedFor) {
             console.error(`video is not allowed for ${participant.displayName} ${participant.role}`);
             ui.showToast(`video not allowed.`);
             return;
@@ -139,9 +138,9 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         let videoTrack = participant.stream.getVideoTracks()[0];
         if(isLocalParticipant && !videoTrack) {            
             //get a new stream for the local participant
-            let newStream = await conferenceService.confClient.getBrowserUserMedia(getMediaConstraints(false, true));
+            let newStream = await getBrowserUserMedia(getMediaConstraints(false, true));
             videoTrack = newStream.getVideoTracks()[0];            
-            conferenceService.publishTracks([videoTrack]);
+            conferenceClient.publishTracks([videoTrack]);
         }
 
         const currentEnabled = videoTrack ? videoTrack.enabled : false;

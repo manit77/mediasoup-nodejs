@@ -6,20 +6,6 @@ export interface User {
     clientData: {};
 }
 
-export interface Device {
-    id: string;
-    label: string;
-}
-
-export class SelectedDevices {
-    videoId?: string;
-    videoLabel?: string;
-    audioInId?: string;
-    audioInLabel?: string;
-    audioOutId?: string;
-    audioOutLabel?: string; 
-}
-
 export class ConferenceRoomScheduled {
     /**
      * third party unique id, this will always have a value

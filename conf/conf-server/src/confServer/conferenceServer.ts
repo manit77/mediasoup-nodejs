@@ -293,7 +293,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         consoleLog("broadCastParticipants");
         //broadcast to all participants of contacts
         let contactsMsg = new GetParticipantsResultMsg();
-        contactsMsg.data = [...this.participants.values()].map(p => ({
+        contactsMsg.data.participants = [...this.participants.values()].map(p => ({
             participantId: p.participantId,
             displayName: p.displayName,
             status: "online"
@@ -342,7 +342,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         let msg = new GetParticipantsResultMsg();
         this.getParticipantsExceptPart(participant).forEach((p) => {
-            msg.data.push({
+            msg.data.participants.push({
                 displayName: p.displayName,
                 participantId: p.participantId,
                 status: "online"

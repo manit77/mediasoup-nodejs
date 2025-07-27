@@ -378,6 +378,7 @@ export class RoomServer {
             //the peer should close on the client
             let msg = new RoomConsumerClosedMsg();
             msg.data.consumerId = consumer.id;
+            msg.data.producerId = consumer.producerId;
             msg.data.kind = consumer.kind;
             msg.data.roomId = room.id;
             this.send(peer.id, msg);

@@ -68,7 +68,7 @@ export enum payloadTypeServer {
 
 export interface IMsg {
     type: any;
-    data: any;
+    data: any | { error?: any };
 }
 
 export enum AuthUserRoles {
@@ -436,7 +436,8 @@ export class RoomConsumeStreamResultMsg implements IMsg {
 export class RoomConsumerClosedMsg implements IMsg {
     type = payloadTypeServer.roomConsumerClosed;
     data: {
-        roomId?: string
+        roomId?: string,
+        producerId?: string,
         consumerId?: string,
         kind?: "audio" | "video",
     } = {};

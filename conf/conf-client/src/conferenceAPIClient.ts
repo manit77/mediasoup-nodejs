@@ -1,4 +1,4 @@
-import { apiGetScheduledConferencePost, apiGetScheduledConferencesPost, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
+import { apiGetScheduledConferencePost, apiGetScheduledConferencesPost, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
 import { ConferenceClientConfig } from './models.js';
 
 export class ConferenceAPIClient {
@@ -108,7 +108,5 @@ export class ConferenceAPIClient {
         });
 
         return await response.json() as GetConferenceScheduledResultMsg;
-    };
-
-    
+    };    
 };
