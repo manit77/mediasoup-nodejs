@@ -65,3 +65,18 @@ export class ConferenceRoomJoinConfig {
     micEnabled: boolean;
     cameraEnabled: boolean;
 }
+
+export class GetUserMediaConfig {
+    /**
+     * muted or unumuted
+     */
+    isAudioEnabled: boolean = false;
+    /**
+     * muted or unumuted
+     */
+    isVideoEnabled: boolean = false;
+
+    // getVideo: boolean = false;
+    // getAudio: boolean = false;
+    constraints: MediaStreamConstraints;
+}

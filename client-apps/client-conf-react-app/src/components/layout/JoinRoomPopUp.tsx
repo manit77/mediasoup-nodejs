@@ -4,7 +4,7 @@ import { useCall } from '../../hooks/useCall';
 import { useNavigate } from 'react-router-dom';
 import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
-import { ConferenceScheduledInfo } from '@conf/conf-models';
+import { ConferenceScheduledInfo, GetUserMediaConfig } from '@conf/conf-models';
 
 
 interface JoinRoomPopUpProps {
@@ -96,6 +96,11 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             localParticipant.tracksInfo.isVideoEnabled = cameraEnabled;
             console.log(`localParticipant.tracksInfo`, localParticipant.tracksInfo);
 
+            let getUserMediaConfig = new GetUserMediaConfig();
+            getUserMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
+            getUserMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
+
+
             if (!localParticipant.stream) {
                 console.error(`stream is null`);
                 ui.showPopUp("error: media stream not initialized");
@@ -105,27 +110,32 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             if (localParticipant?.stream.getTracks().length === 0) {
                 console.log(`media stream not initialized`);
                 ui.showToast("media stream not initialized");
-                let tracks = await getLocalMedia(localParticipant.tracksInfo.isAudioEnabled, localParticipant.tracksInfo.isVideoEnabled);
-                if (tracks.length === 0) {
-                    ui.showPopUp("ERROR: could not start media devices.");
-                    return;
+                //it's not required to have a usermedia in a room, you can be just a listener
+                if (getUserMediaConfig.isAudioEnabled || getUserMediaConfig.isVideoEnabled) {
+                    let tracks = await getLocalMedia(getUserMediaConfig);
+                    if (tracks.length === 0) {
+                        ui.showPopUp("ERROR: could not start media devices.");
+                        return;
+                    }
+                } else {
+                    console.warn(`joining room with no media`);
                 }
             }
 
             console.log('conferenceScheduled', conferenceScheduled);
 
             if (api.isUser()) {
-                createConferenceOrJoin(conferenceScheduled.externalId, conferenceCode, localParticipant.tracksInfo.isAudioEnabled, localParticipant.tracksInfo.isVideoEnabled);
+                createConferenceOrJoin(conferenceScheduled.externalId, conferenceCode);
             } else {
                 if (conferenceScheduled.conferenceId) {
-                    joinConference(conferenceCode, conferenceScheduled, localParticipant.tracksInfo.isAudioEnabled, localParticipant.tracksInfo.isVideoEnabled);
+                    joinConference(conferenceCode, conferenceScheduled);
                 } else {
                     ui.showToast("conference is not active.");
                 }
             }
         } catch (error) {
             console.error('Failed to join conference:', error);
-            ui.showPopUp('Failed to join the conferenceScheduled. Please check the code and try again.');
+            ui.showPopUp('Failed to join the conferenceScheduled. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -152,7 +162,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                         <Form.Label>Conference Room Name:</Form.Label> {conferenceScheduled.name}
                     </Form.Group>
                     {
-                        conferenceScheduled.config && (conferenceScheduled.config.guestsRequireConferenceCode || conferenceScheduled.config.usersRequireConferenceCode )  ? (
+                        conferenceScheduled.config && (conferenceScheduled.config.guestsRequireConferenceCode || conferenceScheduled.config.usersRequireConferenceCode) ? (
                             <Form.Group className="mb-3" controlId="conferenceCode">
                                 <Form.Label>Enter Conference Code:</Form.Label>
                                 <Form.Control

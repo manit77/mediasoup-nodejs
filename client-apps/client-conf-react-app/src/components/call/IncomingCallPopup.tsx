@@ -3,6 +3,7 @@ import { Modal, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../hooks/useUI';
+import { GetUserMediaConfig } from '@conf/conf-models';
 
 const IncomingCallPopup: React.FC = () => {
     const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite, localParticipant, getLocalMedia } = useCall();
@@ -27,23 +28,26 @@ const IncomingCallPopup: React.FC = () => {
 
         localParticipant.tracksInfo.isAudioEnabled = isAudioEnabled;
         localParticipant.tracksInfo.isVideoEnabled = isVideoEnabled;
-        
+
         if (localParticipant?.stream.getTracks().length === 0) {
             console.log(`media stream not initialized`);
             ui.showToast("media stream not initialized");
 
             localParticipant.tracksInfo.isAudioEnabled = true;
             localParticipant.tracksInfo.isVideoEnabled = true;
-            
 
-            let tracks = await getLocalMedia(localParticipant.tracksInfo.isAudioEnabled, localParticipant.tracksInfo.isVideoEnabled);
+            let getUserMediaConfig = new GetUserMediaConfig();
+            getUserMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
+            getUserMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
+
+            let tracks = await getLocalMedia(getUserMediaConfig);
             if (tracks.length === 0) {
                 ui.showPopUp("ERROR: could not start media devices.");
                 return;
             }
         }
 
-        
+
 
 
         await acceptInvite();

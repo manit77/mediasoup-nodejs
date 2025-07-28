@@ -1,5 +1,5 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
-import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, InviteMsg, JoinConferenceParams, ParticipantInfo } from '@conf/conf-models';
+import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, GetUserMediaConfig, InviteMsg, JoinConferenceParams, ParticipantInfo } from '@conf/conf-models';
 import { Conference, conferenceClient, Device, getBrowserDisplayMedia, getBrowserUserMedia, Participant, SelectedDevices } from '@conf/conf-client';
 import { useUI } from '../hooks/useUI';
 import { useAPI } from '../hooks/useAPI';
@@ -30,16 +30,16 @@ interface CallContextType {
     selectedDevices: SelectedDevices;
     setSelectedDevices: React.Dispatch<React.SetStateAction<SelectedDevices>>;
 
-    getLocalMedia: (getAudio: boolean, getVideo: boolean) => Promise<MediaStreamTrack[]>;
+    getLocalMedia: (options: GetUserMediaConfig) => Promise<MediaStreamTrack[]>;
     getMediaConstraints: (getAudio: boolean, getVideo: boolean) => MediaStreamConstraints;
     getConferenceRoomsOnline: () => void;
     getParticipantsOnline: () => void;
 
     createConference: (externalId: string, roomName: string) => void;
-    joinConference: (conferenceCode: string, scheduled: ConferenceScheduledInfo, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => void;
-    createConferenceOrJoin: (externalId: string, conferenceCode: string, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => void;
+    joinConference: (conferenceCode: string, scheduled: ConferenceScheduledInfo) => void;
+    createConferenceOrJoin: (externalId: string, conferenceCode: string) => void;
 
-    sendInvite: (participantInfo: ParticipantInfo, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => Promise<void>;
+    sendInvite: (participantInfo: ParticipantInfo, options: GetUserMediaConfig) => Promise<void>;
     acceptInvite: () => Promise<void>;
     declineInvite: () => void;
     cancelInvite: () => void;
@@ -155,10 +155,29 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return constraints;
     }, [selectedDevices]);
 
-    const getLocalMedia = useCallback(async (getAudio: boolean, getVideo: boolean) => {
+    const getLocalMedia = useCallback(async (options: GetUserMediaConfig) => {
         console.log("getLocalMedia");
 
-        let tracks = await conferenceClient.getNewTracksForLocalParticipant(getMediaConstraints(getAudio, getVideo));
+        if (!options.isAudioEnabled && !options.isVideoEnabled) {
+            ui.showToast(`at least one device must be enabled.`);
+            return;
+        }
+
+        if(!options.constraints) {
+            options.constraints = getMediaConstraints(options.isAudioEnabled, options.isVideoEnabled);
+        }
+
+        const tracks = await conferenceClient.getNewTracksForLocalParticipant(options);
+        const audioTrack = tracks.find(t => t.kind === "audio");
+        if(audioTrack) {
+            audioTrack.enabled = options.isAudioEnabled;
+        }
+
+        const videoTrack = tracks.find(t => t.kind === "video");
+        if(videoTrack) {
+            videoTrack.enabled = options.isVideoEnabled;
+        }
+
         setIsLocalStreamUpdated(true);
         console.log("setIsLocalStreamUpdated");
 
@@ -331,7 +350,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [callParticipants, getConferenceRoomsOnline, ui]);
 
-    const sendInvite = useCallback(async (participantInfo: ParticipantInfo, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => {
+    const sendInvite = useCallback(async (participantInfo: ParticipantInfo, options: GetUserMediaConfig) => {
         console.log(`sendInvite to ${participantInfo.participantId} ${participantInfo.displayName}`);
 
         try {
@@ -357,7 +376,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (localParticipant.current.stream.getTracks().length === 0) {
                 console.log(`media stream not initialized`);
                 ui.showToast("initializing media stream");
-                let tracks = await getLocalMedia(startWithAudioEnabled, startWithVideoEnabled);
+                let tracks = await getLocalMedia(options);
                 if (tracks.length === 0) {
                     ui.showPopUp("ERROR: could not start media devices.");
                     return;
@@ -449,7 +468,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         conferenceClient.createConferenceRoom(createArgs);
     }, []);
 
-    const joinConference = useCallback((conferenceCode: string, scheduled: ConferenceScheduledInfo, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => {
+    const joinConference = useCallback((conferenceCode: string, scheduled: ConferenceScheduledInfo) => {
         console.log("CallContext: joinConference");
 
         if (!scheduled.conferenceId) {
@@ -469,7 +488,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         conferenceClient.joinConferenceRoom(joinArgs)
     }, [api]);
 
-    const createConferenceOrJoin = useCallback((externalId: string, conferenceCode: string, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => {
+    const createConferenceOrJoin = useCallback((externalId: string, conferenceCode: string) => {
         console.log(`CallContext: createConferenceOrJoin externalId:${externalId}, conferenceCode:${conferenceCode}`);
         let createArgs: CreateConferenceParams = {
             conferenceCode: conferenceCode,

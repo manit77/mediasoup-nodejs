@@ -53,7 +53,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         console.log(`onAudioClick.`);
 
         let audioAllowedFor = isAudioAllowedFor(conference, participant);
-        if(!audioAllowedFor) {
+        if (!audioAllowedFor) {
             console.error(`audio is not allowed for ${participant.displayName} ${participant.role}`);
             ui.showToast(`audio not allowed.`);
             return;
@@ -73,17 +73,28 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
 
         // Get the audio track and current enabled state
         let audioTrack = participant.stream.getAudioTracks()[0];
-        if(isLocalParticipant && !audioTrack) {            
+        const currentEnabled = audioTrack ? audioTrack.enabled : false;
+        const newEnabled = !currentEnabled;
+
+        if (isLocalParticipant && !audioTrack) {
+            //there is no audio track published, set the isAudioEnabled to true
+            localParticipant.tracksInfo.isAudioEnabled = true;
+
             //get a new stream for the local participant
             let newStream = await getBrowserUserMedia(getMediaConstraints(true, false));
-            audioTrack = newStream.getVideoTracks()[0];            
-            conferenceClient.publishTracks([audioTrack]);
+            audioTrack = newStream.getAudioTracks()[0];
+            if (audioTrack) {
+                conferenceClient.publishTracks([audioTrack]);
+            } else {
+                console.error(`no audio track to publish`);
+            }
         }
 
-        const currentEnabled = audioTrack ? audioTrack.enabled : false;
-
-        // Calculate the intended new state (toggle)
-        const newEnabled = !currentEnabled;
+        if (!isLocalParticipant && !audioTrack) {
+            console.warn(`remote participant does not have their audio enabled.`);
+            ui.showToast(`participant does not have their audio enabled.`);
+            return;
+        }
 
         // Prevent enabling the mic for a guest if not allowed
         if (newEnabled && targetIsGuest && !conference.conferenceRoomConfig.guestsAllowMic) {
@@ -116,7 +127,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         console.log("onVideoClick ", participant);
 
         let videoAllowedFor = isVideoAllowedFor(conference, participant);
-        if(!videoAllowedFor) {
+        if (!videoAllowedFor) {
             console.error(`video is not allowed for ${participant.displayName} ${participant.role}`);
             ui.showToast(`video not allowed.`);
             return;
@@ -132,21 +143,32 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
             console.log(`Guests cannot mute/unmute remote participants.`);
             ui.showToast(`Guests cannot mute/unmute remote participants.`);
             return;
-        }       
+        }
 
         // Get the video track and current enabled state
         let videoTrack = participant.stream.getVideoTracks()[0];
-        if(isLocalParticipant && !videoTrack) {            
+        const currentEnabled = videoTrack ? videoTrack.enabled : false;
+        const newEnabled = !currentEnabled;
+
+        if (isLocalParticipant && !videoTrack) {
             //get a new stream for the local participant
+            localParticipant.tracksInfo.isVideoEnabled = true;
             let newStream = await getBrowserUserMedia(getMediaConstraints(false, true));
-            videoTrack = newStream.getVideoTracks()[0];            
-            conferenceClient.publishTracks([videoTrack]);
+            videoTrack = newStream.getVideoTracks()[0];
+            if (videoTrack) {
+                conferenceClient.publishTracks([videoTrack]);
+            } else {
+                console.error(`no video track to publish`);
+            }
         }
 
-        const currentEnabled = videoTrack ? videoTrack.enabled : false;
+        if (!isLocalParticipant && !videoTrack) {
+            console.warn(`remote participant does not have their video enabled.`);
+            ui.showToast(`participant does not have their video enabled.`);
+            return;
+        }
 
-        // Calculate the intended new state (toggle)
-        const newEnabled = !currentEnabled;
+
 
         // Prevent enabling the camera for a guest if not allowed
         if (newEnabled && targetIsGuest && !conference.conferenceRoomConfig.guestsAllowCamera) {
@@ -175,7 +197,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         }
     }, [api, conference, localParticipant, muteParticipantTrack, participant, ui, broadCastTrackInfo]);
 
-    
+
     return (
         <Card className={`mb-2 participant-preview ${isSelected ? 'border-primary' : ''}`} onClick={onClick} style={{ cursor: 'pointer' }}>
             <div style={{ position: 'relative', width: '100%', paddingTop: '75%' /* 4:3 Aspect Ratio */ }}>

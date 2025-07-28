@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
-import { ParticipantInfo } from '@conf/conf-models';
+import { GetUserMediaConfig, ParticipantInfo } from '@conf/conf-models';
 import { ArrowRepeat, Circle, CircleFill } from 'react-bootstrap-icons';
 
 const ParticipantsOnlinePane: React.FC = () => {
@@ -33,7 +33,12 @@ const ParticipantsOnlinePane: React.FC = () => {
     const handleContactClick = async (participant: ParticipantInfo) => {
         localParticipant.tracksInfo.isAudioEnabled = true;
         localParticipant.tracksInfo.isVideoEnabled = true;
-        sendInvite(participant, localParticipant.tracksInfo.isAudioEnabled, localParticipant.tracksInfo.isVideoEnabled);
+
+        let getUserMediaConfig = new GetUserMediaConfig();        
+        getUserMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
+        getUserMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
+
+        sendInvite(participant, getUserMediaConfig);
     };
 
     return (

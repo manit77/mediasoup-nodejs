@@ -2,7 +2,7 @@ import {
     AcceptMsg, AcceptResultMsg, CallMessageType, ConferenceClosedMsg, ConferenceReadyMsg,
     ConferenceRoomConfig, ConferenceScheduledInfo, conferenceType, CreateConferenceParams,
     CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg,
-    GetParticipantsResultMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg,
+    GetParticipantsResultMsg, GetUserMediaConfig, InviteCancelledMsg, InviteMsg, InviteResultMsg,
     JoinConferenceParams, JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo,
     RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
@@ -119,28 +119,38 @@ class ConferenceClient {
      * @param constraints 
      * @returns 
      */
-    async getNewTracksForLocalParticipant(constraints: MediaStreamConstraints = { video: true, audio: true }) {
-        console.log(`getNewTracksForLocalParticipant constraints:`, constraints);
+    async getNewTracksForLocalParticipant(options: GetUserMediaConfig): Promise<MediaStreamTrack[]> {
+        console.log(`getNewTracksForLocalParticipant constraints:`, options.constraints);
 
-        let newStream = await getBrowserUserMedia(constraints);
-        let newTracks = newStream.getTracks();
-        this.localParticipant.stream.getTracks().forEach(t => this.localParticipant.stream.removeTrack(t));
-        newTracks.forEach(t => this.localParticipant.stream.addTrack(t));
-        console.log(`new tracks created for localParticipant tracksInfo`, this.localParticipant.tracksInfo);
-
-        let audioTrack = newTracks.find(t => t.kind === "audio");
-        if (audioTrack) {
-            audioTrack.enabled = this.localParticipant.tracksInfo.isAudioEnabled;
-            console.log(`track of type audio enabled set to `, audioTrack.enabled);
+        if (!options.constraints) {
+            options.constraints = { video: true, audio: true };
         }
 
-        let videoTrack = newTracks.find(t => t.kind === "video");
-        if (videoTrack) {
-            videoTrack.enabled = this.localParticipant.tracksInfo.isVideoEnabled;
-            console.log(`track of type video enabled set to `, videoTrack.enabled);
+
+        let newStream = await getBrowserUserMedia(options.constraints);
+        if (newStream) {
+            let newTracks = newStream.getTracks();
+            this.localParticipant.stream.getTracks().forEach(t => this.localParticipant.stream.removeTrack(t));
+            newTracks.forEach(t => this.localParticipant.stream.addTrack(t));
+            console.log(`new tracks created for localParticipant tracksInfo`, this.localParticipant.tracksInfo);
+
+            let audioTrack = newTracks.find(t => t.kind === "audio");
+            if (audioTrack) {
+                audioTrack.enabled = this.localParticipant.tracksInfo.isAudioEnabled;
+                console.log(`track of type audio enabled set to `, audioTrack.enabled);
+            }
+
+            let videoTrack = newTracks.find(t => t.kind === "video");
+            if (videoTrack) {
+                videoTrack.enabled = this.localParticipant.tracksInfo.isVideoEnabled;
+                console.log(`track of type video enabled set to `, videoTrack.enabled);
+            }
+
+            return newTracks;
         }
 
-        return newTracks;
+        console.error('no tracks returned');
+        return [];
     }
 
     /**
@@ -516,7 +526,7 @@ class ConferenceClient {
             console.error("not registered");
             return;
         }
-        
+
         if (this.localParticipant.role === "guest") {
             console.error("guest cannot get participants");
             return;
@@ -562,7 +572,7 @@ class ConferenceClient {
             return null;
         }
 
-        if(!participantId) {
+        if (!participantId) {
             console.error(`participantId is requiried.`);
             return null;
         }
@@ -1099,7 +1109,7 @@ class ConferenceClient {
         this.localParticipant.peerId = "";
 
         //remove all tracks when conference ends.        
-        this.localParticipant.stream.getTracks().forEach(t=> this.localParticipant.stream.removeTrack(t));
+        this.localParticipant.stream.getTracks().forEach(t => this.localParticipant.stream.removeTrack(t));
     }
 
     private resetParticipant() {
