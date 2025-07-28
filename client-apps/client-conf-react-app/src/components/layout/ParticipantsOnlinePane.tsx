@@ -17,7 +17,7 @@ const ParticipantsOnlinePane: React.FC = () => {
 
     // Handle initial loading state
     useEffect(() => {
-        console.log(`isAuthenticated: ${isAuthenticated} isConnected: ${isConnected}`)
+        console.warn(`isAuthenticated: ${isAuthenticated} isConnected: ${isConnected}`)
 
     }, [isAuthenticated, isConnected]);
 

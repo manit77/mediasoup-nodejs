@@ -112,7 +112,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                 }
             }
 
-            console.warn('conferenceScheduled', conferenceScheduled);
+            console.log('conferenceScheduled', conferenceScheduled);
 
             if (api.isUser()) {
                 createConferenceOrJoin(conferenceScheduled.externalId, conferenceCode, localParticipant.tracksInfo.isAudioEnabled, localParticipant.tracksInfo.isVideoEnabled);

@@ -126,10 +126,10 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, []);
 
     const setUpConnections = useCallback(() => {
-        console.warn(`setUpConnections`);
+        console.log(`setUpConnections`);
 
         apiService.onConferencesReceived = async (conferences)=>{
-            console.warn("onConferencesReceived", conferences);
+            console.log("onConferencesReceived", conferences);
             setConferencesScheduled(prev=> conferences);
         };
 

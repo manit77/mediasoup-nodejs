@@ -82,7 +82,7 @@ export class LocalRoom {
         producer.on("@close", () => {
             console.log(`producer - ${producer.track?.kind} closed`);
             this.producers.delete(producer.kind);
-            console.warn(`producer - deleted`);
+            console.log(`producer - deleted`);
         });
 
         producer.on("trackended", () => {

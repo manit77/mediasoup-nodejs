@@ -462,12 +462,12 @@ export class RoomsClient {
         console.log(`publishTracks: track ${track.kind}`);
         let existingTrack = localTracks.find(t => t.kind === track.kind);
         if (existingTrack) {
-          console.warn(`existingTrack of kind ${track.kind}, track must be replaced or unpublished.`);
+          console.log(`existingTrack of kind ${track.kind}, track must be replaced or unpublished.`);
           //swap the track          
           let producer = this.localRoom.getProducers()?.values().find(p => p.kind === track.kind);
           if (producer) {
             await producer.replaceTrack({ track: track });
-            console.warn(`replacing existing track`);
+            console.log(`replacing existing track`);
           }
           return;
         }
@@ -869,7 +869,7 @@ export class RoomsClient {
         let newpeer: Peer = this.createPeer(peerInfo.peerId, peerInfo.peerTrackingId, peerInfo.displayName, peerInfo.trackInfo);
         let producerInfo = peerInfo.producers.map(p => ({ peer: newpeer, producerId: p.producerId, kind: p.kind }));
         this.localRoom.producersToConsume.set(newpeer, producerInfo);
-        console.warn("** onRoomJoinResult producers :" + peerInfo.producers?.length);
+        console.log("** onRoomJoinResult producers :" + peerInfo.producers?.length);
 
       }
     }
@@ -1130,9 +1130,10 @@ export class RoomsClient {
     }
 
     let producersToConsume = this.localRoom.producersToConsume.get(peer);
-
-    for (const producerInfo of producersToConsume) {
-      await this.consumeProducer(peer.peerId, producerInfo.producerId, producerInfo.kind);
+    if (producersToConsume) {
+      for (const producerInfo of producersToConsume.values()) {
+        await this.consumeProducer(peer.peerId, producerInfo.producerId, producerInfo.kind);
+      }
     }
   }
 
@@ -1212,7 +1213,7 @@ export class RoomsClient {
 
     this.localRoom.transportSend.on('produce', ({ kind, rtpParameters }, callback) => {
 
-      console.warn("** sendTransport produce");
+      console.log("** sendTransport produce");
 
       //fires when we call produce with local tracks
       let msg = new RoomProduceStreamMsg();
@@ -1259,25 +1260,25 @@ export class RoomsClient {
 
     if (remotePeerId === this.localPeer.peerId) {
       console.error("consumeProducer() - you can't consume yourself.");
-      return;
+      return false;
     }
 
     if (!this.isInRoom()) {
       console.error("not in a room", this.localRoom);
-      return;
+      return false;
     }
 
     let peer = this.localRoom.peers.get(remotePeerId);
     if (!peer) {
       console.error(`peer not found. ${remotePeerId}`);
-      return;
+      return false;
     }
 
     let consumers = this.localRoom.getConsumers(peer);
     let consumer = consumers.get(kind as MediaKind);
     if (consumer) {
       console.error(`consumer already exists for ${remotePeerId} of type ${kind}`);
-      return;
+      return false;
     }
 
     let msg = new RoomConsumeStreamMsg();
@@ -1287,7 +1288,8 @@ export class RoomsClient {
       producerId: producerId,
       rtpCapabilities: this.device.rtpCapabilities
     }
-    this.send(msg);
+    return this.send(msg);
+
   };
 
   private onConsumed = async (msgIn: RoomConsumeStreamResultMsg) => {

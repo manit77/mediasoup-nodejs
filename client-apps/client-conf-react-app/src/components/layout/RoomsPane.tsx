@@ -30,7 +30,7 @@ const RoomsPane: React.FC = () => {
       setLoading(true);
       let conferences = await fetchConferencesScheduled(); 
       setMergedConferences(conferences);
-      console.warn(conferences);
+      console.log(conferences);
       setLoading(false);
     } catch (error) {
       console.error('Failed to refresh rooms:', error);

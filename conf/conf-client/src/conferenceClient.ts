@@ -46,11 +46,11 @@ class ConferenceClient {
     private config: ConferenceClientConfig;
 
     constructor() {
-        console.warn(`*** new instance of ConferenceClient`);
+        console.log(`*** new instance of ConferenceClient`);
     }
 
     init(config: ConferenceClientConfig) {
-        console.warn(`*** init ConferenceClient`, config);
+        console.log(`*** init ConferenceClient`, config);
         this.config = config;
         this.apiClient = new ConferenceAPIClient(config);
     }
@@ -165,7 +165,7 @@ class ConferenceClient {
             if (kinds.includes(t.kind)) {
                 this.localParticipant.stream.removeTrack(t);
                 t.enabled = false;
-                console.warn(`track ${t.kind} removed from localParticipant and disabled.`);
+                console.log(`track ${t.kind} removed from localParticipant and disabled.`);
             }
         });
 
@@ -207,13 +207,13 @@ class ConferenceClient {
      * @param tracks 
      */
     unPublishTracks(tracks: MediaStreamTrack[]) {
-        console.warn(`unpublishTracks:`, tracks);
+        console.log(`unpublishTracks:`, tracks);
 
         tracks.forEach(track => {
             track.enabled = false;
             track.stop();
             this.localParticipant?.stream?.removeTrack(track);
-            console.warn(`track remoted and stopped ${track.kind}`);
+            console.log(`track remoted and stopped ${track.kind}`);
         });
 
         if (this.roomsClient) {
@@ -302,7 +302,7 @@ class ConferenceClient {
         }
 
         // Connect to WebSocket server
-        console.warn("new socket created, ", this.config);
+        console.log("new socket created, ", this.config);
         this.socket = new WebSocketClient({ enableLogs: this.config.socket_enable_logs });
 
         this.socket.addEventHandler("onopen", async () => {
@@ -336,7 +336,7 @@ class ConferenceClient {
         if (this.username && this.authToken) {
             await this.waitRegisterConnection(this.username, this.authToken);
         } else {
-            console.warn("not credentials registerConnection");
+            console.log("not credentials registerConnection");
         }
 
         await this.onEvent(EventTypes.connected, new OkMsg());
@@ -428,12 +428,12 @@ class ConferenceClient {
     }
 
     isRegistered() {
-        console.warn(`*** isRegistered`, this.socket?.state, this.localParticipant.participantId);
+        console.log(`*** isRegistered`, this.socket?.state, this.localParticipant.participantId);
         return this.socket && this.socket.state === "connected" && this.localParticipant.participantId;
     }
 
     waitRegisterConnection(username: string, authToken: string) {
-        console.warn("waitRegisterConnection");
+        console.log("waitRegisterConnection");
         return new Promise<CreateConfResultMsg>((resolve, reject) => {
             let _onmessage: (event: any) => void;
 
@@ -483,7 +483,7 @@ class ConferenceClient {
      * @param authToken 
      */
     private registerConnection(username: string, authToken: string) {
-        console.warn("registerConnection");
+        console.log("registerConnection");
 
         if (this.isRegistered()) {
             console.error(`connection already registered.`);
@@ -499,7 +499,7 @@ class ConferenceClient {
             return;
         }
 
-        console.warn(`sending server registration`);
+        console.log(`sending server registration`);
 
         // Register with the server
         const registerMsg: RegisterMsg = new RegisterMsg();
@@ -514,6 +514,11 @@ class ConferenceClient {
 
         if (!this.isRegistered()) {
             console.error("not registered");
+            return;
+        }
+        
+        if (this.localParticipant.role === "guest") {
+            console.error("guest cannot get participants");
             return;
         }
 
@@ -554,6 +559,11 @@ class ConferenceClient {
 
         if (this.inviteSendMsg || this.inviteReceivedMsg) {
             console.error(`pending invite message`);
+            return null;
+        }
+
+        if(!participantId) {
+            console.error(`participantId is requiried.`);
             return null;
         }
 
@@ -616,7 +626,7 @@ class ConferenceClient {
      * @returns 
      */
     waitCreateConferenceRoom(args: CreateConferenceParams) {
-        console.warn(`waitCreateConferenceRoom externalId: ${args.externalId}, roomName: ${args.roomName}, conferenceCode: ${args.conferenceCode}`);
+        console.log(`waitCreateConferenceRoom externalId: ${args.externalId}, roomName: ${args.roomName}, conferenceCode: ${args.conferenceCode}`);
         return new Promise<CreateConfResultMsg>((resolve, reject) => {
 
             if (!this.isRegistered()) {
@@ -736,7 +746,7 @@ class ConferenceClient {
     }
 
     async waitCreateAndJoinConference(createArgs: CreateConferenceParams, joinArgs: JoinConferenceParams) {
-        console.warn(`waitCreateAndJoinConference`, createArgs, joinArgs);
+        console.log(`waitCreateAndJoinConference`, createArgs, joinArgs);
 
         try {
             if (!this.isRegistered()) {
@@ -1122,7 +1132,7 @@ class ConferenceClient {
     }
 
     private async onRegisterResult(message: RegisterResultMsg) {
-        console.warn("onRegisterResult");
+        console.log("onRegisterResult");
 
         if (message.data.error) {
             console.error(message.data.error);
@@ -1131,7 +1141,7 @@ class ConferenceClient {
             this.localParticipant.participantId = message.data.participantId;
             this.localParticipant.displayName = message.data.username;
             this.localParticipant.role = message.data.role;
-            console.warn('*** Registered with participantId:', this.localParticipant);
+            console.log('*** Registered with participantId:', this.localParticipant);
             await this.onEvent(EventTypes.registerResult, message);
 
             this.getParticipantsOnline();

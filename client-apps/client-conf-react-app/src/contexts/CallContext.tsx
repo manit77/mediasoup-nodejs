@@ -65,7 +65,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { config } = useConfig();
 
     const [isConnected, setIsConnected] = useState<boolean>(conferenceClient.isConnected);
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(conferenceClient.isConnected && conferenceClient.localParticipant.peerId ? true : false);
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(conferenceClient.isConnected && conferenceClient.localParticipant.participantId ? true : false);
     const [isLoggedOff, setIsLoggedOff] = useState<boolean>(false);
 
     const localParticipant = useRef<Participant>(conferenceClient.localParticipant);
@@ -88,7 +88,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         //init all default values
         setIsConnected(conferenceClient.isConnected);
-        setIsAuthenticated(conferenceClient.isConnected && conferenceClient.localParticipant.peerId ? true : false);
+        setIsAuthenticated(conferenceClient.isConnected && conferenceClient.localParticipant.participantId ? true : false);
         localParticipant.current = conferenceClient.localParticipant;
         setIsCallActive(conferenceClient.isInConference());
         setConferenceRoom(conferenceClient.conference);
@@ -187,7 +187,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         conferenceClient.onEvent = async (eventType: EventTypes, msgIn: IMsg) => {
             switch (eventType) {
                 case EventTypes.registerResult:
-                    if (!msgIn.data.error) {
+                    console.warn("CallContext: registerResult", msgIn.data);
+                    if (msgIn.data.error) {
                         console.log("CallContext: onRegisterFailed: error", msgIn.data.error);
                         setIsAuthenticated(false);
                         ui.showPopUp(`socket registration failed. ${msgIn.data.error}`);
@@ -595,7 +596,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         if (!audioChanged && !videoChanged) {
-            console.warn(`no changes to devices.`);
+            console.log(`no changes to devices.`);
             return;
         }
 
@@ -609,7 +610,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             delete constraints.video;
         }
 
-        console.warn(`constraints:`, constraints);
+        console.log(`constraints:`, constraints);
 
         let newStream = await getBrowserUserMedia(constraints);
         await conferenceClient.publishTracks(newStream.getTracks());;

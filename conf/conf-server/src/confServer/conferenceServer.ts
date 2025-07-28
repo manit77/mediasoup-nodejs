@@ -288,21 +288,25 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         return msg;
     }
 
-    async broadCastParticipants(exceptParticipant: Participant) {
+    async broadCastParticipants(exceptParticipant?: Participant) {
 
-        consoleLog("broadCastParticipants");
-        //broadcast to all participants of contacts
-        let contactsMsg = new GetParticipantsResultMsg();
-        contactsMsg.data.participants = [...this.participants.values()].map(p => ({
+        console.warn("broadCastParticipants except", exceptParticipant);
+        //broadcast to all participants of contacts        
+        const allPartsInfo = [...this.participants.values()].map(p => ({
             participantId: p.participantId,
             displayName: p.displayName,
             status: "online"
         }) as ParticipantInfo);
 
-        for (let [id, p] of this.participants.entries()) {
-            if (exceptParticipant != p && p.role !== "guest") {
-                this.send(p, contactsMsg);
-            }
+        console.log('allPartsInfo[]', allPartsInfo);
+
+        const allPartsExceptArr = [...this.participants.values()].filter(p => exceptParticipant && p.participantId != exceptParticipant.participantId);
+        for (const p of allPartsExceptArr) {
+            //do not send the participant info back to self
+            const contactsMsg = new GetParticipantsResultMsg();
+            contactsMsg.data.participants = allPartsInfo.filter(partInfo => partInfo.participantId != p.participantId);
+            console.warn(`send contactsMsg to ${p.displayName}`, contactsMsg);
+            this.send(p, contactsMsg);
         }
 
     }
@@ -403,11 +407,6 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return errorMsg;
         }
 
-        // if (caller.role === "guest") {
-        //     consoleError("guest cannot send an invite.");
-        //     return;
-        // }
-
         let remote = this.getParticipant(msgIn.data.participantId);
         if (!remote) {
             consoleError("remote participant not found.");
@@ -426,6 +425,16 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
             return errorMsg;
         }
+
+        if (participant.participantId === msgIn.data.participantId) {
+            consoleError(`cannot invite self`);
+
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.error = "invalid participantId.";
+
+            return errorMsg;
+        }
+
 
         let conference = this.getOrCreateConference();
         conference.confType = "p2p";
@@ -948,7 +957,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
     }
 
     async getConferences(): Promise<ConferenceScheduledInfo[]> {
-        consoleLog("getConferences");
+        //consoleLog("getConferences");
         return [...this.conferences.values()]
             .map(c => {
                 let newc = {
