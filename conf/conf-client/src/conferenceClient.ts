@@ -1,6 +1,6 @@
 import {
     AcceptMsg, AcceptResultMsg, CallMessageType, ConferenceClosedMsg, ConferenceReadyMsg,
-    ConferenceRoomConfig, ConferenceRoomInfo, conferenceType, CreateConferenceParams,
+    ConferenceRoomConfig, ConferenceScheduledInfo, conferenceType, CreateConferenceParams,
     CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg,
     GetParticipantsResultMsg, InviteCancelledMsg, InviteMsg, InviteResultMsg,
     JoinConferenceParams, JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo,
@@ -26,7 +26,7 @@ class ConferenceClient {
     callState: callStates = "disconnected";
 
     public participantsOnline: ParticipantInfo[] = [];
-    public conferencesOnline: ConferenceRoomInfo[] = [];
+    public conferencesOnline: ConferenceScheduledInfo[] = [];
     private roomsClient: RoomsClient;
     private roomsClientDisconnectTimerId: any;
 

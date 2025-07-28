@@ -12,7 +12,7 @@ export function getDemoSchedules() {
     scheduled[1].description = "scheduled conference Room 2";
     scheduled[1].config = new ConferenceRoomConfig();
     scheduled[1].config.conferenceCode = "2222";
-    scheduled[1].config.requireConferenceCode = true;
+    scheduled[1].config.guestsRequireConferenceCode = true;
 
     scheduled[2].externalId = "3";
     scheduled[2].name = "Room 3";
@@ -21,6 +21,8 @@ export function getDemoSchedules() {
     scheduled[2].config.guestsAllowCamera = false;
     scheduled[2].config.guestsAllowMic = false;
     scheduled[2].config.conferenceCode = "3333";
-    scheduled[2].config.requireConferenceCode = true;
+    scheduled[2].config.guestsRequireConferenceCode = true;
+    scheduled[2].config.usersRequireConferenceCode = true;
+
     return scheduled;
 }

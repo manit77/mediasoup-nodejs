@@ -44,12 +44,13 @@ export interface JoinConferenceParams {
 export class ConferenceRoomConfig {
     roomTimeoutSecs: number = 60 * 60;
     conferenceCode: string = "";
-    requireConferenceCode: boolean = false;
     usersMax = 99;
+    usersRequireConferenceCode: boolean = false;
     guestsMax: number = 99;
     guestsAllowed = true;
     guestsAllowMic: boolean = true;
     guestsAllowCamera: boolean = true;
+    guestsRequireConferenceCode: boolean = false;
 }
 
 export class ConferenceScheduledInfo {

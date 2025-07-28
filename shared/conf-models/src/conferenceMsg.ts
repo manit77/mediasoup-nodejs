@@ -1,4 +1,4 @@
-import { ConferenceRoomConfig, ConferenceRoomInfo, ConferenceScheduledInfo, conferenceType, ParticipantInfo, ParticipantRole } from "./conferenceModels.js";
+import { ConferenceRoomConfig, ConferenceScheduledInfo, conferenceType, ParticipantInfo, ParticipantRole } from "./conferenceModels.js";
 
 export enum CallMessageType {
 
@@ -123,7 +123,7 @@ export class GetConferencesScheduledResultMsg implements IMsg {
 export class GetConferencesResultMsg implements IMsg {
     type = CallMessageType.getConferencesResult;
     data: {
-        conferences: ConferenceRoomInfo[],
+        conferences: ConferenceScheduledInfo[],
         error?: string,
     } = { conferences: [] }
 }

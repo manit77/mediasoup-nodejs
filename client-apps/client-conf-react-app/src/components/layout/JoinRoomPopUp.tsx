@@ -4,12 +4,11 @@ import { useCall } from '../../hooks/useCall';
 import { useNavigate } from 'react-router-dom';
 import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
+import { ConferenceScheduledInfo } from '@conf/conf-models';
 
-
-import { ConferenceRoomScheduled } from '../../types';
 
 interface JoinRoomPopUpProps {
-    conferenceScheduled: ConferenceRoomScheduled;
+    conferenceScheduled: ConferenceScheduledInfo;
     show: boolean;
     onClose: () => void;
 }
@@ -150,10 +149,10 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             <Modal.Body>
                 <Form onSubmit={handleJoinRoom}>
                     <Form.Group className="mb-3" controlId="roomName">
-                        <Form.Label>Conference Room Name:</Form.Label> {conferenceScheduled.roomName}
+                        <Form.Label>Conference Room Name:</Form.Label> {conferenceScheduled.name}
                     </Form.Group>
                     {
-                        conferenceScheduled.config && conferenceScheduled.config.requireConferenceCode ? (
+                        conferenceScheduled.config && (conferenceScheduled.config.guestsRequireConferenceCode || conferenceScheduled.config.usersRequireConferenceCode )  ? (
                             <Form.Group className="mb-3" controlId="conferenceCode">
                                 <Form.Label>Enter Conference Code:</Form.Label>
                                 <Form.Control

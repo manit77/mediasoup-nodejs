@@ -16,12 +16,12 @@ import {
     ConferenceRoomConfig,
     GetParticipantsResultMsg,
     ParticipantInfo,
-    ConferenceRoomInfo,
     GetConferencesMsg,
     GetConferencesResultMsg,
     ConferenceClosedMsg,
     GetParticipantsMsg,
-    ParticipantRole
+    ParticipantRole,
+    ConferenceScheduledInfo
 } from '@conf/conf-models';
 import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
@@ -310,17 +310,21 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
     async broadCastConferenceRooms() {
         consoleLog("broadCastConferenceRooms");
 
-        //broadcast to all participants of conferences that have a trackingId
         let msg = new GetConferencesResultMsg();
-        msg.data.conferences = [...this.conferences.values()].filter(c => c.externalId).map(c => ({
-            conferenceId: c.id,
-            externalId: c.externalId,
-            roomId: c.roomId,
-            roomName: c.roomName,
-            roomStatus: c.status,
-            roomTrackingId: c.id,
-            participantCount: c.participants.size
-        }) as ConferenceRoomInfo);
+        msg.data.conferences = [...this.conferences.values()].filter(c => c.externalId).map(c => {
+            let newc = {
+                conferenceId: c.id,
+                config: c.config,
+                description: "",
+                externalId: c.externalId,
+                name: c.roomName
+            } as ConferenceScheduledInfo;
+
+            //remove the conference code
+            newc.config.conferenceCode = "";
+
+            return newc;
+        });
 
         for (let [id, p] of this.participants.entries()) {
             this.send(p, msg);
@@ -624,7 +628,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                     confConfig.guestsAllowMic = resultMsg.data.conference.config.guestsAllowMic;
                     confConfig.guestsAllowed = resultMsg.data.conference.config.guestsAllowed;
                     confConfig.guestsMax = resultMsg.data.conference.config.guestsMax;
-                    confConfig.requireConferenceCode = resultMsg.data.conference.config.conferenceCode ? true : false;
+                    confConfig.guestsRequireConferenceCode = resultMsg.data.conference.config.conferenceCode ? true : false;
                     confConfig.roomTimeoutSecs = 0;
                     confConfig.usersMax = 0;
 
@@ -639,7 +643,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                     confConfig.guestsAllowMic = demoSchedule.config.guestsAllowMic;
                     confConfig.guestsAllowed = demoSchedule.config.guestsAllowed;
                     confConfig.guestsMax = demoSchedule.config.guestsMax;
-                    confConfig.requireConferenceCode = demoSchedule.config.requireConferenceCode;
+                    confConfig.guestsRequireConferenceCode = demoSchedule.config.guestsRequireConferenceCode;
                     confConfig.roomTimeoutSecs = 0;
                     confConfig.usersMax = 0;
 
@@ -647,14 +651,24 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 }
             }
 
-            if (participant.role !== ParticipantRole.admin) {
-                if (confConfig.requireConferenceCode && confConfig.conferenceCode != msgIn.data.conferenceCode) {
+            if (participant.role === ParticipantRole.guest) {
+                if (confConfig.guestsRequireConferenceCode && confConfig.conferenceCode != msgIn.data.conferenceCode) {
                     consoleError("invalid conference code");
                     let errorMsg = new CreateConfResultMsg();
                     errorMsg.data.error = "invalid conference code.";
                     return errorMsg;
                 }
             }
+
+            if (participant.role === ParticipantRole.user) {
+                if (confConfig.usersRequireConferenceCode && confConfig.conferenceCode != msgIn.data.conferenceCode) {
+                    consoleError("invalid conference code");
+                    let errorMsg = new CreateConfResultMsg();
+                    errorMsg.data.error = "invalid conference code.";
+                    return errorMsg;
+                }
+            }
+
         }
 
         let conference = participant.conference;
@@ -744,7 +758,16 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         //check the conference code
-        if (conference.config.requireConferenceCode && conference.config.conferenceCode && conference.config.conferenceCode !== msgIn.data.conferenceCode) {
+        if (participant.role == "guest" && conference.config.guestsRequireConferenceCode && conference.config.conferenceCode && conference.config.conferenceCode !== msgIn.data.conferenceCode) {
+            consoleError(`invalid conference code: ${msgIn.data.conferenceCode}`);
+
+            let errorMsg = new JoinConfResultMsg();
+            errorMsg.data.error = "invalid conference code";
+
+            return errorMsg;
+        }
+
+        if (participant.role == "user" && conference.config.usersRequireConferenceCode && conference.config.conferenceCode && conference.config.conferenceCode !== msgIn.data.conferenceCode) {
             consoleError(`invalid conference code: ${msgIn.data.conferenceCode}`);
 
             let errorMsg = new JoinConfResultMsg();
@@ -924,19 +947,21 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         return returnMsg;
     }
 
-    async getConferences(): Promise<ConferenceRoomInfo[]> {
+    async getConferences(): Promise<ConferenceScheduledInfo[]> {
         consoleLog("getConferences");
         return [...this.conferences.values()]
             .map(c => {
-                return {
+                let newc = {
                     conferenceId: c.id,
                     externalId: c.externalId,
-                    roomId: c.roomId,
-                    roomName: c.roomName,
-                    roomStatus: c.status,
-                    roomTrackingId: c.externalId,
-                    participantCount: c.participants.size
-                };
+                    config: c.config,
+                    description: "",
+                    name: c.roomName
+                } as ConferenceScheduledInfo;
+
+                newc.config.conferenceCode = "";
+
+                return newc;
             });
     }
 
