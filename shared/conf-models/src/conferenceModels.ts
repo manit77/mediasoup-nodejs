@@ -52,16 +52,8 @@ export class ConferenceRoomConfig {
     guestsAllowCamera: boolean = true;
 }
 
-export class ConferenceRoomInfo {
-    conferenceId: string = "";
-    externalId: string = "";
-    roomId: string = "";
-    roomName: string = "";
-    roomStatus: string = "";
-    participantCount = 0;
-}
-
 export class ConferenceScheduledInfo {
+    conferenceId: string = "";
     externalId: string = "";
     name: string = "";
     description: string = "";

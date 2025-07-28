@@ -5,32 +5,3 @@ export interface User {
     authToken: string;
     clientData: {};
 }
-
-export class ConferenceRoomScheduled {
-    /**
-     * third party unique id, this will always have a value
-     */
-    externalId: string = "";
-    conferenceId: string = "";
-    roomId: string = "";
-    roomStatus: string = "";
-    roomName: string = "";
-    roomDescription: string = "";
-    config: {
-        roomTimeoutSecs: number;
-        conferenceCode: string;
-        requireConferenceCode: boolean;
-        usersMax: number;
-        guestsMax: number;
-        guestsAllowed: boolean;
-        guestsAllowMic: boolean;
-        guestsAllowCamera: boolean;
-    }
-
-    constructor(externalId: string, name: string) {
-        this.externalId = externalId;
-        this.roomName = name;
-    }
-
-
-}

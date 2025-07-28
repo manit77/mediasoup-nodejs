@@ -1,6 +1,5 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
-import { ConferenceRoomScheduled } from '../types';
-import { ConferenceClosedMsg, ConferenceRoomInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, InviteMsg, JoinConferenceParams, ParticipantInfo } from '@conf/conf-models';
+import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, InviteMsg, JoinConferenceParams, ParticipantInfo } from '@conf/conf-models';
 import { Conference, conferenceClient, Device, getBrowserDisplayMedia, getBrowserUserMedia, Participant, SelectedDevices } from '@conf/conf-client';
 import { useUI } from '../hooks/useUI';
 import { useAPI } from '../hooks/useAPI';
@@ -22,7 +21,7 @@ interface CallContextType {
 
     isScreenSharing: boolean;
     participantsOnline: ParticipantInfo[];
-    conferencesOnline: ConferenceRoomInfo[];
+    conferencesOnline: ConferenceScheduledInfo[];
     inviteInfoSend: InviteMsg;
     inviteInfoReceived: InviteMsg;
     setInviteInfoSend: React.Dispatch<React.SetStateAction<InviteMsg>>;
@@ -37,7 +36,7 @@ interface CallContextType {
     getParticipantsOnline: () => void;
 
     createConference: (externalId: string, roomName: string) => void;
-    joinConference: (conferenceCode: string, scheduled: ConferenceRoomScheduled, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => void;
+    joinConference: (conferenceCode: string, scheduled: ConferenceScheduledInfo, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => void;
     createConferenceOrJoin: (externalId: string, conferenceCode: string, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => void;
 
     sendInvite: (participantInfo: ParticipantInfo, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => Promise<void>;
@@ -77,7 +76,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [selectedDevices, setSelectedDevices] = useState<SelectedDevices>(conferenceClient.selectedDevices);
 
     const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>(conferenceClient.participantsOnline);
-    const [conferencesOnline, setConferencesOnline] = useState<ConferenceRoomInfo[]>(conferenceClient.conferencesOnline);
+    const [conferencesOnline, setConferencesOnline] = useState<ConferenceScheduledInfo[]>(conferenceClient.conferencesOnline);
     const [inviteInfoSend, setInviteInfoSend] = useState<InviteMsg | null>(conferenceClient.inviteSendMsg);
     const [inviteInfoReceived, setInviteInfoReceived] = useState<InviteMsg | null>(conferenceClient.inviteReceivedMsg);
 
@@ -234,17 +233,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 case EventTypes.conferencesReceived: {
                     const msg = msgIn as GetConferencesScheduledResultMsg
                     console.log("CallContext: onConferencesReceived", msg.data.conferences);
-                    setConferencesOnline(msg.data.conferences.map(c => {
-                        return {
-                            conferenceId: "",
-                            externalId: c.externalId,
-                            participantCount: 0,
-                            roomId: "",
-                            roomName: c.name,
-                            roomStatus: ""
-                        } as ConferenceRoomInfo
-
-                    }));
+                    setConferencesOnline(msg.data.conferences);
                     break;
                 }
                 case EventTypes.participantNewTrack: {
@@ -459,7 +448,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         conferenceClient.createConferenceRoom(createArgs);
     }, []);
 
-    const joinConference = useCallback((conferenceCode: string, scheduled: ConferenceRoomScheduled, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => {
+    const joinConference = useCallback((conferenceCode: string, scheduled: ConferenceScheduledInfo, startWithAudioEnabled: boolean, startWithVideoEnabled: boolean) => {
         console.log("CallContext: joinConference");
 
         if (!scheduled.conferenceId) {

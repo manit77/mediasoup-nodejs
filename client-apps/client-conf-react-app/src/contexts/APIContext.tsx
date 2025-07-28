@@ -1,8 +1,9 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import { ConferenceRoomScheduled, User } from '../types';
 import { apiService, LoginResponse } from '../services/ApiService';
 import { useConfig } from '../hooks/useConfig';
 import { conferenceClient } from '@conf/conf-client';
+import { ConferenceScheduledInfo } from '@conf/conf-models';
+import { User } from '../types';
 
 interface APIContextType {
     isAuthenticated: boolean;
@@ -12,10 +13,10 @@ interface APIContextType {
     loginGuest: (displayName: string, clientData: {}) => Promise<LoginResponse>;
     login: (username: string, password: string, clientData: {}) => Promise<LoginResponse>;
     logout: () => {};
-    fetchConferencesScheduled: () => Promise<ConferenceRoomScheduled[]>;
+    fetchConferencesScheduled: () => Promise<ConferenceScheduledInfo[]>;
     getCurrentUser: () => User | null;
-    conferencesScheduled: ConferenceRoomScheduled[];
-    setConferencesScheduled: React.Dispatch<React.SetStateAction<ConferenceRoomScheduled[]>>;
+    conferencesScheduled: ConferenceScheduledInfo[];
+    setConferencesScheduled: React.Dispatch<React.SetStateAction<ConferenceScheduledInfo[]>>;
     getClientData: () => {};
 }
 
@@ -25,7 +26,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let { config } = useConfig();
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceRoomScheduled[]>(apiService.conferencesScheduled);
+    const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceScheduledInfo[]>(apiService.conferencesScheduled);
 
     useEffect(() => {
         apiService.init(config);
@@ -118,21 +119,26 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, []);
 
-    const fetchConferencesScheduled = useCallback(async (): Promise<ConferenceRoomScheduled[]> => {
+    const fetchConferencesScheduled = useCallback(async (): Promise<ConferenceScheduledInfo[]> => {
         console.log("fetchConferencesScheduled");
-        let conferences = await apiService.fetchConferencesScheduled();
-        setConferencesScheduled(conferences);
+        let conferences = await apiService.fetchConferencesScheduled();        
         return conferences;
     }, []);
 
     const setUpConnections = useCallback(() => {
-        console.log(`setUpConnections`);
+        console.warn(`setUpConnections`);
+
+        apiService.onConferencesReceived = async (conferences)=>{
+            console.warn("onConferencesReceived", conferences);
+            setConferencesScheduled(prev=> conferences);
+        };
 
         let user = apiService.getUser();
         if (user) {
             conferenceClient.connect(user.username, user.authToken);
             fetchConferencesScheduled();
             apiService.startFetchConferencesScheduled();
+            
         }
     }, [fetchConferencesScheduled]);
 

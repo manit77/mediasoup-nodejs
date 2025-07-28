@@ -3,41 +3,40 @@ import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
-import { ConferenceRoomScheduled } from '../../types';
 import { ArrowRepeat, Circle, CircleFill } from 'react-bootstrap-icons';
 import JoinRoomPopUp from './JoinRoomPopUp';
+import { ConferenceScheduledInfo } from '@conf/conf-models';
 
 const RoomsPane: React.FC = () => {
-  const { isAuthenticated, isCallActive, inviteInfoSend, conferencesOnline, getConferenceRoomsOnline, } = useCall();
-  const { isAdmin, isUser, conferencesScheduled, fetchConferencesScheduled, getCurrentUser } = useAPI();
+  const { isAuthenticated, isCallActive, inviteInfoSend, conferencesOnline } = useCall();
+  const { isAdmin, isUser, conferencesScheduled, fetchConferencesScheduled } = useAPI();
   const ui = useUI();
 
   const [loading, setLoading] = useState(false);
-  const [mergedConferences, setMergedConferences] = useState<ConferenceRoomScheduled[]>([]);
+  const [mergedConferences, setMergedConferences] = useState<ConferenceScheduledInfo[]>([]);
 
   // State to control the visibility of the JoinRoomPopUp
   const [showJoinPopUp, setShowJoinPopUp] = useState(false);
   // State to hold the conference selected by the user to join
-  const [selectedConferenceToJoin, setSelectedConferenceToJoin] = useState<ConferenceRoomScheduled | null>(null);
+  const [selectedConferenceToJoin, setSelectedConferenceToJoin] = useState<ConferenceScheduledInfo | null>(null);
 
   useEffect(() => {
-    console.log("RoomsPane mounted");
-    return () => console.log("RoomsPane unmounted");
-  }, []);
+    setMergedConferences(conferencesScheduled);
+  }, [conferencesScheduled]);
 
   const handleRefreshRooms = useCallback(async () => {
     console.log('handleRefreshRooms:');
     try {
       setLoading(true);
-      // Fetch both scheduled and online conferences
-      await fetchConferencesScheduled(); // Make sure this actually fetches data
-      getConferenceRoomsOnline(); // Assuming this fetches data for conferencesOnline
+      let conferences = await fetchConferencesScheduled(); 
+      setMergedConferences(conferences);
+      console.warn(conferences);
       setLoading(false);
     } catch (error) {
       console.error('Failed to refresh rooms:', error);
-      setLoading(false); // Ensure loading is reset even on error
+      setLoading(false); 
     }
-  }, [fetchConferencesScheduled, getConferenceRoomsOnline]); // Added getConferenceRoomsOnline to deps
+  }, [fetchConferencesScheduled]);
 
   useEffect(() => {
     // Initial load of conference rooms
@@ -47,7 +46,7 @@ const RoomsPane: React.FC = () => {
     }
   }, [handleRefreshRooms, isAuthenticated]);
 
-  useEffect(() => {
+    useEffect(() => {
     // Merge whenever either data source changes
     console.log("Merging conferences ", conferencesOnline, conferencesScheduled);
 
@@ -58,16 +57,16 @@ const RoomsPane: React.FC = () => {
         const conf = conferencesOnline.find(conf => scheduled.externalId === conf.externalId);
         return {
           ...scheduled,
-          conferenceId: conf?.conferenceId || undefined, // Ensure it's undefined if not found
-          roomStatus: conf?.roomStatus || "",
+          conferenceId: conf?.conferenceId || undefined
         };
       });
       setMergedConferences(merged);
     }
-  }, [conferencesOnline, conferencesScheduled]);
+  }, [conferencesOnline]);
+
 
   // Function to handle showing the JoinRoomPopUp
-  const handleShowJoinPopUp = (conference: ConferenceRoomScheduled) => {
+  const handleShowJoinPopUp = (conference: ConferenceScheduledInfo) => {
 
     if (isAdmin() || isUser() || conference.conferenceId) {
       setSelectedConferenceToJoin(conference);
@@ -75,18 +74,17 @@ const RoomsPane: React.FC = () => {
       return;
     } else {
       console.log(`conference not started. guests cannot create a room.`);
-      ui.showToast(`conference ${conference.roomName} not started`);      
+      ui.showToast(`conference ${conference.name} not started`);      
     }
 
   };
 
-  // Function to handle closing the JoinRoomPopUp
   const handleCloseJoinPopUp = () => {
     setShowJoinPopUp(false);
-    setSelectedConferenceToJoin(null); // Clear selected conference
+    setSelectedConferenceToJoin(null);
   };
 
-  const handleScheduledConferenceClick = async (scheduledConference: ConferenceRoomScheduled) => {    
+  const handleScheduledConferenceClick = async (scheduledConference: ConferenceScheduledInfo) => {    
     console.log(`handleScheduledConferenceClick`, scheduledConference);
 
     handleShowJoinPopUp(scheduledConference);
@@ -116,9 +114,9 @@ const RoomsPane: React.FC = () => {
               // Disable if a call is active or an invite is pending
               disabled={isCallActive || !!inviteInfoSend}
             >
-              {schedule.roomName}
-              <Badge pill bg={schedule.roomStatus === 'ready' ? 'success' : 'secondary'} className="ms-2">
-                {schedule.roomStatus === 'ready' ? (
+              {schedule.name}
+              <Badge pill bg={schedule.conferenceId ? 'success' : 'secondary'} className="ms-2">
+                {schedule.conferenceId ? (
                   <>
                     <CircleFill /> Active
                   </>

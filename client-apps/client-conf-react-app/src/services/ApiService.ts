@@ -1,6 +1,7 @@
-import { User, ConferenceRoomScheduled } from '../types';
+import { User } from '../types';
 import { ConferenceAPIClient } from '@conf/conf-client';
 import { ConferenceClientConfig } from '@conf/conf-client/src/models';
+import { ConferenceScheduledInfo } from '@conf/conf-models';
 
 export interface LoginResponse {
     user: User;
@@ -9,8 +10,10 @@ export interface LoginResponse {
 
 class ApiService {
     conferenceAPIClient: ConferenceAPIClient;
-    conferencesScheduled: ConferenceRoomScheduled[] = [];
+    conferencesScheduled: ConferenceScheduledInfo[] = [];
     startFetchConferencesScheduledTimerId = null;
+
+    onConferencesReceived = (conferences: ConferenceScheduledInfo[]) => { };
 
     init(config: ConferenceClientConfig) {
         this.conferenceAPIClient = new ConferenceAPIClient(config);
@@ -110,7 +113,7 @@ class ApiService {
         return this.getUser()?.clientData;
     }
 
-    fetchConferencesScheduled = async (): Promise<ConferenceRoomScheduled[]> => {
+    fetchConferencesScheduled = async (): Promise<ConferenceScheduledInfo[]> => {
         // console.log("fetchConferencesScheduled", this.conferenceAPIClient?.clientData);
 
         if (!this.conferenceAPIClient) {
@@ -126,23 +129,8 @@ class ApiService {
             return this.conferencesScheduled;
         }
 
-        this.conferencesScheduled = result.data.conferences.map(c => ({
-            externalId: c.externalId,
-            roomName: c.name,
-            roomDescription: c.description,
-            config: {
-                conferenceCode: c.config.conferenceCode,
-                guestsAllowCamera: c.config.guestsAllowCamera,
-                guestsAllowed: c.config.guestsAllowed,
-                guestsAllowMic: c.config.guestsAllowMic,
-                guestsMax: c.config.guestsMax,
-                requireConferenceCode: c.config.requireConferenceCode,
-                roomTimeoutSecs: c.config.roomTimeoutSecs,
-                usersMax: c.config.usersMax
-            }
-        } as ConferenceRoomScheduled));
-
-        //console.log(`ConferenceRoomScheduled:`, this.conferencesScheduled);
+        this.conferencesScheduled = result.data.conferences;
+        this.onConferencesReceived(this.conferencesScheduled);
 
         return this.conferencesScheduled;
     };
