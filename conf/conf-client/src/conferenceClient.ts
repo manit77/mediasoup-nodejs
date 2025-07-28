@@ -563,7 +563,7 @@ class ConferenceClient {
         }
 
         if (this.isInConference()) {
-            console.error("invite() - already in a conference.");
+            console.error("invite() - already in a conference.", this.conference);
             return null;
         }
 

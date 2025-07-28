@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { GetUserMediaConfig, ParticipantInfo } from '@conf/conf-models';
-import { ArrowRepeat, Circle, CircleFill } from 'react-bootstrap-icons';
+import { ArrowRepeat, CameraVideoFill, Circle, CircleFill, MicFill, Phone } from 'react-bootstrap-icons';
 
 const ParticipantsOnlinePane: React.FC = () => {
     const {
@@ -30,11 +30,13 @@ const ParticipantsOnlinePane: React.FC = () => {
         }
     };
 
-    const handleContactClick = async (participant: ParticipantInfo) => {
-        localParticipant.tracksInfo.isAudioEnabled = true;
-        localParticipant.tracksInfo.isVideoEnabled = true;
+    const handleContactClick = async (participant: ParticipantInfo, audioCall: boolean, videoCall: boolean) => {
 
-        let getUserMediaConfig = new GetUserMediaConfig();        
+        //default to audio call
+        localParticipant.tracksInfo.isAudioEnabled = audioCall;
+        localParticipant.tracksInfo.isVideoEnabled = videoCall;
+
+        let getUserMediaConfig = new GetUserMediaConfig();
         getUserMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
         getUserMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
 
@@ -59,11 +61,14 @@ const ParticipantsOnlinePane: React.FC = () => {
                         <ListGroup.Item
                             key={participantInfo.participantId}
                             action
-                            onClick={() => handleContactClick(participantInfo)}
+                            onClick={(event) => { event.preventDefault(); handleContactClick(participantInfo, true, false); }}
                             className="d-flex justify-content-between align-items-center"
                             disabled={isCallActive || !!inviteInfoSend}
                         >
                             {participantInfo.displayName}
+                            <MicFill onClick={(event) => { event.stopPropagation(); event.preventDefault(); handleContactClick(participantInfo, true, false); }}></MicFill>
+                            <CameraVideoFill onClick={(event) => {  event.stopPropagation();  event.preventDefault(); handleContactClick(participantInfo, true, true); }}></CameraVideoFill>
+
                             <Badge pill bg={participantInfo.participantId ? 'success' : 'secondary'} className="ms-2">
                                 {participantInfo.participantId ? (
                                     <>
@@ -72,7 +77,7 @@ const ParticipantsOnlinePane: React.FC = () => {
                                 )
                                     : (
                                         <>
-                                            <Circle /> 'Offline'
+                                            <Circle /> Offline
                                         </>
                                     )}
                             </Badge>
