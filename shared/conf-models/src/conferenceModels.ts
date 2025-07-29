@@ -52,13 +52,14 @@ export class ConferenceRoomConfig {
     guestsAllowCamera: boolean = true;
     guestsRequireConferenceCode: boolean = false;
     isRecorded = false;
+    isPrivate = false;
 }
 
 export class ConferenceScheduledInfo {
     conferenceId: string = "";
     externalId: string = "";
     name: string = "";
-    description: string = "";
+    description: string = "";   
     config: ConferenceRoomConfig = new ConferenceRoomConfig();
 }
 

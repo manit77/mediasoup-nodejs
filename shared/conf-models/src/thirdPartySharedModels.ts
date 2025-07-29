@@ -63,8 +63,8 @@ export class apiGetScheduledConferencesResult {
 export class apiScheduledConference {
     id: string;
     name: string;
-    description: string;
-    config: { conferenceCode: string, guestsMax: number, guestsAllowed: boolean, guestsAllowMic: boolean, guestsAllowCamera: boolean }
+    description: string;    
+    config: { conferenceCode: string, guestsMax: number, guestsAllowed: boolean, guestsAllowMic: boolean, guestsAllowCamera: boolean, isPrivate : boolean; }
 }
 
 

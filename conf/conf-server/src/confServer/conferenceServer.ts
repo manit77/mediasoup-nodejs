@@ -968,7 +968,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     async getConferences(): Promise<ConferenceScheduledInfo[]> {
         //consoleLog("getConferences");
-        return [...this.conferences.values()]
+        return [...this.conferences.values()].filter(c => !c.config.isPrivate)
             .map(c => {
                 let newc = {
                     conferenceId: c.id,

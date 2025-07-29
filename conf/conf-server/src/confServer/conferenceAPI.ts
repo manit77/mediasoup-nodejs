@@ -174,7 +174,7 @@ export class ConferenceAPI {
                 }
 
                 //hide the conference code                
-                resultMsg.data.conferences = result.data.conferences.map(s => {
+                resultMsg.data.conferences = result.data.conferences.filter(s => !s.config.isPrivate).map(s => {
                     let clone = new ConferenceScheduledInfo()
                     clone.description = s.description;
                     clone.externalId = s.id;
@@ -194,7 +194,7 @@ export class ConferenceAPI {
 
                 //map and delete the conference code
                 resultMsg = new GetConferencesScheduledResultMsg();
-                resultMsg.data.conferences = getDemoSchedules().map(s => {
+                resultMsg.data.conferences = getDemoSchedules().filter(s => s.config.isPrivate === false).map(s => {
                     let clone = {
                         ...s,
                         config: { ...s.config }
