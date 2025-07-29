@@ -887,11 +887,21 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         let roomId = roomTokenResult.data.roomId;
 
         let roomConfig = new RoomConfig();
-        roomConfig.maxPeers = conference.config.guestsMax + conference.config.usersMax;
-        roomConfig.maxRoomDurationMinutes = 0;
+        if (conference.confType == "p2p") {
+            roomConfig.maxPeers = 2;
+        } else {
+            roomConfig.maxPeers = conference.config.guestsMax + conference.config.usersMax;
+        }
+        roomConfig.maxRoomDurationMinutes = 60; //default to 1 hour.
         if (conference.timeoutSecs > 0) {
             roomConfig.maxRoomDurationMinutes = Math.ceil(conference.timeoutSecs / 60);
         }
+        roomConfig.closeRoomOnPeerCount = 0; //close room when there are zero peers after the first peer joins
+        roomConfig.timeOutNoParticipantsSecs = 60; //when the room sits idle with zero peers
+        roomConfig.guestsAllowMic = conference.config.guestsAllowMic;
+        roomConfig.guestsAllowCamera = conference.config.guestsAllowCamera;
+
+        roomConfig.isRecorded = conference.config.isRecorded;
 
         let roomNewResult = await roomsAPI.newRoom(roomId, roomToken, conference.roomName, conference.id, roomConfig);
         if (!roomNewResult || roomNewResult?.data?.error) {
@@ -968,6 +978,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                     name: c.roomName
                 } as ConferenceScheduledInfo;
 
+                //hide conference code
                 newc.config.conferenceCode = "";
 
                 return newc;

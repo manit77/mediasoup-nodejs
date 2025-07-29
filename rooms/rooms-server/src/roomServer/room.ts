@@ -110,15 +110,14 @@ export class Room {
             RoomId: this.id
         });
 
-        if (peer.role != "monitor") {
-            if (this.config.callBackURL_OnPeerJoined) {
-                let cbData = new RoomPeerCallBackMsg();
-                cbData.data.peerId = peer.id;
-                cbData.data.roomId = this.id;
-                cbData.data.peerTrackingId = peer.trackingId;
-                cbData.data.roomTrackingId = this.trackingId;
-                axios.post(this.config.callBackURL_OnPeerJoined, cbData);
-            }
+
+        if (this.config.callBackURL_OnPeerJoined) {
+            let cbData = new RoomPeerCallBackMsg();
+            cbData.data.peerId = peer.id;
+            cbData.data.roomId = this.id;
+            cbData.data.peerTrackingId = peer.trackingId;
+            cbData.data.roomTrackingId = this.trackingId;
+            axios.post(this.config.callBackURL_OnPeerJoined, cbData);
         }
 
         return true;

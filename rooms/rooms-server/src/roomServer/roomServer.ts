@@ -21,7 +21,8 @@ import {
     PeerTracksInfoMsg,
     PeerMuteTracksMsg,
     RoomCloseProducerMsg,
-    RoomConsumerClosedMsg
+    RoomConsumerClosedMsg,
+    AuthUserRoles
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
@@ -274,7 +275,8 @@ export class RoomServer {
         peer.authToken = authToken;
         peer.displayName = displayName;
         peer.trackingId = trackingId;
-
+        peer.role = payload.role;
+        
         this.addPeerGlobal(peer);
 
         return peer;
@@ -963,6 +965,17 @@ export class RoomServer {
         if (peer.room.id !== msgIn.data.roomId) {
             consoleError('invalid roomid', msgIn.data.roomId);
             return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "invalid roomid.");
+        }
+
+        //check if peer is authorized to send the stream
+        if (peer.role === AuthUserRoles.guest) {
+            if (msgIn.data.kind === "video" && peer.room.config.guestsAllowCamera === false) {
+                consoleError(`video not allowed for ${peer.id} ${peer.displayName}`);
+                return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, `${msgIn.data.kind} not allowed.`);
+            } else if (msgIn.data.kind === "audio" && peer.room.config.guestsAllowMic === false) {
+                consoleError(`audio not allowed for ${peer.id} ${peer.displayName}`);
+                return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, `${msgIn.data.kind} not allowed.`);
+            }
         }
 
         let producer = await peer.room.createProducer(peer, msgIn.data.kind, msgIn.data.rtpParameters);

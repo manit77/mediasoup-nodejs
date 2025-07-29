@@ -3,7 +3,7 @@ import { Room } from './room.js';
 import * as roomUtils from "./utils.js";
 import { setTimeout, setInterval } from 'node:timers';
 import chalk, { Chalk } from 'chalk';
-import { PeerTracksInfo } from '@rooms/rooms-models';
+import { AuthUserRoles, PeerTracksInfo } from '@rooms/rooms-models';
 
 export class Peer {
 
@@ -11,7 +11,7 @@ export class Peer {
     public trackingId: string;
     public displayName: string;
     public authToken: string;
-    public role: "admin" | "peer" | "monitor" = "peer";
+    public role = AuthUserRoles.guest;
 
     constructor() {
 

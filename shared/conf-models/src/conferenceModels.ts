@@ -51,6 +51,7 @@ export class ConferenceRoomConfig {
     guestsAllowMic: boolean = true;
     guestsAllowCamera: boolean = true;
     guestsRequireConferenceCode: boolean = false;
+    isRecorded = false;
 }
 
 export class ConferenceScheduledInfo {

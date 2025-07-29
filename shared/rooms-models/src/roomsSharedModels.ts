@@ -484,10 +484,16 @@ export class RoomConfig {
     newRoomTokenExpiresInMinutes = 30; //room token expiration from date created
     maxRoomDurationMinutes = 30; // room max duration, starts when the room is created
     timeOutNoParticipantsSecs = 5 * 60; //when no participants in the room, timer starts and will close the room 
-    closeRoomOnPeerCount = 0; //room will be closed when there are x number of peers
+
+    closeRoomOnPeerCount = 0; //room will be closed when there are x number of peers    
+    guestsAllowMic = true;
+    guestsAllowCamera = true;
+
     callBackURL_OnRoomClosed: string;
     callBackURL_OnPeerLeft: string;
     callBackURL_OnPeerJoined: string;
+
+    isRecorded = false;
 }
 
 export enum payloadTypeCallBacks {
