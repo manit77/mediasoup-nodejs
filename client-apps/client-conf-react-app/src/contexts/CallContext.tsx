@@ -163,18 +163,18 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return;
         }
 
-        if(!options.constraints) {
+        if (!options.constraints) {
             options.constraints = getMediaConstraints(options.isAudioEnabled, options.isVideoEnabled);
         }
 
         const tracks = await conferenceClient.getNewTracksForLocalParticipant(options);
         const audioTrack = tracks.find(t => t.kind === "audio");
-        if(audioTrack) {
+        if (audioTrack) {
             audioTrack.enabled = options.isAudioEnabled;
         }
 
         const videoTrack = tracks.find(t => t.kind === "video");
-        if(videoTrack) {
+        if (videoTrack) {
             videoTrack.enabled = options.isVideoEnabled;
         }
 
@@ -210,7 +210,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     if (msgIn.data.error) {
                         console.log("CallContext: onRegisterFailed: error", msgIn.data.error);
                         setIsAuthenticated(false);
-                        ui.showPopUp(`socket registration failed. ${msgIn.data.error}`);
+                        ui.showPopUp(`socket registration failed. ${msgIn.data.error}`, "error");
 
                         //try again
                         // if (conferenceClient.username && conferenceClient.authToken) {
@@ -300,6 +300,17 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                     break;
                 }
+                case EventTypes.rejectReceived: {
+                    console.log(`CallContext: call was rejected.`);
+
+                    ui.showToast("call was rejected.", "warning");
+                    setIsCallActive(false);
+                    setInviteInfoSend(null);
+                    setInviteInfoReceived(null);
+                    setConferenceRoom(conferenceClient.conference);
+
+                    break;
+                }
                 case EventTypes.conferenceJoined: {
                     console.log(`CallContext: onConferenceJoined ${conferenceClient.conference.conferenceId}, conferenceName:${conferenceClient.conference.conferenceName}`);
 
@@ -323,10 +334,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setInviteInfoReceived(null);
                     setConferenceRoom(conferenceClient.conference);
 
-                    ui.hidePopUp();
-
                     if (msg.data.reason) {
-                        ui.showPopUp(msg.data.reason, 3);
+                        ui.showToast(msg.data.reason);
                         return;
                     }
 
@@ -357,19 +366,19 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             if (isCallActive) {
                 console.error(`call isCallActive`);
-                ui.showPopUp("error: call is active.");
+                ui.showPopUp("error: call is active.", "error");
                 return;
             }
 
             if (inviteInfoSend) {
                 console.error(`inviteInfoSend is not null`);
-                ui.showPopUp("error: there is a pending invite.");
+                ui.showPopUp("error: there is a pending invite.", "error");
                 return;
             }
 
             if (!localParticipant.current.stream) {
                 console.error(`stream is null`);
-                ui.showPopUp("error: media stream not initialized");
+                ui.showPopUp("error: media stream not initialized", "error");
                 return;
             }
 
@@ -378,7 +387,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 ui.showToast("initializing media stream");
                 let tracks = await getLocalMedia(options);
                 if (tracks.length === 0) {
-                    ui.showPopUp("ERROR: could not start media devices.");
+                    ui.showPopUp("ERROR: could not start media devices.", "error");
                     return;
                 }
             }
@@ -386,7 +395,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             //if no local tracks
             if (localParticipant.current.stream.getTracks().length === 0) {
                 console.error(`no media tracks`);
-                ui.showPopUp("no devices enabled.");
+                ui.showPopUp("no devices enabled.", "error");
                 return;
             }
 
@@ -400,7 +409,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             let inviteMsg = conferenceClient.sendInvite(participantInfo.participantId, joinArgs);
             if (!inviteMsg) {
-                ui.showPopUp("error unable to initiate a new call");
+                ui.showPopUp("error unable to initiate a new call", "error");
                 return;
             }
             inviteMsg.data.displayName = participantInfo.displayName;
@@ -408,7 +417,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             console.log(`Call initiated to ${participantInfo.displayName}`);
         } catch (error) {
-            console.error('Failed to initiate call:', error);
+            console.error('Failed to initiate call:');
+            ui.showPopUp("Failed to initialized call.", "error");
         }
     }, [api, getLocalMedia, inviteInfoSend, isCallActive, ui]);
 
@@ -437,7 +447,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const declineInvite = useCallback(() => {
         conferenceClient.leave();
         setInviteInfoReceived(null);
-        ui.showToast("call declined.");
+        ui.showToast("call declined.", "warning");
     }, [ui]);
 
     const cancelInvite = useCallback(() => {
@@ -513,7 +523,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (result) {
             ui.showToast('joining conference room.');
         } else {
-            ui.showPopUp("failed to join conference.");
+            ui.showPopUp("failed to join conference.", "error");
         }
 
     }, [api, ui]);

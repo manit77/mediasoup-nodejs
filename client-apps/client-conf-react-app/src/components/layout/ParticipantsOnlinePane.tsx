@@ -46,7 +46,7 @@ const ParticipantsOnlinePane: React.FC = () => {
     return (
         <div>
             <div className="d-flex justify-content-between align-items-center mb-2">
-                <h5>Contacts</h5>
+                <h5 className="fw-semibold text-dark">Users</h5>
                 <Button variant="outline-primary" size="sm" onClick={handleRefreshParticipants} disabled={!isConnected || !isAuthenticated}>
                     <ArrowRepeat />
                 </Button>

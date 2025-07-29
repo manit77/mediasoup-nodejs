@@ -31,3 +31,34 @@ code {
 }
 
 
+.list-group-item {
+  border-radius: 0.5rem;
+  /* margin-bottom: 0.5rem; */
+  padding: 0.5rem;
+  transition: background-color 0.2s ease;
+}
+
+.list-group-item:hover:not(.disabled) {
+  background-color: #f8f9fa;
+}
+
+.fw-semibold {
+  color: #212529;
+}
+
+.description {
+  font-size: 0.9rem;
+  color: #6c757d;
+  line-height: 1.4;
+}
+
+.badge {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.8rem;
+}
+
+.badge svg {
+  vertical-align: text-bottom;
+}
+
+ 

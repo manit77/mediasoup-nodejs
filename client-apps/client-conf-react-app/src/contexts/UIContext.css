@@ -1,0 +1,92 @@
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  max-width: 300px;
+}
+
+.alert.toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  animation: slideIn 0.3s ease-in-out;
+}
+
+.alert-normal {
+  background-color: #e6f3e6;
+  border: 1px solid #28a745;
+  color: #1a3c1a;
+}
+
+.alert-error {
+  background-color: #f8d7da;
+  border: 1px solid #dc3545;
+  color: #721c24;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  color: #856404;
+}
+
+.alert .btn-close {
+  padding: 0;
+  background-size: 12px;
+  opacity: 0.6;
+}
+
+.alert .btn-close:hover {
+  opacity: 1;
+}
+
+.popup-message .modal-content {
+  border-radius: 12px;
+  border: 2px solid;
+}
+
+.popup-message .modal-body {
+  border-radius: 10px;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.popup-message .modal-footer {
+  background-color: #f8f9fa;
+  border-radius: 0 0 10px 10px;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 576px) {
+  .toast-container {
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+
+  .alert.toast {
+    font-size: 0.9rem;
+    padding: 10px 14px;
+  }
+
+  .popup-message .modal-body {
+    font-size: 0.95rem;
+    padding: 1.5rem;
+  }
+}

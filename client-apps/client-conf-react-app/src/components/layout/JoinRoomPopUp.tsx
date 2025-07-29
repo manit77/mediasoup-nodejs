@@ -19,15 +19,45 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
     const { localParticipant, isCallActive, createConferenceOrJoin, joinConference, getLocalMedia } = useCall();
     const navigate = useNavigate();
 
-    // State to hold the conference code entered by the user
+
     const [conferenceCode, setConferenceCode] = useState<string>('');
-    // State to manage loading status during API calls
+    const [requireConfCode, setRequireConfCode] = useState<boolean>(false);
+
     const [loading, setLoading] = useState<boolean>(false);
     const [micEnabled, setMicEnabled] = useState<boolean>(true); // Default to true
     const [cameraEnabled, setCameraEnabled] = useState<boolean>(true); // Default to true
-
     const [showMicOption, setShowMicOption] = useState<boolean>(true); // Default to true
     const [showCameraOption, setShowCameraOption] = useState<boolean>(true); // Default to true
+
+
+    useEffect(() => {
+
+        if (!conferenceScheduled.config) {
+            setRequireConfCode(false);
+            return;
+        }
+
+        const user = api.getCurrentUser();
+        if (!user) {
+            return;
+        }
+
+        if (user.role === "guest" && conferenceScheduled.config.guestsRequireConferenceCode) {
+            setRequireConfCode(true);
+            return;
+        }
+
+        if (user.role === "user" && conferenceScheduled.config.usersRequireConferenceCode) {
+            setRequireConfCode(true);
+            return;
+        }
+
+        if (user.role === "admin") {
+            setRequireConfCode(false);
+            return;
+        }
+
+    }, [api, conferenceScheduled])
 
     useEffect(() => {
         console.log("useEffect localParticipant:", localParticipant.tracksInfo);
@@ -162,7 +192,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                         <Form.Label>Conference Room Name:</Form.Label> {conferenceScheduled.name}
                     </Form.Group>
                     {
-                        conferenceScheduled.config && (conferenceScheduled.config.guestsRequireConferenceCode || conferenceScheduled.config.usersRequireConferenceCode) ? (
+                        requireConfCode ? (
                             <Form.Group className="mb-3" controlId="conferenceCode">
                                 <Form.Label>Enter Conference Code:</Form.Label>
                                 <Form.Control

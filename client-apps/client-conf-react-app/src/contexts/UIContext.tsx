@@ -1,79 +1,116 @@
-import React, { createContext, useState, ReactNode, useRef, useCallback, useMemo, useEffect } from 'react';
-import { Modal, Button } from 'react-bootstrap'; // Import Modal and Button from react-bootstrap
-import PopupMessage from '../components/popups/PopupMessage';
+import React, { createContext, useState, useRef, useCallback, useMemo } from 'react';
+import { Modal, Button } from 'react-bootstrap';
+import { CheckCircleFill, ExclamationCircleFill, ExclamationTriangleFill } from 'react-bootstrap-icons';
+import "./UIContext.css";
 
-// Define the types for the context
+export type AlertType = 'normal' | 'error' | 'warning';
+
 export interface UIContextType {
   hidePopUp: () => void;
-  showPopUp: (message: string, durationSec?: number) => void;
-  showToast: (message: string, durationSec?: number) => void;
+  showPopUp: (message: string, type?: AlertType, durationSec?: number) => void;
+  showToast: (message: string, type?: AlertType, durationSec?: number) => void;
 }
 
 export const UIContext = createContext<UIContextType | undefined>(undefined);
 
-// Type for toast items
 interface Toast {
   id: number;
   message: string;
+  type: AlertType;
 }
 
-// Provider component
 interface UIProviderProps {
-  children: ReactNode;
+  children: React.ReactNode;
 }
+
+interface PopupMessageProps {
+  show: boolean;
+  message?: string;
+  handleClose: () => void;
+  type?: AlertType;
+}
+
+const PopupMessage: React.FC<PopupMessageProps> = ({ show, message, handleClose, type = 'normal' }) => {
+  const alertStyles = {
+    normal: { icon: <CheckCircleFill size={24} />, bgClass: 'bg-success-subtle', borderClass: 'border-success', title: 'Success' },
+    error: { icon: <ExclamationCircleFill size={24} />, bgClass: 'bg-danger-subtle', borderClass: 'border-danger', title: 'Error' },
+    warning: { icon: <ExclamationTriangleFill size={24} />, bgClass: 'bg-warning-subtle', borderClass: 'border-warning', title: 'Warning' },
+  };
+
+  const { icon, bgClass, borderClass, title } = alertStyles[type];
+
+  return (
+    <Modal
+      show={show}
+      onHide={handleClose}
+      centered
+      backdrop="static"
+      keyboard={false}
+      className="popup-message"
+    >
+      <Modal.Header className={`border-0 ${bgClass}`}>
+        <Modal.Title className="d-flex align-items-center">
+          <span className="me-2">{icon}</span>
+          {title}
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body className={`${bgClass} ${borderClass}`}>
+        {message || 'No message provided'}
+      </Modal.Body>
+      <Modal.Footer className="border-0 bg-light">
+        <Button variant="outline-secondary" onClick={handleClose}>
+          OK
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
 
 export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
-  const [popupMessage, setPopupMessage] = useState<string | null>(null);
+  const [popup, setPopup] = useState<{ message: string; type: AlertType } | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
 
   const hidePopUp = useCallback(() => {
-    setPopupMessage(null);
+    setPopup(null);
   }, []);
 
-  // Memoize the functions with useCallback
-  const showPopUp = useCallback((message: string, durationSec: number = 3) => {
-    setPopupMessage(message);
+  const showPopUp = useCallback((message: string, type: AlertType = 'normal', durationSec: number = 3) => {
+    setPopup({ message, type });
     setTimeout(() => {
-      setPopupMessage(null);
+      setPopup(null);
     }, durationSec * 1000);
-  }, []); // Empty deps: stable unless dependencies change (none here)
+  }, []);
 
-  const showToast = useCallback((message: string, durationSec: number = 3) => {
+  const showToast = useCallback((message: string, type: AlertType = 'normal', durationSec: number = 3) => {
+    console.warn('showToast', message, type);
     const id = toastIdRef.current++;
-    setToasts((prev) => [...prev, { id, message }]);
+    setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, durationSec * 1000);
-  }, []); // Empty deps: stable
+  }, []);
 
   const contextValue = useMemo(() => ({ showPopUp, showToast, hidePopUp }), [showPopUp, showToast, hidePopUp]);
 
   return (
     <UIContext.Provider value={contextValue}>
       {children}
-      <PopupMessage show={popupMessage !== null} handleClose={hidePopUp} message={popupMessage}></PopupMessage>     
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          zIndex: 1000,
-        }}
-      >
+      <PopupMessage show={popup !== null} handleClose={hidePopUp} message={popup?.message} type={popup?.type} />
+      <div className="toast-container">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              color: 'white',
-              padding: '10px',
-              marginBottom: '10px',
-              borderRadius: '4px',
-              minWidth: '200px',
-            }}
+            className={`alert alert-${toast.type} toast fade show`}
+            role="alert"
           >
-            {toast.message}
+            <span>{toast.message}</span>
+            <button
+              type="button"
+              className="btn-close"
+              aria-label="Close"
+              onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
+            ></button>
           </div>
         ))}
       </div>

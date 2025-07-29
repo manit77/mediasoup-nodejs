@@ -28,13 +28,13 @@ const RoomsPane: React.FC = () => {
     console.log('handleRefreshRooms:');
     try {
       setLoading(true);
-      let conferences = await fetchConferencesScheduled(); 
+      let conferences = await fetchConferencesScheduled();
       setMergedConferences(conferences);
       console.log(conferences);
       setLoading(false);
     } catch (error) {
       console.error('Failed to refresh rooms:', error);
-      setLoading(false); 
+      setLoading(false);
     }
   }, [fetchConferencesScheduled]);
 
@@ -46,7 +46,7 @@ const RoomsPane: React.FC = () => {
     }
   }, [handleRefreshRooms, isAuthenticated]);
 
-    useEffect(() => {
+  useEffect(() => {
     // Merge whenever either data source changes
     console.log("Merging conferences ", conferencesOnline, conferencesScheduled);
 
@@ -74,7 +74,7 @@ const RoomsPane: React.FC = () => {
       return;
     } else {
       console.log(`conference not started. guests cannot create a room.`);
-      ui.showToast(`conference ${conference.name} not started`);      
+      ui.showToast(`conference ${conference.name} not started`);
     }
 
   };
@@ -84,7 +84,7 @@ const RoomsPane: React.FC = () => {
     setSelectedConferenceToJoin(null);
   };
 
-  const handleScheduledConferenceClick = async (scheduledConference: ConferenceScheduledInfo) => {    
+  const handleScheduledConferenceClick = async (scheduledConference: ConferenceScheduledInfo) => {
     console.log(`handleScheduledConferenceClick`, scheduledConference);
 
     handleShowJoinPopUp(scheduledConference);
@@ -93,7 +93,7 @@ const RoomsPane: React.FC = () => {
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-2">
-        <h5>Rooms</h5>
+       <h5 className="fw-semibold text-dark">Rooms</h5>
         <Button variant="outline-primary" size="sm" onClick={handleRefreshRooms} disabled={loading}>
           <ArrowRepeat />
         </Button>
@@ -110,19 +110,22 @@ const RoomsPane: React.FC = () => {
               action
               // Now passes the schedule to the new handler to show the pop-up
               onClick={() => handleScheduledConferenceClick(schedule)}
-              className="d-flex justify-content-between align-items-center"
+              className="d-flex justify-content-between align-items-start py-3"
               // Disable if a call is active or an invite is pending
               disabled={isCallActive || !!inviteInfoSend}
             >
-              {schedule.name}
-              <Badge pill bg={schedule.conferenceId ? 'success' : 'secondary'} className="ms-2">
+              <div className="d-flex flex-column">
+                <span className="fw-semibold fs-5">{schedule.name}</span>
+                <span className="description mt-1">{schedule.description}</span>
+              </div>
+              <Badge pill bg={schedule.conferenceId ? 'success' : 'secondary'} className="ms-3 align-self-center">
                 {schedule.conferenceId ? (
                   <>
-                    <CircleFill /> Active
+                    <CircleFill className="me-1" size={10} /> Active
                   </>
                 ) : (
                   <>
-                    <Circle /> Offline
+                    <Circle className="me-1" size={10} /> Offline
                   </>
                 )}
               </Badge>

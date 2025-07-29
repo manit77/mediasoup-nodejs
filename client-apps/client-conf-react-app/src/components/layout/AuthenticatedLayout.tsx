@@ -44,7 +44,7 @@ const AuthenticatedLayout: React.FC = () => {
         // Ensure video
         const videoTrack = stream.getVideoTracks()[0];
         if (!videoTrack) {
-          ui.showPopUp("No video devices available", 3);
+          ui.showPopUp("No video devices available", "error");
           stream.getTracks().forEach((track) => track.stop()); // Clean up failed stream
           setShowingPreview(false);
           return;
@@ -54,7 +54,7 @@ const AuthenticatedLayout: React.FC = () => {
       })
       .catch((error) => {
         console.error('Error getting preview stream:', error);
-        ui.showPopUp("Failed to get camera. Check permissions.", 3);
+        ui.showPopUp("Failed to get camera. Check permissions.", "error");
         setShowingPreview(false);
       });
 
@@ -67,7 +67,7 @@ const AuthenticatedLayout: React.FC = () => {
   // Separate effect for stream changes: Assign srcObject and stop old tracks to release device
   useEffect(() => {
     console.log(`set preview stream`);
-    
+
     if (previewStream && videoRef.current) {
       videoRef.current.srcObject = previewStream;
     }
@@ -97,31 +97,53 @@ const AuthenticatedLayout: React.FC = () => {
   }, [inviteInfoSend, inviteInfoReceived]);
 
   useEffect(() => {
-    if(isLoggedOff) {            
+    if (isLoggedOff) {
       console.log("useEffect isLoggedOff");
       api.logout();
       //navigate("/login");  
-      setIsLoggedOff(false);    
+      setIsLoggedOff(false);
     }
   }, [api, isLoggedOff, navigate, setIsLoggedOff]);
 
   return (
-    <div className="d-flex flex-column vh-100">
+    <div className="d-flex flex-column vh-100 bg-light">
       <TopMenu onShowSettings={() => setShowSettings(true)} />
-      <div className="d-flex flex-grow-1" style={{ overflow: 'hidden' }}>
-        <div className="col-3 border-end p-3" style={{ overflowY: 'auto' }}>
-          {(api.isAdmin() || api.isUser()) && <ContactsPane />}
-          <RoomsPane />
+      <div className="d-flex flex-grow-1 overflow-hidden">
+        <div className="sidebar col-12 col-md-3 border-end p-3">
+          {(api.isAdmin() || api.isUser()) && (
+            <div className="mb-4">              
+              <ContactsPane />
+            </div>
+          )}
+          <div>            
+            <RoomsPane />
+          </div>
         </div>
-        <div className="col-9 p-3" style={{ overflowY: 'auto' }}>
-          <Button variant="primary" onClick={handleShowSettingsClick}><Gear></Gear> Device Settings</Button>{' '}
-          <Button variant="secondary" onClick={previewClick}>
-            <FilePersonFill></FilePersonFill> {!showingPreview ? "Preview Video" : "Stop Preview"}
-          </Button>
-          <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: 'auto' }} />
+        <div className="main-content col-12 col-md-9 p-3">
+          <div className="d-flex gap-2 mb-3">
+            <Button variant="primary" onClick={handleShowSettingsClick} className="d-flex align-items-center">
+              <Gear className="me-1" /> Device Settings
+            </Button>
+            <Button
+              variant="outline-secondary"
+              onClick={previewClick}
+              className="d-flex align-items-center"
+            >
+              <FilePersonFill className="me-1" /> {showingPreview ? 'Stop Preview' : 'Preview Video'}
+            </Button>
+          </div>
+          <div className="video-container">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-100 h-auto rounded shadow-sm"
+            />
+          </div>
         </div>
       </div>
-      <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />      
+      <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />
       {inviteInfoReceived && <IncomingCallPopup />}
       {inviteInfoSend && <CallingPopup />}
     </div>
