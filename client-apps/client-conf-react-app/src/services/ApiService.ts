@@ -1,6 +1,7 @@
-import { User, ConferenceRoomScheduled } from '../types';
+import { User } from '../types';
 import { ConferenceAPIClient } from '@conf/conf-client';
 import { ConferenceClientConfig } from '@conf/conf-client/src/models';
+import { ConferenceScheduledInfo } from '@conf/conf-models';
 
 export interface LoginResponse {
     user: User;
@@ -9,20 +10,18 @@ export interface LoginResponse {
 
 class ApiService {
     conferenceAPIClient: ConferenceAPIClient;
-    conferencesScheduled: ConferenceRoomScheduled[] = [];
+    conferencesScheduled: ConferenceScheduledInfo[] = [];
     startFetchConferencesScheduledTimerId = null;
+
+    onConferencesReceived = (conferences: ConferenceScheduledInfo[]) => { };
 
     init(config: ConferenceClientConfig) {
         this.conferenceAPIClient = new ConferenceAPIClient(config);
     }
 
-    getClientData = () => {
-        return {};
-    }
+    login = async (username: string, password: string, clientData: {}): Promise<LoginResponse> => {
 
-    login = async (username: string, password: string): Promise<LoginResponse> => {
-
-        console.log(`login ${username}`);
+        console.log(`login ${username}`, clientData);
         if (!username.trim()) {
             throw new Error('username name cannot be empty.');
         }
@@ -31,7 +30,7 @@ class ApiService {
             throw new Error('password name cannot be empty.');
         }
 
-        let loginResult = await this.conferenceAPIClient.login(username, password, this.getClientData());
+        let loginResult = await this.conferenceAPIClient.login(username, password, clientData);
 
         if (loginResult.data.error) {
             console.error(`login failed: ${loginResult.data.error}`);
@@ -57,13 +56,13 @@ class ApiService {
 
     };
 
-    loginGuest = async (displayName: string): Promise<LoginResponse> => {
+    loginGuest = async (displayName: string, clientData: any): Promise<LoginResponse> => {
         console.log(`loginGuest ${displayName}`);
         if (!displayName.trim()) {
             throw new Error('Display name cannot be empty.');
         }
 
-        let loginResult = await this.conferenceAPIClient.loginGuest(displayName, this.getClientData());
+        let loginResult = await this.conferenceAPIClient.loginGuest(displayName, clientData);
         console.log(`loginResult`, loginResult);
 
         if (loginResult.data.error) {
@@ -73,13 +72,14 @@ class ApiService {
             } as LoginResponse;
         }
 
+
         let result: LoginResponse = {
             user: {
                 username: loginResult.data.username,
                 displayName: loginResult.data.displayName,
                 role: loginResult.data.role as any,
                 authToken: loginResult.data.authToken,
-                clientData: loginResult.data.clientData,
+                clientData: this.conferenceAPIClient.clientData,
             }
         }
 
@@ -88,17 +88,12 @@ class ApiService {
         return result;
     };
 
-    logout = async (): Promise<void> => {
-        // Simulate API call
+    logout = () => {
         console.log('ApiService: Logging out user');
-        // Replace with actual fetch call
-        // const token = localStorage.getItem('authToken');
-        // await fetch(`${API_BASE_URL}/auth/logout`, {
-        //   method: 'POST',
-        //   headers: { 'Authorization': `Bearer ${token}` },
-        // });       
+        let clientData = this.getClientData();
+        console.log(`clientData:`, clientData);
         localStorage.removeItem('user');
-        return Promise.resolve();
+        return clientData;
     };
 
     getUser() {
@@ -114,33 +109,28 @@ class ApiService {
         return null;
     }
 
-    fetchConferencesScheduled = async (): Promise<ConferenceRoomScheduled[]> => {
-        //console.log("fetchConferencesScheduled");
+    getClientData() {
+        return this.getUser()?.clientData;
+    }
+
+    fetchConferencesScheduled = async (): Promise<ConferenceScheduledInfo[]> => {
+        // console.log("fetchConferencesScheduled", this.conferenceAPIClient?.clientData);
+
+        if (!this.conferenceAPIClient) {
+            console.error(`conferenceAPIClient not initialized.`);
+            return;
+        }
+
         //get rooms from API
-        let result = await this.conferenceAPIClient.getConferencesScheduled(this.getClientData());
+        let result = await this.conferenceAPIClient.getConferencesScheduled(this.conferenceAPIClient.clientData);
 
         if (result.data.error) {
             console.error(`ERROR:`, result.data.error);
             return this.conferencesScheduled;
         }
 
-        this.conferencesScheduled = result.data.conferences.map(c => ({
-            externalId: c.externalId,
-            roomName: c.name,
-            roomDescription: c.description,
-            config: {
-                conferenceCode: c.config.conferenceCode,
-                guestsAllowCamera: c.config.guestsAllowCamera,
-                guestsAllowed: c.config.guestsAllowed,
-                guestsAllowMic: c.config.guestsAllowMic,
-                guestsMax: c.config.guestsMax,
-                requireConferenceCode: c.config.requireConferenceCode,
-                roomTimeoutSecs: c.config.roomTimeoutSecs,
-                usersMax: c.config.usersMax
-            }
-        } as ConferenceRoomScheduled));
-
-        //console.log(`ConferenceRoomScheduled:`, this.conferencesScheduled);
+        this.conferencesScheduled = result.data.conferences;
+        this.onConferencesReceived(this.conferencesScheduled);
 
         return this.conferencesScheduled;
     };

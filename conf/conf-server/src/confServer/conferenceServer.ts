@@ -16,12 +16,12 @@ import {
     ConferenceRoomConfig,
     GetParticipantsResultMsg,
     ParticipantInfo,
-    ConferenceRoomInfo,
     GetConferencesMsg,
     GetConferencesResultMsg,
     ConferenceClosedMsg,
     GetParticipantsMsg,
-    ParticipantRole
+    ParticipantRole,
+    ConferenceScheduledInfo
 } from '@conf/conf-models';
 import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
@@ -288,21 +288,25 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         return msg;
     }
 
-    async broadCastParticipants(exceptParticipant: Participant) {
+    async broadCastParticipants(exceptParticipant?: Participant) {
 
-        consoleLog("broadCastParticipants");
-        //broadcast to all participants of contacts
-        let contactsMsg = new GetParticipantsResultMsg();
-        contactsMsg.data = [...this.participants.values()].map(p => ({
+        console.warn("broadCastParticipants except", exceptParticipant);
+        //broadcast to all participants of contacts        
+        const allPartsInfo = [...this.participants.values()].map(p => ({
             participantId: p.participantId,
             displayName: p.displayName,
             status: "online"
         }) as ParticipantInfo);
 
-        for (let [id, p] of this.participants.entries()) {
-            if (exceptParticipant != p && p.role !== "guest") {
-                this.send(p, contactsMsg);
-            }
+        console.log('allPartsInfo[]', allPartsInfo);
+
+        const allPartsExceptArr = [...this.participants.values()].filter(p => exceptParticipant && p.participantId != exceptParticipant.participantId);
+        for (const p of allPartsExceptArr) {
+            //do not send the participant info back to self
+            const contactsMsg = new GetParticipantsResultMsg();
+            contactsMsg.data.participants = allPartsInfo.filter(partInfo => partInfo.participantId != p.participantId);
+            console.warn(`send contactsMsg to ${p.displayName}`, contactsMsg);
+            this.send(p, contactsMsg);
         }
 
     }
@@ -310,17 +314,21 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
     async broadCastConferenceRooms() {
         consoleLog("broadCastConferenceRooms");
 
-        //broadcast to all participants of conferences that have a trackingId
         let msg = new GetConferencesResultMsg();
-        msg.data.conferences = [...this.conferences.values()].filter(c => c.externalId).map(c => ({
-            conferenceId: c.id,
-            externalId: c.externalId,
-            roomId: c.roomId,
-            roomName: c.roomName,
-            roomStatus: c.status,
-            roomTrackingId: c.id,
-            participantCount: c.participants.size
-        }) as ConferenceRoomInfo);
+        msg.data.conferences = [...this.conferences.values()].filter(c => c.externalId).map(c => {
+            let newc = {
+                conferenceId: c.id,
+                config: c.config,
+                description: "",
+                externalId: c.externalId,
+                name: c.roomName
+            } as ConferenceScheduledInfo;
+
+            //remove the conference code
+            newc.config.conferenceCode = "";
+
+            return newc;
+        });
 
         for (let [id, p] of this.participants.entries()) {
             this.send(p, msg);
@@ -342,7 +350,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         let msg = new GetParticipantsResultMsg();
         this.getParticipantsExceptPart(participant).forEach((p) => {
-            msg.data.push({
+            msg.data.participants.push({
                 displayName: p.displayName,
                 participantId: p.participantId,
                 status: "online"
@@ -399,11 +407,6 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return errorMsg;
         }
 
-        // if (caller.role === "guest") {
-        //     consoleError("guest cannot send an invite.");
-        //     return;
-        // }
-
         let remote = this.getParticipant(msgIn.data.participantId);
         if (!remote) {
             consoleError("remote participant not found.");
@@ -422,6 +425,16 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
             return errorMsg;
         }
+
+        if (participant.participantId === msgIn.data.participantId) {
+            consoleError(`cannot invite self`);
+
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.error = "invalid participantId.";
+
+            return errorMsg;
+        }
+
 
         let conference = this.getOrCreateConference();
         conference.confType = "p2p";
@@ -624,7 +637,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                     confConfig.guestsAllowMic = resultMsg.data.conference.config.guestsAllowMic;
                     confConfig.guestsAllowed = resultMsg.data.conference.config.guestsAllowed;
                     confConfig.guestsMax = resultMsg.data.conference.config.guestsMax;
-                    confConfig.requireConferenceCode = resultMsg.data.conference.config.conferenceCode ? true : false;
+                    confConfig.guestsRequireConferenceCode = resultMsg.data.conference.config.conferenceCode ? true : false;
                     confConfig.roomTimeoutSecs = 0;
                     confConfig.usersMax = 0;
 
@@ -639,7 +652,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                     confConfig.guestsAllowMic = demoSchedule.config.guestsAllowMic;
                     confConfig.guestsAllowed = demoSchedule.config.guestsAllowed;
                     confConfig.guestsMax = demoSchedule.config.guestsMax;
-                    confConfig.requireConferenceCode = demoSchedule.config.requireConferenceCode;
+                    confConfig.guestsRequireConferenceCode = demoSchedule.config.guestsRequireConferenceCode;
                     confConfig.roomTimeoutSecs = 0;
                     confConfig.usersMax = 0;
 
@@ -647,14 +660,24 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 }
             }
 
-            if (participant.role !== ParticipantRole.admin) {
-                if (confConfig.requireConferenceCode && confConfig.conferenceCode != msgIn.data.conferenceCode) {
+            if (participant.role === ParticipantRole.guest) {
+                if (confConfig.guestsRequireConferenceCode && confConfig.conferenceCode != msgIn.data.conferenceCode) {
                     consoleError("invalid conference code");
                     let errorMsg = new CreateConfResultMsg();
                     errorMsg.data.error = "invalid conference code.";
                     return errorMsg;
                 }
             }
+
+            if (participant.role === ParticipantRole.user) {
+                if (confConfig.usersRequireConferenceCode && confConfig.conferenceCode != msgIn.data.conferenceCode) {
+                    consoleError("invalid conference code");
+                    let errorMsg = new CreateConfResultMsg();
+                    errorMsg.data.error = "invalid conference code.";
+                    return errorMsg;
+                }
+            }
+
         }
 
         let conference = participant.conference;
@@ -744,7 +767,16 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         //check the conference code
-        if (conference.config.requireConferenceCode && conference.config.conferenceCode && conference.config.conferenceCode !== msgIn.data.conferenceCode) {
+        if (participant.role == "guest" && conference.config.guestsRequireConferenceCode && conference.config.conferenceCode && conference.config.conferenceCode !== msgIn.data.conferenceCode) {
+            consoleError(`invalid conference code: ${msgIn.data.conferenceCode}`);
+
+            let errorMsg = new JoinConfResultMsg();
+            errorMsg.data.error = "invalid conference code";
+
+            return errorMsg;
+        }
+
+        if (participant.role == "user" && conference.config.usersRequireConferenceCode && conference.config.conferenceCode && conference.config.conferenceCode !== msgIn.data.conferenceCode) {
             consoleError(`invalid conference code: ${msgIn.data.conferenceCode}`);
 
             let errorMsg = new JoinConfResultMsg();
@@ -855,11 +887,21 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         let roomId = roomTokenResult.data.roomId;
 
         let roomConfig = new RoomConfig();
-        roomConfig.maxPeers = conference.config.guestsMax + conference.config.usersMax;
-        roomConfig.maxRoomDurationMinutes = 0;
+        if (conference.confType == "p2p") {
+            roomConfig.maxPeers = 2;
+        } else {
+            roomConfig.maxPeers = conference.config.guestsMax + conference.config.usersMax;
+        }
+        roomConfig.maxRoomDurationMinutes = 60; //default to 1 hour.
         if (conference.timeoutSecs > 0) {
             roomConfig.maxRoomDurationMinutes = Math.ceil(conference.timeoutSecs / 60);
         }
+        roomConfig.closeRoomOnPeerCount = 0; //close room when there are zero peers after the first peer joins
+        roomConfig.timeOutNoParticipantsSecs = 60; //when the room sits idle with zero peers
+        roomConfig.guestsAllowMic = conference.config.guestsAllowMic;
+        roomConfig.guestsAllowCamera = conference.config.guestsAllowCamera;
+
+        roomConfig.isRecorded = conference.config.isRecorded;
 
         let roomNewResult = await roomsAPI.newRoom(roomId, roomToken, conference.roomName, conference.id, roomConfig);
         if (!roomNewResult || roomNewResult?.data?.error) {
@@ -924,19 +966,22 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         return returnMsg;
     }
 
-    async getConferences(): Promise<ConferenceRoomInfo[]> {
-        consoleLog("getConferences");
-        return [...this.conferences.values()]
+    async getConferences(): Promise<ConferenceScheduledInfo[]> {
+        //consoleLog("getConferences");
+        return [...this.conferences.values()].filter(c => !c.config.isPrivate)
             .map(c => {
-                return {
+                let newc = {
                     conferenceId: c.id,
                     externalId: c.externalId,
-                    roomId: c.roomId,
-                    roomName: c.roomName,
-                    roomStatus: c.status,
-                    roomTrackingId: c.externalId,
-                    participantCount: c.participants.size
-                };
+                    config: c.config,
+                    description: "",
+                    name: c.roomName
+                } as ConferenceScheduledInfo;
+
+                //hide conference code
+                newc.config.conferenceCode = "";
+
+                return newc;
             });
     }
 

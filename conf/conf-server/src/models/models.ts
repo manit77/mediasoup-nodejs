@@ -16,6 +16,7 @@ export class SocketConnection {
     ws: WebSocket;
     timeoutSecs: number;
     participantId: string;
+    username: string;
     eventHandlers: onSocketTimeout[] = [];
     dateOfLastMsg : Date = new Date();
 

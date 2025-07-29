@@ -4,19 +4,20 @@ import './index.css';
 import App from './App';
 import { loadConferenceConfig } from './services/ConferenceConfig';
 import { ConfigProvider } from './contexts/ConfigContext';
+import React from 'react';
 
 loadConferenceConfig().then(config => {
-  console.warn("config loaded", config);
+  console.log("config loaded", config);
 
   const root = ReactDOM.createRoot(
     document.getElementById('root') as HTMLElement
   );
   root.render(
-    // <React.StrictMode>
-    <ConfigProvider>
-      <App />
-    </ConfigProvider>
-    // </React.StrictMode>
+    <React.StrictMode>
+      <ConfigProvider>
+        <App />
+      </ConfigProvider>
+    </React.StrictMode>
   );
 }).catch(error => {
   console.error('Error loading config:', error);

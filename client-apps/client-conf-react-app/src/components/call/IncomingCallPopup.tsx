@@ -2,10 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { useNavigate } from 'react-router-dom';
+import { useUI } from '../../hooks/useUI';
+import { GetUserMediaConfig } from '@conf/conf-models';
 
 const IncomingCallPopup: React.FC = () => {
-    const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite } = useCall();
+    const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite, localParticipant, getLocalMedia } = useCall();
     const navigate = useNavigate();
+    const ui = useUI();
 
     useEffect(() => {
         if (isCallActive) {
@@ -15,7 +18,38 @@ const IncomingCallPopup: React.FC = () => {
 
     }, [isCallActive, navigate]);
 
-    const handleAccept = async () => {
+    const handleAccept = async (isAudioEnabled: boolean, isVideoEnabled: boolean) => {
+
+        if (!localParticipant.stream) {
+            console.error(`stream is null`);
+            ui.showPopUp("error: media stream not initialized");
+            return;
+        }
+
+        localParticipant.tracksInfo.isAudioEnabled = isAudioEnabled;
+        localParticipant.tracksInfo.isVideoEnabled = isVideoEnabled;
+
+        if (localParticipant?.stream.getTracks().length === 0) {
+            console.log(`media stream not initialized`);
+            ui.showToast("media stream not initialized");
+
+            localParticipant.tracksInfo.isAudioEnabled = true;
+            localParticipant.tracksInfo.isVideoEnabled = true;
+
+            let getUserMediaConfig = new GetUserMediaConfig();
+            getUserMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
+            getUserMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
+
+            let tracks = await getLocalMedia(getUserMediaConfig);
+            if (tracks.length === 0) {
+                ui.showPopUp("ERROR: could not start media devices.");
+                return;
+            }
+        }
+
+
+
+
         await acceptInvite();
     };
 
@@ -40,12 +74,16 @@ const IncomingCallPopup: React.FC = () => {
                 </p>
             </Modal.Body>
             <Modal.Footer>
+                <Button variant="success" onClick={() => handleAccept(true, false)}>
+                    Accept Audio Only
+                </Button>
+                <Button variant="success" onClick={() => handleAccept(true, true)}>
+                    Accept Audio and Video
+                </Button>
                 <Button variant="danger" onClick={handleDecline}>
                     Decline
                 </Button>
-                <Button variant="success" onClick={handleAccept}>
-                    Accept
-                </Button>
+
             </Modal.Footer>
         </Modal>
     );

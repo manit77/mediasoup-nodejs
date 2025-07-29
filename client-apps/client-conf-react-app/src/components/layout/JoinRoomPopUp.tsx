@@ -4,12 +4,11 @@ import { useCall } from '../../hooks/useCall';
 import { useNavigate } from 'react-router-dom';
 import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
+import { ConferenceScheduledInfo, GetUserMediaConfig } from '@conf/conf-models';
 
-
-import { ConferenceRoomScheduled } from '../../types';
 
 interface JoinRoomPopUpProps {
-    conferenceScheduled: ConferenceRoomScheduled;
+    conferenceScheduled: ConferenceScheduledInfo;
     show: boolean;
     onClose: () => void;
 }
@@ -17,24 +16,57 @@ interface JoinRoomPopUpProps {
 const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show, onClose }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, isCallActive, createConferenceOrJoin, joinConference, getLocalMedia, selectedDevices } = useCall();
+    const { localParticipant, isCallActive, createConferenceOrJoin, joinConference, getLocalMedia } = useCall();
     const navigate = useNavigate();
 
-    // State to hold the conference code entered by the user
+
     const [conferenceCode, setConferenceCode] = useState<string>('');
-    // State to manage loading status during API calls
+    const [requireConfCode, setRequireConfCode] = useState<boolean>(false);
+
     const [loading, setLoading] = useState<boolean>(false);
     const [micEnabled, setMicEnabled] = useState<boolean>(true); // Default to true
     const [cameraEnabled, setCameraEnabled] = useState<boolean>(true); // Default to true
-
     const [showMicOption, setShowMicOption] = useState<boolean>(true); // Default to true
     const [showCameraOption, setShowCameraOption] = useState<boolean>(true); // Default to true
 
 
     useEffect(() => {
+
+        if (!conferenceScheduled.config) {
+            setRequireConfCode(false);
+            return;
+        }
+
+        const user = api.getCurrentUser();
+        if (!user) {
+            return;
+        }
+
+        if (user.role === "guest" && conferenceScheduled.config.guestsRequireConferenceCode) {
+            setRequireConfCode(true);
+            return;
+        }
+
+        if (user.role === "user" && conferenceScheduled.config.usersRequireConferenceCode) {
+            setRequireConfCode(true);
+            return;
+        }
+
+        if (user.role === "admin") {
+            setRequireConfCode(false);
+            return;
+        }
+
+    }, [api, conferenceScheduled])
+
+    useEffect(() => {
         console.log("useEffect localParticipant:", localParticipant.tracksInfo);
-        setMicEnabled(selectedDevices.isAudioEnabled)
-        setCameraEnabled(selectedDevices.isVideoEnabled);
+        setMicEnabled(true);
+        setCameraEnabled(false);
+
+        localParticipant.tracksInfo.isAudioEnabled = true;
+        localParticipant.tracksInfo.isAudioEnabled = false;
+
 
     }, [localParticipant])
 
@@ -92,7 +124,12 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             //up the tracksInfo for localParticipant from the check boxes on the form 
             localParticipant.tracksInfo.isAudioEnabled = micEnabled;
             localParticipant.tracksInfo.isVideoEnabled = cameraEnabled;
-            console.warn(`localParticipant.tracksInfo`, localParticipant.tracksInfo);
+            console.log(`localParticipant.tracksInfo`, localParticipant.tracksInfo);
+
+            let getUserMediaConfig = new GetUserMediaConfig();
+            getUserMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
+            getUserMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
+
 
             if (!localParticipant.stream) {
                 console.error(`stream is null`);
@@ -101,27 +138,34 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             }
 
             if (localParticipant?.stream.getTracks().length === 0) {
-                console.warn(`media stream not initialized`);
+                console.log(`media stream not initialized`);
                 ui.showToast("media stream not initialized");
-                let tracks = await getLocalMedia();
-                if (tracks.length === 0) {
-                    ui.showPopUp("ERROR: could not start media devices.");
-                    return;
+                //it's not required to have a usermedia in a room, you can be just a listener
+                if (getUserMediaConfig.isAudioEnabled || getUserMediaConfig.isVideoEnabled) {
+                    let tracks = await getLocalMedia(getUserMediaConfig);
+                    if (tracks.length === 0) {
+                        ui.showPopUp("ERROR: could not start media devices.");
+                        return;
+                    }
+                } else {
+                    console.warn(`joining room with no media`);
                 }
             }
 
+            console.log('conferenceScheduled', conferenceScheduled);
+
             if (api.isUser()) {
-                createConferenceOrJoin(conferenceScheduled.externalId, conferenceCode, localParticipant.tracksInfo.isAudioEnabled, localParticipant.tracksInfo.isVideoEnabled);
+                createConferenceOrJoin(conferenceScheduled.externalId, conferenceCode);
             } else {
                 if (conferenceScheduled.conferenceId) {
-                    joinConference(conferenceCode, conferenceScheduled, localParticipant.tracksInfo.isAudioEnabled, localParticipant.tracksInfo.isVideoEnabled);
+                    joinConference(conferenceCode, conferenceScheduled);
                 } else {
                     ui.showToast("conference is not active.");
                 }
             }
         } catch (error) {
             console.error('Failed to join conference:', error);
-            ui.showPopUp('Failed to join the conferenceScheduled. Please check the code and try again.');
+            ui.showPopUp('Failed to join the conferenceScheduled. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -133,7 +177,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
     useEffect(() => {
         console.log(`JoinRoomPopUpProps conferenceScheduled`, conferenceScheduled);
-    }, []);
+    }, [conferenceScheduled]);
 
     return (
         <Modal show={show} centered backdrop="static" keyboard={false} onHide={onClose}>
@@ -145,10 +189,10 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             <Modal.Body>
                 <Form onSubmit={handleJoinRoom}>
                     <Form.Group className="mb-3" controlId="roomName">
-                        <Form.Label>Conference Room Name:</Form.Label> {conferenceScheduled.roomName}
+                        <Form.Label>Conference Room Name:</Form.Label> {conferenceScheduled.name}
                     </Form.Group>
                     {
-                        conferenceScheduled.config && conferenceScheduled.config.requireConferenceCode ? (
+                        requireConfCode ? (
                             <Form.Group className="mb-3" controlId="conferenceCode">
                                 <Form.Label>Enter Conference Code:</Form.Label>
                                 <Form.Control
@@ -174,7 +218,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                             />
                         </Form.Group>
                     ) : null}
-                    
+
 
                     {showCameraOption ? (
                         <Form.Group className="mb-3" controlId="cameraEnabled">
@@ -187,16 +231,16 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                             />
                         </Form.Group>
                     ) : null}
-                    
+
                     {/* {
                         api.isAdmin() || api.isUser() ? ( */}
                     <div className="row">
                         <div className="col-md-6">
-                            <strong>Local Audio Enabled:</strong> {localParticipant.tracksInfo.isAudioEnabled.toString() }  <br />                         
+                            {/* <strong>Local Audio Enabled:</strong> {localParticipant.tracksInfo.isAudioEnabled.toString()}  <br /> */}
                             <strong>Guests Allow Camera:</strong> {conferenceScheduled.config.guestsAllowCamera.toString()}
                         </div>
                         <div className="col-md-6">
-                            <strong>Local video Enabled</strong>: {localParticipant.tracksInfo.isVideoEnabled.toString() }  <br />
+                            {/* <strong>Local video Enabled</strong>: {localParticipant.tracksInfo.isVideoEnabled.toString()}  <br /> */}
                             <strong>Guests Allow Mic:</strong> {conferenceScheduled.config.guestsAllowMic.toString()}
                         </div>
                     </div>

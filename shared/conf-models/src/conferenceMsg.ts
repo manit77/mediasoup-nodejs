@@ -1,3 +1,5 @@
+import { ConferenceRoomConfig, ConferenceScheduledInfo, conferenceType, ParticipantInfo, ParticipantRole } from "./conferenceModels.js";
+
 export enum CallMessageType {
 
     login = "login",
@@ -28,28 +30,15 @@ export enum CallMessageType {
     getConferences = "getConferences",
     getConferencesResult = "getConferencesResult",
 
-
-}
-export enum WebRoutes {
-    login = "/login",
-    loginGuest = "/loginGuest",
-    authenticate = "/authenticate",
-    getConferencesScheduled = "/getConferencesScheduled",
-    getConferenceScheduled = "/getConferenceScheduled",
-    onRoomClosed = "/onRoomClosed",
-    onPeerJoined = "/onPeerJoined",
-    onPeerLeft = "/onPeerLeft"
+    particpantNewTrack = "particpantNewTrack",
 }
 
-export type conferenceType = "p2p" | "room";
-export enum ParticipantRole {
-    "admin" = "admin",
-    "monitor" = "monitor",
-    "user" = "user",
-    "guest" = "guest"
+export interface IMsg {
+    type: any;
+    data: any | { error?: any };
 }
 
-export class LoginGuestMsg {
+export class LoginGuestMsg implements IMsg {
     type = CallMessageType.loginGuest;
     data: {
         displayName?: string,
@@ -57,7 +46,7 @@ export class LoginGuestMsg {
     } = {}
 }
 
-export class LoginMsg {
+export class LoginMsg implements IMsg {
     type = CallMessageType.login;
     data: {
         username?: string,
@@ -67,7 +56,7 @@ export class LoginMsg {
     } = {}
 }
 
-export class LoginResultMsg {
+export class LoginResultMsg implements IMsg {
     type = CallMessageType.loginResult
     data: {
         username?: string,
@@ -75,22 +64,11 @@ export class LoginResultMsg {
         authToken?: string,
         role?: string,
         error?: string,
-        clientData?: string,
+        clientData?: {},
     } = {}
 }
 
-export interface ParticipantInfo {
-    participantId: string,
-    displayName: string,
-    status: "online" | "offline" | "reconnecting",
-}
-
-// export interface IParticipant {
-//     participantId: string;
-//     displayName: string
-// }
-
-export class RegisterMsg {
+export class RegisterMsg implements IMsg {
     type = CallMessageType.register;
     data = {
         username: "",
@@ -100,10 +78,10 @@ export class RegisterMsg {
     }
 }
 
-export class RegisterResultMsg {
+export class RegisterResultMsg implements IMsg {
     type = CallMessageType.registerResult;
     data: {
-        username?: string,        
+        username?: string,
         participantId?: string,
         role?: ParticipantRole | string,
         error?: string
@@ -111,22 +89,22 @@ export class RegisterResultMsg {
         }
 }
 
-export class GetParticipantsMsg {
+export class GetParticipantsMsg implements IMsg {
     type = CallMessageType.getParticipants;
     data = {}
 }
 
-export class GetParticipantsResultMsg {
+export class GetParticipantsResultMsg implements IMsg {
     type = CallMessageType.getParticipantsResult;
-    data: ParticipantInfo[] = [];
+    data: { participants: ParticipantInfo[] } = { participants: [] };
 }
 
-export class GetConferencesMsg {
+export class GetConferencesMsg implements IMsg {
     type = CallMessageType.getConferences;
-    data = {}
+    data = { }
 }
 
-export class GetConferenceScheduledResultMsg {
+export class GetConferenceScheduledResultMsg implements IMsg {
     type = CallMessageType.getConferencesResult;
     data: {
         conference?: ConferenceScheduledInfo,
@@ -134,7 +112,7 @@ export class GetConferenceScheduledResultMsg {
     } = {}
 }
 
-export class GetConferencesScheduledResultMsg {
+export class GetConferencesScheduledResultMsg implements IMsg {
     type = CallMessageType.getConferencesResult;
     data: {
         conferences?: ConferenceScheduledInfo[],
@@ -142,15 +120,15 @@ export class GetConferencesScheduledResultMsg {
     } = {}
 }
 
-export class GetConferencesResultMsg {
+export class GetConferencesResultMsg implements IMsg {
     type = CallMessageType.getConferencesResult;
     data: {
-        conferences: ConferenceRoomInfo[],
+        conferences: ConferenceScheduledInfo[],
         error?: string,
     } = { conferences: [] }
 }
 
-export class CreateConfMsg {
+export class CreateConfMsg implements IMsg {
     type = CallMessageType.createConf;
     data: {
         conferenceExternalId?: string,
@@ -167,7 +145,7 @@ export class CreateConfMsg {
         }
 }
 
-export class CreateConfResultMsg {
+export class CreateConfResultMsg implements IMsg {
     type = CallMessageType.createConfResult;
     data: {
         conferenceId?: string,
@@ -178,7 +156,7 @@ export class CreateConfResultMsg {
         }
 }
 
-export class JoinConfMsg {
+export class JoinConfMsg implements IMsg {
     type = CallMessageType.joinConf;
     data: {
         conferenceId?: string,
@@ -189,7 +167,7 @@ export class JoinConfMsg {
         }
 }
 
-export class JoinConfResultMsg {
+export class JoinConfResultMsg implements IMsg {
     type = CallMessageType.joinConfResult;
     data: {
         conferenceId?: string,
@@ -198,7 +176,7 @@ export class JoinConfResultMsg {
         }
 }
 
-export class InviteMsg {
+export class InviteMsg implements IMsg {
     type = CallMessageType.invite;
     data: {
         participantId?: string,
@@ -211,7 +189,7 @@ export class InviteMsg {
         }
 }
 
-export class InviteCancelledMsg {
+export class InviteCancelledMsg implements IMsg {
     type = CallMessageType.inviteCancelled;
     data: {
         conferenceId?: string,
@@ -220,7 +198,7 @@ export class InviteCancelledMsg {
         }
 }
 
-export class InviteResultMsg {
+export class InviteResultMsg implements IMsg {
     type = CallMessageType.inviteResult;
     data: {
         participantId?: string,
@@ -234,7 +212,7 @@ export class InviteResultMsg {
         }
 }
 
-export class RejectMsg {
+export class RejectMsg implements IMsg {
     type = CallMessageType.reject;
     data: {
         conferenceId?: string,
@@ -244,7 +222,7 @@ export class RejectMsg {
         }
 }
 
-export class AcceptMsg {
+export class AcceptMsg implements IMsg {
     type = CallMessageType.accept;
     data: {
         conferenceId?: string,
@@ -253,7 +231,7 @@ export class AcceptMsg {
         }
 }
 
-export class AcceptResultMsg {
+export class AcceptResultMsg implements IMsg {
     type = CallMessageType.acceptResult;
     data: {
         conferenceId?: string,
@@ -262,7 +240,7 @@ export class AcceptResultMsg {
         }
 }
 
-export class LeaveMsg {
+export class LeaveMsg implements IMsg {
     type = CallMessageType.leave;
     data = {
         conferenceId: "",
@@ -270,12 +248,12 @@ export class LeaveMsg {
     }
 }
 
-export class ConferenceReadyMsg {
+export class ConferenceReadyMsg implements IMsg {
     type = CallMessageType.conferenceReady;
     data: {
         participantId?: string,
         displayName?: string,
-        
+
         conferenceId?: string,
         conferenceName?: string,
         conferenceExternalId?: string,
@@ -290,60 +268,10 @@ export class ConferenceReadyMsg {
     } = {}
 }
 
-export class ConferenceClosedMsg {
+export class ConferenceClosedMsg implements IMsg {
     type = CallMessageType.conferenceClosed;
     data: {
         conferenceId?: string,
         reason?: string
     } = {}
-}
-
-export interface CreateConferenceParams {
-    conferenceId: string,
-    conferenceCode: string,
-    roomName: string,
-    externalId: string,    
-    config: ConferenceRoomConfig,
-}
-
-export interface JoinConferenceParams {
-    conferenceId: string,
-    conferenceCode: string,
-    roomName: string,
-    externalId: string,
-    //audioEnabledOnStart: boolean,
-    //videoEnabledOnStart: boolean,
-    clientData: {},
-}
-
-export class ConferenceRoomConfig {
-    roomTimeoutSecs: number = 60 * 60;
-    conferenceCode: string = "";
-    requireConferenceCode: boolean = false;
-    usersMax = 99;
-    guestsMax: number = 99;
-    guestsAllowed = true;
-    guestsAllowMic: boolean = true;
-    guestsAllowCamera: boolean = true;
-}
-
-export class ConferenceRoomInfo {
-    conferenceId: string = "";
-    externalId: string = "";
-    roomId: string = "";    
-    roomName: string = "";
-    roomStatus: string = "";
-    participantCount = 0;
-}
-
-export class ConferenceScheduledInfo {
-    externalId: string = "";
-    name: string = "";
-    description: string = "";
-    config: ConferenceRoomConfig = new ConferenceRoomConfig();
-}
-
-export class ConferenceRoomJoinConfig {
-    micEnabled: boolean;
-    cameraEnabled: boolean;
 }

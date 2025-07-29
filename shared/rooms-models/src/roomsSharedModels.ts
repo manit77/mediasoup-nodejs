@@ -21,6 +21,7 @@ export enum payloadTypeClient {
     roomGetLogs = "roomGetLogs",
 
     roomProduceStream = "roomProduceStream",
+    roomCloseProducer = "roomCloseProducer",
     roomConsumeStream = "roomConsumeStream",
 
     peerTracksInfo = "peerTracksInfo",
@@ -47,6 +48,7 @@ export enum payloadTypeServer {
 
     roomProduceStreamResult = "roomProduceStreamResult",
     roomConsumeStreamResult = "roomConsumeStreamResult",
+    roomConsumerClosed = "roomConsumerClosed",
 
     roomNewResult = "roomNewResult",
     roomNewTokenResult = "roomNewTokenResult",
@@ -66,7 +68,7 @@ export enum payloadTypeServer {
 
 export interface IMsg {
     type: any;
-    data: any;
+    data: any | { error?: any };
 }
 
 export enum AuthUserRoles {
@@ -382,10 +384,17 @@ export class RoomTerminateResultMsg implements IMsg {
     } = {}
 }
 
+export class RoomCloseProducerMsg implements IMsg {
+    type = payloadTypeClient.roomCloseProducer;
+    data: {
+        roomId?: string,
+        kinds?: ("audio" | "video")[]
+    } = {};
+}
+
 export class RoomProduceStreamMsg implements IMsg {
     type = payloadTypeClient.roomProduceStream;
     data: {
-        authToken?: string,
         roomId?: string,
         kind?: "audio" | "video",
         rtpParameters?: any
@@ -403,7 +412,6 @@ export class RoomProduceStreamResultMsg implements IMsg {
 export class RoomConsumeStreamMsg implements IMsg {
     type = payloadTypeClient.roomConsumeStream;
     data: {
-        authToken?: string,
         roomId?: string,
         remotePeerId?: string,
         producerId?: string,
@@ -425,9 +433,19 @@ export class RoomConsumeStreamResultMsg implements IMsg {
     } = {};
 }
 
+export class RoomConsumerClosedMsg implements IMsg {
+    type = payloadTypeServer.roomConsumerClosed;
+    data: {
+        roomId?: string,
+        producerId?: string,
+        consumerId?: string,
+        kind?: "audio" | "video",
+    } = {};
+}
+
 export class PeerTracksInfoMsg {
     type = payloadTypeClient.peerTracksInfo
-    data: {       
+    data: {
         peerId?: string,
         tracksInfo?: PeerTracksInfo;
     } = {}
@@ -443,7 +461,7 @@ export class PeerMuteTracksMsg {
 }
 
 export interface PeerTracksInfo {
-    isAudioEnabled:boolean,
+    isAudioEnabled: boolean,
     isVideoEnabled?: boolean
 }
 
@@ -466,10 +484,16 @@ export class RoomConfig {
     newRoomTokenExpiresInMinutes = 30; //room token expiration from date created
     maxRoomDurationMinutes = 30; // room max duration, starts when the room is created
     timeOutNoParticipantsSecs = 5 * 60; //when no participants in the room, timer starts and will close the room 
-    closeRoomOnPeerCount = 0; //room will be closed when there are x number of peers
+
+    closeRoomOnPeerCount = 0; //room will be closed when there are x number of peers    
+    guestsAllowMic = true;
+    guestsAllowCamera = true;
+
     callBackURL_OnRoomClosed: string;
     callBackURL_OnPeerLeft: string;
     callBackURL_OnPeerJoined: string;
+
+    isRecorded = false;
 }
 
 export enum payloadTypeCallBacks {
@@ -523,22 +547,22 @@ export class RoomGetLogsResultMsg implements IMsg {
     } = { logs: [] };
 }
 
-export class UniqueMap<T> {
+export class UniqueMap<K, T> {
 
-    private items = new Map<string, T>()
+    private items = new Map<K, T>()
 
-    set(key: string, item: T) {
+    set(key: K, item: T) {
         if (this.items.has(key)) {
             throw `already has and item with ${key}`;
         }
         this.items.set(key, item);
     }
 
-    has(key: string) {
+    has(key: K) {
         return this.items.has(key);
     }
 
-    delete(key: string) {
+    delete(key: K) {
         return this.items.delete(key);
     }
 
@@ -550,7 +574,7 @@ export class UniqueMap<T> {
         return [...this.items.values()];
     }
 
-    get(key: string) {
+    get(key: K) {
         return this.items.get(key);
     }
 

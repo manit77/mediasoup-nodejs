@@ -4,15 +4,15 @@ import fs from 'fs/promises';
 import chalk from 'chalk';
 
 export function consoleError(...args: any) {
-  console.error(chalk.red('[ERROR]', ...args));
+  console.error(chalk.red('[ERROR]'), ...args);
 }
 
 export function consoleWarn(...args: any) {
-  console.log(chalk.yellow('[WARN]', ...args));
+  console.warn(chalk.yellow('[WARN]'), ...args);
 }
 
 export function consoleInfo(...args: any) {
-  console.log(chalk.green(...args));
+  console.log(chalk.green('[INFO]'), ...args);
 }
 
 export function consoleLog(...args: any) {

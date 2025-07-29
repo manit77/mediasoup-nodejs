@@ -6,10 +6,10 @@ export interface DeviceInfo {
   label: string;
 }
 
-export interface ConsumerInfo {
-  peerId: string,
-  consumer: mediasoupClient.types.Consumer;
-}
+// export interface ConsumerInfo {
+//   peerId: string,
+//   consumer: mediasoupClient.types.Consumer;
+// }
 
 
 export type MediaDeviceOptions = {

@@ -9,8 +9,13 @@ import { Navigate } from 'react-router-dom';
 
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
-    const { localParticipant, isCallActive, callParticipants, conference } = useCall();
+    const { localParticipant, isCallActive, callParticipants, selectedDevices, switchDevicesOnCall } = useCall();
     const [mainStream, setMainStream] = useState<MediaStream | null>(null);
+
+    useEffect(() => {
+        console.log(`try to switch devices, selectedDevices triggered `, localParticipant.stream.getTracks());
+        switchDevicesOnCall();
+    }, [selectedDevices, switchDevicesOnCall]);
 
     useEffect(() => {
         if (localParticipant.stream && !mainStream) {

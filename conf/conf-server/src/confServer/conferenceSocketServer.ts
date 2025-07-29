@@ -59,13 +59,14 @@ export class ConferenceSocketServer {
                         returnMsg.data.error = "already registered.";
 
                     } else {
-                        returnMsg = await this.confServer.onRegister(msgIn) as RegisterResultMsg;
+                        returnMsg =(await this.confServer.onRegister(msgIn) as RegisterResultMsg);
                         if (returnMsg.data.error) {
                             consoleError(LOG, `failed to register socket ${returnMsg.data.error}`);
                             return;
                         } else {
-                            conn.participantId = returnMsg.data.participantId
-                            consoleLog(LOG, `socket registered`, conn.participantId);
+                            conn.participantId = returnMsg.data.participantId;
+                            conn.username = returnMsg.data.username
+                            consoleLog(LOG, `socket registered`, conn.participantId, conn.username);
                             conn.restartSocketTimeout();
                         }
                     }

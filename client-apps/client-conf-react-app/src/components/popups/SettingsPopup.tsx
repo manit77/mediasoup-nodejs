@@ -6,15 +6,13 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
     const {
         availableDevices,
         selectedDevices,
+        setSelectedDevices,
         getMediaDevices,
-        switchDevices,
     } = useCall();
 
     const [audioId, setAudioId] = useState("");
     const [videoId, setVideoId] = useState("");
     const [speakerId, setSpeakerId] = useState("");
-    const [isVideoEnabled, setIsVideoEnabled] = useState(false);
-    const [isAudioEnabled, setIsAudioEnabled] = useState(false);
 
     useEffect(() => {
         if (show) {
@@ -22,28 +20,27 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
             setAudioId(selectedDevices.audioInId);
             setVideoId(selectedDevices.videoId);
             setSpeakerId(selectedDevices.audioOutId);
-            setIsVideoEnabled(selectedDevices.isVideoEnabled);
-            setIsAudioEnabled(selectedDevices.isAudioEnabled);
-
         }
     }, [selectedDevices, show, getMediaDevices]);
 
     const handleDeviceChange = (type: 'video' | 'audioIn' | 'audioOut', deviceId: string) => {
         if (type === "video") {
             setVideoId(deviceId);
+            selectedDevices.videoId = deviceId;
         } else if (type === "audioIn") {
             setAudioId(deviceId);
+            selectedDevices.audioInId = deviceId;
         } else {
             setSpeakerId(deviceId);
+            selectedDevices.audioOutId = deviceId;
         }
     };
 
     const closeButtonClick = async () => {
-        console.log(`closeButtonClick ${isAudioEnabled} ${isVideoEnabled}`);
-        switchDevices(videoId, audioId, speakerId, isAudioEnabled, isVideoEnabled);
+        setSelectedDevices(prev => ({ ...selectedDevices }));
         handleClose();
     };
-
+    
     return (
         <Modal show={show} onHide={handleClose} size="lg">
             <Modal.Header closeButton>
@@ -78,7 +75,8 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                             ))}
                                         </Form.Select>
                                     ) : <p>No microphones found.</p>}
-                                    <Form.Check label="Mic enabled" checked={isAudioEnabled} onChange={(e) => setIsAudioEnabled(e.target.checked)}></Form.Check>
+
+                                    {/* <Form.Check label="Mic enabled" checked={isAudioEnabled} onChange={(e) => setIsAudioEnabled(e.target.checked)}></Form.Check> */}
 
 
                                     <h5>Video</h5>
@@ -94,7 +92,8 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                             ))}
                                         </Form.Select>
                                     ) : <p>No cameras found.</p>}
-                                    <Form.Check label="Camera enabled" checked={isVideoEnabled} onChange={(e) => setIsVideoEnabled(e.target.checked)}></Form.Check>
+
+                                    {/* <Form.Check label="Camera enabled" checked={isVideoEnabled} onChange={(e) => setIsVideoEnabled(e.target.checked)}></Form.Check> */}
 
 
                                     <h5>Speaker</h5>
