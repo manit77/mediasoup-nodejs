@@ -39,13 +39,17 @@ class ApiService {
             } as LoginResponse;
         }
 
+        if (loginResult.data.clientData) {
+            clientData = loginResult.data.clientData;
+        }
+
         let result: LoginResponse = {
             user: {
                 username: loginResult.data.username,
                 displayName: loginResult.data.displayName,
                 role: loginResult.data.role as any,
                 authToken: loginResult.data.authToken,
-                clientData: loginResult.data.clientData
+                clientData: clientData
             }
         }
 
@@ -72,6 +76,9 @@ class ApiService {
             } as LoginResponse;
         }
 
+        if (loginResult.data.clientData) {
+            clientData = loginResult.data.clientData;
+        }
 
         let result: LoginResponse = {
             user: {
@@ -83,7 +90,7 @@ class ApiService {
             }
         }
 
-        console.log(`LoginResponse`, result);
+        console.warn(`LoginResponse`, result);
         localStorage.setItem('user', JSON.stringify(result.user));
         return result;
     };

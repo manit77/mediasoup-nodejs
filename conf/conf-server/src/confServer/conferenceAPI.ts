@@ -36,7 +36,7 @@ export class ConferenceAPI {
             console.log(WebRoutes.loginGuest, req.body);
 
             let msg = req.body as LoginGuestMsg;
-            let clientData = {};
+            let clientData = msg.data.clientData;
 
             if (!msg.data.displayName) {
                 let errorMsg = new LoginResultMsg();
@@ -49,15 +49,17 @@ export class ConferenceAPI {
             if (this.config.conf_data_urls.loginGuestURL) {
                 var result = await this.thirdPartyAPI.loginGuest(msg.data.displayName, msg.data.clientData);
                 if (result.data.error) {
-                    console.error(`loginURL error ${this.config.conf_data_urls.loginURL}`);
+                    console.error(`loginGuestURL error ${this.config.conf_data_urls.loginGuestURL}`, result.data.error);
                     let errorMsg = new LoginResultMsg();
                     errorMsg.data.error = "authentication failed";
 
                     res.send(errorMsg);
                     return;
                 }
-
-                clientData = result.data.clientData;
+                if (result.data.clientData) {
+                    clientData = result.data.clientData;
+                    console.warn(`new clientData received.`, clientData);
+                }
             }
 
             let authTokenPayload: IAuthPayload = {
@@ -84,12 +86,13 @@ export class ConferenceAPI {
             console.log(WebRoutes.login);
 
             console.log(req.body);
+            let msg = req.body as LoginMsg;
             let isAuthenticated = false;
             let username = "";
             let displayName = "";
-            let returnedClientData: any = { appData: "demo data" };
+            let returnedClientData: any = msg.data.clientData;
             let role: string = ParticipantRole.user;
-            let msg = req.body as LoginMsg;
+
             if (msg.data.username && msg.data.password) {
                 //use a third party service to send a username and password
                 if (this.config.conf_data_urls.loginURL) {
@@ -231,22 +234,22 @@ export class ConferenceAPI {
                     return;
                 }
 
-                //hide the conference code                
+                console.log(`getScheduledConference result:`, result, result.data.conference.config);
 
+                //hide the conference code
                 let conf = new ConferenceScheduledInfo()
                 conf.description = result.data.conference.description;
                 conf.externalId = result.data.conference.id;
                 conf.name = result.data.conference.name;
-                conf.config.conferenceCode = "";
+                
+                conf.config.conferenceCode = result.data.conference.config.conferenceCode;
                 conf.config.guestsAllowCamera = result.data.conference.config.guestsAllowCamera;
                 conf.config.guestsAllowMic = result.data.conference.config.guestsAllowMic;
                 conf.config.guestsAllowed = result.data.conference.config.guestsAllowed;
                 conf.config.guestsMax = result.data.conference.config.guestsMax;
 
                 resultMsg.data.conference = conf;
-
-                res.send(resultMsg);
-
+              
             } else {
                 //get from demo data
                 //console.log(`${WebRoutes.getConferencesScheduled}`);
