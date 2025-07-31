@@ -25,13 +25,15 @@ import {
 } from '@conf/conf-models';
 import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
-import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
-import { AuthUserRoles, IMsg, RoomConfig } from '@rooms/rooms-models';
+import { jwtVerify } from '../utils/jwtUtil.js';
+import { IMsg, RoomConfig } from '@rooms/rooms-models';
 import express from 'express';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { getDemoSchedules } from '../demoData/demoData.js';
 import { AbstractEventHandler } from '../utils/evenHandler.js';
-import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
+import { consoleError, consoleLog, consoleWarn, fill } from '../utils/utils.js';
+import pkg_lodash from 'lodash';
+const { clone } = pkg_lodash;
 
 export interface ConferenceServerConfig {
     conf_server_port: number,
@@ -235,6 +237,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
      */
     async onRegister(msgIn: RegisterMsg): Promise<IMsg> {
         consoleLog("onRegister " + msgIn.data.username);
+        msgIn = fill(msgIn, new RegisterMsg());
 
         if (!msgIn.data.username) {
             consoleError("username is required.");
@@ -272,7 +275,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         let participant: Participant = this.createParticipant(msgIn.data.username, msgIn.data.username);
         participant.clientData = msgIn.data.clientData;
-        
+
         let authTokenObject: IAuthPayload;
         authTokenObject = jwtVerify(this.config.conf_secret_key, msgIn.data.authToken) as IAuthPayload;
 
@@ -320,7 +323,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.conferences = [...this.conferences.values()].filter(c => c.externalId).map(c => {
             let newc = {
                 conferenceId: c.id,
-                config: c.config,
+                config: clone(c.config),
                 description: "",
                 externalId: c.externalId,
                 name: c.roomName
@@ -398,6 +401,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
      */
     private async onInvite(participant: Participant, msgIn: InviteMsg) {
         consoleLog("onInvite");
+        msgIn = fill(msgIn, new InviteMsg());
 
         if (participant.conference) {
             consoleError("caller already in a conference room.");
@@ -480,6 +484,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     private async onInviteCancelled(participant: Participant, msgIn: InviteCancelledMsg) {
         consoleLog("onInviteCancel");
+        msgIn = fill(msgIn, new InviteCancelledMsg());
+
 
         let receiver = this.getParticipant(msgIn.data.participantId);
         if (!receiver) {
@@ -519,6 +525,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
      */
     private async onReject(participant: Participant, msgIn: RejectMsg): Promise<IMsg | null> {
         consoleLog("onReject");
+        msgIn = fill(msgIn, new RejectMsg());
+
         let remoteParticipant = this.getParticipant(msgIn.data.toParticipantId);
 
         if (!remoteParticipant) {
@@ -550,6 +558,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     private async onAccept(participant: Participant, msgIn: AcceptMsg) {
         consoleLog("onAccept()");
+        msgIn = fill(msgIn, new AcceptMsg());
 
         let conference = this.conferences.get(msgIn.data.conferenceId);
 
@@ -609,6 +618,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     private async onCreateConference(participant: Participant, msgIn: CreateConfMsg) {
         consoleLog("onCreateConference");
+        msgIn = fill(msgIn, new CreateConfMsg());
 
         //must be admin or a user
         if (![ParticipantRole.admin, ParticipantRole.user].includes(participant.role as ParticipantRole)) {
@@ -623,10 +633,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         //get the config from the api endpoint
-        let confConfig = msgIn.data.conferenceRoomConfig;
-        if (!confConfig) {
-            confConfig = new ConferenceRoomConfig();
-        }
+        let confConfig = new ConferenceRoomConfig();
         let roomName = msgIn.data.roomName;
 
         if (msgIn.data.conferenceExternalId) {
@@ -649,36 +656,14 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 }
 
                 if (resultMsg) {
-                    let config = resultMsg.data.conference.config;
-                    if (!config) {
-                        consoleWarn(`no confrence config, using the default.`);
-                        config = new ConferenceRoomConfig();
-                    }
-
-                    confConfig.conferenceCode = config.conferenceCode;
-                    confConfig.guestsAllowCamera = config.guestsAllowCamera;
-                    confConfig.guestsAllowMic = config.guestsAllowMic;
-                    confConfig.guestsAllowed = config.guestsAllowed;
-                    confConfig.guestsMax = config.guestsMax;
-                    confConfig.guestsRequireConferenceCode = config.conferenceCode ? true : false;
-                    confConfig.roomTimeoutSecs = 0;
-                    confConfig.usersMax = 0;
-
+                    fill(resultMsg.data.conference.config, confConfig);
                     roomName = resultMsg.data.conference.name;
                 }
             } else {
                 //get from demo data                
                 let demoSchedule = getDemoSchedules().find(s => s.externalId === msgIn.data.conferenceExternalId);
                 if (demoSchedule) {
-                    confConfig.conferenceCode = demoSchedule.config.conferenceCode;
-                    confConfig.guestsAllowCamera = demoSchedule.config.guestsAllowCamera;
-                    confConfig.guestsAllowMic = demoSchedule.config.guestsAllowMic;
-                    confConfig.guestsAllowed = demoSchedule.config.guestsAllowed;
-                    confConfig.guestsMax = demoSchedule.config.guestsMax;
-                    confConfig.guestsRequireConferenceCode = demoSchedule.config.guestsRequireConferenceCode;
-                    confConfig.roomTimeoutSecs = 0;
-                    confConfig.usersMax = 0;
-
+                    fill(demoSchedule.config, confConfig);
                     roomName = demoSchedule.name;
                 }
             }
@@ -709,6 +694,13 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         } else {
             conference = this.getOrCreateConference(null, msgIn.data.conferenceExternalId, roomName, confConfig);
             conference.confType = "room";
+
+            conference.startTimer();
+            //if no participants in 60 seconds close the room
+            conference.minParticipants = 1;
+            conference.startTimerMinParticipants(60);
+
+
             if (!await this.startRoom(conference)) {
                 consoleError("unable to start a conference");
                 let errorMsg = new CreateConfResultMsg();
@@ -734,6 +726,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
      */
     private async onJoinConference(participant: Participant, msgIn: JoinConfMsg) {
         consoleLog("onJoinConference");
+        msgIn = fill(msgIn, new JoinConfMsg());
 
         //conferenceId or externalId is required
         if (!msgIn.data.conferenceId && !msgIn.data.externalId) {
@@ -950,6 +943,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     private async onLeave(participant: Participant, msgIn: LeaveMsg): Promise<IMsg | null> {
         consoleLog("onLeave");
+        msgIn = fill(msgIn, new LeaveMsg());
+
         let conf = this.conferences.get(msgIn.data.conferenceId);
 
         if (!conf) {
@@ -984,6 +979,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     private async onGetConferences(participant: Participant, msgIn: GetConferencesMsg) {
         consoleLog("onGetConferences");
+        //msgIn = fill(msgIn, new GetConferencesMsg());
+
         let returnMsg = new GetConferencesResultMsg();
         returnMsg.data.conferences = await this.getConferences();
         return returnMsg;
@@ -996,7 +993,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 let newc = {
                     conferenceId: c.id,
                     externalId: c.externalId,
-                    config: c.config,
+                    config: clone(c.config),
                     description: "",
                     name: c.roomName
                 } as ConferenceScheduledInfo;

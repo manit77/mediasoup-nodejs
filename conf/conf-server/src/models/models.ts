@@ -222,6 +222,7 @@ export class Conference {
      * starts the room timer for max room duration
      */
     startTimer() {
+        consoleLog(`startTimer, timeout in ${this.timeoutSecs}`);
         if (this.timeoutSecs > 0) {
             this.timeoutId = setTimeout(() => { this.close(); }, this.timeoutSecs * 1000);
         }
@@ -232,7 +233,7 @@ export class Conference {
      * @param timeoutSeconds 
      */
     startTimerMinParticipants(timeoutSeconds: number) {
-        consoleLog("startTimerMinParticipants");
+        consoleLog(`startTimerMinParticipants, timeout in ${timeoutSeconds}`);
 
         if (this.minParticipantsTimerId) {
             clearTimeout(this.minParticipantsTimerId);

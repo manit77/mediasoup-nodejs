@@ -1,3 +1,4 @@
+import { ConferenceRoomConfig } from "./conferenceModels.js";
 
 export enum apiMsgTypes {
     login = "login",
@@ -63,16 +64,7 @@ export class apiScheduledConference {
     id: string;
     name: string;
     description: string;
-    config: {
-        conferenceCode: string,
-        guestsMax: number,
-        guestsAllowed: boolean,
-        guestsAllowMic: boolean,
-        guestsAllowCamera: boolean,
-        isPrivate: boolean;
-        guestsRequireConferenceCode: boolean,
-        usersRequireConferenceCode: boolean
-    }
+    config: ConferenceRoomConfig 
 }
 
 

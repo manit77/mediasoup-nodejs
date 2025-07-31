@@ -7,6 +7,7 @@ import { AuthUserRoles, RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/room
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from '@conf/conf-models';
 import { getDemoSchedules } from '../demoData/demoData.js';
+import { fill } from '../utils/utils.js';
 
 export class ConferenceAPI {
     thirdPartyAPI: ThirdPartyAPI;
@@ -180,14 +181,10 @@ export class ConferenceAPI {
                 //hide the conference code                
                 resultMsg.data.conferences = result.data.conferences.filter(s => !s.config.isPrivate).map(s => {
                     let clone = new ConferenceScheduledInfo()
-                    clone.description = s.description;
                     clone.externalId = s.id;
-                    clone.name = s.name;
-                    clone.config.conferenceCode = "";
-                    clone.config.guestsAllowCamera = s.config.guestsAllowCamera;
-                    clone.config.guestsAllowMic = s.config.guestsAllowMic;
-                    clone.config.guestsAllowed = s.config.guestsAllowed;
-                    clone.config.guestsMax = s.config.guestsMax;
+                    fill(s, clone);                    
+                    fill(s.config, clone.config);
+                    delete clone.config.conferenceCode;
                     return clone;
                 });
 
@@ -237,16 +234,12 @@ export class ConferenceAPI {
                 console.log(`getScheduledConference result:`, result, result.data.conference.config);
 
                 //hide the conference code
-                let conf = new ConferenceScheduledInfo()
-                conf.description = result.data.conference.description;
-                conf.externalId = result.data.conference.id;
-                conf.name = result.data.conference.name;
-                
-                conf.config.conferenceCode = result.data.conference.config.conferenceCode;
-                conf.config.guestsAllowCamera = result.data.conference.config.guestsAllowCamera;
-                conf.config.guestsAllowMic = result.data.conference.config.guestsAllowMic;
-                conf.config.guestsAllowed = result.data.conference.config.guestsAllowed;
-                conf.config.guestsMax = result.data.conference.config.guestsMax;
+                let conf = new ConferenceScheduledInfo();               
+                conf.externalId = result.data.conference.id;               
+                fill(result.data, conf);
+                fill(result.data.conference.config, conf.config)
+                //hide the conference code
+                delete conf.config.conferenceCode; //result.data.conference.config.conferenceCode;                
 
                 resultMsg.data.conference = conf;
               
@@ -257,10 +250,9 @@ export class ConferenceAPI {
                 //map and delete the conference code
                 resultMsg = new GetConferencesScheduledResultMsg();
                 resultMsg.data.conference = getDemoSchedules().filter(s => s.externalId === msg.data.id).map(s => {
-                    let clone = {
-                        ...s,
-                        config: { ...s.config }
-                    };
+                    let clone = new ConferenceScheduledInfo();                    
+                    fill(s, clone);
+                    fill(s.config, clone.config);
                     delete clone.config.conferenceCode;
                     return clone;
                 })[0];

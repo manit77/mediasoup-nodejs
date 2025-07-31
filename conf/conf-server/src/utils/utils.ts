@@ -2,6 +2,8 @@ import dgram from 'dgram';
 import * as fsync from 'fs';
 import fs from 'fs/promises';
 import chalk from 'chalk';
+import pkg_lodash from 'lodash';
+const { assign, pick, keys } = pkg_lodash;
 
 export function consoleError(...args: any) {
   console.error(chalk.red('[ERROR]'), ...args);
@@ -81,4 +83,14 @@ export function stringIsNullOrEmpty(val: string): boolean {
 
 export function checkKeysExist(obj: any, keys: string[]) {
   return keys.every(key => Object.prototype.hasOwnProperty.call(obj, key));
+}
+
+/**
+ * copies fields from src to dst, no keys are deleted from the dst, no new keys are created in dst
+ * @param src
+ * @param dst 
+ * @returns 
+ */
+export function fill(src: any, dst: any) {
+  return assign(dst, pick(src, keys(dst)));
 }
