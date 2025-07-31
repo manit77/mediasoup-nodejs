@@ -70,12 +70,13 @@ export class LoginResultMsg implements IMsg {
 
 export class RegisterMsg implements IMsg {
     type = CallMessageType.register;
-    data = {
-        username: "",
-        displayName: "",
-        authToken: "",
-        participantId: ""
-    }
+    data : {
+        username?: string,
+        displayName?: string,
+        authToken?: string,
+        participantId?: string,
+        clientData?: {}
+    } = {}
 }
 
 export class RegisterResultMsg implements IMsg {
@@ -101,7 +102,7 @@ export class GetParticipantsResultMsg implements IMsg {
 
 export class GetConferencesMsg implements IMsg {
     type = CallMessageType.getConferences;
-    data = { }
+    data = {}
 }
 
 export class GetConferenceScheduledResultMsg implements IMsg {

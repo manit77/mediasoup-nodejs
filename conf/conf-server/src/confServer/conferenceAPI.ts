@@ -32,35 +32,50 @@ export class ConferenceAPI {
         });
 
         console.log(`route: ${WebRoutes.loginGuest}`);
-        this.app.post(WebRoutes.loginGuest, (req, res) => {
+        this.app.post(WebRoutes.loginGuest, async (req, res) => {
             console.log(WebRoutes.loginGuest, req.body);
 
             let msg = req.body as LoginGuestMsg;
-            if (msg.data.displayName) {
+            let clientData = {};
 
-                let authTokenPayload: IAuthPayload = {
-                    username: msg.data.displayName,
-                    role: ParticipantRole.guest
-                };
-                let authToken = jwtSign(this.config.conf_secret_key, authTokenPayload);
-
-                let resultMsg = new LoginResultMsg();
-                resultMsg.data.username = msg.data.displayName;
-                resultMsg.data.displayName = msg.data.displayName;
-                resultMsg.data.authToken = authToken;
-                resultMsg.data.role = "guest";
-
-                console.log(`send `, resultMsg);
-
-                res.send(resultMsg);
-
-            } else {
-
+            if (!msg.data.displayName) {
                 let errorMsg = new LoginResultMsg();
                 errorMsg.data.error = "authentication failed";
 
                 res.send(errorMsg);
+                return;
             }
+
+            if (this.config.conf_data_urls.loginGuestURL) {
+                var result = await this.thirdPartyAPI.loginGuest(msg.data.displayName, msg.data.clientData);
+                if (result.data.error) {
+                    console.error(`loginURL error ${this.config.conf_data_urls.loginURL}`);
+                    let errorMsg = new LoginResultMsg();
+                    errorMsg.data.error = "authentication failed";
+
+                    res.send(errorMsg);
+                    return;
+                }
+
+                clientData = result.data.clientData;
+            }
+
+            let authTokenPayload: IAuthPayload = {
+                username: msg.data.displayName,
+                role: ParticipantRole.guest
+            };
+            let authToken = jwtSign(this.config.conf_secret_key, authTokenPayload);
+
+            let resultMsg = new LoginResultMsg();
+            resultMsg.data.username = msg.data.displayName;
+            resultMsg.data.displayName = msg.data.displayName;
+            resultMsg.data.authToken = authToken;
+            resultMsg.data.role = "guest";
+            resultMsg.data.clientData = clientData;
+
+            console.log(`send `, resultMsg);
+
+            res.send(resultMsg);
 
         });
 
@@ -72,22 +87,22 @@ export class ConferenceAPI {
             let isAuthenticated = false;
             let username = "";
             let displayName = "";
-            let appData: any = { app_data: "demo data" };
+            let returnedClientData: any = { appData: "demo data" };
             let role: string = ParticipantRole.user;
-
             let msg = req.body as LoginMsg;
             if (msg.data.username && msg.data.password) {
                 //use a third party service to send a username and password
                 if (this.config.conf_data_urls.loginURL) {
                     //mock: post the username and password to external URL
-                    var result = await this.thirdPartyAPI.login(msg.data.username, msg.data.password, "", msg.data.clientData);
+                    var result = await this.thirdPartyAPI.login(msg.data.username, msg.data.password, msg.data.clientData);
                     if (result.data.error) {
-                        console.error(`loginURL error ${this.config.conf_data_urls.loginURL}`);
+                        console.error(`loginURL error ${this.config.conf_data_urls.loginURL}`, result.data.error);
                     } else {
+                        console.log(`user authenticated.`, result);
                         isAuthenticated = true;
                         username = result.data.username;
                         displayName = result.data.displayName;
-                        appData = result.data.appData;
+                        returnedClientData = result.data.clientData;
                         role = result.data.role;
                     }
 
@@ -99,34 +114,17 @@ export class ConferenceAPI {
                 }
 
             } else if (msg.data.username && msg.data.authToken) {
-                //use authtoken
-                if (this.config.conf_data_urls.loginURL) {
-                    //else use a third party service to verify authtoken
-                    //post the username and authtoken to external URL
-                    var result = await this.thirdPartyAPI.login(msg.data.username, "", msg.data.authToken, msg.data.clientData);
-                    if (result.data.error) {
-                        console.error(`loginURL error ${this.config.conf_data_urls.loginURL}`);
-                    } else {
-                        //mock: this is a demo app with no database, login user in
+                // verify authtoken generated by our app
+                try {
+                    let payload = jwtVerify(this.config.conf_secret_key, msg.data.authToken) as IAuthPayload;
+                    if (payload.username === msg.data.username) {
                         isAuthenticated = true;
-                        username = result.data.username;
-                        displayName = result.data.displayName;
-                        appData = result.data.appData;
-                        role = result.data.role;
+                        username = msg.data.username;
+                        displayName = username;
+                        role = payload.role;
                     }
-                } else {
-                    // verify authtoken generated by our app
-                    try {
-                        let payload = jwtVerify(this.config.conf_secret_key, msg.data.authToken) as IAuthPayload;
-                        if (payload.username === msg.data.username) {
-                            isAuthenticated = true;
-                            username = msg.data.username;
-                            displayName = username;
-                            role = payload.role;
-                        }
-                    } catch (err) {
-                        console.error(err);
-                    }
+                } catch (err) {
+                    console.error(err);
                 }
             } else {
                 //invalid 
@@ -138,6 +136,7 @@ export class ConferenceAPI {
                     username: username,
                     role: role
                 };
+
                 let authToken = jwtSign(this.config.conf_secret_key, authTokenPayload);
 
                 let resultMsg = new LoginResultMsg();
@@ -145,11 +144,13 @@ export class ConferenceAPI {
                 resultMsg.data.displayName = displayName;
                 resultMsg.data.authToken = authToken;
                 resultMsg.data.role = role;
+                resultMsg.data.clientData = returnedClientData;
 
-                console.log(`send `, resultMsg);
+                console.log(`send  LoginResultMsg`, resultMsg);
                 res.send(resultMsg);
                 return;
             } else {
+                console.warn(`return 401`);
                 let errorMsg = new LoginResultMsg();
                 errorMsg.data.error = "authentication failed";
                 res.status(401).send(errorMsg);
@@ -169,7 +170,7 @@ export class ConferenceAPI {
                 let msg = req.body as apiGetScheduledConferencesPost;
                 let result = await this.thirdPartyAPI.getScheduledConferences(msg.data.clientData) as apiGetScheduledConferencesResult;
                 if (result.data.error) {
-                    console.log(result.data.error);
+                    console.log(`getScheduledConferences error:`, result.data.error);
                     return;
                 }
 
@@ -186,7 +187,6 @@ export class ConferenceAPI {
                     clone.config.guestsMax = s.config.guestsMax;
                     return clone;
                 });
-                res.send(resultMsg);
 
             } else {
                 //get from demo data

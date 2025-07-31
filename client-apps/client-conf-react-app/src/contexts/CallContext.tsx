@@ -211,17 +211,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         console.log("CallContext: onRegisterFailed: error", msgIn.data.error);
                         setIsAuthenticated(false);
                         ui.showPopUp(`socket registration failed. ${msgIn.data.error}`, "error");
-
-                        //try again
-                        // if (conferenceClient.username && conferenceClient.authToken) {
-                        //     setTimeout(() => {
-                        //         ui.showToast("trying to register socket...");
-                        //         conferenceClient.registerConnection(conferenceClient.username, conferenceClient.authToken);
-                        //     }, 5000);
-                        // } else {
-                        //     console.error(`invalid credentials.`);
-                        // }
-
                         return;
                     }
                     getConferenceRoomsOnline();

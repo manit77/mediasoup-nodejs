@@ -1,7 +1,7 @@
 import axios from "axios";
 import https from "https"
 import { ConferenceServerConfig } from "../confServer/conferenceServer.js";
-import { apiGetScheduledConferenceResult, apiGetScheduledConferencesResult, apiLoginResult, apiScheduledConference } from "@conf/conf-models";
+import { apiGetScheduledConferencePost, apiGetScheduledConferenceResult, apiGetScheduledConferencesPost, apiGetScheduledConferencesResult, apiLoginPost, apiLoginResult, apiScheduledConference } from "@conf/conf-models";
 
 export class ThirdPartyAPI {
 
@@ -9,18 +9,39 @@ export class ThirdPartyAPI {
 
     }
 
-    async login(username: string, password: string, authToken: string, clientData: {}) {
-        let postData = { username: username, password: password, authToken: authToken, clientData: clientData };
+    async login(username: string, password: string, clientData: {}) {
+        console.log('login', username);
+
+        let postData = new apiLoginPost();
+        postData.data.username = username;
+        postData.data.password = password;        
+        postData.data.clientData = clientData;
         return await this.post(this.config.conf_data_urls.loginURL, postData) as apiLoginResult;
     }
 
+    async loginGuest(displayName: string, clientData: {}) {
+        console.log(`loginGuest`, clientData);
+
+        let postData = new apiLoginPost();
+        postData.data.username = displayName;        
+        postData.data.clientData = clientData;
+        return await this.post(this.config.conf_data_urls.loginGuestURL, postData) as apiLoginResult;
+    }
+
     async getScheduledConferences(clientData: any) {
-        let postData = { clientData: clientData };
+        console.log(`getScheduledConferences`, clientData);
+
+        let postData = new apiGetScheduledConferencesPost();
+        postData.data.clientData = clientData;
         return await this.post(this.config.conf_data_urls.getScheduledConferencesURL, postData) as apiGetScheduledConferencesResult;
     }
 
     async getScheduledConference(id: string, clientData: any) {
-        let postData = { id: id, clientData: clientData };
+        console.log(`getScheduledConference, clientData:`, clientData);
+
+        let postData = new apiGetScheduledConferencePost();
+        postData.data.id = id;
+        postData.data.clientData = clientData;
         return await this.post(this.config.conf_data_urls.getScheduledConferenceURL, postData) as apiGetScheduledConferenceResult;
     }
 
@@ -49,7 +70,7 @@ export class ThirdPartyAPI {
             console.log(`Unexpected status code: ${result.status}`);
             return null;
         } catch (err) {
-            console.error(`POST error: ${err.message}`);
+            console.error(`POST error: ${err}`);
             return null;
         }
     }

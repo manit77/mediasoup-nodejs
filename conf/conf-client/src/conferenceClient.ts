@@ -22,6 +22,7 @@ class ConferenceClient {
     localParticipant = new Participant();
     username: string = "";
     authToken: string = "";
+    clientData = {};
     conference: Conference = new Conference();
     callState: callStates = "disconnected";
 
@@ -292,7 +293,7 @@ class ConferenceClient {
     // }
 
 
-    connect(username: string, authToken: string, options?: { socket_ws_uri?: string }) {
+    connect(username: string, authToken: string, clientData: any, options?: { socket_ws_uri?: string }) {
         console.log(`connect to socket server.`, this.config);
 
         if (!this.config) {
@@ -304,6 +305,7 @@ class ConferenceClient {
         }
         this.username = username;
         this.authToken = authToken;
+        this.clientData = clientData;
 
         if (this.socket) {
             console.log(`socket already exists, disconnect.`);
@@ -344,7 +346,7 @@ class ConferenceClient {
         console.log("onSocketConnected()");
 
         if (this.username && this.authToken) {
-            await this.waitRegisterConnection(this.username, this.authToken);
+            await this.waitRegisterConnection(this.username, this.authToken, this.clientData);
         } else {
             console.log("not credentials registerConnection");
         }
@@ -442,7 +444,7 @@ class ConferenceClient {
         return this.socket && this.socket.state === "connected" && this.localParticipant.participantId;
     }
 
-    waitRegisterConnection(username: string, authToken: string) {
+    waitRegisterConnection(username: string, authToken: string, clientData: {}) {
         console.log("waitRegisterConnection");
         return new Promise<CreateConfResultMsg>((resolve, reject) => {
             let _onmessage: (event: any) => void;
@@ -456,7 +458,7 @@ class ConferenceClient {
             try {
                 let timerid = setTimeout(() => {
                     _removeEvents();
-                    reject("failed to register connection");
+                    reject("failed to register connection, register timed out.");
                 }, 5000);
 
                 _onmessage = (event: any) => {
@@ -470,7 +472,7 @@ class ConferenceClient {
                         let msgIn = msg as RegisterResultMsg;
                         if (msgIn.data.error) {
                             console.log(msgIn.data.error);
-                            reject("failed to register connection");
+                            reject("failed to register connection, " + msgIn.data.error);
                             return;
                         }
                         resolve(msgIn);
@@ -478,12 +480,12 @@ class ConferenceClient {
                 };
 
                 this.socket.addEventHandler("onmessage", _onmessage);
-                this.registerConnection(username, authToken);
+                this.registerConnection(username, authToken, clientData);
 
             } catch (err: any) {
                 console.log(err);
                 _removeEvents();
-                reject("failed to register connection");
+                reject("error: failed to register connection");
             }
         });
     }
@@ -492,7 +494,7 @@ class ConferenceClient {
      * @param username 
      * @param authToken 
      */
-    private registerConnection(username: string, authToken: string) {
+    private registerConnection(username: string, authToken: string, clientData: {}) {
         console.log("registerConnection");
 
         if (this.isRegistered()) {
@@ -516,6 +518,8 @@ class ConferenceClient {
         registerMsg.data.username = username;
         registerMsg.data.displayName = username;
         registerMsg.data.authToken = authToken;
+        registerMsg.data.clientData = clientData;        
+
         this.sendToServer(registerMsg);
     }
 
@@ -827,7 +831,7 @@ class ConferenceClient {
         }
 
         if (!this.conference.conferenceRoomConfig) {
-            console.error(`not conference config found.`);
+            console.error(`no conference config found.`);
             return false;
         }
 

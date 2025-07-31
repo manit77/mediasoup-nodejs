@@ -42,7 +42,7 @@ export interface ConferenceServerConfig {
     conf_token_expires_min: number,
     conf_callback_urls: {},
     conf_data_access_token: string,
-    conf_data_urls: { getScheduledConferencesURL: string, getScheduledConferenceURL: string, loginURL: string },
+    conf_data_urls: { getScheduledConferencesURL: string, getScheduledConferenceURL: string, loginURL: string, loginGuestURL: string },
     conf_socket_timeout_secs: 60,
 
     room_access_token: string,
@@ -271,6 +271,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         let participant: Participant = this.createParticipant(msgIn.data.username, msgIn.data.username);
+        participant.clientData = msgIn.data.clientData;
+        
         let authTokenObject: IAuthPayload;
         authTokenObject = jwtVerify(this.config.conf_secret_key, msgIn.data.authToken) as IAuthPayload;
 
@@ -631,13 +633,34 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             //tracking id was passed fetch config from external datasource
             if (this.config.conf_data_urls.getScheduledConferenceURL) {
                 let resultMsg = await this.thirdParty.getScheduledConference(msgIn.data.conferenceExternalId, participant.clientData);
+                if (!resultMsg) {
+                    consoleError(`could not get conference ${msgIn.data.conferenceExternalId} with clientData:`, participant.clientData);
+                    let errorMsg = new CreateConfResultMsg();
+                    errorMsg.data.error = "could not get conference configs.";
+                    return errorMsg;
+                }
+
+                consoleLog(`getScheduledConference:`, resultMsg);
+                if (resultMsg.data.error) {
+                    consoleError(resultMsg.data.error);
+                    let errorMsg = new CreateConfResultMsg();
+                    errorMsg.data.error = "error getting conference configs.";
+                    return errorMsg;
+                }
+
                 if (resultMsg) {
-                    confConfig.conferenceCode = resultMsg.data.conference.config.conferenceCode;
-                    confConfig.guestsAllowCamera = resultMsg.data.conference.config.guestsAllowCamera;
-                    confConfig.guestsAllowMic = resultMsg.data.conference.config.guestsAllowMic;
-                    confConfig.guestsAllowed = resultMsg.data.conference.config.guestsAllowed;
-                    confConfig.guestsMax = resultMsg.data.conference.config.guestsMax;
-                    confConfig.guestsRequireConferenceCode = resultMsg.data.conference.config.conferenceCode ? true : false;
+                    let config = resultMsg.data.conference.config;
+                    if (!config) {
+                        consoleWarn(`no confrence config, using the default.`);
+                        config = new ConferenceRoomConfig();
+                    }
+
+                    confConfig.conferenceCode = config.conferenceCode;
+                    confConfig.guestsAllowCamera = config.guestsAllowCamera;
+                    confConfig.guestsAllowMic = config.guestsAllowMic;
+                    confConfig.guestsAllowed = config.guestsAllowed;
+                    confConfig.guestsMax = config.guestsMax;
+                    confConfig.guestsRequireConferenceCode = config.conferenceCode ? true : false;
                     confConfig.roomTimeoutSecs = 0;
                     confConfig.usersMax = 0;
 
