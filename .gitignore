@@ -78,4 +78,4 @@ bin/
 dist/
 *.tsbuildinfo
 
-.env.json
+*.env*.json
