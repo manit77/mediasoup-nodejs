@@ -44,7 +44,7 @@ export interface ConferenceServerConfig {
     conf_allow_guests: boolean;
     conf_token_expires_min: number,
     conf_callback_urls: {},
-    conf_data_access_token: string,
+    conf_data_access_token: string,    
     conf_data_urls: { getScheduledConferencesURL: string, getScheduledConferenceURL: string, loginURL: string, loginGuestURL: string },
     conf_socket_timeout_secs: 60,
 
@@ -954,7 +954,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         msgIn.data.participantId = participant.participantId;
-        
+
         //forward leave to all other participants
         for (let p of participant.conference.participants.values()) {
             if (p != participant) {

@@ -112,6 +112,7 @@ export function generateAuthUserToken(secretKey: string, role: AuthUserRoles, ex
     console.log("createRoomToken() ");
 
     let payload: AuthUserTokenPayload = {
+        type: "user",
         role: role
     };
 
