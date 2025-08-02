@@ -26,6 +26,8 @@ export enum EventTypes {
     participantJoined = "participantJoined",
     participantLeft = "participantLeft",
     particpantNewTrack = "particpantNewTrack",
+
+    prensenterInfo = "prensenterInfo"
 }
 
 export class EventParticpantNewTrackMsg implements IMsg {

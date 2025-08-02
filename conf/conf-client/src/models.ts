@@ -18,6 +18,7 @@ export class Participant {
 
     peerId: string;
     tracksInfo: PeerTracksInfo = { isAudioEnabled: true, isVideoEnabled: true };
+    prevTracksInfo: { isAudioEnabled: boolean, isVideoEnabled: boolean, screenShareTrackId: string };
 }
 
 export class Conference {
@@ -36,6 +37,8 @@ export class Conference {
      * remote participants
      */
     participants: Map<string, Participant> = new Map();
+
+    presenter: Participant;
 }
 
 

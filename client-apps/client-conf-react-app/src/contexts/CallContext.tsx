@@ -14,6 +14,7 @@ interface CallContextType {
     isAuthenticated: boolean;
     localParticipant: Participant;
     isLocalStreamUpdated: boolean;
+    presenter: Participant;
 
     isCallActive: boolean;
     conference: Conference;
@@ -69,11 +70,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isLoggedOff, setIsLoggedOff] = useState<boolean>(false);
 
     const localParticipant = useRef<Participant>(conferenceClient.localParticipant);
+    const [presenter, setPresenter] = useState<Participant>(conferenceClient.conference?.presenter);
     const [isCallActive, setIsCallActive] = useState<boolean>(conferenceClient.isInConference());
     const [conference, setConferenceRoom] = useState<Conference>(conferenceClient.conference);
     const [callParticipants, setCallParticipants] = useState<Map<string, Participant>>(conferenceClient.conference.participants);
     const [isScreenSharing, setIsScreenSharing] = useState<boolean>(conferenceClient.isScreenSharing);
     const [selectedDevices, setSelectedDevices] = useState<SelectedDevices>(conferenceClient.selectedDevices);
+
 
     const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>(conferenceClient.participantsOnline);
     const [conferencesOnline, setConferencesOnline] = useState<ConferenceScheduledInfo[]>(conferenceClient.conferencesOnline);
@@ -340,6 +343,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setCallParticipants(prev => new Map(conferenceClient.conference.participants));
                     break;
                 }
+                case EventTypes.prensenterInfo: {
+                    console.log(`CallContext: prensenterInfo ${msgIn.data.participantId}) ${conferenceClient.conference.presenter.displayName}`);
+                    setPresenter(conferenceClient.conference.presenter);
+                    break;
+                }
             }
 
         };
@@ -452,6 +460,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsCallActive(false);
         setInviteInfoSend(null);
         setInviteInfoReceived(null);
+        setIsScreenSharing(false);
+        setCallParticipants(new Map());
+
     }, []);
 
     const createConference = useCallback((externalId: string, roomName: string) => {
@@ -537,56 +548,32 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const startScreenShare = useCallback(async () => {
         console.log(`startScreenShare`);
 
-        let cameraTrack = localParticipant.current.stream.getVideoTracks()[0];
-        if (cameraTrack) {
-            cameraTrack.enabled = false; // Disable the camera track if it exists
-        }
-
-        const screenTrack = (await getBrowserDisplayMedia())?.getVideoTracks()[0];
-        console.log(`after cameraTrack: readyState ${cameraTrack.readyState} ${cameraTrack.id}`);
-
-        if (screenTrack) {
+        if (await conferenceClient.startScreenShare()) {
+            //trigger a refresh of the local stream
+            console.log(`setIsScreenSharing to true`);
+            setPresenter(conference.presenter);
             setIsScreenSharing(true);
-            conferenceClient.publishTracks([screenTrack]); // Replace the camera track with the screen track            
+            setIsLocalStreamUpdated(true);
+            setCallParticipants(prev => new Map(conferenceClient.conference.participants));
         }
-
-        //trigger a refresh of the local stream
-        setIsLocalStreamUpdated(true);
-
-        console.log(`end of function cameraTrack: readyState ${cameraTrack.readyState} ${cameraTrack.id}`);
     }, []);
 
     const stopScreenShare = useCallback(async () => {
         console.log("stopScreenShare");
 
         try {
-
-            const screenTrack = localParticipant.current.stream.getVideoTracks().find(track => track.label === 'screen');
-
-            if (screenTrack) {
-                console.log(`Stopping screenTrack: ${screenTrack.id}`);
-                screenTrack.stop(); // Stop the screen-sharing track
-                conferenceClient.unPublishTracks([screenTrack]); // Unpublish the screen track
-            } else {
-                console.error("screen track not found")
-            }
-
             let constraints = getMediaConstraints(false, true); //get only video
-            let newStream = await getBrowserUserMedia(constraints);
-            let newTracks = newStream.getTracks();
-            let cameraTrack = newStream.getTracks().find(t => t.kind === "video");
-
-            if (cameraTrack) {
-                console.log(`Using cameraTrack: ${cameraTrack.readyState} ${cameraTrack.kind} ${cameraTrack.id}`);
-                setIsScreenSharing(false);
-                setIsLocalStreamUpdated(true);
-            }
-
-            await conferenceClient.publishTracks(newTracks);
+            await conferenceClient.stopScreenShare(constraints);
 
         } catch (error) {
             console.error("Error stopping screen share:", error);
         }
+
+        setIsScreenSharing(false);
+        setIsLocalStreamUpdated(true);
+        setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+        console.warn(`setIsScreenSharing to false`, localParticipant.current.stream.getTracks());
+
     }, [getMediaConstraints]);
 
     const switchDevicesOnCall = useCallback(async () => {
@@ -659,6 +646,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isLoggedOff, setIsLoggedOff,
             localParticipant: localParticipant.current,
             isLocalStreamUpdated,
+            presenter,
 
             isCallActive: isCallActive,
             conference: conference,

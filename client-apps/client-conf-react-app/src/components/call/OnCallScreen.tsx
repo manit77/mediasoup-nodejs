@@ -9,7 +9,7 @@ import { Navigate } from 'react-router-dom';
 
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
-    const { localParticipant, isCallActive, callParticipants, selectedDevices, switchDevicesOnCall } = useCall();
+    const { localParticipant, isCallActive, callParticipants, selectedDevices, switchDevicesOnCall, presenter } = useCall();
     const [mainStream, setMainStream] = useState<MediaStream | null>(null);
 
     useEffect(() => {
@@ -22,6 +22,14 @@ const OnCallScreen: React.FC = () => {
             setMainStream(localParticipant.stream);
         }
     }, [localParticipant.stream, mainStream]);
+
+    useEffect(() => {
+        if(presenter && presenter.stream) {
+            setMainStream(presenter.stream);
+        } else {
+            console.warn(`no presenter stream`);
+        }
+    }, [presenter]);
 
     const handleSelectParticipantVideo = (participantId: string, stream?: MediaStream) => {
         if (stream) {

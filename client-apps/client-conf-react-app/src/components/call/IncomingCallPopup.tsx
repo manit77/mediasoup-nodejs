@@ -32,10 +32,7 @@ const IncomingCallPopup: React.FC = () => {
         if (localParticipant?.stream.getTracks().length === 0) {
             console.log(`media stream not initialized`);
             ui.showToast("media stream not initialized");
-
-            localParticipant.tracksInfo.isAudioEnabled = true;
-            localParticipant.tracksInfo.isVideoEnabled = true;
-
+         
             let getUserMediaConfig = new GetUserMediaConfig();
             getUserMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
             getUserMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
@@ -46,8 +43,6 @@ const IncomingCallPopup: React.FC = () => {
                 return;
             }
         }
-
-
 
 
         await acceptInvite();

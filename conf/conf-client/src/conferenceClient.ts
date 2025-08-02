@@ -4,6 +4,7 @@ import {
     CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg,
     GetParticipantsResultMsg, GetUserMediaConfig, InviteCancelledMsg, InviteMsg, InviteResultMsg,
     JoinConferenceParams, JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo,
+    PresenterInfoMsg,
     RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
@@ -11,8 +12,8 @@ import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
 import { callStates, Conference, ConferenceClientConfig, Participant, SelectedDevices } from "./models.js";
 import { EventParticpantNewTrackMsg, EventTypes } from "./conferenceEvents.js";
 import { ConferenceAPIClient } from "./conferenceAPIClient.js";
-import { IMsg, OkMsg, PeerTracksInfo } from "@rooms/rooms-models";
-import { getBrowserUserMedia } from "./conferenceUtils.js";
+import { IMsg, OkMsg } from "@rooms/rooms-models";
+import { getBrowserDisplayMedia, getBrowserUserMedia } from "./conferenceUtils.js";
 
 export type ConferenceEvent = (eventType: EventTypes, payload: IMsg) => Promise<void>;
 
@@ -266,32 +267,96 @@ class ConferenceClient {
 
     }
 
-    //toggles the local track, does not update the server
-    // toggleTrack(participantId: string, enabled: boolean, kind: "audio" | "video") {
-    //     let part = this.conference.participants.get(participantId);
-    //     if (!part) {
-    //         if (part.participantId == this.localParticipant.participantId) {
-    //             part = this.localParticipant;
-    //         }
-    //     }
+    async startScreenShare() {
+        console.log(`startScreenShare`);
 
-    //     if (!part) {
-    //         console.error(`participant not found. ${participantId}`);
-    //         return;
-    //     }
+        //disable camera track
+        let cameraTrack = this.localParticipant.stream.getVideoTracks()[0];
+        if (cameraTrack) {
+            cameraTrack.enabled = false;
+        }
 
-    //     if (!part.stream) {
-    //         console.error(`participant stream not found.`);
-    //         return;
-    //     }
+        const screenTrack = (await getBrowserDisplayMedia())?.getVideoTracks()[0];
 
-    //     let track = part.stream.getTracks().find(t => t.kind === kind);
-    //     if (track) {
-    //         track.enabled = enabled;
-    //         part.tracksInfo.isAudioEnabled = enabled;
-    //     }
-    // }
+        if (screenTrack) {
+            this.localParticipant.prevTracksInfo = {
+                isVideoEnabled: this.localParticipant.tracksInfo.isVideoEnabled,
+                isAudioEnabled: this.localParticipant.tracksInfo.isAudioEnabled,
+                screenShareTrackId: screenTrack.id,
+            };
 
+            this.localParticipant.tracksInfo.isVideoEnabled = true;
+            if (await conferenceClient.publishTracks([screenTrack])) {
+                this.conference.presenter = this.localParticipant;
+                this.isScreenSharing = true;
+                // let msg = new PresenterInfoMsg();
+                // msg.data.status = "on";
+                // this.sendToServer(msg);
+                return true;
+            }
+
+            //reset back
+            this.localParticipant.tracksInfo = { ...this.localParticipant.prevTracksInfo };
+        }
+        return false;
+    }
+
+    async stopScreenShare(constraints: MediaStreamConstraints) {
+        console.log("stopScreenShare", this.localParticipant.stream.getVideoTracks());
+
+        try {
+
+            this.isScreenSharing = false;
+            if (this.conference.presenter == this.localParticipant) {
+                this.conference.presenter = null;
+            }
+
+            const screenTrack = this.localParticipant.stream.getVideoTracks().find(track => track.id === this.localParticipant.prevTracksInfo?.screenShareTrackId);
+
+            if (screenTrack) {
+                console.log(`Stopping screenTrack: ${screenTrack.id}`);
+                screenTrack.stop();
+
+                //unpublish track
+                await conferenceClient.unPublishTracks([])
+            } else {
+                console.warn("screenshare track not found")
+            }
+
+            //set from the prev state
+            if (this.localParticipant.prevTracksInfo) {
+                this.localParticipant.tracksInfo.isVideoEnabled = this.localParticipant.prevTracksInfo.isVideoEnabled;
+            }
+
+            //if the video was previously enabled, get the camera stream again
+            if (this.localParticipant.tracksInfo.isVideoEnabled) {
+                let newStream = await getBrowserUserMedia(constraints);
+                let newTracks = newStream.getTracks();
+                let cameraTrack = newStream.getTracks().find(t => t.kind === "video");
+
+                if (cameraTrack) {
+                    await conferenceClient.publishTracks(newTracks);
+                    let msg = new PresenterInfoMsg();
+                    msg.data.status = "off";
+                    this.sendToServer(msg);
+
+                    return true;
+                }
+            } else {
+                //remove the track since we didn't publish it
+                if(screenTrack) {
+                    this.localParticipant.stream.removeTrack(screenTrack);
+                }
+            }
+
+            return true;
+
+        } catch (error) {
+            console.error("Error stopping screen share:", error);
+        }
+
+        return false;
+    }
 
     connect(username: string, authToken: string, clientData: any, options?: { socket_ws_uri?: string }) {
         console.log(`connect to socket server.`, this.config);
@@ -418,6 +483,9 @@ class ConferenceClient {
             case CallMessageType.conferenceClosed:
                 await this.onConferenceClosed(message);
                 break;
+            case CallMessageType.presenterInfo:
+                await this.onPresenterInfo(message);
+                break;
 
         }
     }
@@ -518,7 +586,7 @@ class ConferenceClient {
         registerMsg.data.username = username;
         registerMsg.data.displayName = username;
         registerMsg.data.authToken = authToken;
-        registerMsg.data.clientData = clientData;        
+        registerMsg.data.clientData = clientData;
 
         this.sendToServer(registerMsg);
     }
@@ -1111,6 +1179,7 @@ class ConferenceClient {
         this.inviteReceivedMsg = null;
         this.clearCallConnectTimer();
         this.localParticipant.peerId = "";
+        this.isScreenSharing = false;
 
         //remove all tracks when conference ends.        
         this.localParticipant.stream.getTracks().forEach(t => this.localParticipant.stream.removeTrack(t));
@@ -1127,6 +1196,7 @@ class ConferenceClient {
         this.localParticipant.stream.getTracks().forEach(t => {
             this.localParticipant.stream.removeTrack(t);
         });
+        this.isScreenSharing = false;
     }
 
     getParticipant(participantId: string): Participant {
@@ -1134,7 +1204,7 @@ class ConferenceClient {
         return this.conference.participants.get(participantId);
     }
 
-    private sendToServer(message: any) {
+    private sendToServer(message: IMsg) {
         console.log("sendToServer " + message.type, message);
 
         if (this.socket) {
@@ -1340,6 +1410,21 @@ class ConferenceClient {
         }
     }
 
+    private async onPresenterInfo(message: PresenterInfoMsg) {
+        console.log("onPresenterInfo()");
+        let participant = this.conference.participants.get(message.data.participantId);
+        if (participant) {
+            if (message.data.status == "on") {
+                this.conference.presenter = participant;
+            } else {
+                if (this.conference.presenter.participantId == participant.participantId) {
+                    this.conference.presenter = null;
+                }
+            }
+            await this.onEvent(EventTypes.prensenterInfo, message);
+        }
+    }
+
     private async onConferenceClosed(message: ConferenceClosedMsg) {
         console.log("onConferenceClosed()");
 
@@ -1517,6 +1602,9 @@ class ConferenceClient {
             }
 
             this.conference.participants.delete(participant.participantId);
+            if (this.conference.presenter == participant) {
+                this.conference.presenter = null;
+            }
 
             let msg = {
                 type: EventTypes.participantLeft,

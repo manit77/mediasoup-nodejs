@@ -31,6 +31,7 @@ export enum CallMessageType {
     getConferencesResult = "getConferencesResult",
 
     particpantNewTrack = "particpantNewTrack",
+    presenterInfo = "presenterInfo",
 }
 
 export interface IMsg {
@@ -43,7 +44,7 @@ export class LoginGuestMsg implements IMsg {
     data: {
         displayName?: string,
         clientData?: {}
-    } = {}
+    } = {};
 }
 
 export class LoginMsg implements IMsg {
@@ -53,7 +54,7 @@ export class LoginMsg implements IMsg {
         password?: string,
         authToken?: string,
         clientData?: {}
-    } = {}
+    } = {};
 }
 
 export class LoginResultMsg implements IMsg {
@@ -65,18 +66,18 @@ export class LoginResultMsg implements IMsg {
         role?: string,
         error?: string,
         clientData?: {},
-    } = {}
+    } = {};
 }
 
 export class RegisterMsg implements IMsg {
     type = CallMessageType.register;
-    data : {
+    data: {
         username?: string,
         displayName?: string,
         authToken?: string,
         participantId?: string,
         clientData?: {}
-    } = {}
+    } = {};
 }
 
 export class RegisterResultMsg implements IMsg {
@@ -86,13 +87,12 @@ export class RegisterResultMsg implements IMsg {
         participantId?: string,
         role?: ParticipantRole | string,
         error?: string
-    } = {
-        }
+    } = {};
 }
 
 export class GetParticipantsMsg implements IMsg {
     type = CallMessageType.getParticipants;
-    data = {}
+    data = {};
 }
 
 export class GetParticipantsResultMsg implements IMsg {
@@ -102,7 +102,7 @@ export class GetParticipantsResultMsg implements IMsg {
 
 export class GetConferencesMsg implements IMsg {
     type = CallMessageType.getConferences;
-    data = {}
+    data = {};
 }
 
 export class GetConferenceScheduledResultMsg implements IMsg {
@@ -110,7 +110,7 @@ export class GetConferenceScheduledResultMsg implements IMsg {
     data: {
         conference?: ConferenceScheduledInfo,
         error?: string,
-    } = {}
+    } = {};
 }
 
 export class GetConferencesScheduledResultMsg implements IMsg {
@@ -118,7 +118,7 @@ export class GetConferencesScheduledResultMsg implements IMsg {
     data: {
         conferences?: ConferenceScheduledInfo[],
         error?: string,
-    } = {}
+    } = {};
 }
 
 export class GetConferencesResultMsg implements IMsg {
@@ -126,7 +126,7 @@ export class GetConferencesResultMsg implements IMsg {
     data: {
         conferences: ConferenceScheduledInfo[],
         error?: string,
-    } = { conferences: [] }
+    } = { conferences: [] };
 }
 
 export class CreateConfMsg implements IMsg {
@@ -142,8 +142,7 @@ export class CreateConfMsg implements IMsg {
          */
         conferenceCode?: string,
         error?: string
-    } = {
-        }
+    } = {};
 }
 
 export class CreateConfResultMsg implements IMsg {
@@ -153,8 +152,7 @@ export class CreateConfResultMsg implements IMsg {
         externalId?: string,
         roomName?: string,
         error?: string
-    } = {
-        }
+    } = {};
 }
 
 export class JoinConfMsg implements IMsg {
@@ -164,8 +162,7 @@ export class JoinConfMsg implements IMsg {
         conferenceCode?: string,
         externalId?: string,
         error?: string
-    } = {
-        }
+    } = {};
 }
 
 export class JoinConfResultMsg implements IMsg {
@@ -173,8 +170,7 @@ export class JoinConfResultMsg implements IMsg {
     data: {
         conferenceId?: string,
         error?: string
-    } = {
-        }
+    } = {};
 }
 
 export class InviteMsg implements IMsg {
@@ -186,8 +182,7 @@ export class InviteMsg implements IMsg {
         conferenceName?: string,
         conferenceExternalId?: string,
         conferenceType?: conferenceType,
-    } = {
-        }
+    } = {};
 }
 
 export class InviteCancelledMsg implements IMsg {
@@ -195,8 +190,7 @@ export class InviteCancelledMsg implements IMsg {
     data: {
         conferenceId?: string,
         participantId?: string
-    } = {
-        }
+    } = {};
 }
 
 export class InviteResultMsg implements IMsg {
@@ -209,8 +203,7 @@ export class InviteResultMsg implements IMsg {
         conferenceExternalId?: string,
         conferenceType?: conferenceType,
         error?: string
-    } = {
-        }
+    } = {};
 }
 
 export class RejectMsg implements IMsg {
@@ -219,8 +212,7 @@ export class RejectMsg implements IMsg {
         conferenceId?: string,
         fromParticipantId?: string,
         toParticipantId?: string,
-    } = {
-        }
+    } = {};
 }
 
 export class AcceptMsg implements IMsg {
@@ -228,8 +220,7 @@ export class AcceptMsg implements IMsg {
     data: {
         conferenceId?: string,
         error?: string
-    } = {
-        }
+    } = {};
 }
 
 export class AcceptResultMsg implements IMsg {
@@ -237,16 +228,15 @@ export class AcceptResultMsg implements IMsg {
     data: {
         conferenceId?: string,
         error?: string
-    } = {
-        }
+    } = {};
 }
 
 export class LeaveMsg implements IMsg {
     type = CallMessageType.leave;
-    data = {
-        conferenceId: "",
-        participantId: ""
-    }
+    data: {
+        conferenceId?: string,
+        participantId?: string
+    } = {};
 }
 
 export class ConferenceReadyMsg implements IMsg {
@@ -266,7 +256,7 @@ export class ConferenceReadyMsg implements IMsg {
         roomToken?: string,
         roomURI?: string,
         roomRtpCapabilities?: any,
-    } = {}
+    } = {};
 }
 
 export class ConferenceClosedMsg implements IMsg {
@@ -274,5 +264,13 @@ export class ConferenceClosedMsg implements IMsg {
     data: {
         conferenceId?: string,
         reason?: string
-    } = {}
+    } = {};
+}
+
+export class PresenterInfoMsg implements IMsg {
+    type = CallMessageType.presenterInfo;
+    data: {
+        participantId?: string,
+        status?: "on" | "off"
+    } = {};
 }

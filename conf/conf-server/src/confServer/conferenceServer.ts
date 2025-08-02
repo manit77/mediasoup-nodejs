@@ -21,12 +21,13 @@ import {
     ConferenceClosedMsg,
     GetParticipantsMsg,
     ParticipantRole,
-    ConferenceScheduledInfo
+    ConferenceScheduledInfo,
+    PresenterInfoMsg
 } from '@conf/conf-models';
 import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
 import { jwtVerify } from '../utils/jwtUtil.js';
-import { IMsg, RoomConfig } from '@rooms/rooms-models';
+import { ErrorMsg, IMsg, OkMsg, payloadTypeServer, RoomConfig } from '@rooms/rooms-models';
 import express from 'express';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { getDemoSchedules } from '../demoData/demoData.js';
@@ -110,7 +111,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 consoleError(`participant not found.`);
                 return;
             }
-            let resultMsg: IMsg;
+            let resultMsg: IMsg | null | undefined;
 
             switch (msgIn.type) {
                 case CallMessageType.getParticipants:
@@ -140,6 +141,10 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 case CallMessageType.leave:
                     resultMsg = await this.onLeave(participant, msgIn);
                     break;
+                case CallMessageType.presenterInfo:
+                    resultMsg = await this.onPresenterInfo(participant, msgIn);
+                    break;
+
             }
             return resultMsg;
         } catch (err) {
@@ -941,6 +946,24 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         return true;
     }
 
+    async onPresenterInfo(participant: Participant, msgIn: PresenterInfoMsg) {
+        consoleLog("onLeave");
+
+        if (!participant.conference) {
+            consoleError(`not in conference`);            
+        }
+
+        msgIn.data.participantId = participant.participantId;
+        
+        //forward leave to all other participants
+        for (let p of participant.conference.participants.values()) {
+            if (p != participant) {
+                this.send(p, msgIn);
+            }
+        }
+        return null;
+    }
+
     private async onLeave(participant: Participant, msgIn: LeaveMsg): Promise<IMsg | null> {
         consoleLog("onLeave");
         msgIn = fill(msgIn, new LeaveMsg());
@@ -975,6 +998,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             msg.data.participantId = participant.participantId;
             this.send(p, msg);
         }
+        return;
     }
 
     private async onGetConferences(participant: Participant, msgIn: GetConferencesMsg) {
