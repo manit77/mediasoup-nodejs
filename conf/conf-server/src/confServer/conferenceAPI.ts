@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import { apiGetScheduledConferencePost, apiGetScheduledConferenceResult, ConferenceRoomConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantRole, WebRoutes } from '@conf/conf-models';
 import { ConferenceServer, ConferenceServerConfig } from './conferenceServer.js';
 import { IAuthPayload } from '../models/models.js';
@@ -8,12 +8,14 @@ import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from '@conf/conf-models';
 import { getDemoSchedules } from '../demoData/demoData.js';
 import { fill } from '../utils/utils.js';
+import { CacheManager } from '../utils/cacheManager.js';
 
 export class ConferenceAPI {
     thirdPartyAPI: ThirdPartyAPI;
     private app: express.Express;
     private config: ConferenceServerConfig;
     private confServer: ConferenceServer;
+    private cache = new CacheManager();
 
     constructor(args: { app: express.Express, config: ConferenceServerConfig, confServer: ConferenceServer }) {
         this.app = args.app;
@@ -21,6 +23,39 @@ export class ConferenceAPI {
         this.confServer = args.confServer;
         this.thirdPartyAPI = new ThirdPartyAPI(args.config);
     }
+
+    tokenCheck = (req: Request, res: Response, next: NextFunction) => {
+        console.log(`tokenCheck: ${req.path}`);
+
+        const authHeader = req.headers['authorization'];
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            console.log("Missing or invalid Authorization header");
+            return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+        }
+        const authtoken = authHeader.split(' ')[1];
+        try {
+            //store the auth token in the request obj
+            //req.rooms_authtoken = authtoken;
+
+            //this requires admin access
+            if (!authtoken) {
+                console.error("authToken required.");
+                return res.status(401).json({ error: 'Missing or invalid authToken' });
+            }
+
+
+            let payload = jwtVerify(this.config.conf_secret_key, authtoken);
+            if (!payload) {
+                console.error("invalid authToken.");
+                return res.status(401).json({ error: 'invalid authToken.' });
+            }
+
+            next();
+        } catch (error) {
+            console.error(error);
+            return res.status(401).json({ error: 'Invalid or expired token' });
+        }
+     };
 
     start() {
 
@@ -164,44 +199,51 @@ export class ConferenceAPI {
         });
 
         console.log(`route: ${WebRoutes.getConferencesScheduled}`);
-        this.app.post(WebRoutes.getConferencesScheduled, async (req, res) => {
+        this.app.post(WebRoutes.getConferencesScheduled, this.tokenCheck as any, async (req, res) => {
             //console.log(`${WebRoutes.getConferencesScheduled}`);
-
+            let cachedResults = this.cache.get(WebRoutes.getConferencesScheduled);
             let resultMsg = new GetConferencesScheduledResultMsg();
 
-            if (this.config.conf_data_urls.getScheduledConferencesURL) {
-                //make a post to the url
-                let msg = req.body as apiGetScheduledConferencesPost;
-                let result = await this.thirdPartyAPI.getScheduledConferences(msg.data.clientData) as apiGetScheduledConferencesResult;
-                if (result.data.error) {
-                    console.log(`getScheduledConferences error:`, result.data.error);
-                    return;
-                }
-
-                //hide the conference code                
-                resultMsg.data.conferences = result.data.conferences.filter(s => !s.config.isPrivate).map(s => {
-                    let clone = new ConferenceScheduledInfo()
-                    clone.externalId = s.id;
-                    fill(s, clone);                    
-                    fill(s.config, clone.config);
-                    delete clone.config.conferenceCode;
-                    return clone;
-                });
-
+            if (cachedResults) {
+                resultMsg.data.conferences = cachedResults;
+                console.log(`${WebRoutes.getConferencesScheduled} from cache`);
             } else {
-                //get from demo data
-                //console.log(`${WebRoutes.getConferencesScheduled}`);
+                if (this.config.conf_data_urls.getScheduledConferencesURL) {
+                    //make a post to the url
+                    let msg = req.body as apiGetScheduledConferencesPost;
+                    let result = await this.thirdPartyAPI.getScheduledConferences(msg.data.clientData) as apiGetScheduledConferencesResult;
+                    if (result.data.error) {
+                        console.log(`getScheduledConferences error:`, result.data.error);
+                        return;
+                    }
 
-                //map and delete the conference code
-                resultMsg = new GetConferencesScheduledResultMsg();
-                resultMsg.data.conferences = getDemoSchedules().filter(s => s.config.isPrivate === false).map(s => {
-                    let clone = {
-                        ...s,
-                        config: { ...s.config }
-                    };
-                    delete clone.config.conferenceCode;
-                    return clone;
-                });
+                    //hide the conference code                
+                    resultMsg.data.conferences = result.data.conferences.filter(s => !s.config.isPrivate).map(s => {
+                        let clone = new ConferenceScheduledInfo()
+                        clone.externalId = s.id;
+                        fill(s, clone);
+                        fill(s.config, clone.config);
+                        delete clone.config.conferenceCode;
+                        return clone;
+                    });
+
+                    this.cache.set(WebRoutes.getConferencesScheduled, resultMsg.data.conferences, this.config.conf_data_cache_timeoutsecs);
+
+                } else {
+                    //get from demo data
+                    //console.log(`${WebRoutes.getConferencesScheduled}`);
+
+                    //map and delete the conference code
+                    resultMsg = new GetConferencesScheduledResultMsg();
+                    resultMsg.data.conferences = getDemoSchedules().filter(s => s.config.isPrivate === false).map(s => {
+                        let clone = {
+                            ...s,
+                            config: { ...s.config }
+                        };
+                        delete clone.config.conferenceCode;
+                        return clone;
+                    });
+                }
             }
 
             //get active rooms
@@ -216,7 +258,7 @@ export class ConferenceAPI {
         });
 
         console.log(`route: ${WebRoutes.getConferenceScheduled}`);
-        this.app.post(WebRoutes.getConferenceScheduled, async (req, res) => {
+        this.app.post(WebRoutes.getConferenceScheduled, this.tokenCheck as any, async (req, res) => {
             console.log(`${WebRoutes.getConferenceScheduled}`);
 
             let resultMsg = new GetConferenceScheduledResultMsg();
@@ -234,15 +276,15 @@ export class ConferenceAPI {
                 console.log(`getScheduledConference result:`, result, result.data.conference.config);
 
                 //hide the conference code
-                let conf = new ConferenceScheduledInfo();               
-                conf.externalId = result.data.conference.id;               
+                let conf = new ConferenceScheduledInfo();
+                conf.externalId = result.data.conference.id;
                 fill(result.data, conf);
                 fill(result.data.conference.config, conf.config)
                 //hide the conference code
                 delete conf.config.conferenceCode; //result.data.conference.config.conferenceCode;                
 
                 resultMsg.data.conference = conf;
-              
+
             } else {
                 //get from demo data
                 //console.log(`${WebRoutes.getConferencesScheduled}`);
@@ -250,7 +292,7 @@ export class ConferenceAPI {
                 //map and delete the conference code
                 resultMsg = new GetConferencesScheduledResultMsg();
                 resultMsg.data.conference = getDemoSchedules().filter(s => s.externalId === msg.data.id).map(s => {
-                    let clone = new ConferenceScheduledInfo();                    
+                    let clone = new ConferenceScheduledInfo();
                     fill(s, clone);
                     fill(s.config, clone.config);
                     delete clone.config.conferenceCode;
@@ -263,7 +305,7 @@ export class ConferenceAPI {
         });
 
         console.log(`route: ${WebRoutes.onRoomClosed}`);
-        this.app.post(WebRoutes.onRoomClosed, (req, res) => {
+        this.app.post(WebRoutes.onRoomClosed, this.tokenCheck as any, (req, res) => {
             console.log(WebRoutes.onRoomClosed);
 
             let msg = req.body as RoomCallBackMsg;
@@ -278,7 +320,7 @@ export class ConferenceAPI {
         });
 
         console.log(`route: ${WebRoutes.onPeerJoined}`);
-        this.app.post(WebRoutes.onPeerJoined, (req, res) => {
+        this.app.post(WebRoutes.onPeerJoined, this.tokenCheck as any, (req, res) => {
             console.log(WebRoutes.onPeerJoined);
 
             let msg = req.body as RoomPeerCallBackMsg;
@@ -286,7 +328,7 @@ export class ConferenceAPI {
         });
 
         console.log(`route: ${WebRoutes.onPeerLeft}`);
-        this.app.post(WebRoutes.onPeerLeft, (req, res) => {
+        this.app.post(WebRoutes.onPeerLeft, this.tokenCheck as any, (req, res) => {
             console.log(WebRoutes.onPeerLeft);
 
             let msg = req.body as RoomPeerCallBackMsg;

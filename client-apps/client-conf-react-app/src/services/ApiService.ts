@@ -19,80 +19,89 @@ class ApiService {
         this.conferenceAPIClient = new ConferenceAPIClient(config);
     }
 
-    login = async (username: string, password: string, clientData: {}): Promise<LoginResponse> => {
+    login = async (username: string, password: string, clientData: {}): Promise<LoginResponse | null> => {
 
-        console.log(`login ${username}`, clientData);
-        if (!username.trim()) {
-            throw new Error('username name cannot be empty.');
-        }
-
-        if (!password.trim()) {
-            throw new Error('password name cannot be empty.');
-        }
-
-        let loginResult = await this.conferenceAPIClient.login(username, password, clientData);
-
-        if (loginResult.data.error) {
-            console.error(`login failed: ${loginResult.data.error}`);
-            return {
-                error: loginResult.data.error
-            } as LoginResponse;
-        }
-
-        if (loginResult.data.clientData) {
-            clientData = loginResult.data.clientData;
-        }
-
-        let result: LoginResponse = {
-            user: {
-                username: loginResult.data.username,
-                displayName: loginResult.data.displayName,
-                role: loginResult.data.role as any,
-                authToken: loginResult.data.authToken,
-                clientData: clientData
+        try {
+            console.log(`login ${username}`, clientData);
+            if (!username.trim()) {
+                throw new Error('username name cannot be empty.');
             }
+
+            if (!password.trim()) {
+                throw new Error('password name cannot be empty.');
+            }
+
+            let loginResult = await this.conferenceAPIClient.login(username, password, clientData);
+
+            if (loginResult.data.error) {
+                console.error(`login failed: ${loginResult.data.error}`);
+                return {
+                    error: loginResult.data.error
+                } as LoginResponse;
+            }
+
+            if (loginResult.data.clientData) {
+                clientData = loginResult.data.clientData;
+            }
+
+            let result: LoginResponse = {
+                user: {
+                    username: loginResult.data.username,
+                    displayName: loginResult.data.displayName,
+                    role: loginResult.data.role as any,
+                    authToken: loginResult.data.authToken,
+                    clientData: clientData
+                }
+            }
+
+            console.log(`LoginResponse`, result);
+            localStorage.setItem('user', JSON.stringify(result.user));
+
+            return result;
+        } catch (err) {
+            console.error(err);
         }
-
-        console.log(`LoginResponse`, result);
-        localStorage.setItem('user', JSON.stringify(result.user));
-
-        return result;
-
+        return null;
     };
 
-    loginGuest = async (displayName: string, clientData: any): Promise<LoginResponse> => {
-        console.log(`loginGuest ${displayName}`);
-        if (!displayName.trim()) {
-            throw new Error('Display name cannot be empty.');
-        }
-
-        let loginResult = await this.conferenceAPIClient.loginGuest(displayName, clientData);
-        console.log(`loginResult`, loginResult);
-
-        if (loginResult.data.error) {
-            console.error(`login guest failed: ${loginResult.data.error}`);
-            return {
-                error: loginResult.data.error
-            } as LoginResponse;
-        }
-
-        if (loginResult.data.clientData) {
-            clientData = loginResult.data.clientData;
-        }
-
-        let result: LoginResponse = {
-            user: {
-                username: loginResult.data.username,
-                displayName: loginResult.data.displayName,
-                role: loginResult.data.role as any,
-                authToken: loginResult.data.authToken,
-                clientData: clientData,
+    loginGuest = async (displayName: string, clientData: any): Promise<LoginResponse | null> => {
+        try {
+            console.log(`loginGuest ${displayName}`);
+            if (!displayName.trim()) {
+                throw new Error('Display name cannot be empty.');
             }
-        }
 
-        console.warn(`LoginResponse`, result);
-        localStorage.setItem('user', JSON.stringify(result.user));
-        return result;
+            let loginResult = await this.conferenceAPIClient.loginGuest(displayName, clientData);
+            console.log(`loginResult`, loginResult);
+
+            if (loginResult.data.error) {
+                console.error(`login guest failed: ${loginResult.data.error}`);
+                return {
+                    error: loginResult.data.error
+                } as LoginResponse;
+            }
+
+            if (loginResult.data.clientData) {
+                clientData = loginResult.data.clientData;
+            }
+
+            let result: LoginResponse = {
+                user: {
+                    username: loginResult.data.username,
+                    displayName: loginResult.data.displayName,
+                    role: loginResult.data.role as any,
+                    authToken: loginResult.data.authToken,
+                    clientData: clientData,
+                }
+            }
+
+            console.warn(`LoginResponse`, result);
+            localStorage.setItem('user', JSON.stringify(result.user));
+            return result;
+        } catch (err) {
+            console.error(err);
+            return null;
+        }
     };
 
     logout = () => {
@@ -121,25 +130,32 @@ class ApiService {
     }
 
     fetchConferencesScheduled = async (): Promise<ConferenceScheduledInfo[]> => {
-        console.log("fetchConferencesScheduled", this.getClientData());
+        try {
+            console.log("fetchConferencesScheduled", this.getClientData());
 
-        if (!this.conferenceAPIClient) {
-            console.error(`conferenceAPIClient not initialized.`);
-            return;
-        }
+            if (!this.conferenceAPIClient) {
+                console.error(`conferenceAPIClient not initialized.`);
+                return;
+            }
 
-        //get rooms from API
-        let result = await this.conferenceAPIClient.getConferencesScheduled(this.getClientData());
+            let user = this.getUser();
+            //get rooms from API
+            let result = await this.conferenceAPIClient.getConferencesScheduled(user.authToken, this.getClientData());
+            console.warn(result);
 
-        if (result.data.error) {
-            console.error(`ERROR:`, result.data.error);
+            if (result.data.error) {
+                console.error(`ERROR:`, result.data.error);
+                return this.conferencesScheduled;
+            }
+
+            this.conferencesScheduled = result.data.conferences;
+            this.onConferencesReceived(this.conferencesScheduled);
+
             return this.conferencesScheduled;
+        } catch (err) {
+            console.error(err);
+            return [];
         }
-
-        this.conferencesScheduled = result.data.conferences;
-        this.onConferencesReceived(this.conferencesScheduled);
-
-        return this.conferencesScheduled;
     };
 
 
@@ -155,7 +171,7 @@ class ApiService {
                 this.fetchConferencesScheduled();
                 this.startFetchConferencesScheduled();
             }
-        }, 10 * 1000);
+        }, 30 * 1000);
     };
 
 };

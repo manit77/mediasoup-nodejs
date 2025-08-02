@@ -344,7 +344,7 @@ class ConferenceClient {
                 }
             } else {
                 //remove the track since we didn't publish it
-                if(screenTrack) {
+                if (screenTrack) {
                     this.localParticipant.stream.removeTrack(screenTrack);
                 }
             }
@@ -833,7 +833,7 @@ class ConferenceClient {
         try {
             if (!this.isRegistered()) {
                 console.error(`connection not registered.`);
-                throw (`connection not registered.`);
+                return false;
             }
 
             let newResult = await this.waitCreateConferenceRoom(createArgs);
@@ -889,7 +889,7 @@ class ConferenceClient {
             }
 
             console.log(`getConferenceScheduled config `, args.externalId, args.clientData);
-            let scheduled = await this.apiClient.getConferenceScheduled(args.externalId, args.clientData);
+            let scheduled = await this.apiClient.getConferenceScheduled(this.authToken, args.externalId, args.clientData);
             if (scheduled.data.error) {
                 console.error(scheduled.data.error);
                 return false;
@@ -1007,6 +1007,11 @@ class ConferenceClient {
             return;
         }
 
+        if (!message.data.conferenceId) {
+            console.error(`no conferenceId received.`);
+            return;
+        }
+
         this.callState = "answering";
         this.conference.conferenceId = message.data.conferenceId;
         this.conference.conferenceName = message.data.conferenceName || `Call with ${message.data.displayName}`;
@@ -1028,6 +1033,11 @@ class ConferenceClient {
      */
     async onInviteCancelled(message: InviteCancelledMsg) {
         console.log("onInviteCancelled()");
+
+        if (!message.data.conferenceId) {
+            console.error(`conferenceId is required.`);
+            return;
+        }
 
         if (message.data.conferenceId != this.conference.conferenceId) {
             console.error("onInviteCancelled() - not the same conferenceId.");
@@ -1055,6 +1065,11 @@ class ConferenceClient {
 
         if (!this.inviteReceivedMsg) {
             console.error(`not invite received.`);
+            return;
+        }
+
+        if (!message.data.conferenceId) {
+            console.error("conferenceId is required to accept an invite.");
             return;
         }
 
@@ -1276,6 +1291,14 @@ class ConferenceClient {
 
             await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.data.error } });
             this.disconnectRoomsClient("onCreateConfResult");
+            return;
+        }
+
+        if (!message.data.conferenceId) {
+            console.error(`no conferenceId`);
+
+            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.data.error } });
+            this.disconnectRoomsClient("no conferenceId");
             return;
         }
 

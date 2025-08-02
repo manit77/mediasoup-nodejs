@@ -131,18 +131,12 @@ export class GetConferencesResultMsg implements IMsg {
 
 export class CreateConfMsg implements IMsg {
     type = CallMessageType.createConf;
-    data: {
-        conferenceExternalId?: string,
-        conferenceRoomConfig?: ConferenceRoomConfig,
-        roomName?: string,
-        /**
-         * a user trying to create a conference room with a externalId
-         * the conference config requires a conference code
-         * the user must pass a conference code to start it
-         */
-        conferenceCode?: string,
-        error?: string
-    } = {};
+    data = {
+        conferenceExternalId: "",
+        conferenceRoomConfig: new ConferenceRoomConfig(),
+        roomName: "",
+        conferenceCode: "",
+    }
 }
 
 export class CreateConfResultMsg implements IMsg {
@@ -157,12 +151,11 @@ export class CreateConfResultMsg implements IMsg {
 
 export class JoinConfMsg implements IMsg {
     type = CallMessageType.joinConf;
-    data: {
-        conferenceId?: string,
-        conferenceCode?: string,
-        externalId?: string,
-        error?: string
-    } = {};
+    data = {
+        conferenceId: "",
+        conferenceCode: "",
+        externalId: "",
+    }
 }
 
 export class JoinConfResultMsg implements IMsg {

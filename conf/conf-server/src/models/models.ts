@@ -18,7 +18,7 @@ export class SocketConnection {
     participantId: string;
     username: string;
     eventHandlers: onSocketTimeout[] = [];
-    dateOfLastMsg : Date = new Date();
+    dateOfLastMsg: Date = new Date();
 
     constructor(webSocket: WebSocket, socketTimeoutSecs: number) {
         this.ws = webSocket;
@@ -48,8 +48,8 @@ export class SocketConnection {
             this.socketTimeoutId = null;
         }
 
-        if(this.timeoutSecs <= 0) {
-             consoleWarn(`not timeout set for this connection.`);
+        if (this.timeoutSecs <= 0) {
+            consoleWarn(`not timeout set for this connection.`);
             return;
         }
 
@@ -100,15 +100,17 @@ export class Conference {
     config = new ConferenceRoomConfig();
     confType: conferenceType = "p2p"
 
+    minParticipantsTimeoutSeconds = 30;
     minParticipants = 0;
     minParticipantsTimerId: any;
 
     onReadyListeners: (() => void)[] = [];
+    dateCreated: Date;
 
     onClose: (conf: Conference, participants: Participant[], reason: string) => void;
 
     constructor() {
-
+        this.dateCreated = new Date();
     }
 
     addOnReadyListener(cb: () => void) {
@@ -150,6 +152,8 @@ export class Conference {
             consoleLog("closing room, no participants.");
             this.close();
         }
+
+        this.startTimerMinParticipants();
     }
 
     addParticipant(part: Participant): boolean {
@@ -221,30 +225,45 @@ export class Conference {
     /**
      * starts the room timer for max room duration
      */
-    startTimer() {
-        consoleLog(`startTimer, timeout in ${this.timeoutSecs}`);
-        if (this.timeoutSecs > 0) {
+    startTimers() {
+        consoleLog(`startTimers`);
+        this.startConferenceTimer();
+        this.startTimerMinParticipants()
+    }
+
+    private startConferenceTimer() {
+        consoleLog(`startConferenceTimer, timeout in ${this.timeoutSecs}`);
+         if (this.timeoutSecs > 0) {
             this.timeoutId = setTimeout(() => { this.close(); }, this.timeoutSecs * 1000);
+            consoleLog(`startTimer, timer started in ${this.timeoutSecs}`);
         }
     }
+
 
     /**
      * starts a timer for min participants
      * @param timeoutSeconds 
      */
-    startTimerMinParticipants(timeoutSeconds: number) {
-        consoleLog(`startTimerMinParticipants, timeout in ${timeoutSeconds}`);
+    private startTimerMinParticipants() {
+        consoleLog(`startTimerMinParticipants, timeout in ${this.minParticipantsTimeoutSeconds}`);
+        this.minParticipantsTimeoutSeconds = this.minParticipantsTimeoutSeconds;
 
         if (this.minParticipantsTimerId) {
             clearTimeout(this.minParticipantsTimerId);
         }
 
-        if (this.minParticipants > 0) {
+        if (this.participants.size >= this.minParticipants) {
+            return;
+        }
+
+        if (this.minParticipants > 0 && this.minParticipantsTimeoutSeconds > 0) {
             consoleLog(`startTimerMinParticipants started ${this.minParticipants}`);
             this.minParticipantsTimerId = setTimeout(() => {
-                consoleLog("TimerMinParticipants executed.");
-                this.close();
-            }, timeoutSeconds * 1000);
+                if (this.participants.size < this.minParticipants) {
+                    consoleLog("TimerMinParticipants executed.");
+                    this.close("minimum participants reached.");
+                }
+            }, this.minParticipantsTimeoutSeconds * 1000);
         }
     }
 

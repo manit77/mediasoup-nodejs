@@ -138,13 +138,13 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             }
 
             if (localParticipant?.stream.getTracks().length === 0) {
-                console.log(`media stream not initialized`);
-                ui.showToast("media stream not initialized");
+                console.log(`getting media stream`);
+                ui.showToast("getting media stream");
                 //it's not required to have a usermedia in a room, you can be just a listener
                 if (getUserMediaConfig.isAudioEnabled || getUserMediaConfig.isVideoEnabled) {
                     let tracks = await getLocalMedia(getUserMediaConfig);
                     if (tracks.length === 0) {
-                        ui.showPopUp("ERROR: could not start media devices.");
+                        ui.showPopUp("ERROR: could not get media stream.");
                         return;
                     }
                 } else {

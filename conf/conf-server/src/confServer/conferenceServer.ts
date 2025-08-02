@@ -22,7 +22,8 @@ import {
     GetParticipantsMsg,
     ParticipantRole,
     ConferenceScheduledInfo,
-    PresenterInfoMsg
+    PresenterInfoMsg,
+    conferenceType
 } from '@conf/conf-models';
 import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
@@ -32,7 +33,7 @@ import express from 'express';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { getDemoSchedules } from '../demoData/demoData.js';
 import { AbstractEventHandler } from '../utils/evenHandler.js';
-import { consoleError, consoleLog, consoleWarn, fill } from '../utils/utils.js';
+import { consoleError, consoleLog, consoleWarn, copyWithDataParsing, fill, stringIsNullOrEmpty } from '../utils/utils.js';
 import pkg_lodash from 'lodash';
 const { clone } = pkg_lodash;
 
@@ -44,7 +45,8 @@ export interface ConferenceServerConfig {
     conf_allow_guests: boolean;
     conf_token_expires_min: number,
     conf_callback_urls: {},
-    conf_data_access_token: string,    
+    conf_data_access_token: string,
+    conf_data_cache_timeoutsecs: number,
     conf_data_urls: { getScheduledConferencesURL: string, getScheduledConferenceURL: string, loginURL: string, loginGuestURL: string },
     conf_socket_timeout_secs: 60,
 
@@ -176,38 +178,52 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         return part;
     }
 
-    getOrCreateConference(conferenceId?: string, externalId?: string, roomName?: string, config?: ConferenceRoomConfig) {
+    getOrCreateConference(args: {
+        confType?: conferenceType,
+        minParticipants?: number,
+        minParticipantsTimeoutSeconds?: number,
+        conferenceId?: string,
+        externalId?: string,
+        roomName?: string,
+        config?: ConferenceRoomConfig
+    }) {
 
         //find room by tracking id
         let conference: Conference;
 
-        if (externalId) {
-            conference = [...this.conferences.values()].find(c => c.externalId === externalId);
+        if (args.externalId) {
+            conference = [...this.conferences.values()].find(c => c.externalId === args.externalId);
             if (conference) {
-                consoleLog("conference found by externalId", externalId)
+                consoleLog("conference found by externalId", args.externalId)
                 return conference;
             }
-        } else if (conferenceId) {
-            conference = [...this.conferences.values()].find(c => c.id === conferenceId);
+        } else if (args.conferenceId) {
+            conference = [...this.conferences.values()].find(c => c.id === args.conferenceId);
             if (conference) {
-                consoleLog("conference found by externalId", externalId)
+                consoleLog("conference found by externalId", args.externalId)
                 return conference;
             }
         }
 
         conference = new Conference();
-        conference.id = conferenceId ?? this.generateConferenceId();
-        conference.externalId = externalId;
-        conference.roomName = roomName;
-        if (config) {
-            conference.config = config;
+        conference.id = stringIsNullOrEmpty(args.conferenceId) ? this.generateConferenceId() : args.conferenceId;
+        conference.externalId = args.externalId;
+        conference.roomName = args.roomName;
+        conference.minParticipants = args.minParticipants;
+        conference.minParticipantsTimeoutSeconds = args.minParticipantsTimeoutSeconds;
+
+        conference.confType = args.confType;
+
+        if (args.config) {
+            conference.config = args.config;
         }
 
         if (conference.config.roomTimeoutSecs) {
             conference.timeoutSecs = conference.config.roomTimeoutSecs;
-        } else {
-            //default timeout is one hour
-            conference.timeoutSecs = 60 * 60;
+        }
+
+        if (!conference.timeoutSecs) {
+            conference.timeoutSecs = 12 * 60; //max upper limit of timeout
         }
 
         this.conferences.set(conference.id, conference);
@@ -227,6 +243,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         };
 
         consoleLog(`conference created: ${conference.id} ${conference.roomName} `);
+
+        //start timers
+        conference.startTimers();
 
         return conference;
     }
@@ -290,7 +309,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data = {
             username: authTokenObject.username,
             participantId: participant.participantId,
-            role: authTokenObject.role ?? ParticipantRole.guest
+            role: stringIsNullOrEmpty(authTokenObject.role) ? ParticipantRole.guest : authTokenObject.role
         };
 
         this.broadCastParticipants(participant);
@@ -446,12 +465,12 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return errorMsg;
         }
 
-
-        let conference = this.getOrCreateConference();
-        conference.confType = "p2p";
+        let conference = this.getOrCreateConference({
+            confType: "p2p",
+            minParticipants: 2,
+            minParticipantsTimeoutSeconds: 60
+        });
         conference.addParticipant(participant);
-        conference.minParticipants = 2;
-        conference.startTimerMinParticipants(10); //call will timeout if minParticipants not met 
 
         //forward the call to the receiver
         let msg = new InviteMsg();
@@ -623,7 +642,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     private async onCreateConference(participant: Participant, msgIn: CreateConfMsg) {
         consoleLog("onCreateConference");
-        msgIn = fill(msgIn, new CreateConfMsg());
+        msgIn = copyWithDataParsing(msgIn, new CreateConfMsg());
 
         //must be admin or a user
         if (![ParticipantRole.admin, ParticipantRole.user].includes(participant.role as ParticipantRole)) {
@@ -696,15 +715,16 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         let conference = participant.conference;
         if (conference) {
             consoleLog("conference already created");
-        } else {
-            conference = this.getOrCreateConference(null, msgIn.data.conferenceExternalId, roomName, confConfig);
-            conference.confType = "room";
-
-            conference.startTimer();
-            //if no participants in 60 seconds close the room
-            conference.minParticipants = 1;
-            conference.startTimerMinParticipants(60);
-
+        } else {            
+            conference = this.getOrCreateConference({
+                confType: "room",
+                conferenceId: "",
+                minParticipants: 2,
+                minParticipantsTimeoutSeconds: 300,
+                externalId: msgIn.data.conferenceExternalId,
+                roomName: roomName,
+                config: confConfig
+            });
 
             if (!await this.startRoom(conference)) {
                 consoleError("unable to start a conference");
@@ -731,7 +751,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
      */
     private async onJoinConference(participant: Participant, msgIn: JoinConfMsg) {
         consoleLog("onJoinConference");
-        msgIn = fill(msgIn, new JoinConfMsg());
+        msgIn = copyWithDataParsing(msgIn, new JoinConfMsg());
 
         //conferenceId or externalId is required
         if (!msgIn.data.conferenceId && !msgIn.data.externalId) {
@@ -913,10 +933,11 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         } else {
             roomConfig.maxPeers = conference.config.guestsMax + conference.config.usersMax;
         }
-        roomConfig.maxRoomDurationMinutes = 60; //default to 1 hour.
+        roomConfig.maxRoomDurationMinutes = 6 * 60; //default to 6 hours.
         if (conference.timeoutSecs > 0) {
             roomConfig.maxRoomDurationMinutes = Math.ceil(conference.timeoutSecs / 60);
         }
+
         roomConfig.closeRoomOnPeerCount = 0; //close room when there are zero peers after the first peer joins
         roomConfig.timeOutNoParticipantsSecs = 60; //when the room sits idle with zero peers
         roomConfig.guestsAllowMic = conference.config.guestsAllowMic;
@@ -937,7 +958,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         conference.roomToken = roomToken;
         conference.roomURI = roomURI;
         conference.roomRtpCapabilities = roomNewResult.data.roomRtpCapabilities;
-        conference.startTimer(); //start timeout timer
+        conference.startTimers();
 
         conference.updateStatus("ready");
         clearTimeout(initTimerId);
@@ -950,7 +971,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         consoleLog("onLeave");
 
         if (!participant.conference) {
-            consoleError(`not in conference`);            
+            consoleError(`not in conference`);
         }
 
         msgIn.data.participantId = participant.participantId;

@@ -30,8 +30,8 @@ const IncomingCallPopup: React.FC = () => {
         localParticipant.tracksInfo.isVideoEnabled = isVideoEnabled;
 
         if (localParticipant?.stream.getTracks().length === 0) {
-            console.log(`media stream not initialized`);
-            ui.showToast("media stream not initialized");
+            console.log(`no, steam getting new media stream`);
+            ui.showToast("getting media stream");
          
             let getUserMediaConfig = new GetUserMediaConfig();
             getUserMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
@@ -39,11 +39,10 @@ const IncomingCallPopup: React.FC = () => {
 
             let tracks = await getLocalMedia(getUserMediaConfig);
             if (tracks.length === 0) {
-                ui.showPopUp("ERROR: could not start media devices.");
+                ui.showPopUp("ERROR: could not get media stream.");
                 return;
             }
         }
-
 
         await acceptInvite();
     };

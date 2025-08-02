@@ -75,14 +75,14 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
     setPopup(null);
   }, []);
 
-  const showPopUp = useCallback((message: string, type: AlertType = 'normal', durationSec: number = 3) => {
+  const showPopUp = useCallback((message: string, type: AlertType = 'normal', durationSec: number = 5) => {
     setPopup({ message, type });
     setTimeout(() => {
       setPopup(null);
     }, durationSec * 1000);
   }, []);
 
-  const showToast = useCallback((message: string, type: AlertType = 'normal', durationSec: number = 3) => {
+  const showToast = useCallback((message: string, type: AlertType = 'normal', durationSec: number = 5) => {
     console.warn('showToast', message, type);
     const id = toastIdRef.current++;
     setToasts((prev) => [...prev, { id, message, type }]);

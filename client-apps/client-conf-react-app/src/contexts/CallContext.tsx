@@ -37,9 +37,9 @@ interface CallContextType {
     getParticipantsOnline: () => void;
 
     createConference: (externalId: string, roomName: string) => void;
-    joinConference: (conferenceCode: string, scheduled: ConferenceScheduledInfo) => void;
-    createConferenceOrJoin: (externalId: string, conferenceCode: string) => void;
-
+    joinConference: (conferenceCode: string, scheduled: ConferenceScheduledInfo) => Promise<void>;
+    createConferenceOrJoin: (externalId: string, conferenceCode: string) => Promise<void>;
+    
     sendInvite: (participantInfo: ParticipantInfo, options: GetUserMediaConfig) => Promise<void>;
     acceptInvite: () => Promise<void>;
     declineInvite: () => void;
@@ -380,11 +380,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
 
             if (localParticipant.current.stream.getTracks().length === 0) {
-                console.log(`media stream not initialized`);
-                ui.showToast("initializing media stream");
+                console.log(`getting media stream`);
+                ui.showToast("getting media stream");
                 let tracks = await getLocalMedia(options);
                 if (tracks.length === 0) {
-                    ui.showPopUp("ERROR: could not start media devices.", "error");
+                    ui.showPopUp("ERROR: could not get media stream.", "error");
                     return;
                 }
             }
@@ -465,7 +465,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     }, []);
 
-    const createConference = useCallback((externalId: string, roomName: string) => {
+    const createConference = useCallback(async (externalId: string, roomName: string) => {
         console.log("CallContext: createConference");
         let createArgs: CreateConferenceParams = {
             conferenceCode: "",
@@ -475,10 +475,14 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             config: null
         }
 
-        conferenceClient.createConferenceRoom(createArgs);
-    }, []);
+        if(conferenceClient.createConferenceRoom(createArgs)){
+            ui.showToast("creating conference");
+        } else {
+            ui.showPopUp("failed to create conference.");
+        }
+    }, [ui]);
 
-    const joinConference = useCallback((conferenceCode: string, scheduled: ConferenceScheduledInfo) => {
+    const joinConference = useCallback(async (conferenceCode: string, scheduled: ConferenceScheduledInfo) => {
         console.log("CallContext: joinConference");
 
         if (!scheduled.conferenceId) {
@@ -495,10 +499,14 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             externalId: scheduled.externalId,
         }
 
-        conferenceClient.joinConferenceRoom(joinArgs)
-    }, [api]);
+        if(await conferenceClient.joinConferenceRoom(joinArgs)) {
+            ui.showToast("joining conference");
+        } else {
+            ui.showPopUp("join conference failed.");
+        }
+    }, [api, ui]);
 
-    const createConferenceOrJoin = useCallback((externalId: string, conferenceCode: string) => {
+    const createConferenceOrJoin = useCallback(async (externalId: string, conferenceCode: string) => {
         console.log(`CallContext: createConferenceOrJoin externalId:${externalId}, conferenceCode:${conferenceCode}`);
         let createArgs: CreateConferenceParams = {
             conferenceCode: conferenceCode,
@@ -519,7 +527,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         }
 
-        let result = conferenceClient.waitCreateAndJoinConference(createArgs, joinArgs);
+        let result = await conferenceClient.waitCreateAndJoinConference(createArgs, joinArgs);
         if (result) {
             ui.showToast('joining conference room.');
         } else {
@@ -654,6 +662,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isScreenSharing: isScreenSharing,
             participantsOnline: participantsOnline,
             conferencesOnline: conferencesOnline,
+            
             inviteInfoSend,
             inviteInfoReceived,
 
@@ -670,7 +679,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             createConference,
             joinConference,
-            createConferenceOrJoin,
+            createConferenceOrJoin,            
 
             sendInvite,
             acceptInvite,
