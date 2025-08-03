@@ -501,6 +501,31 @@ class ConferenceClient {
             this.socket.disconnect();
             this.socket = null;
         }
+
+        this.localParticipant.stream.getTracks().forEach(t => t.stop());
+        this.localParticipant = new Participant();
+        for (const p of this.conference.participants.values()) {
+            p.stream.getTracks().forEach(t => t.stop());
+        }
+
+        for (const timerid of this.CallConnectTimeoutTimerIds.values()) {
+            if (timerid) {
+                clearTimeout(timerid);
+            }
+        }
+
+        this.CallConnectTimeoutTimerIds.clear();
+
+        this.acceptInvite = null;
+        this.rejectInvite = null;
+
+        this.authToken = "";
+        this.callState = "disconnected";
+        this.clientData = {};
+        this.conference = new Conference();
+        this.conferencesOnline = [];
+        this.participantsOnline = [];
+        this.isScreenSharing = false;
     }
 
     isInConference() {

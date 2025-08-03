@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { BoxArrowRight, Gear, Person, PersonGear } from 'react-bootstrap-icons';
 import { objectToQueryString } from '../../utils/utils';
 import { flushSync } from 'react-dom';
+import { useCall } from '../../hooks/useCall';
 
 interface TopMenuProps {
     onShowSettings: () => void;
@@ -12,6 +13,7 @@ interface TopMenuProps {
 
 const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
     const { getCurrentUser, logout, getClientData } = useAPI();
+    const { disconnect } = useCall();
     const navigate = useNavigate();
 
     const handleLogout = async () => {
@@ -20,6 +22,7 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
             console.log(`logout clientData:`, clientData);
             flushSync(() => {
                 logout();
+                disconnect();
             });
 
             if (clientData) {

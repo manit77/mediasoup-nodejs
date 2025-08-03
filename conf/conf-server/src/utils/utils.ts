@@ -78,6 +78,11 @@ export function stringIsNullOrEmpty(val: string): boolean {
   if (val === undefined || val == null || val == "") {
     return true;
   }
+
+  if (val.trim() === "") {
+    return true;
+  }
+
   return false;
 }
 
@@ -97,6 +102,8 @@ export function parseString(invalue: any, defaultvalue: string = ""): string {
     return invalue;
   } else if ((typeof invalue === "number" && !isNaN(invalue) && isFinite(invalue)) || typeof invalue === "boolean" || isDate(invalue)) {
     return String(invalue);
+  } else {
+    consoleWarn(`could not parse to string, type not handled:`, invalue);
   }
   return defaultvalue;
 }
@@ -106,6 +113,8 @@ export function parseBool(invalue: any, defaultvalue = false): boolean {
     return true;
   } else if (invalue === false || (typeof invalue === "number" && invalue < 1) || invalue === "0" || invalue === "n" || invalue === "N") {
     return false;
+  } else {
+    consoleWarn(`could not parse to boolean, type not handled:`, invalue);
   }
   return defaultvalue;
 }

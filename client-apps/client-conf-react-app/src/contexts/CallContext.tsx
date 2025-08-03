@@ -39,7 +39,7 @@ interface CallContextType {
     createConference: (externalId: string, roomName: string) => void;
     joinConference: (conferenceCode: string, scheduled: ConferenceScheduledInfo) => Promise<void>;
     createConferenceOrJoin: (externalId: string, conferenceCode: string) => Promise<void>;
-    
+
     sendInvite: (participantInfo: ParticipantInfo, options: GetUserMediaConfig) => Promise<void>;
     acceptInvite: () => Promise<void>;
     declineInvite: () => void;
@@ -55,6 +55,8 @@ interface CallContextType {
 
     getMediaDevices: () => Promise<void>;
     switchDevicesOnCall: () => Promise<void>;//, isAudioEnabled: boolean, isVideoEnabled: boolean) => Promise<void>;
+
+    disconnect: () => void;
 
 }
 
@@ -475,7 +477,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             config: null
         }
 
-        if(conferenceClient.createConferenceRoom(createArgs)){
+        if (conferenceClient.createConferenceRoom(createArgs)) {
             ui.showToast("creating conference");
         } else {
             ui.showPopUp("failed to create conference.");
@@ -499,7 +501,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             externalId: scheduled.externalId,
         }
 
-        if(await conferenceClient.joinConferenceRoom(joinArgs)) {
+        if (await conferenceClient.joinConferenceRoom(joinArgs)) {
             ui.showToast("joining conference");
         } else {
             ui.showPopUp("join conference failed.");
@@ -564,7 +566,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsLocalStreamUpdated(true);
             setCallParticipants(prev => new Map(conferenceClient.conference.participants));
         }
-    }, []);
+    }, [conference.presenter]);
 
     const stopScreenShare = useCallback(async () => {
         console.log("stopScreenShare");
@@ -647,6 +649,26 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setupWebRTCEvents();
     }, [setupWebRTCEvents]);
 
+    const disconnect = useCallback(async () => {
+
+        conferenceClient.disconnect();
+
+        setIsConnected(false);
+        setIsAuthenticated(false);
+        localParticipant.current = conferenceClient.localParticipant;
+        setIsCallActive(false);
+        setConferenceRoom(conferenceClient.conference);
+        setCallParticipants(conferenceClient.conference.participants);
+        setIsScreenSharing(conferenceClient.isScreenSharing);
+        setSelectedDevices(conferenceClient.selectedDevices);
+        setParticipantsOnline(conferenceClient.participantsOnline);
+        setConferencesOnline(conferenceClient.conferencesOnline);
+        setInviteInfoSend(conferenceClient.inviteSendMsg);
+        setInviteInfoReceived(conferenceClient.inviteReceivedMsg);
+
+
+    }, []);
+
     return (
         <CallContext.Provider value={{
             isConnected,
@@ -662,7 +684,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isScreenSharing: isScreenSharing,
             participantsOnline: participantsOnline,
             conferencesOnline: conferencesOnline,
-            
+
             inviteInfoSend,
             inviteInfoReceived,
 
@@ -679,7 +701,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             createConference,
             joinConference,
-            createConferenceOrJoin,            
+            createConferenceOrJoin,
 
             sendInvite,
             acceptInvite,
@@ -695,7 +717,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             getMediaDevices,
             switchDevicesOnCall,
-
+            disconnect,
+            
         }}>
             {children}
         </CallContext.Provider>

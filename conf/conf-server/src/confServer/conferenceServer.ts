@@ -33,7 +33,7 @@ import express from 'express';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { getDemoSchedules } from '../demoData/demoData.js';
 import { AbstractEventHandler } from '../utils/evenHandler.js';
-import { consoleError, consoleLog, consoleWarn, copyWithDataParsing, fill, stringIsNullOrEmpty } from '../utils/utils.js';
+import { consoleError, consoleLog, consoleWarn, copyWithDataParsing, fill, parseString, stringIsNullOrEmpty } from '../utils/utils.js';
 import pkg_lodash from 'lodash';
 const { clone } = pkg_lodash;
 
@@ -49,6 +49,7 @@ export interface ConferenceServerConfig {
     conf_data_cache_timeoutsecs: number,
     conf_data_urls: { getScheduledConferencesURL: string, getScheduledConferenceURL: string, loginURL: string, loginGuestURL: string },
     conf_socket_timeout_secs: 60,
+    conf_require_participant_group: boolean;
 
     room_access_token: string,
     room_servers_uris: string[],
@@ -76,10 +77,23 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         this.config = args.config;
         this.thirdParty = new ThirdPartyAPI(this.config);
+        this.printStats();
     }
 
+    printStats() {
+        consoleWarn(`#### Conference Server Stats ####`);
+        consoleWarn(`Conferences: `, this.conferences.size);
+        consoleWarn(`Participants: `, this.participants.size);
+        consoleWarn(`#################################`);
+
+        setTimeout(() => {
+            this.printStats();
+        }, 30000);
+    }
+
+
     terminateParticipant(participantId: string) {
-        consoleLog(`terminateParticipant`, participantId);
+        consoleWarn(`terminateParticipant`, participantId);
 
         let participant = this.participants.get(participantId);
         if (participant) {
@@ -94,7 +108,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleLog(`participant ${participant.participantId} disconnected. participants: ${this.participants.size} rooms: ${this.conferences.size}`);
 
             //update contacts
-            this.broadCastParticipants(null);
+            this.broadCastParticipants(participant.participantGroup);
         }
     }
 
@@ -167,24 +181,26 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
     }
 
-    createParticipant(username: string, displayName: string): Participant {
+    createParticipant(username: string, displayName: string, participantGroup: string): Participant {
 
         let part = new Participant();
         part.participantId = "part-" + randomUUID().toString();
         part.displayName = displayName;
         part.username = username;
+        part.participantGroup = participantGroup;
         this.participants.set(part.participantId, part);
         consoleLog("new participant created " + part.participantId);
         return part;
     }
 
     getOrCreateConference(args: {
-        confType?: conferenceType,
+        confType: conferenceType,
+        participantGroup: string,
         minParticipants?: number,
         minParticipantsTimeoutSeconds?: number,
         conferenceId?: string,
         externalId?: string,
-        roomName?: string,
+        roomName: string,
         config?: ConferenceConfig
     }) {
 
@@ -211,6 +227,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         conference.roomName = args.roomName;
         conference.minParticipants = args.minParticipants;
         conference.minParticipantsTimeoutSeconds = args.minParticipantsTimeoutSeconds;
+        conference.participantGroup = args.participantGroup;
 
         conference.confType = args.confType;
 
@@ -236,10 +253,12 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             let msgClosed = new ConferenceClosedMsg();
             msgClosed.data.conferenceId = conf.id;
             msgClosed.data.reason = reason;
-            participants.forEach(p => this.send(p, msgClosed));
+
+            const partsToAlert = [...participants.values()].filter(p=> p.conference && p.conference === conf);            
+            partsToAlert.forEach(p => this.send(p, msgClosed));
 
             //broadcast rooms to existing participants
-            this.broadCastConferenceRooms();
+            this.broadCastConferenceRooms(conf.participantGroup);
         };
 
         consoleLog(`conference created: ${conference.id} ${conference.roomName} `);
@@ -297,7 +316,15 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return errorMsg;
         }
 
-        let participant: Participant = this.createParticipant(msgIn.data.username, msgIn.data.username);
+        let participantGroup = msgIn.data.clientData ? parseString(msgIn.data.clientData["participantGroup"]) : "";
+        
+        if(this.config.conf_require_participant_group && participantGroup === "") {
+            let errorMsg = new RegisterResultMsg();
+            errorMsg.data.error = "participant group is required.";
+            return errorMsg;            
+        }
+
+        let participant: Participant = this.createParticipant(msgIn.data.username, msgIn.data.username, participantGroup);
         participant.clientData = msgIn.data.clientData;
 
         let authTokenObject: IAuthPayload;
@@ -312,16 +339,16 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             role: stringIsNullOrEmpty(authTokenObject.role) ? ParticipantRole.guest : authTokenObject.role
         };
 
-        this.broadCastParticipants(participant);
+        this.broadCastParticipantsExcept(participant);
 
         return msg;
     }
 
-    async broadCastParticipants(exceptParticipant?: Participant) {
+    async broadCastParticipantsExcept(exceptParticipant: Participant) {
 
         console.warn("broadCastParticipants except", exceptParticipant);
         //broadcast to all participants of contacts        
-        const allPartsInfo = [...this.participants.values()].map(p => ({
+        const allPartsInfo = [...this.participants.values()].filter(p=> p.participantGroup === exceptParticipant.participantGroup).map(p => ({
             participantId: p.participantId,
             displayName: p.displayName,
             status: "online"
@@ -329,7 +356,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         console.log('allPartsInfo[]', allPartsInfo);
 
-        const allPartsExceptArr = [...this.participants.values()].filter(p => exceptParticipant && p.participantId != exceptParticipant.participantId);
+        const allPartsExceptArr = [...this.participants.values()].filter(p => p.participantGroup === exceptParticipant.participantGroup && p.participantId != exceptParticipant.participantId);
         for (const p of allPartsExceptArr) {
             //do not send the participant info back to self
             const contactsMsg = new GetParticipantsResultMsg();
@@ -340,11 +367,34 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     }
 
-    async broadCastConferenceRooms() {
+    async broadCastParticipants(partcipantGroup: string) {
+
+        console.warn("broadCastParticipants ", partcipantGroup);
+        //broadcast to all participants of contacts        
+        const allPartsInfo = [...this.participants.values()].filter(p=> p.participantGroup === partcipantGroup).map(p => ({
+            participantId: p.participantId,
+            displayName: p.displayName,
+            status: "online"
+        }) as ParticipantInfo);
+
+        console.log('allPartsInfo[]', allPartsInfo);
+
+        const allPartsExceptArr = [...this.participants.values()].filter(p => p.participantGroup === partcipantGroup);
+        for (const p of allPartsExceptArr) {
+            //do not send the participant info back to self
+            const contactsMsg = new GetParticipantsResultMsg();
+            contactsMsg.data.participants = allPartsInfo.filter(partInfo => partInfo.participantId != p.participantId);
+            console.warn(`send contactsMsg to ${p.displayName}`, contactsMsg);
+            this.send(p, contactsMsg);
+        }
+
+    }
+
+    async broadCastConferenceRooms(participantGroup: string) {
         consoleLog("broadCastConferenceRooms");
 
         let msg = new GetConferencesResultMsg();
-        msg.data.conferences = [...this.conferences.values()].filter(c => c.externalId).map(c => {
+        msg.data.conferences = [...this.conferences.values()].filter(c => c.externalId && c.participantGroup === participantGroup).map(c => {
             let newc = {
                 conferenceId: c.id,
                 config: clone(c.config),
@@ -409,12 +459,12 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         return null;
     }
 
-    getParticipantsExceptConn(conn: SocketConnection) {
-        return [...this.participants.values()].filter(p => p.connection !== conn);
-    }
+    // getParticipantsExceptConn(conn: SocketConnection) {
+    //     return [...this.participants.values()].filter(p => p.connection !== conn);
+    // }
 
     getParticipantsExceptPart(part: Participant) {
-        return [...this.participants.values()].filter(p => p.participantId !== part.participantId);
+        return [...this.participants.values()].filter(p => p.participantGroup === part.participantGroup && p.participantId !== part.participantId);
     }
 
     /**
@@ -466,6 +516,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         let conference = this.getOrCreateConference({
+            participantGroup: participant.participantGroup,
+            roomName: `call with ${participant.displayName} and ${remote.displayName}`,
             confType: "p2p",
             minParticipants: 2,
             minParticipantsTimeoutSeconds: 60
@@ -530,7 +582,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         if (conf.participants.size == 1) {
             consoleError("closing conference room");
-            conf.close("");
+            conf.close("invite cancelled");
         }
 
         let resultMsg = new InviteCancelledMsg();
@@ -715,8 +767,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         let conference = participant.conference;
         if (conference) {
             consoleLog("conference already created");
-        } else {            
+        } else {
             conference = this.getOrCreateConference({
+                participantGroup: participant.participantGroup,
                 confType: "room",
                 conferenceId: "",
                 minParticipants: 2,
@@ -963,7 +1016,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         conference.updateStatus("ready");
         clearTimeout(initTimerId);
 
-        await this.broadCastConferenceRooms();
+        await this.broadCastConferenceRooms(conference.participantGroup);
         return true;
     }
 

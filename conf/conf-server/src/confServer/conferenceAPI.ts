@@ -72,7 +72,7 @@ export class ConferenceAPI {
             console.log(WebRoutes.loginGuest, req.body);
 
             let msg = req.body as LoginGuestMsg;
-            let clientData = msg.data.clientData;
+            let clientData = msg.data.clientData;            
 
             if (!msg.data.displayName) {
                 let errorMsg = new LoginResultMsg();

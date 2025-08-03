@@ -19,10 +19,11 @@ export class SocketConnection {
     username: string;
     eventHandlers: onSocketTimeout[] = [];
     dateOfLastMsg: Date = new Date();
+    dateCreated = new Date();
 
     constructor(webSocket: WebSocket, socketTimeoutSecs: number) {
         this.ws = webSocket;
-        this.timeoutSecs = socketTimeoutSecs;
+        this.timeoutSecs = socketTimeoutSecs;        
     }
 
     dispose() {
@@ -77,6 +78,7 @@ export class Participant {
     role: ParticipantRole | string = ParticipantRole.guest;
     clientData: {} = {}; //passed down from the user login or the query string from a client    
     connection: SocketConnection;
+    participantGroup = "";
 
     constructor() {
 
@@ -88,6 +90,8 @@ export type conferenceStatus = "none" | "initializing" | "ready" | "closed";
 export class Conference {
     id: string;
     externalId: string;
+    participantGroup : string;
+
     timeoutId: any;
     timeoutSecs: number = 0;
     roomName: string;
@@ -147,13 +151,13 @@ export class Conference {
             this.participants.delete(id);
             consoleLog("participant removed");
         }
+        
+        this.startTimerMinParticipants();
 
         if (this.participants.size == 0) {
             consoleLog("closing room, no participants.");
-            this.close();
+            this.close("no participants");
         }
-
-        this.startTimerMinParticipants();
     }
 
     addParticipant(part: Participant): boolean {
@@ -189,7 +193,7 @@ export class Conference {
         return true;
     }
 
-    close(reason: string = "") {
+    close(reason: string) {
         consoleLog(`conference close. ${this.id} reason: ${reason}`);
 
         if (this.status === "closed") {
@@ -207,6 +211,7 @@ export class Conference {
         this.participants.clear();
 
         this.onReadyListeners = [];
+
         if (this.timeoutId) {
             clearTimeout(this.timeoutId);
             this.timeoutId = null;
@@ -234,7 +239,7 @@ export class Conference {
     private startConferenceTimer() {
         consoleLog(`startConferenceTimer, timeout in ${this.timeoutSecs}`);
          if (this.timeoutSecs > 0) {
-            this.timeoutId = setTimeout(() => { this.close(); }, this.timeoutSecs * 1000);
+            this.timeoutId = setTimeout(() => { this.close("room timedout."); }, this.timeoutSecs * 1000);
             consoleLog(`startTimer, timer started in ${this.timeoutSecs}`);
         }
     }
