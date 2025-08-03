@@ -1,6 +1,6 @@
 import {
     AcceptMsg, AcceptResultMsg, CallMessageType, ConferenceClosedMsg, ConferenceReadyMsg,
-    ConferenceRoomConfig, ConferenceScheduledInfo, conferenceType, CreateConferenceParams,
+    ConferenceConfig, ConferenceScheduledInfo, conferenceType, CreateConferenceParams,
     CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg,
     GetParticipantsResultMsg, GetUserMediaConfig, InviteCancelledMsg, InviteMsg, InviteResultMsg,
     JoinConferenceParams, JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo,
@@ -694,7 +694,7 @@ class ConferenceClient {
         msg.data.conferenceExternalId = args.externalId;
         msg.data.roomName = args.roomName;
         msg.data.conferenceCode = args.conferenceCode;
-        msg.data.conferenceRoomConfig = args.config;
+        msg.data.conferenceConfig = args.config;
         return this.sendToServer(msg);
     }
 
@@ -881,7 +881,7 @@ class ConferenceClient {
         this.conference.joinParams = args;
 
         //get the conference config first
-        if (!this.conference.conferenceRoomConfig) {
+        if (!this.conference.conferenceConfig) {
 
             if (!args.externalId) {
                 console.error(`trackingId is required.`);
@@ -895,10 +895,10 @@ class ConferenceClient {
                 return false;
             }
             console.log(`getConferenceScheduled result `, scheduled);
-            this.conference.conferenceRoomConfig = scheduled.data.conference.config;
+            this.conference.conferenceConfig = scheduled.data.conference.config;
         }
 
-        if (!this.conference.conferenceRoomConfig) {
+        if (!this.conference.conferenceConfig) {
             console.error(`no conference config found.`);
             return false;
         }
@@ -916,21 +916,21 @@ class ConferenceClient {
     }
 
     private checkTrackAllowed(track: MediaStreamTrack) {
-        console.log("checkTrackAllowed", track.kind, this.conference.conferenceRoomConfig);
+        console.log("checkTrackAllowed", track.kind, this.conference.conferenceConfig);
 
-        if (!this.conference.conferenceRoomConfig) {
+        if (!this.conference.conferenceConfig) {
             console.error(`not conference config found.`);
             return;
         }
 
         if (this.localParticipant.role === "guest") {
-            if (track.kind === "audio" && !this.conference.conferenceRoomConfig.guestsAllowMic) {
+            if (track.kind === "audio" && !this.conference.conferenceConfig.guestsAllowMic) {
                 if (track) {
                     track.enabled = false;
                 }
             }
 
-            if (track.kind === "video" && !this.conference.conferenceRoomConfig.guestsAllowCamera) {
+            if (track.kind === "video" && !this.conference.conferenceConfig.guestsAllowCamera) {
                 if (track) {
                     track.enabled = false;
                 }
@@ -1347,7 +1347,7 @@ class ConferenceClient {
         this.conference.conferenceName = message.data.conferenceName || `Call with ${message.data.displayName}`;
         this.conference.conferenceExternalId = message.data.conferenceExternalId;
         this.conference.conferenceType = message.data.conferenceType;
-        this.conference.conferenceRoomConfig = message.data.conferenceRoomConfig;
+        this.conference.conferenceConfig = message.data.conferenceConfig;
 
         this.conference.roomId = message.data.roomId;
         this.conference.roomToken = message.data.roomToken;

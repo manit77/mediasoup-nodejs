@@ -97,7 +97,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         }
 
         // Prevent enabling the mic for a guest if not allowed
-        if (newEnabled && targetIsGuest && !conference.conferenceRoomConfig.guestsAllowMic) {
+        if (newEnabled && targetIsGuest && !conference.conferenceConfig.guestsAllowMic) {
             console.log(`Cannot enable mic for guest when not allowed.`);
             ui.showToast(`Cannot enable mic for guest when not allowed.`);
             return;
@@ -171,7 +171,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
 
 
         // Prevent enabling the camera for a guest if not allowed
-        if (newEnabled && targetIsGuest && !conference.conferenceRoomConfig.guestsAllowCamera) {
+        if (newEnabled && targetIsGuest && !conference.conferenceConfig.guestsAllowCamera) {
             console.log(`Cannot enable camera for guest when not allowed.`);
             ui.showToast(`Cannot enable camera for guest when not allowed.`);
             return;

@@ -1,5 +1,5 @@
 import express, { NextFunction, Request, Response } from 'express';
-import { apiGetScheduledConferencePost, apiGetScheduledConferenceResult, ConferenceRoomConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantRole, WebRoutes } from '@conf/conf-models';
+import { apiGetScheduledConferencePost, apiGetScheduledConferenceResult, ConferenceConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantRole, WebRoutes } from '@conf/conf-models';
 import { ConferenceServer, ConferenceServerConfig } from './conferenceServer.js';
 import { IAuthPayload } from '../models/models.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';

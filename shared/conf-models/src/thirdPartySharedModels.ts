@@ -1,4 +1,4 @@
-import { ConferenceRoomConfig } from "./conferenceModels.js";
+import { ConferenceConfig } from "./conferenceModels.js";
 
 export enum apiMsgTypes {
     login = "login",
@@ -64,7 +64,7 @@ export class apiScheduledConference {
     id: string;
     name: string;
     description: string;
-    config: ConferenceRoomConfig 
+    config: ConferenceConfig 
 }
 
 

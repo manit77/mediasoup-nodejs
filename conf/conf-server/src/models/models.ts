@@ -1,4 +1,4 @@
-import { ConferenceRoomConfig, conferenceType, ParticipantRole } from "@conf/conf-models";
+import { ConferenceConfig, conferenceType, ParticipantRole } from "@conf/conf-models";
 import { WebSocket } from "ws";
 import { AbstractEventHandler } from "../utils/evenHandler.js";
 import { consoleLog, consoleWarn } from "../utils/utils.js";
@@ -97,7 +97,7 @@ export class Conference {
     roomRtpCapabilities: any;
     participants: Map<string, Participant> = new Map();
     status: conferenceStatus = "none";
-    config = new ConferenceRoomConfig();
+    config = new ConferenceConfig();
     confType: conferenceType = "p2p"
 
     minParticipantsTimeoutSeconds = 30;

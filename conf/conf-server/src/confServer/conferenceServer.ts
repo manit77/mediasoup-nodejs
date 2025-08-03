@@ -13,7 +13,7 @@ import {
     CreateConfResultMsg,
     JoinConfMsg,
     JoinConfResultMsg,
-    ConferenceRoomConfig,
+    ConferenceConfig,
     GetParticipantsResultMsg,
     ParticipantInfo,
     GetConferencesMsg,
@@ -185,7 +185,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         conferenceId?: string,
         externalId?: string,
         roomName?: string,
-        config?: ConferenceRoomConfig
+        config?: ConferenceConfig
     }) {
 
         //find room by tracking id
@@ -657,7 +657,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         //get the config from the api endpoint
-        let confConfig = new ConferenceRoomConfig();
+        let confConfig = new ConferenceConfig();
         let roomName = msgIn.data.roomName;
 
         if (msgIn.data.conferenceExternalId) {
@@ -879,7 +879,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.conferenceType = conference.confType;
         msg.data.participantId = participant.participantId;
         msg.data.displayName = participant.displayName;
-        msg.data.conferenceRoomConfig = conference.config;
+        msg.data.conferenceConfig = conference.config;
 
         msg.data.roomId = conference.roomId;
         msg.data.roomToken = conference.roomToken;

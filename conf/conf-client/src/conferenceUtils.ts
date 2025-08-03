@@ -24,7 +24,7 @@ export function isVideoAllowedFor(conference: Conference, participant: Participa
         return true;
     }
 
-    if (participant.role === "guest" && conference.conferenceRoomConfig.guestsAllowCamera) {
+    if (participant.role === "guest" && conference.conferenceConfig.guestsAllowCamera) {
         return true;
     }
 }
@@ -35,7 +35,7 @@ export function isAudioAllowedFor(conference: Conference, participant: Participa
         return true;
     }
 
-    if (participant.role === "guest" && conference.conferenceRoomConfig.guestsAllowMic) {
+    if (participant.role === "guest" && conference.conferenceConfig.guestsAllowMic) {
         return true;
     }
 }
