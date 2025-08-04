@@ -5,6 +5,7 @@ import { consoleLog, consoleWarn } from "../utils/utils.js";
 
 export interface IAuthPayload {
     username: string,
+    participantGroup : string,
     role: ParticipantRole | string,
 }
 
@@ -194,7 +195,7 @@ export class Conference {
     }
 
     close(reason: string) {
-        consoleLog(`conference close. ${this.id} reason: ${reason}`);
+        consoleLog(`conference close. id: ${this.id}, roomName: ${this.roomName}, confType: ${this.confType}, reason: ${reason}`);
 
         if (this.status === "closed") {
             consoleLog("conference already closed.");

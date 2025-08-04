@@ -254,7 +254,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             msgClosed.data.conferenceId = conf.id;
             msgClosed.data.reason = reason;
 
-            const partsToAlert = [...participants.values()].filter(p=> p.conference && p.conference === conf);            
+            const partsToAlert = [...participants.values()].filter(p => p.conference && p.conference === conf);
             partsToAlert.forEach(p => this.send(p, msgClosed));
 
             //broadcast rooms to existing participants
@@ -317,11 +317,11 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
 
         let participantGroup = msgIn.data.clientData ? parseString(msgIn.data.clientData["participantGroup"]) : "";
-        
-        if(this.config.conf_require_participant_group && participantGroup === "") {
+
+        if (this.config.conf_require_participant_group && participantGroup === "") {
             let errorMsg = new RegisterResultMsg();
             errorMsg.data.error = "participant group is required.";
-            return errorMsg;            
+            return errorMsg;
         }
 
         let participant: Participant = this.createParticipant(msgIn.data.username, msgIn.data.username, participantGroup);
@@ -348,7 +348,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         console.warn("broadCastParticipants except", exceptParticipant);
         //broadcast to all participants of contacts        
-        const allPartsInfo = [...this.participants.values()].filter(p=> p.participantGroup === exceptParticipant.participantGroup).map(p => ({
+        const allPartsInfo = [...this.participants.values()].filter(p => p.participantGroup === exceptParticipant.participantGroup).map(p => ({
             participantId: p.participantId,
             displayName: p.displayName,
             status: "online"
@@ -371,7 +371,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         console.warn("broadCastParticipants ", partcipantGroup);
         //broadcast to all participants of contacts        
-        const allPartsInfo = [...this.participants.values()].filter(p=> p.participantGroup === partcipantGroup).map(p => ({
+        const allPartsInfo = [...this.participants.values()].filter(p => p.participantGroup === partcipantGroup).map(p => ({
             participantId: p.participantId,
             displayName: p.displayName,
             status: "online"
@@ -439,15 +439,15 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         return msg;
     }
 
-    getParticipantByConn(connection: SocketConnection) {
-        // Check active participants first
-        for (const [key, participant] of this.participants.entries()) {
-            if (participant.connection == connection) {
-                return participant;
-            }
-        }
-        return null;
-    }
+    // getParticipantByConn(connection: SocketConnection) {
+    //     // Check active participants first
+    //     for (const [key, participant] of this.participants.entries()) {
+    //         if (participant.connection == connection) {
+    //             return participant;
+    //         }
+    //     }
+    //     return null;
+    // }
 
     getParticipant(participantId: string) {
         // Check active participants first
@@ -502,6 +502,15 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
             let errorMsg = new InviteResultMsg();
             errorMsg.data.error = "remote party is on another call.";
+
+            return errorMsg;
+        }
+
+        if (participant.participantGroup !== remote.participantGroup) {
+            consoleError(`not in the same participant group.`);
+
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.error = "invalid participantId.";
 
             return errorMsg;
         }
@@ -610,6 +619,11 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return;
         }
 
+        if (participant.participantGroup !== remoteParticipant.participantGroup) {
+            consoleError("onReject - not the same participant group.");
+            return;
+        }
+
         let conf = this.conferences.get(msgIn.data.conferenceId);
         if (!conf) {
             consoleError("onReject - conference not found.");
@@ -646,9 +660,12 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return msg;
         }
 
-        if (!participant) {
-            consoleError("onAccept - participant not found or not connected");
-            return;
+        if (conference.participantGroup != participant.participantGroup) {
+            consoleError("ERROR: not the same participant group.");
+            let msg = new AcceptResultMsg();
+            msg.data.conferenceId = msgIn.data.conferenceId;
+            msg.data.error = "unable to join conference";
+            return msg;
         }
 
         if (conference.status == "closed") {
@@ -823,7 +840,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             errorMsg.data.error = "already in a room.";
 
             return errorMsg;
-        }
+        }        
 
         let conference: Conference;
         if (msgIn.data.conferenceId) {
@@ -887,6 +904,14 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             errorMsg.data.error = "unauthorized";
 
             return errorMsg;
+        }
+
+        if (conference.participantGroup != participant.participantGroup) {
+            consoleError("ERROR: not the same participant group.");
+            let msg = new JoinConfResultMsg();
+            msg.data.conferenceId = msgIn.data.conferenceId;
+            msg.data.error = "unable to join conference";
+            return msg;
         }
 
         if (!conference.addParticipant(participant)) {
@@ -1080,13 +1105,13 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         //msgIn = fill(msgIn, new GetConferencesMsg());
 
         let returnMsg = new GetConferencesResultMsg();
-        returnMsg.data.conferences = await this.getConferences();
+        returnMsg.data.conferences = await this.getConferences(participant.participantGroup);
         return returnMsg;
     }
 
-    async getConferences(): Promise<ConferenceScheduledInfo[]> {
+    async getConferences(participantGroup: string): Promise<ConferenceScheduledInfo[]> {
         //consoleLog("getConferences");
-        return [...this.conferences.values()].filter(c => !c.config.isPrivate)
+        return [...this.conferences.values()].filter(c => !c.config.isPrivate && c.participantGroup === participantGroup)
             .map(c => {
                 let newc = {
                     conferenceId: c.id,

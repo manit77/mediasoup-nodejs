@@ -47,7 +47,7 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
         }
 
 
-    }, [callParticipants]);
+    }, [callParticipants, participant.displayName, participant.stream, participant.tracksInfo]);
 
     const onAudioClick = useCallback(async () => {
         console.log(`onAudioClick.`);

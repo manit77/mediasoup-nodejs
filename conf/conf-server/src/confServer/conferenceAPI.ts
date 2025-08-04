@@ -1,5 +1,5 @@
 import express, { NextFunction, Request, Response } from 'express';
-import { apiGetScheduledConferencePost, apiGetScheduledConferenceResult, ConferenceConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantRole, WebRoutes } from '@conf/conf-models';
+import { apiGetScheduledConferencePost, apiGetScheduledConferenceResult, ConferenceConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantRole, WebRoutes } from '@conf/conf-models';
 import { ConferenceServer, ConferenceServerConfig } from './conferenceServer.js';
 import { IAuthPayload } from '../models/models.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
@@ -7,7 +7,7 @@ import { AuthUserRoles, RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/room
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from '@conf/conf-models';
 import { getDemoSchedules } from '../demoData/demoData.js';
-import { fill } from '../utils/utils.js';
+import { fill, parseString } from '../utils/utils.js';
 import { CacheManager } from '../utils/cacheManager.js';
 
 export class ConferenceAPI {
@@ -44,18 +44,20 @@ export class ConferenceAPI {
             }
 
 
-            let payload = jwtVerify(this.config.conf_secret_key, authtoken);
+            let payload = jwtVerify(this.config.conf_secret_key, authtoken) as IAuthPayload;
             if (!payload) {
                 console.error("invalid authToken.");
                 return res.status(401).json({ error: 'invalid authToken.' });
             }
+
+            req["IAuthPayload"] = payload;
 
             next();
         } catch (error) {
             console.error(error);
             return res.status(401).json({ error: 'Invalid or expired token' });
         }
-     };
+    };
 
     start() {
 
@@ -72,8 +74,8 @@ export class ConferenceAPI {
             console.log(WebRoutes.loginGuest, req.body);
 
             let msg = req.body as LoginGuestMsg;
-            let clientData = msg.data.clientData;            
-
+            let clientData = msg.data.clientData;
+            let participantGroup = "";
             if (!msg.data.displayName) {
                 let errorMsg = new LoginResultMsg();
                 errorMsg.data.error = "authentication failed";
@@ -94,12 +96,14 @@ export class ConferenceAPI {
                 }
                 if (result.data.clientData) {
                     clientData = result.data.clientData;
+                    participantGroup = parseString(result.data.clientData["participantGroup"]),
                     console.warn(`new clientData received.`, clientData);
                 }
             }
 
             let authTokenPayload: IAuthPayload = {
                 username: msg.data.displayName,
+                participantGroup: participantGroup,
                 role: ParticipantRole.guest
             };
             let authToken = jwtSign(this.config.conf_secret_key, authTokenPayload);
@@ -128,6 +132,7 @@ export class ConferenceAPI {
             let displayName = "";
             let returnedClientData: any = msg.data.clientData;
             let role: string = ParticipantRole.user;
+            let participantGroup = "";
 
             if (msg.data.username && msg.data.password) {
                 //use a third party service to send a username and password
@@ -143,6 +148,7 @@ export class ConferenceAPI {
                         displayName = result.data.displayName;
                         returnedClientData = result.data.clientData;
                         role = result.data.role;
+                        participantGroup =  parseString(result.data.clientData["participantGroup"]);
                     }
 
                 } else {
@@ -173,6 +179,7 @@ export class ConferenceAPI {
             if (isAuthenticated) {
                 let authTokenPayload: IAuthPayload = {
                     username: username,
+                    participantGroup: participantGroup,
                     role: role
                 };
 
@@ -201,16 +208,21 @@ export class ConferenceAPI {
         console.log(`route: ${WebRoutes.getConferencesScheduled}`);
         this.app.post(WebRoutes.getConferencesScheduled, this.tokenCheck as any, async (req, res) => {
             //console.log(`${WebRoutes.getConferencesScheduled}`);
-            let cachedResults = this.cache.get(WebRoutes.getConferencesScheduled);
-            let resultMsg = new GetConferencesScheduledResultMsg();
+            let authPayload = req["IAuthPayload"] as IAuthPayload;
 
+            let msg = req.body as apiGetScheduledConferencesPost;            
+            let participantGroup = parseString(authPayload.participantGroup);
+            let cacheKey = WebRoutes.getConferencesScheduled + "_" + participantGroup;
+
+            let cachedResults = this.cache.get(cacheKey);
+            let resultMsg = new GetConferencesScheduledResultMsg();            
             if (cachedResults) {
                 resultMsg.data.conferences = cachedResults;
                 console.log(`${WebRoutes.getConferencesScheduled} from cache`);
             } else {
                 if (this.config.conf_data_urls.getScheduledConferencesURL) {
                     //make a post to the url
-                    let msg = req.body as apiGetScheduledConferencesPost;
+
                     let result = await this.thirdPartyAPI.getScheduledConferences(msg.data.clientData) as apiGetScheduledConferencesResult;
                     if (result.data.error) {
                         console.log(`getScheduledConferences error:`, result.data.error);
@@ -227,7 +239,7 @@ export class ConferenceAPI {
                         return clone;
                     });
 
-                    this.cache.set(WebRoutes.getConferencesScheduled, resultMsg.data.conferences, this.config.conf_data_cache_timeoutsecs);
+                    this.cache.set(cacheKey, resultMsg.data.conferences, this.config.conf_data_cache_timeoutsecs);
 
                 } else {
                     //get from demo data
@@ -247,7 +259,7 @@ export class ConferenceAPI {
             }
 
             //get active rooms
-            let activeConferences = await this.confServer.getConferences();
+            let activeConferences = await this.confServer.getConferences(participantGroup);
             resultMsg.data.conferences.forEach(c => {
                 c.conferenceId = activeConferences.find(ac => ac.externalId === c.externalId)?.conferenceId ?? "";
                 return c;

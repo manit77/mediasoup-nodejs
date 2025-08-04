@@ -50,6 +50,7 @@ export class ConferenceConfig {
     guestsAllowed = true;
     guestsAllowMic: boolean = true;
     guestsAllowCamera: boolean = true;
+    guestsAllowScreenShare: boolean = true;
     guestsRequireConferenceCode: boolean = false;
     isRecorded = false;
     isPrivate = false;

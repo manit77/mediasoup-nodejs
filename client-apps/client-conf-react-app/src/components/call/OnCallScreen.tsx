@@ -15,7 +15,7 @@ const OnCallScreen: React.FC = () => {
     useEffect(() => {
         console.log(`try to switch devices, selectedDevices triggered `, localParticipant.stream.getTracks());
         switchDevicesOnCall();
-    }, [selectedDevices, switchDevicesOnCall]);
+    }, [localParticipant, selectedDevices, switchDevicesOnCall]);
 
     useEffect(() => {
         if (localParticipant.stream && !mainStream) {
@@ -32,10 +32,16 @@ const OnCallScreen: React.FC = () => {
     }, [presenter]);
 
     const handleSelectParticipantVideo = (participantId: string, stream?: MediaStream) => {
+        console.warn(`handleSelectParticipantVideo:`, stream?.getTracks());
         if (stream) {
-            setMainStream(stream);
-        } else if (participantId === "local" && localParticipant.stream) { // Special case for local user
-            setMainStream(localParticipant.stream);
+            let videoTrack = stream.getVideoTracks()[0]
+            if(videoTrack && videoTrack.enabled && !videoTrack.muted && videoTrack.readyState === "live") {
+                setMainStream(stream);
+            } else {
+                console.warn(`no video track`);    
+            }
+        } else {
+            console.warn(`no stream`);
         }
     };
 

@@ -270,6 +270,16 @@ class ConferenceClient {
     async startScreenShare() {
         console.log(`startScreenShare`);
 
+        if (!this.isInConference()) {
+            console.error(`not in conference`);
+            return false;
+        }
+
+        if (this.localParticipant.role === "guest" && !this.conference.conferenceConfig.guestsAllowScreenShare) {
+            console.error(`screen sharing not allowed.`);
+            return false;
+        }
+
         //disable camera track
         let cameraTrack = this.localParticipant.stream.getVideoTracks()[0];
         if (cameraTrack) {
@@ -289,9 +299,9 @@ class ConferenceClient {
             if (await conferenceClient.publishTracks([screenTrack])) {
                 this.conference.presenter = this.localParticipant;
                 this.isScreenSharing = true;
-                // let msg = new PresenterInfoMsg();
-                // msg.data.status = "on";
-                // this.sendToServer(msg);
+                let msg = new PresenterInfoMsg();
+                msg.data.status = "on";
+                this.sendToServer(msg);
                 return true;
             }
 

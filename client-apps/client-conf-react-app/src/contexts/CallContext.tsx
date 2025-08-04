@@ -565,8 +565,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsScreenSharing(true);
             setIsLocalStreamUpdated(true);
             setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+        } else {
+            ui.showPopUp("unable to start screen share.", "error");
         }
-    }, [conference.presenter]);
+
+    }, [conference.presenter, ui]);
 
     const stopScreenShare = useCallback(async () => {
         console.log("stopScreenShare");
