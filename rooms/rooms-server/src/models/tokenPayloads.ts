@@ -1,6 +1,7 @@
 import { AuthUserRoles } from '@rooms/rooms-models';
 
 export interface AuthUserTokenPayload {
+    type: string,
     role: AuthUserRoles
 }
 

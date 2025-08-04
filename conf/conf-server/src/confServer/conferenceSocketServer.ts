@@ -5,7 +5,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import https from 'https';
 import { IMsg } from '@rooms/rooms-models';
 import { CallMessageType, RegisterResultMsg } from '@conf/conf-models';
-import { consoleError, consoleLog } from '../utils/utils.js';
+import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
 
 const LOG = "ConferenceSocketServer";
 
@@ -25,6 +25,7 @@ export class ConferenceSocketServer {
 
     start() {
         consoleLog(LOG, `start ConferenceSocketServer`);
+        this.printStats();
 
         this.wsServer = new WebSocketServer({ server: this.httpServer });
         this.wsServer.on('connection', (ws: WebSocket) => {
@@ -72,7 +73,7 @@ export class ConferenceSocketServer {
                     }
                 } else {
                     if (!conn.participantId) {
-                        consoleError(LOG, `participantId is required.`);
+                        consoleError(LOG, `participantId is required when registering.`);
                         return;
                     }
                     returnMsg = await this.confServer.handleMsgInWS(conn.participantId, msgIn);
@@ -100,6 +101,17 @@ export class ConferenceSocketServer {
             }
         });
     }
+
+    printStats() {
+            consoleWarn(`#### Conference Socket Stats ####`);
+            consoleWarn(`connections: `, this.connections.size);
+            consoleWarn(`registered: `, [...this.connections.values()].filter(c=> c.participantId).length);
+            consoleWarn(`#################################`);
+    
+            setTimeout(() => {
+                this.printStats();
+            }, 30000);
+        }
 
     onSendMsg(participant: Participant, msg: IMsg) {
         consoleLog(LOG, `onSendMsg`, msg.type);

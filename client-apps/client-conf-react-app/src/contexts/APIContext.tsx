@@ -69,16 +69,16 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
             console.log("authenticated");
             setIsAuthenticated(true);
-            setIsLoading(false);
             return loginResult;
         } catch (error) {
-            setIsLoading(false);
             console.error('Login failed:', error);
             let errorResponse: LoginResponse = {
                 user: null,
                 error: "login failed. server connection error."
             }
             return errorResponse;
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
@@ -92,17 +92,17 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 console.error(loginResult.error);
                 return loginResult;
             }
-            setIsAuthenticated(true);
-            setIsLoading(false);
+            setIsAuthenticated(true);           
             return loginResult;
-        } catch (error) {
-            setIsLoading(false);
+        } catch (error) {            
             console.error('Login failed:', error);
             let errorResponse: LoginResponse = {
                 user: null,
                 error: "login failed. server connection error."
             }
             return errorResponse;
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
@@ -121,24 +121,24 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const fetchConferencesScheduled = useCallback(async (): Promise<ConferenceScheduledInfo[]> => {
         console.log("fetchConferencesScheduled");
-        let conferences = await apiService.fetchConferencesScheduled();        
+        let conferences = await apiService.fetchConferencesScheduled();
         return conferences;
     }, []);
 
     const setUpConnections = useCallback(() => {
         console.log(`setUpConnections`);
 
-        apiService.onConferencesReceived = async (conferences)=>{
+        apiService.onConferencesReceived = async (conferences) => {
             console.log("onConferencesReceived", conferences);
-            setConferencesScheduled(prev=> conferences);
+            setConferencesScheduled(prev => conferences);
         };
 
         let user = apiService.getUser();
         if (user) {
-            conferenceClient.connect(user.username, user.authToken);
+            conferenceClient.connect(user.username, user.authToken, user.clientData);
             fetchConferencesScheduled();
             apiService.startFetchConferencesScheduled();
-            
+
         }
     }, [fetchConferencesScheduled]);
 

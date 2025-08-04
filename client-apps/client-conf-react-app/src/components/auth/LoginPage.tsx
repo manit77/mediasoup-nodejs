@@ -30,7 +30,7 @@ const LoginPage: React.FC = () => {
             let response = await api.login(username, password, clientData);
             if (response.error) {
                 setError(response.error);
-                ui.showToast(`Login failed. ${response.error}`, 3);
+                ui.showToast(`Login failed. ${response.error}`, "error");
                 return;
             }
             setError('');
@@ -55,11 +55,11 @@ const LoginPage: React.FC = () => {
             let response = await api.loginGuest(username, clientData);
             if (response.error) {
                 setError(response.error);
-                ui.showToast(`Login failed. ${response.error}`, 3);
+                ui.showToast(`Login failed. ${response.error}`, "error");
                 return;
             }
             setError('');
-            navigate('/app'); // Navigate to authenticated area
+            navigate('/app');
         } catch (err: any) {
             setError(err.message || 'Login failed. Please try again.');
         } finally {

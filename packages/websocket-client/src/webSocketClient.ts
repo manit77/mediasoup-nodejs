@@ -40,7 +40,7 @@ export class WebSocketClient {
     }
 
     // Initialize WebSocket connection
-    connect = async (uri: string, autoReconnect = false, reconnectSecs: number = 3) => {
+    connect = async (uri: string, autoReconnect = false, reconnectSecs: number = 5) => {
         this.writeLog(`connect ${uri}`);
 
         if (this.socket) {

@@ -9,13 +9,13 @@ import { Navigate } from 'react-router-dom';
 
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
-    const { localParticipant, isCallActive, callParticipants, selectedDevices, switchDevicesOnCall } = useCall();
+    const { localParticipant, isCallActive, callParticipants, selectedDevices, switchDevicesOnCall, presenter } = useCall();
     const [mainStream, setMainStream] = useState<MediaStream | null>(null);
 
     useEffect(() => {
         console.log(`try to switch devices, selectedDevices triggered `, localParticipant.stream.getTracks());
         switchDevicesOnCall();
-    }, [selectedDevices, switchDevicesOnCall]);
+    }, [localParticipant, selectedDevices, switchDevicesOnCall]);
 
     useEffect(() => {
         if (localParticipant.stream && !mainStream) {
@@ -23,11 +23,25 @@ const OnCallScreen: React.FC = () => {
         }
     }, [localParticipant.stream, mainStream]);
 
+    useEffect(() => {
+        if(presenter && presenter.stream) {
+            setMainStream(presenter.stream);
+        } else {
+            console.warn(`no presenter stream`);
+        }
+    }, [presenter]);
+
     const handleSelectParticipantVideo = (participantId: string, stream?: MediaStream) => {
+        console.warn(`handleSelectParticipantVideo:`, stream?.getTracks());
         if (stream) {
-            setMainStream(stream);
-        } else if (participantId === "local" && localParticipant.stream) { // Special case for local user
-            setMainStream(localParticipant.stream);
+            let videoTrack = stream.getVideoTracks()[0]
+            if(videoTrack && videoTrack.enabled && !videoTrack.muted && videoTrack.readyState === "live") {
+                setMainStream(stream);
+            } else {
+                console.warn(`no video track`);    
+            }
+        } else {
+            console.warn(`no stream`);
         }
     };
 

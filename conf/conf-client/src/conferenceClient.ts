@@ -1,9 +1,10 @@
 import {
     AcceptMsg, AcceptResultMsg, CallMessageType, ConferenceClosedMsg, ConferenceReadyMsg,
-    ConferenceRoomConfig, ConferenceScheduledInfo, conferenceType, CreateConferenceParams,
+    ConferenceConfig, ConferenceScheduledInfo, conferenceType, CreateConferenceParams,
     CreateConfMsg, CreateConfResultMsg, GetConferencesMsg, GetConferencesResultMsg, GetParticipantsMsg,
     GetParticipantsResultMsg, GetUserMediaConfig, InviteCancelledMsg, InviteMsg, InviteResultMsg,
     JoinConferenceParams, JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo,
+    PresenterInfoMsg,
     RegisterMsg, RegisterResultMsg, RejectMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
@@ -11,8 +12,8 @@ import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
 import { callStates, Conference, ConferenceClientConfig, Participant, SelectedDevices } from "./models.js";
 import { EventParticpantNewTrackMsg, EventTypes } from "./conferenceEvents.js";
 import { ConferenceAPIClient } from "./conferenceAPIClient.js";
-import { IMsg, OkMsg, PeerTracksInfo } from "@rooms/rooms-models";
-import { getBrowserUserMedia } from "./conferenceUtils.js";
+import { IMsg, OkMsg } from "@rooms/rooms-models";
+import { getBrowserDisplayMedia, getBrowserUserMedia } from "./conferenceUtils.js";
 
 export type ConferenceEvent = (eventType: EventTypes, payload: IMsg) => Promise<void>;
 
@@ -22,6 +23,7 @@ class ConferenceClient {
     localParticipant = new Participant();
     username: string = "";
     authToken: string = "";
+    clientData = {};
     conference: Conference = new Conference();
     callState: callStates = "disconnected";
 
@@ -265,34 +267,108 @@ class ConferenceClient {
 
     }
 
-    //toggles the local track, does not update the server
-    // toggleTrack(participantId: string, enabled: boolean, kind: "audio" | "video") {
-    //     let part = this.conference.participants.get(participantId);
-    //     if (!part) {
-    //         if (part.participantId == this.localParticipant.participantId) {
-    //             part = this.localParticipant;
-    //         }
-    //     }
+    async startScreenShare() {
+        console.log(`startScreenShare`);
 
-    //     if (!part) {
-    //         console.error(`participant not found. ${participantId}`);
-    //         return;
-    //     }
+        if (!this.isInConference()) {
+            console.error(`not in conference`);
+            return false;
+        }
 
-    //     if (!part.stream) {
-    //         console.error(`participant stream not found.`);
-    //         return;
-    //     }
+        if (this.localParticipant.role === "guest" && !this.conference.conferenceConfig.guestsAllowScreenShare) {
+            console.error(`screen sharing not allowed.`);
+            return false;
+        }
 
-    //     let track = part.stream.getTracks().find(t => t.kind === kind);
-    //     if (track) {
-    //         track.enabled = enabled;
-    //         part.tracksInfo.isAudioEnabled = enabled;
-    //     }
-    // }
+        //disable camera track
+        let cameraTrack = this.localParticipant.stream.getVideoTracks()[0];
+        if (cameraTrack) {
+            cameraTrack.enabled = false;
+        }
 
+        const screenTrack = (await getBrowserDisplayMedia())?.getVideoTracks()[0];
 
-    connect(username: string, authToken: string, options?: { socket_ws_uri?: string }) {
+        if (screenTrack) {
+            this.localParticipant.prevTracksInfo = {
+                isVideoEnabled: this.localParticipant.tracksInfo.isVideoEnabled,
+                isAudioEnabled: this.localParticipant.tracksInfo.isAudioEnabled,
+                screenShareTrackId: screenTrack.id,
+            };
+
+            this.localParticipant.tracksInfo.isVideoEnabled = true;
+            if (await conferenceClient.publishTracks([screenTrack])) {
+                this.conference.presenter = this.localParticipant;
+                this.isScreenSharing = true;
+                let msg = new PresenterInfoMsg();
+                msg.data.status = "on";
+                this.sendToServer(msg);
+                return true;
+            }
+
+            //reset back
+            this.localParticipant.tracksInfo = { ...this.localParticipant.prevTracksInfo };
+        }
+        return false;
+    }
+
+    async stopScreenShare(constraints: MediaStreamConstraints) {
+        console.log("stopScreenShare", this.localParticipant.stream.getVideoTracks());
+
+        try {
+
+            this.isScreenSharing = false;
+            if (this.conference.presenter == this.localParticipant) {
+                this.conference.presenter = null;
+            }
+
+            const screenTrack = this.localParticipant.stream.getVideoTracks().find(track => track.id === this.localParticipant.prevTracksInfo?.screenShareTrackId);
+
+            if (screenTrack) {
+                console.log(`Stopping screenTrack: ${screenTrack.id}`);
+                screenTrack.stop();
+
+                //unpublish track
+                await conferenceClient.unPublishTracks([])
+            } else {
+                console.warn("screenshare track not found")
+            }
+
+            //set from the prev state
+            if (this.localParticipant.prevTracksInfo) {
+                this.localParticipant.tracksInfo.isVideoEnabled = this.localParticipant.prevTracksInfo.isVideoEnabled;
+            }
+
+            //if the video was previously enabled, get the camera stream again
+            if (this.localParticipant.tracksInfo.isVideoEnabled) {
+                let newStream = await getBrowserUserMedia(constraints);
+                let newTracks = newStream.getTracks();
+                let cameraTrack = newStream.getTracks().find(t => t.kind === "video");
+
+                if (cameraTrack) {
+                    await conferenceClient.publishTracks(newTracks);
+                    let msg = new PresenterInfoMsg();
+                    msg.data.status = "off";
+                    this.sendToServer(msg);
+
+                    return true;
+                }
+            } else {
+                //remove the track since we didn't publish it
+                if (screenTrack) {
+                    this.localParticipant.stream.removeTrack(screenTrack);
+                }
+            }
+
+            return true;
+
+        } catch (error) {
+            console.error("Error stopping screen share:", error);
+        }
+
+        return false;
+    }
+
+    connect(username: string, authToken: string, clientData: any, options?: { socket_ws_uri?: string }) {
         console.log(`connect to socket server.`, this.config);
 
         if (!this.config) {
@@ -304,6 +380,7 @@ class ConferenceClient {
         }
         this.username = username;
         this.authToken = authToken;
+        this.clientData = clientData;
 
         if (this.socket) {
             console.log(`socket already exists, disconnect.`);
@@ -344,7 +421,7 @@ class ConferenceClient {
         console.log("onSocketConnected()");
 
         if (this.username && this.authToken) {
-            await this.waitRegisterConnection(this.username, this.authToken);
+            await this.waitRegisterConnection(this.username, this.authToken, this.clientData);
         } else {
             console.log("not credentials registerConnection");
         }
@@ -416,6 +493,9 @@ class ConferenceClient {
             case CallMessageType.conferenceClosed:
                 await this.onConferenceClosed(message);
                 break;
+            case CallMessageType.presenterInfo:
+                await this.onPresenterInfo(message);
+                break;
 
         }
     }
@@ -431,6 +511,31 @@ class ConferenceClient {
             this.socket.disconnect();
             this.socket = null;
         }
+
+        this.localParticipant.stream.getTracks().forEach(t => t.stop());
+        this.localParticipant = new Participant();
+        for (const p of this.conference.participants.values()) {
+            p.stream.getTracks().forEach(t => t.stop());
+        }
+
+        for (const timerid of this.CallConnectTimeoutTimerIds.values()) {
+            if (timerid) {
+                clearTimeout(timerid);
+            }
+        }
+
+        this.CallConnectTimeoutTimerIds.clear();
+
+        this.acceptInvite = null;
+        this.rejectInvite = null;
+
+        this.authToken = "";
+        this.callState = "disconnected";
+        this.clientData = {};
+        this.conference = new Conference();
+        this.conferencesOnline = [];
+        this.participantsOnline = [];
+        this.isScreenSharing = false;
     }
 
     isInConference() {
@@ -442,7 +547,7 @@ class ConferenceClient {
         return this.socket && this.socket.state === "connected" && this.localParticipant.participantId;
     }
 
-    waitRegisterConnection(username: string, authToken: string) {
+    waitRegisterConnection(username: string, authToken: string, clientData: {}) {
         console.log("waitRegisterConnection");
         return new Promise<CreateConfResultMsg>((resolve, reject) => {
             let _onmessage: (event: any) => void;
@@ -456,7 +561,7 @@ class ConferenceClient {
             try {
                 let timerid = setTimeout(() => {
                     _removeEvents();
-                    reject("failed to register connection");
+                    reject("failed to register connection, register timed out.");
                 }, 5000);
 
                 _onmessage = (event: any) => {
@@ -470,7 +575,7 @@ class ConferenceClient {
                         let msgIn = msg as RegisterResultMsg;
                         if (msgIn.data.error) {
                             console.log(msgIn.data.error);
-                            reject("failed to register connection");
+                            reject("failed to register connection, " + msgIn.data.error);
                             return;
                         }
                         resolve(msgIn);
@@ -478,12 +583,12 @@ class ConferenceClient {
                 };
 
                 this.socket.addEventHandler("onmessage", _onmessage);
-                this.registerConnection(username, authToken);
+                this.registerConnection(username, authToken, clientData);
 
             } catch (err: any) {
                 console.log(err);
                 _removeEvents();
-                reject("failed to register connection");
+                reject("error: failed to register connection");
             }
         });
     }
@@ -492,7 +597,7 @@ class ConferenceClient {
      * @param username 
      * @param authToken 
      */
-    private registerConnection(username: string, authToken: string) {
+    private registerConnection(username: string, authToken: string, clientData: {}) {
         console.log("registerConnection");
 
         if (this.isRegistered()) {
@@ -516,6 +621,8 @@ class ConferenceClient {
         registerMsg.data.username = username;
         registerMsg.data.displayName = username;
         registerMsg.data.authToken = authToken;
+        registerMsg.data.clientData = clientData;
+
         this.sendToServer(registerMsg);
     }
 
@@ -622,7 +729,7 @@ class ConferenceClient {
         msg.data.conferenceExternalId = args.externalId;
         msg.data.roomName = args.roomName;
         msg.data.conferenceCode = args.conferenceCode;
-        msg.data.conferenceRoomConfig = args.config;
+        msg.data.conferenceConfig = args.config;
         return this.sendToServer(msg);
     }
 
@@ -761,7 +868,7 @@ class ConferenceClient {
         try {
             if (!this.isRegistered()) {
                 console.error(`connection not registered.`);
-                throw (`connection not registered.`);
+                return false;
             }
 
             let newResult = await this.waitCreateConferenceRoom(createArgs);
@@ -809,7 +916,7 @@ class ConferenceClient {
         this.conference.joinParams = args;
 
         //get the conference config first
-        if (!this.conference.conferenceRoomConfig) {
+        if (!this.conference.conferenceConfig) {
 
             if (!args.externalId) {
                 console.error(`trackingId is required.`);
@@ -817,17 +924,17 @@ class ConferenceClient {
             }
 
             console.log(`getConferenceScheduled config `, args.externalId, args.clientData);
-            let scheduled = await this.apiClient.getConferenceScheduled(args.externalId, args.clientData);
+            let scheduled = await this.apiClient.getConferenceScheduled(this.authToken, args.externalId, args.clientData);
             if (scheduled.data.error) {
                 console.error(scheduled.data.error);
                 return false;
             }
             console.log(`getConferenceScheduled result `, scheduled);
-            this.conference.conferenceRoomConfig = scheduled.data.conference.config;
+            this.conference.conferenceConfig = scheduled.data.conference.config;
         }
 
-        if (!this.conference.conferenceRoomConfig) {
-            console.error(`not conference config found.`);
+        if (!this.conference.conferenceConfig) {
+            console.error(`no conference config found.`);
             return false;
         }
 
@@ -844,21 +951,21 @@ class ConferenceClient {
     }
 
     private checkTrackAllowed(track: MediaStreamTrack) {
-        console.log("checkTrackAllowed", track.kind, this.conference.conferenceRoomConfig);
+        console.log("checkTrackAllowed", track.kind, this.conference.conferenceConfig);
 
-        if (!this.conference.conferenceRoomConfig) {
+        if (!this.conference.conferenceConfig) {
             console.error(`not conference config found.`);
             return;
         }
 
         if (this.localParticipant.role === "guest") {
-            if (track.kind === "audio" && !this.conference.conferenceRoomConfig.guestsAllowMic) {
+            if (track.kind === "audio" && !this.conference.conferenceConfig.guestsAllowMic) {
                 if (track) {
                     track.enabled = false;
                 }
             }
 
-            if (track.kind === "video" && !this.conference.conferenceRoomConfig.guestsAllowCamera) {
+            if (track.kind === "video" && !this.conference.conferenceConfig.guestsAllowCamera) {
                 if (track) {
                     track.enabled = false;
                 }
@@ -935,6 +1042,11 @@ class ConferenceClient {
             return;
         }
 
+        if (!message.data.conferenceId) {
+            console.error(`no conferenceId received.`);
+            return;
+        }
+
         this.callState = "answering";
         this.conference.conferenceId = message.data.conferenceId;
         this.conference.conferenceName = message.data.conferenceName || `Call with ${message.data.displayName}`;
@@ -956,6 +1068,11 @@ class ConferenceClient {
      */
     async onInviteCancelled(message: InviteCancelledMsg) {
         console.log("onInviteCancelled()");
+
+        if (!message.data.conferenceId) {
+            console.error(`conferenceId is required.`);
+            return;
+        }
 
         if (message.data.conferenceId != this.conference.conferenceId) {
             console.error("onInviteCancelled() - not the same conferenceId.");
@@ -983,6 +1100,11 @@ class ConferenceClient {
 
         if (!this.inviteReceivedMsg) {
             console.error(`not invite received.`);
+            return;
+        }
+
+        if (!message.data.conferenceId) {
+            console.error("conferenceId is required to accept an invite.");
             return;
         }
 
@@ -1107,6 +1229,7 @@ class ConferenceClient {
         this.inviteReceivedMsg = null;
         this.clearCallConnectTimer();
         this.localParticipant.peerId = "";
+        this.isScreenSharing = false;
 
         //remove all tracks when conference ends.        
         this.localParticipant.stream.getTracks().forEach(t => this.localParticipant.stream.removeTrack(t));
@@ -1123,6 +1246,7 @@ class ConferenceClient {
         this.localParticipant.stream.getTracks().forEach(t => {
             this.localParticipant.stream.removeTrack(t);
         });
+        this.isScreenSharing = false;
     }
 
     getParticipant(participantId: string): Participant {
@@ -1130,7 +1254,7 @@ class ConferenceClient {
         return this.conference.participants.get(participantId);
     }
 
-    private sendToServer(message: any) {
+    private sendToServer(message: IMsg) {
         console.log("sendToServer " + message.type, message);
 
         if (this.socket) {
@@ -1205,6 +1329,14 @@ class ConferenceClient {
             return;
         }
 
+        if (!message.data.conferenceId) {
+            console.error(`no conferenceId`);
+
+            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.data.error } });
+            this.disconnectRoomsClient("no conferenceId");
+            return;
+        }
+
         await this.onEvent(EventTypes.conferenceCreatedResult, message);
     }
 
@@ -1250,7 +1382,7 @@ class ConferenceClient {
         this.conference.conferenceName = message.data.conferenceName || `Call with ${message.data.displayName}`;
         this.conference.conferenceExternalId = message.data.conferenceExternalId;
         this.conference.conferenceType = message.data.conferenceType;
-        this.conference.conferenceRoomConfig = message.data.conferenceRoomConfig;
+        this.conference.conferenceConfig = message.data.conferenceConfig;
 
         this.conference.roomId = message.data.roomId;
         this.conference.roomToken = message.data.roomToken;
@@ -1333,6 +1465,21 @@ class ConferenceClient {
 
             this.disconnectRoomsClient("join conference error.");
             await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: "error connecting to conference." } });
+        }
+    }
+
+    private async onPresenterInfo(message: PresenterInfoMsg) {
+        console.log("onPresenterInfo()");
+        let participant = this.conference.participants.get(message.data.participantId);
+        if (participant) {
+            if (message.data.status == "on") {
+                this.conference.presenter = participant;
+            } else {
+                if (this.conference.presenter.participantId == participant.participantId) {
+                    this.conference.presenter = null;
+                }
+            }
+            await this.onEvent(EventTypes.prensenterInfo, message);
         }
     }
 
@@ -1513,6 +1660,9 @@ class ConferenceClient {
             }
 
             this.conference.participants.delete(participant.participantId);
+            if (this.conference.presenter == participant) {
+                this.conference.presenter = null;
+            }
 
             let msg = {
                 type: EventTypes.participantLeft,

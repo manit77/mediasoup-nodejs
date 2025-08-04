@@ -28,7 +28,7 @@ export interface CreateConferenceParams {
     conferenceCode: string,
     roomName: string,
     externalId: string,
-    config: ConferenceRoomConfig,
+    config: ConferenceConfig,
 }
 
 export interface JoinConferenceParams {
@@ -41,8 +41,8 @@ export interface JoinConferenceParams {
     clientData: {},
 }
 
-export class ConferenceRoomConfig {
-    roomTimeoutSecs: number = 60 * 60;
+export class ConferenceConfig {
+    roomTimeoutSecs: number = 0;
     conferenceCode: string = "";
     usersMax = 99;
     usersRequireConferenceCode: boolean = false;
@@ -50,6 +50,7 @@ export class ConferenceRoomConfig {
     guestsAllowed = true;
     guestsAllowMic: boolean = true;
     guestsAllowCamera: boolean = true;
+    guestsAllowScreenShare: boolean = true;
     guestsRequireConferenceCode: boolean = false;
     isRecorded = false;
     isPrivate = false;
@@ -60,7 +61,7 @@ export class ConferenceScheduledInfo {
     externalId: string = "";
     name: string = "";
     description: string = "";   
-    config: ConferenceRoomConfig = new ConferenceRoomConfig();
+    config: ConferenceConfig = new ConferenceConfig();
 }
 
 export class ConferenceRoomJoinConfig {

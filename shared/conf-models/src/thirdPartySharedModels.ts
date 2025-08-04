@@ -1,3 +1,4 @@
+import { ConferenceConfig } from "./conferenceModels.js";
 
 export enum apiMsgTypes {
     login = "login",
@@ -13,7 +14,6 @@ export class apiLoginPost {
     data: {
         username?: string;
         password?: string;
-        authToken?: string;
         clientData?: {};
     } = {}
 }
@@ -24,7 +24,7 @@ export class apiLoginResult {
         username?: string;
         displayName?: string;
         role?: string;
-        appData?: {};
+        clientData?: {};
         error?: string;
     } = {}
 }
@@ -46,7 +46,7 @@ export class apiGetScheduledConferenceResult {
 }
 
 export class apiGetScheduledConferencesPost {
-    type = apiMsgTypes.getScheduledConference;
+    type = apiMsgTypes.getScheduledConferences;
     data: {
         clientData?: {};
     } = {}
@@ -63,8 +63,8 @@ export class apiGetScheduledConferencesResult {
 export class apiScheduledConference {
     id: string;
     name: string;
-    description: string;    
-    config: { conferenceCode: string, guestsMax: number, guestsAllowed: boolean, guestsAllowMic: boolean, guestsAllowCamera: boolean, isPrivate : boolean; }
+    description: string;
+    config: ConferenceConfig 
 }
 
 

@@ -27,8 +27,8 @@ export class LocalRoom {
         }
         this.peerConsumers.clear();
 
-        this.transportSend.close();
-        this.transportReceive.close();
+        this.transportSend?.close();
+        this.transportReceive?.close();
 
         this.peers.clear();
     }

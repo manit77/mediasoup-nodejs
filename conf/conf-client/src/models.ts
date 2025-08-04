@@ -1,4 +1,4 @@
-import { ConferenceRoomConfig, conferenceType, JoinConferenceParams, ParticipantRole } from "@conf/conf-models";
+import { ConferenceConfig, conferenceType, JoinConferenceParams, ParticipantRole } from "@conf/conf-models";
 import { IMsg, PeerTracksInfo } from "@rooms/rooms-models";
 
 export class ConferenceClientConfig {
@@ -18,6 +18,7 @@ export class Participant {
 
     peerId: string;
     tracksInfo: PeerTracksInfo = { isAudioEnabled: true, isVideoEnabled: true };
+    prevTracksInfo: { isAudioEnabled: boolean, isVideoEnabled: boolean, screenShareTrackId: string };
 }
 
 export class Conference {
@@ -25,7 +26,7 @@ export class Conference {
     conferenceName: string;
     conferenceExternalId: string;
     conferenceType: conferenceType = "p2p"; // default to p2p
-    conferenceRoomConfig: ConferenceRoomConfig;
+    conferenceConfig: ConferenceConfig;
     roomAuthToken: string;
     roomToken: string;
     roomId: string;
@@ -36,6 +37,8 @@ export class Conference {
      * remote participants
      */
     participants: Map<string, Participant> = new Map();
+
+    presenter: Participant;
 }
 
 
