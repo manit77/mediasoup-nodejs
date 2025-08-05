@@ -11,7 +11,7 @@
   "scripts": {
     "build": "npm run --workspace=libs build && npm run --workspace=rooms build && npm run --workspace=conf build && npm run --workspace=clients build ",
     "package": "npm run --workspace=rooms/rooms-server package && npm run --workspace=conf/conf-server package",
-    "deploy": "rm -rf deploy && mkdir -p deploy && npm run build && npm run package && npm run deploy-rooms && npm run deploy-conf && npm run deploy-client",
+    "deploy": "npm install --production && rm -rf deploy && mkdir -p deploy && npm run build && npm run package && npm run deploy-rooms && npm run deploy-conf && npm run deploy-client",
     "deploy-rooms": "mkdir -p deploy && cp -rf rooms/rooms-server/dist/ deploy/rooms-server",
     "deploy-conf": "mkdir -p deploy && cp -rf conf/conf-server/dist/ deploy/conf-server",
     "deploy-client" : "mkdir -p deploy && cp -rf clients/conf-client-app/build deploy/conf-client-app",
