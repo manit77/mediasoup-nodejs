@@ -5,7 +5,7 @@ import { consoleLog, consoleWarn } from "../utils/utils.js";
 
 export interface IAuthPayload {
     username: string,
-    participantGroup : string,
+    participantGroup: string,
     role: ParticipantRole | string,
 }
 
@@ -24,7 +24,7 @@ export class SocketConnection {
 
     constructor(webSocket: WebSocket, socketTimeoutSecs: number) {
         this.ws = webSocket;
-        this.timeoutSecs = socketTimeoutSecs;        
+        this.timeoutSecs = socketTimeoutSecs;
     }
 
     dispose() {
@@ -91,7 +91,7 @@ export type conferenceStatus = "none" | "initializing" | "ready" | "closed";
 export class Conference {
     id: string;
     externalId: string;
-    participantGroup : string;
+    participantGroup: string;
 
     timeoutId: any;
     timeoutSecs: number = 0;
@@ -152,7 +152,7 @@ export class Conference {
             this.participants.delete(id);
             consoleLog("participant removed");
         }
-        
+
         this.startTimerMinParticipants();
 
         if (this.participants.size == 0) {
@@ -239,10 +239,13 @@ export class Conference {
 
     private startConferenceTimer() {
         consoleLog(`startConferenceTimer, timeout in ${this.timeoutSecs}`);
-         if (this.timeoutSecs > 0) {
+        if (this.timeoutSecs > 0) {
+            consoleWarn(`shutting down conf ${this.roomName} in ${Math.round(this.timeoutSecs / 60)} min.`);
             this.timeoutId = setTimeout(() => { this.close("room timedout."); }, this.timeoutSecs * 1000);
             consoleLog(`startTimer, timer started in ${this.timeoutSecs}`);
+            return;
         }
+        consoleWarn(`not timelimit for room ${this.roomName}`);
     }
 
 
@@ -264,6 +267,8 @@ export class Conference {
 
         if (this.minParticipants > 0 && this.minParticipantsTimeoutSeconds > 0) {
             consoleLog(`startTimerMinParticipants started ${this.minParticipants}`);
+            consoleWarn(`shutting down conf ${this.roomName} in ${Math.round(this.minParticipantsTimeoutSeconds / 60)} min. if minParticipants of ${this.minParticipants} not met.`);
+
             this.minParticipantsTimerId = setTimeout(() => {
                 if (this.participants.size < this.minParticipants) {
                     consoleLog("TimerMinParticipants executed.");

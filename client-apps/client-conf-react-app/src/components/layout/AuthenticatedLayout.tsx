@@ -109,7 +109,7 @@ const AuthenticatedLayout: React.FC = () => {
     <div className="d-flex flex-column vh-100 bg-light">
       <TopMenu onShowSettings={() => setShowSettings(true)} />
       <div className="d-flex flex-grow-1 overflow-hidden">
-        <div className="sidebar col-12 col-md-3 border-end p-3">
+        <div className="sidebar col-12 col-md-4 border-end p-3">
           {(api.isAdmin() || api.isUser()) && (
             <div className="mb-4">              
               <ContactsPane />
@@ -119,7 +119,7 @@ const AuthenticatedLayout: React.FC = () => {
             <RoomsPane />
           </div>
         </div>
-        <div className="main-content col-12 col-md-9 p-3">
+        <div className="main-content col-12 col-md-8 p-3">
           <div className="d-flex gap-2 mb-3">
             <Button variant="primary" onClick={handleShowSettingsClick} className="d-flex align-items-center">
               <Gear className="me-1" /> Device Settings

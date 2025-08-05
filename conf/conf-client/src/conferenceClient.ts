@@ -1522,7 +1522,7 @@ class ConferenceClient {
         this.roomsClient = new RoomsClient({
             socket_auto_reconnect: true,
             socket_enable_logs: this.config.socket_enable_logs,
-            socket_ws_uri: this.config.rooms_ws_url
+            socket_ws_uri: roomURI
         });
 
         this.roomsClient.eventOnRoomSocketClosed = async () => {
