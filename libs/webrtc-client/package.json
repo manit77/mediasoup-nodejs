@@ -1,5 +1,5 @@
 {
-  "name": "@rooms/websocket-client",
+  "name": "@rooms/webrtc-client",
   "version": "1.0.0",
   "description": "",
   "license": "ISC",
@@ -8,9 +8,6 @@
   "main": "dist/index.js",
   "types": "src/index.ts",
   "scripts": {
-    "build": "tsc --build --force"
-  },
-  "devDependencies": {
-    "tsconfig-paths": "^4.2.0"
+    "build": "rm -rf dist && tsc --build --force"
   }
 }

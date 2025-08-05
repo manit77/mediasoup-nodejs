@@ -7,6 +7,10 @@ import { getENV } from './utils/env.js';
 import { ConferenceAPI } from './confServer/conferenceAPI.js';
 import chalk from 'chalk';
 import { ConferenceSocketServer } from './confServer/conferenceSocketServer.js';
+import { TestObject } from '@conf/conf-models';
+
+let testobject = new TestObject();
+testobject.hello();
 
 const config: ConferenceServerConfig = await getENV() as any;
 

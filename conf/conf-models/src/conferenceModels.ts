@@ -83,3 +83,9 @@ export class GetUserMediaConfig {
     // getAudio: boolean = false;
     constraints: MediaStreamConstraints;
 }
+
+export class TestObject {
+    hello() {
+        console.error("hello.")
+    }
+}

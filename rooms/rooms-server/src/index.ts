@@ -8,8 +8,12 @@ import { defaultHTTPServerSecurityMap, RoomHTTPServer } from './servers/roomHttp
 import { getENV } from './utils/env.js';
 import { WebSocketServer } from 'ws';
 import { consoleInfo, consoleWarn } from './utils/utils.js';
+import { TestObject } from "@rooms/rooms-models";
 
 (async () => {
+
+  let testobject = new TestObject();
+  testobject.hello();
 
   let config: RoomServerConfig = await getENV() as any;
 

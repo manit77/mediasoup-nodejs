@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es2024",
+    "target": "ES2022",
     "lib": [
       "dom",
       "dom.iterable",
@@ -25,22 +25,22 @@
   ],
   "paths": {
     "@conf-client/*": [
-      "../../packages/client-libs/conf-client/src/*"
+      "../../conf/conf-client/src/*"
     ],
     "@rooms-client/*": [
-      "../../packages/client-libs/rooms-client/src/*"
+      "../../rooms/rooms-client/src/*"
     ],
     "@websocket-client/*": [
-      "../../packages/client-libs/websocket-client/src/*"
+      "../../libs/websocket-client/src/*"
     ],
     "@webrtc-client/*": [
-      "../../packages/client-libs/webrtc-client/src/*"
+      "../../libs/webrtc-client/src/*"
     ],
     "@conf-models/*": [
-      "../../packages/shared-models/conf-models/src/*"
+      "../../conf/conf-models/src/*"
     ],
     "@rooms-models/*": [
-      "../../packages/shared-models/rooms-models/src/*"
+      "../../rooms/rooms-models/src/*"
     ]
   }
 }
