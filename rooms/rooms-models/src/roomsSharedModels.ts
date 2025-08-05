@@ -585,3 +585,9 @@ export class UniqueMap<K, T> {
         return this.items.size;
     }
 }
+
+export class TestObject {
+    hello() {
+        console.error("hello");
+    }
+}

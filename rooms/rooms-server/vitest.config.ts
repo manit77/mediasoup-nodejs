@@ -18,12 +18,12 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@conf-client': 'packages/client-libs/conf-client/src',
-      '@rooms-client': 'packages/client-libs/rooms-client/src',
-      '@websocket-client': 'packages/client-libs/websocket-client/src',
-      '@webrtc-client': 'packages/client-libs/webrtc-client/src',
-      '@conf-models': 'packages/shared-models/conf-models/src',
-      '@rooms-models': 'packages/shared-models/rooms-models/src',
+      '@conf-client': 'conf/conf-client/src',
+      '@rooms-client': 'rooms/rooms-client/src',
+      '@websocket-client': 'libs/websocket-client/src',
+      '@webrtc-client': 'libs/webrtc-client/src',
+      '@conf-models': 'conf/conf-models/src',
+      '@rooms-models': 'rooms/rooms-models/src',
     },
   },
 });
