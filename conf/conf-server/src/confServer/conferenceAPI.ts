@@ -1,6 +1,6 @@
 import express, { NextFunction, Request, Response } from 'express';
 import { apiGetScheduledConferencePost, apiGetScheduledConferenceResult, ConferenceConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantRole, WebRoutes } from '@conf/conf-models';
-import { ConferenceServer, ConferenceServerConfig } from './conferenceServer.js';
+import { ConferenceServer } from './conferenceServer.js';
 import { IAuthPayload } from '../models/models.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
 import { AuthUserRoles, RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/rooms-models';
@@ -9,6 +9,7 @@ import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from
 import { getDemoSchedules } from '../demoData/demoData.js';
 import { fill, parseString } from '../utils/utils.js';
 import { CacheManager } from '../utils/cacheManager.js';
+import { ConferenceServerConfig } from './models.js';
 
 export class ConferenceAPI {
     thirdPartyAPI: ThirdPartyAPI;

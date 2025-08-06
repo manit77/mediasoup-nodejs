@@ -39,7 +39,7 @@ class ConferenceClient {
     inviteSendMsg: InviteMsg;
     inviteReceivedMsg: InviteMsg;
 
-    CallConnectTimeoutSeconds = 5;
+    CallConnectTimeoutSeconds = 30;
 
     onEvent: ConferenceEvent;
     apiClient: ConferenceAPIClient;
@@ -55,6 +55,11 @@ class ConferenceClient {
         console.log(`*** init ConferenceClient`, config);
         this.config = config;
         this.apiClient = new ConferenceAPIClient(config);
+
+        if (!this.config.conf_call_connect_timeout_secs) {
+            this.CallConnectTimeoutSeconds = this.config.conf_call_connect_timeout_secs;
+        }
+
     }
 
     dispose() {
@@ -267,7 +272,7 @@ class ConferenceClient {
 
     }
 
-    async startScreenShare() {
+    async startScreenShare(): Promise<boolean> {
         console.log(`startScreenShare`);
 
         if (!this.isInConference()) {
@@ -305,13 +310,15 @@ class ConferenceClient {
                 return true;
             }
 
-            //reset back
+            //reset back to previous settings
             this.localParticipant.tracksInfo = { ...this.localParticipant.prevTracksInfo };
+        } else {
+            console.error(`could not get screen track.`);
         }
         return false;
     }
 
-    async stopScreenShare(constraints: MediaStreamConstraints) {
+    async stopScreenShare(constraints: MediaStreamConstraints): Promise<boolean> {
         console.log("stopScreenShare", this.localParticipant.stream.getVideoTracks());
 
         try {

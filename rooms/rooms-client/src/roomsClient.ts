@@ -143,7 +143,7 @@ export class RoomsClient {
   * @param wsURI 
   * @returns 
   */
-  waitForConnect = (socketURI: string = ""): Promise<IMsg> => {
+  waitForConnect = (socketURI: string = "", timeoutSecs : number = 30): Promise<IMsg> => {
     console.log(`waitForConnect() ${socketURI}`);
     return new Promise<IMsg>((resolve, reject) => {
       try {
@@ -190,7 +190,7 @@ export class RoomsClient {
           }
 
           reject("failed to connect");
-        }, 5000);
+        }, timeoutSecs * 1000);
 
       } catch (err: any) {
         console.error(err);
@@ -207,7 +207,7 @@ export class RoomsClient {
    * @param displayName 
    * @returns 
    */
-  waitForRegister = (authToken: string, trackingId: string, displayName: string): Promise<IMsg> => {
+  waitForRegister = (authToken: string, trackingId: string, displayName: string, timeoutSecs : number = 30): Promise<IMsg> => {
     console.log("waitForRegister");
 
     return new Promise<IMsg>((resolve, reject) => {
@@ -259,7 +259,7 @@ export class RoomsClient {
             this.ws.removeEventHandler("onmessage", _onmessage);
           }
           reject("failed to register");
-        }, 5000);
+        }, timeoutSecs * 1000);
 
         let registerSent = this.register(this.localPeer.authToken, trackingId, displayName);
 
@@ -277,7 +277,7 @@ export class RoomsClient {
     });
   };
 
-  waitForNewRoomToken = (expiresInMin: number): Promise<IMsg> => {
+  waitForNewRoomToken = (expiresInMin: number, timeoutSecs : number = 30): Promise<IMsg> => {
     return new Promise<IMsg>((resolve, reject) => {
       let _onmessage: (event: any) => void;
       try {
@@ -286,7 +286,7 @@ export class RoomsClient {
             this.ws.removeEventHandler("onmessage", _onmessage);
           }
           reject("failed to create new room token");
-        }, 5000);
+        }, timeoutSecs * 1000);
 
         _onmessage = (event: any) => {
 
@@ -318,7 +318,7 @@ export class RoomsClient {
     });
   };
 
-  waitForNewRoom = (maxPeers: number, maxRoomDurationMinutes: number): Promise<IMsg> => {
+  waitForNewRoom = (maxPeers: number, maxRoomDurationMinutes: number, timeoutSecs : number = 30): Promise<IMsg> => {
     return new Promise<IMsg>((resolve, reject) => {
       let _onmessage: (event: any) => void;
 
@@ -328,7 +328,7 @@ export class RoomsClient {
             this.ws.removeEventHandler("onmessage", _onmessage);
           }
           reject("failed to create new room");
-        }, 5000);
+        }, timeoutSecs * 1000);
 
         _onmessage = (event: any) => {
 
@@ -367,7 +367,7 @@ export class RoomsClient {
    * @param roomToken 
    * @returns 
    */
-  waitForRoomJoin = (roomid: string, roomToken: string): Promise<IMsg> => {
+  waitForRoomJoin = (roomid: string, roomToken: string, timeoutSecs : number = 30): Promise<IMsg> => {
     //remove the old event hanlder    
     return new Promise<IMsg>((resolve, reject) => {
       let _onmessage: (event: any) => void;
@@ -377,7 +377,7 @@ export class RoomsClient {
             this.ws.removeEventHandler("onmessage", _onmessage);
           }
           reject("failed to join room");
-        }, 5000);
+        }, timeoutSecs * 1000);
 
         _onmessage = (event: any) => {
           console.log("** onmessage", event.data);

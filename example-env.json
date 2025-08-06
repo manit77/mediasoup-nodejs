@@ -1,36 +1,36 @@
 {
-
+  "conf_secret_key": "!!!**** your own password goes here",
+  "conf_server_ip": "127.0.0.1",
   "conf_server_port": 8000,
   "conf_reconnection_timeout": 30000,
-  "conf_secret_key": "XpvI8ZkbJbowLMM7nmZVtOY8eVBfS1qj",
+  
   "conf_max_peers_per_conf": 99,
   "conf_token_expires_min": 720,
   "conf_socket_timeout_secs": 360,
   "conf_require_participant_group": true,
-
   "conf_data_cache_timeoutsecs": 360,
-  "conf_data_access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoic2VydmljZSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1NDM1NjIwNX0.e17RZciQPZ5mO5815NQ2njnOC9se5ld34xk3eszWQ3E",
+  "conf_data_access_token": "!!!**** access token for conf_data_urls",
   "conf_data_urls": {
     "getScheduledConferencesURL": "",
     "getScheduledConferenceURL": "",
     "loginURL": "",
     "loginGuestURL": ""
   },
-  
-  "room_public_ip": "",
+  "room_access_token": "!!!**** use the rooms/src/utils/cli.ts to generate an access token",
+  "room_servers_uris": [
+    "127.0.0.1"
+  ],
+  "room_secretKey": "!!!**** your own password goes here",
+  "room_public_ip": "!!!**** if behind a NAT",
   "room_server_ip": "127.0.0.1",
   "room_server_port": 8001,
   "room_rtc_start_port": 10000,
   "room_rtc_end_port": 11000,
-  "room_secretKey": "XpvI8ZkbJbowLMM7nmZVtOY8eVBfS1qj",
   "room_recordingsDir": "/var/www/recordings",
   "room_newRoomTokenExpiresInMinutes": 720,
   "room_maxRoomDurationMinutes": 720,
   "room_timeOutNoParticipantsSecs": 300,
   "room_peer_timeOutInactivitySecs": 300,
-  "room_access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoic2VydmljZSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1NDM1NjIwNX0.e17RZciQPZ5mO5815NQ2njnOC9se5ld34xk3eszWQ3E",
-  "room_servers_uris": ["127.0.0.1"],
-
   "cert_file_path": "../../certs/localhost-fullchain.pem",
   "cert_key_path": "../../certs/localhost-key.pem"
 }

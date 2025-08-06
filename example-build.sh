@@ -62,10 +62,15 @@ npm run deploy
 # Move back to parent directory
 cd ..
 
-# Copy configuration files
+# Copy config file for web
 cp conf-client-app.config.json mediasoup-nodejs/deploy/conf-client-app/config.json 
+
+# If using .env.json files, copy configuration files
 cp conf-server.env.json mediasoup-nodejs/deploy/conf-server/.env.json
 cp conf-server.env.json mediasoup-nodejs/deploy/rooms-server/.env.json
+
+# stop all pm2 processes
+pm2 stop all
 
 # Remove old deployments
 rm -rf /var/www/conf-client-app
@@ -74,3 +79,6 @@ rm -rf /var/www/rooms-server
 
 # Copy new deployment
 cp -rf mediasoup-nodejs/deploy/. /var/www
+
+# start all pm2 processes
+pm2 start all

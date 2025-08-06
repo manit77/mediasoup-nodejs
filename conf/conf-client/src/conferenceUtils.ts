@@ -2,6 +2,7 @@ import { Conference, Participant } from "./models.js";
 
 export function getBrowserUserMedia(constraints: MediaStreamConstraints = { video: true, audio: true }): Promise<MediaStream | null> {
     console.log(`getUserMedia constraints:`, constraints);
+    
     try {
         return navigator.mediaDevices.getUserMedia(constraints);
     } catch (err) {
@@ -12,10 +13,21 @@ export function getBrowserUserMedia(constraints: MediaStreamConstraints = { vide
 
 export function getBrowserDisplayMedia(): Promise<MediaStream | null> {
     console.log(`getBrowserDisplayMedia`);
-    return navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false
-    });
+
+    try {
+        if (!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia)) {
+            console.error(`getDisplayMedia is not available for this device.`);
+            return null;
+        }
+
+        return navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: false
+        });
+    } catch (err) {
+        console.error(err);
+        return null;
+    }
 }
 
 export function isVideoAllowedFor(conference: Conference, participant: Participant) {

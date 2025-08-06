@@ -2,12 +2,13 @@ import express from 'express';
 import https from 'https';
 import fs from 'fs';
 import cors from 'cors';
-import { ConferenceServer, ConferenceServerConfig } from './confServer/conferenceServer.js';
+import { ConferenceServer } from './confServer/conferenceServer.js';
 import { getENV } from './utils/env.js';
 import { ConferenceAPI } from './confServer/conferenceAPI.js';
 import chalk from 'chalk';
 import { ConferenceSocketServer } from './confServer/conferenceSocketServer.js';
 import { TestObject } from '@conf/conf-models';
+import { ConferenceServerConfig } from './confServer/models.js';
 
 let testobject = new TestObject();
 testobject.hello();

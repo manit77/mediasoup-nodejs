@@ -1,11 +1,12 @@
 import express from 'express';
-import { ConferenceServer, ConferenceServerConfig, ConferenceServerEventTypes } from './conferenceServer.js';
+import { ConferenceServer } from './conferenceServer.js';
 import { Participant, SocketConnection } from '../models/models.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import https from 'https';
 import { IMsg } from '@rooms/rooms-models';
 import { CallMessageType, RegisterResultMsg } from '@conf/conf-models';
 import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
+import { ConferenceServerConfig, ConferenceServerEventTypes } from './models.js';
 
 const LOG = "ConferenceSocketServer";
 

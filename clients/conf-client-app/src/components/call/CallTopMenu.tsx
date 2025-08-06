@@ -28,7 +28,15 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
         }
     };
 
-    useEffect(() => {        
+    useEffect(() => {
+
+        //check if screen share is present on the browser
+        if (!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia)) {
+            console.warn(`screen share not available on this device.`);
+            setAllowScreenShare(false);
+            return;
+        }
+
         if (isUser()) {
             setAllowScreenShare(true);
         } else {
