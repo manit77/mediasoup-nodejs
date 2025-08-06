@@ -27,25 +27,11 @@ import {
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
 import { AuthUserTokenPayload } from '../models/tokenPayloads.js';
-import { setTimeout, setInterval } from 'node:timers';
+import { setTimeout } from 'node:timers';
 import { RoomLogAdapterInMemory } from './roomLogsAdapter.js';
 import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
-import chalk from 'chalk';
+import { outMessageEventListener, RoomServerConfig, WorkerData } from './models.js';
 
-type outMessageEventListener = (peerId: string, msg: any) => void;
-
-export interface RoomServerConfig {
-    room_server_ip: string,
-    room_server_port: number,
-    room_recordingsDir: string,
-    room_secretKey: string,
-    room_newRoomTokenExpiresInMinutes: number,
-    room_maxRoomDurationMinutes: number,
-    room_timeOutNoParticipantsSecs: number,
-    room_peer_timeOutInactivitySecs: number,
-    cert_file_path: string,
-    cert_key_path: string
-}
 
 export class RoomServer {
 
@@ -96,12 +82,31 @@ export class RoomServer {
         console.log(`initMediaSoup()`);
         console.log(`cpu count: ${os.cpus().length}`);
 
+        const START_PORT = 10000;
+        const END_PORT = 11000;
+        const TOTAL_PORTS = END_PORT - START_PORT + 1;
+        const NUM_WORKERS = os.cpus().length;
+
+        // Calculate ports per worker
+        const portsPerWorker = Math.floor(TOTAL_PORTS / NUM_WORKERS);
+        console.log(`Total ports: ${TOTAL_PORTS}, Workers: ${NUM_WORKERS}, Ports per worker: ${portsPerWorker}`);
+
         for (let i = 0; i < os.cpus().length; ++i) {
-            const worker = await mediasoup.createWorker(
-                {
-                    dtlsCertificateFile: this.config.cert_file_path,
-                    dtlsPrivateKeyFile: this.config.cert_key_path
-                });
+
+            // Calculate port range for this worker
+            const minPort = START_PORT + i * portsPerWorker;
+            const maxPort = (i === NUM_WORKERS - 1) ? END_PORT : minPort + portsPerWorker - 1;
+
+            let workerData : WorkerData = {
+                minPort, maxPort
+            };
+
+            const worker = await mediasoup.createWorker({
+                appData: workerData as any,
+                logLevel: 'debug',
+                dtlsCertificateFile: this.config.cert_file_path,
+                dtlsPrivateKeyFile: this.config.cert_key_path,
+            });
 
             worker.on('died', () => {
                 consoleError('Worker died, exiting  in 2 seconds... [pid:%d]', worker.pid);
@@ -109,18 +114,7 @@ export class RoomServer {
                 setTimeout(() => process.exit(1), 2000);
             });
 
-            this.workers.push(worker);
-
-            // this causes an issue with terminating the worker
-            // this.timerIdResourceInterval = setInterval(async () => {
-            //     const usage = await worker.getResourceUsage();
-
-            //     console.info('Worker resource usage [pid:%d]: %o', worker.pid, usage);
-
-            //     const dump = await worker.dump();
-
-            //     console.info('Worker dump [pid:%d]: %o', worker.pid, dump);
-            // }, 30000);
+            this.workers.push(worker);            
         }
     }
 
@@ -276,7 +270,7 @@ export class RoomServer {
         peer.displayName = displayName;
         peer.trackingId = trackingId;
         peer.role = payload.role;
-        
+
         this.addPeerGlobal(peer);
 
         return peer;
@@ -319,7 +313,7 @@ export class RoomServer {
 
         console.log("router created");
 
-        let room = new Room();
+        let room = new Room(this.config);
         room.roomLogAdapter = this.roomLogAdapter;
         room.id = args.roomId;
         room.roomToken = args.roomToken;
@@ -331,6 +325,7 @@ export class RoomServer {
         let worker = this.getNextWorker();
 
         let router = await worker.createRouter({
+            appData: worker.appData, 
             mediaCodecs: [
                 {
                     kind: 'audio',

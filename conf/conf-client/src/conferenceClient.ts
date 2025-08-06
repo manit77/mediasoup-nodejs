@@ -1516,7 +1516,7 @@ class ConferenceClient {
 
         if (this.roomsClient && this.roomsClient.config.socket_ws_uri == roomURI) {
             console.log("room already initialized with URI:", roomURI);
-            return;
+            return true;
         }
 
         this.roomsClient = new RoomsClient({
@@ -1705,6 +1705,7 @@ class ConferenceClient {
         };
 
         await this.roomsClient.inititalize({ rtp_capabilities: roomRtpCapabilities });
+        return true;
     }
 
     private disconnectRoomsClient(reason: string, inSeconds: number = 0) {

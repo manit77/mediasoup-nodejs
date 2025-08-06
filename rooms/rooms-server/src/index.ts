@@ -2,13 +2,14 @@ import express from 'express';
 import https from 'https';
 import fs from 'fs';
 import cors from 'cors';
-import { RoomServer, RoomServerConfig } from './roomServer/roomServer.js';
+import { RoomServer } from './roomServer/roomServer.js';
 import { defaultPeerSocketServerSecurityMap, RoomPeerSocketServer } from './servers/roomPeerSocketServer.js';
 import { defaultHTTPServerSecurityMap, RoomHTTPServer } from './servers/roomHttpServer.js';
 import { getENV } from './utils/env.js';
 import { WebSocketServer } from 'ws';
 import { consoleInfo, consoleWarn } from './utils/utils.js';
 import { TestObject } from "@rooms/rooms-models";
+import { RoomServerConfig } from './roomServer/models.js';
 
 (async () => {
 

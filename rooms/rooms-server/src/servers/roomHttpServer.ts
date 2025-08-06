@@ -8,8 +8,9 @@ import {
     RoomTerminateMsg,
     AuthUserRoles,
 } from "@rooms/rooms-models";
-import { RoomServer, RoomServerConfig } from '../roomServer/roomServer.js';
+import { RoomServer } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
+import { RoomServerConfig } from '../roomServer/models.js';
 
 const DSTR = "RoomHTTPServer";
 

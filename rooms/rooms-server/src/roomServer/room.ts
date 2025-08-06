@@ -6,6 +6,7 @@ import axios from 'axios';
 import { RoomPeer } from './roomPeer.js';
 import { consoleError, consoleWarn } from '../utils/utils.js';
 import { Consumer, MediaKind, Producer } from 'mediasoup/types';
+import { RoomServerConfig } from './models.js';
 
 export interface RoomLogAdapter {
     save: (log: RoomLog) => Promise<void>;
@@ -22,6 +23,7 @@ export class Room {
     roomToken: string;
 
     config = new RoomConfig();
+    private serverConfig: RoomServerConfig;
 
     timerIdMaxRoomDuration?: NodeJS.Timeout = null;
     timerIdNoParticipants?: NodeJS.Timeout = null;
@@ -33,7 +35,8 @@ export class Room {
     onPeerRemovedEvent: (room: Room, peers: Peer) => void;
     onConsumerClosed: (peer: Peer, consumer: Consumer) => void;
 
-    constructor() {
+    constructor(serverConfig: RoomServerConfig) {
+        this.serverConfig = serverConfig;
 
     }
 
@@ -92,7 +95,7 @@ export class Room {
         }
 
         peer.room = this;
-        this.roomPeers.set(peer, new RoomPeer(this, peer));
+        this.roomPeers.set(peer, new RoomPeer(this.serverConfig, this, peer));
         consoleWarn(`peer added to room. ${peer.id} ${peer.displayName}`);
 
         if (!this.admin && this.adminTrackingId && peer.trackingId && this.adminTrackingId === peer.trackingId) {

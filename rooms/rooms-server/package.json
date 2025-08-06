@@ -4,16 +4,17 @@
   "type": "module",
   "scripts": {
     "build": "rm -rf dist && tsc --build --force",
-    "package" : "node package.js && mkdir -p dist/node_modules/@rooms/rooms-models && cp -rf ../rooms-models/dist/. dist/node_modules/@rooms/rooms-models",
+    "package": "node package.js && mkdir -p dist/node_modules/@rooms/rooms-models && cp -rf ../rooms-models/dist/. dist/node_modules/@rooms/rooms-models",
     "start": "NODE_OPTIONS='--loader ts-node/esm' ts-node --esm src/index.ts",
     "cli": "NODE_OPTIONS='--loader ts-node/esm' ts-node --esm src/utils/cli.ts",
     "test": "vitest run"
   },
-  "dependencies": {    
+  "dependencies": {
     "axios": "^1.9.0",
     "chalk": "^5.4.1",
     "cors": "^2.8.5",
     "dgram": "^1.0.1",
+    "express": "^5.1.0",
     "fluent-ffmpeg": "^2.1.3",
     "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
@@ -21,26 +22,25 @@
     "mediasoup-client": "^3.10.0",
     "readline": "^1.3.0",
     "sinon": "^20.0.0",
-    "express": "^5.1.0",
     "ws": "^8.18.2"
   },
   "devDependencies": {
     "@rooms/rooms-models": "1.0.0",
     "@tsconfig/node18": "^18.2.4",
-    "@types/cors": "^2.8.17",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.2",
     "@types/fluent-ffmpeg": "^2.1.27",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.15.3",
     "@types/supertest": "^6.0.3",
     "@types/ws": "^8.18.1",
-    "esbuild": "^0.25.3",    
+    "esbuild": "^0.25.3",
     "mock-socket": "^9.3.1",
     "supertest": "^7.1.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4",
-    "why-is-node-running": "^3.2.2"    
+    "why-is-node-running": "^3.2.2"
   }
 }

@@ -488,6 +488,11 @@ export class RoomsClient {
   unPublishTracks = async (tracks: MediaStreamTrack[]) => {
     console.log(`unPublishTracks`);
 
+    if (!tracks.length) {
+      console.error(`no tracks to unpublish`);
+      return;
+    }
+
     let msg = new RoomCloseProducerMsg();
     msg.data.kinds = [];
 

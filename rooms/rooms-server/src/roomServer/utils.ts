@@ -4,6 +4,7 @@ import * as jwt from '../utils/jwtUtil.js';
 import { Room } from "./room.js";
 import { AuthUserTokenPayload, RoomTokenPayload } from "../models/tokenPayloads.js";
 import { AuthUserRoles } from '@rooms/rooms-models';
+import { consoleWarn } from '../utils/utils.js';
 
 export function GetRoomId() {
     return "room-" + randomUUID().toString();
@@ -123,8 +124,8 @@ export function generateAuthUserToken(secretKey: string, role: AuthUserRoles, ex
  * creates a transport for the peer, can be a consumer or producer
  * @returns
  */
-export async function createTransport(router: mediasoup.types.Router) {
-    console.log("createTransport()");
+export async function createTransport(router: mediasoup.types.Router, publicIp: string, minPort: number, maxPort: number) {
+    consoleWarn(`createTransport() ${publicIp} ${minPort} ${maxPort}`);
 
     if (!router) {
         console.error("createTransport() - router is null");
@@ -132,9 +133,19 @@ export async function createTransport(router: mediasoup.types.Router) {
     }
     try {
         return await router.createWebRtcTransport({
-            listenIps: [{ ip: '127.0.0.1', announcedIp: undefined }],
+            listenInfos: [
+                {
+                    protocol: 'udp',
+                    ip: '127.0.0.1',
+                    announcedIp: publicIp,
+                    portRange: {
+                        min: minPort,
+                        max: maxPort
+                    }
+                }
+            ],
             enableUdp: true,
-            enableTcp: true,
+            enableTcp: false,
             preferUdp: true,
         });
     } catch (err) {

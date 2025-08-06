@@ -9,9 +9,10 @@ import {
     UnauthorizedMsg,
     AuthUserRoles
 } from "@rooms/rooms-models";
-import { RoomServer, RoomServerConfig } from '../roomServer/roomServer.js';
+import { RoomServer } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
 import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
+import { RoomServerConfig } from '../roomServer/models.js';
 
 const LOG = "RoomSocketServer";
 
@@ -28,6 +29,7 @@ defaultPeerSocketServerSecurityMap[payloadTypeClient.roomConsumeStream] = [];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.createConsumerTransport] = [];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.createProducerTransport] = [];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomProduceStream] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.roomCloseProducer] = [];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.peerTracksInfo] = []; //anyone can toggle their own stream
 defaultPeerSocketServerSecurityMap[payloadTypeClient.peerMuteTracks] = [AuthUserRoles.admin, AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomJoin] = [];

@@ -2,7 +2,7 @@ import { AuthUserRoles } from "@rooms/rooms-models";
 import { AuthUserTokenPayload } from "../models/tokenPayloads.js";
 import { jwtSign } from "./jwtUtil.js";
 import * as readline from 'readline';
-import { RoomServerConfig } from "../roomServer/roomServer.js";
+import { RoomServerConfig } from "../roomServer/models.js";
 import { getENV } from "./env.js";
 
 let config: RoomServerConfig = await getENV() as any;

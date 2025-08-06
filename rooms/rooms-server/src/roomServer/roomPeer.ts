@@ -5,16 +5,19 @@ import chalk, { Chalk } from 'chalk';
 import { Peer } from './peer.js';
 import { consoleError, consoleWarn } from '../utils/utils.js';
 import { MediaKind, Producer } from 'mediasoup/types';
-import { UniqueMap } from '@rooms/rooms-models';
+import { RoomConfig, UniqueMap } from '@rooms/rooms-models';
+import { RoomServerConfig, WorkerData } from './models.js';
 
 export class RoomPeer {
 
     peer: Peer;
     room: Room;
+    config: RoomServerConfig;
 
-    constructor(room: Room, peer: Peer) {
+    constructor(config: RoomServerConfig, room: Room, peer: Peer) {
         this.room = room;
         this.peer = peer;
+        this.config = config;
     }
 
     producerTransport?: mediasoup.types.WebRtcTransport;
@@ -39,7 +42,9 @@ export class RoomPeer {
             return;
         }
 
-        this.producerTransport = await roomUtils.createTransport(this.room.roomRouter);
+        let workerData: WorkerData = this.room.roomRouter.appData as any;
+
+        this.producerTransport = await roomUtils.createTransport(this.room.roomRouter, this.config.room_public_ip, workerData.minPort, workerData.maxPort);
 
         this.producerTransport.on('@close', () => {
             consoleWarn(`Producer transport closed for peer ${this.peer.id} ${this.peer.displayName}`);
@@ -71,7 +76,9 @@ export class RoomPeer {
             return;
         }
 
-        this.consumerTransport = await roomUtils.createTransport(this.room.roomRouter);
+        let workerData: WorkerData = this.room.roomRouter.appData as any;
+
+        this.consumerTransport = await roomUtils.createTransport(this.room.roomRouter, this.config.room_public_ip, workerData.minPort, workerData.maxPort);
 
         // Consumer transport events
         this.consumerTransport.on('@close', () => {
@@ -97,8 +104,8 @@ export class RoomPeer {
             return;
         }
 
-        let existingProducers = this.producers.values().find(p => p === producer );
-        if(existingProducers){
+        let existingProducers = this.producers.values().find(p => p === producer);
+        if (existingProducers) {
             consoleError(`cannot consume your own producer.`);
             return;
         }
@@ -113,7 +120,7 @@ export class RoomPeer {
         this.consumers.set(consumer.id, consumer);
 
         // Auto-cleanup when consumer closes
-        consumer.on("producerclose", ()=>{
+        consumer.on("producerclose", () => {
             console.log(`Consumer ${consumer.id} closed, removing from peer ${this.peer.id} ${this.peer.displayName}. producerid: ${consumer.producerId}`);
             consumer.close();
             this.consumers.delete(consumer.id);
@@ -181,7 +188,7 @@ export class RoomPeer {
     async closeProducer(kind: MediaKind) {
         console.log(`closeProducuer ${kind} - ${this.peer.id} ${this.peer.displayName}`);
         let producer = this.producers.get(kind);
-        if(producer) {
+        if (producer) {
             producer.close();
         }
     }
