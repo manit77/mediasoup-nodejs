@@ -1,6 +1,5 @@
 {
     "conf_ws_url": "wss://localhost:8000",
     "socket_enable_logs": false,
-    "conf_server_url": "https://localhost:8000",
-    "rooms_ws_url": "wss://localhost:8001"
+    "conf_server_url": "https://localhost:8000"    
 }

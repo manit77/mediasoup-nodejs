@@ -4,6 +4,8 @@ export interface RoomServerConfig {
     room_public_ip: string,
     room_server_ip: string,
     room_server_port: number,
+    room_rtc_start_port: number,
+    room_rtc_end_port: number,
     room_recordingsDir: string,
     room_secretKey: string,
     room_newRoomTokenExpiresInMinutes: number,

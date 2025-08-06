@@ -124,8 +124,8 @@ export function generateAuthUserToken(secretKey: string, role: AuthUserRoles, ex
  * creates a transport for the peer, can be a consumer or producer
  * @returns
  */
-export async function createTransport(router: mediasoup.types.Router, publicIp: string, minPort: number, maxPort: number) {
-    consoleWarn(`createTransport() ${publicIp} ${minPort} ${maxPort}`);
+export async function createTransport(router: mediasoup.types.Router, listeningIP: string,  publicIP: string, minPort: number, maxPort: number) {
+    consoleWarn(`createTransport() ${listeningIP} ${publicIP} ${minPort} ${maxPort}`);
 
     if (!router) {
         console.error("createTransport() - router is null");
@@ -136,8 +136,8 @@ export async function createTransport(router: mediasoup.types.Router, publicIp: 
             listenInfos: [
                 {
                     protocol: 'udp',
-                    ip: '127.0.0.1',
-                    announcedIp: publicIp,
+                    ip: listeningIP,
+                    announcedIp: publicIP,
                     portRange: {
                         min: minPort,
                         max: maxPort

@@ -42,9 +42,9 @@ export class RoomPeer {
             return;
         }
 
-        let workerData: WorkerData = this.room.roomRouter.appData as any;
+        //let workerData: WorkerData = this.room.roomRouter.appData as any;
 
-        this.producerTransport = await roomUtils.createTransport(this.room.roomRouter, this.config.room_public_ip, workerData.minPort, workerData.maxPort);
+        this.producerTransport = await roomUtils.createTransport(this.room.roomRouter, this.config.room_server_ip, this.config.room_public_ip, this.config.room_rtc_start_port, this.config.room_rtc_end_port);
 
         this.producerTransport.on('@close', () => {
             consoleWarn(`Producer transport closed for peer ${this.peer.id} ${this.peer.displayName}`);
@@ -76,9 +76,9 @@ export class RoomPeer {
             return;
         }
 
-        let workerData: WorkerData = this.room.roomRouter.appData as any;
+        //let workerData: WorkerData = this.room.roomRouter.appData as any;
 
-        this.consumerTransport = await roomUtils.createTransport(this.room.roomRouter, this.config.room_public_ip, workerData.minPort, workerData.maxPort);
+        this.consumerTransport = await roomUtils.createTransport(this.room.roomRouter, this.config.room_server_ip, this.config.room_public_ip, this.config.room_rtc_start_port, this.config.room_rtc_end_port);
 
         // Consumer transport events
         this.consumerTransport.on('@close', () => {

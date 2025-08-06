@@ -34,9 +34,10 @@ import { RoomServerConfig } from './roomServer/models.js';
   app.use(express.static('client-room'));
   app.use(express.json({ limit: '1mb' }));
 
-  server.listen(config.room_server_port, async () => {
+  server.listen(config.room_server_port, config.room_server_ip, async () => {
 
-    consoleInfo(`Server running at https://0.0.0.0:${config.room_server_port}`);
+    consoleInfo(`Server running at https://${config.room_server_ip}:${config.room_server_port}`);
+    consoleInfo(`Public IP ${config.room_public_ip}, udp ports:${config.room_rtc_start_port}-${config.room_rtc_end_port}`);
 
     //manager for media soup room server
     let roomServer = new RoomServer(config);

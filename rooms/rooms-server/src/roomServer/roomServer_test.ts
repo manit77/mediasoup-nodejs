@@ -5,9 +5,10 @@ import {
 import { getENV } from "../utils/env.js";
 import { Peer } from "./peer.js";
 import { Room } from "./room.js";
-import { RoomServer, RoomServerConfig } from "./roomServer.js";
+import { RoomServer } from "./roomServer.js";
 import { generateRoomToken } from "./utils.js";
 import { describe, it, test, beforeAll, afterAll, expect } from 'vitest';
+import { RoomServerConfig } from "./models.js";
 
 let timeout = 90000;
 
@@ -131,7 +132,7 @@ describe("roomServerTests", () => {
         expect(room.getPeer(peerId) === peer).toBeTruthy();
 
         //remove the peer
-        room.removePeer(peer.id);
+        room.removePeer(peer);
 
         expect(room.getPeerCount()).toBe(0);
 
