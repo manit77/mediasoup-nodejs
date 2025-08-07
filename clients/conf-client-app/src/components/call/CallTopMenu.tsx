@@ -50,7 +50,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
     }, [conference, isUser])
 
     return (
-        <Navbar bg="dark" variant="dark" expand="lg" className="border-bottom border-secondary">
+        <Navbar bg="dark" variant="dark" expand="lg" className="border-bottom border-secondary call-top-menu">
             <Container fluid>
                 <Navbar.Brand href="#">{conference.conferenceName}</Navbar.Brand>
                 <Nav className="ms-auto d-flex flex-row align-items-center">

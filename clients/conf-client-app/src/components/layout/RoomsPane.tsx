@@ -4,7 +4,7 @@ import { useCall } from '../../hooks/useCall';
 import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
 import { ArrowRepeat, Circle, CircleFill } from 'react-bootstrap-icons';
-import JoinRoomPopUp from './JoinRoomPopUp';
+import JoinRoomPopUp from '../popups/JoinRoomPopUp';
 import { ConferenceScheduledInfo } from '@conf/conf-models';
 
 const RoomsPane: React.FC = () => {

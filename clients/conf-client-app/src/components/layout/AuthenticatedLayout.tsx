@@ -6,7 +6,7 @@ import { useCall } from '../../hooks/useCall';
 import { useUI } from '../../hooks/useUI';
 import { Button } from 'react-bootstrap';
 import RoomsPane from './RoomsPane';
-import IncomingCallPopup from '../call/IncomingCallPopup';
+import IncomingCallPopup from '../popups/IncomingCallPopup';
 import CallingPopup from '../call/CallingPopup';
 import { FilePersonFill, Gear } from 'react-bootstrap-icons';
 import { useAPI } from '../../hooks/useAPI';

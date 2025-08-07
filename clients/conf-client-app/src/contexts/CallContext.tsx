@@ -210,8 +210,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         conferenceClient.onEvent = async (eventType: EventTypes, msgIn: IMsg) => {
             switch (eventType) {
-                case EventTypes.registerResult:
+                case EventTypes.registerResult: {
                     console.warn("CallContext: registerResult", msgIn.data);
+
                     if (msgIn.data.error) {
                         console.log("CallContext: onRegisterFailed: error", msgIn.data.error);
                         setIsAuthenticated(false);
@@ -221,23 +222,36 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     getConferenceRoomsOnline();
                     setIsAuthenticated(true);
                     ui.hidePopUp();
+                    break;
+                }
+                case EventTypes.loggedOff: {
+                    console.log("CallContext: loggedOff");
+
+                    let reason = msgIn.data.reason ?? "you have logged off by the server";
+                    ui.showPopUp(reason, "error");
+                    setIsAuthenticated(false);
+                    api.logout();
 
                     break;
-                case EventTypes.connected:
+                }
+                case EventTypes.connected: {
                     console.log("CallContext: server connected");
+
                     setIsConnected(true);
                     ui.hidePopUp();
                     ui.showToast("connected to server");
                     break;
-                case EventTypes.disconnected:
-
+                }
+                case EventTypes.disconnected: {
                     console.log("CallContext: disconnected from server");
+
                     setIsConnected(false);
                     setIsAuthenticated(false);
                     setIsCallActive(false);
                     setConferenceRoom(conferenceClient.conference);
                     ui.showToast("disconnected from server. trying to reconnect...");
                     break;
+                }
                 case EventTypes.participantsReceived: {
                     let msg = msgIn as GetParticipantsResultMsg;
                     console.log("CallContext: onContactsReceived", msg.data.participants);
@@ -721,7 +735,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             getMediaDevices,
             switchDevicesOnCall,
             disconnect,
-            
+
         }}>
             {children}
         </CallContext.Provider>

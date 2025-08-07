@@ -61,4 +61,60 @@ code {
   vertical-align: text-bottom;
 }
 
- 
+ .call-top-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1030; /* Higher than video but lower than modals/popups */
+  height: 56px; /* default height of Bootstrap Navbar */
+}
+
+.call-screen-content {
+  padding-top: 56px; /* Matches fixed Navbar height */
+}
+
+.remote-video-container {
+  width: 100%;
+  height: calc(100vh - 56px);
+  max-width: 100%;
+  max-height: calc(100vh - 56px);
+  overflow: hidden;
+}
+.remote-video-container .participant-preview {
+  margin: 0;
+  border: none;
+}
+.remote-video-container video {
+  width: 100%;
+  height: calc(100% - 32px);
+  object-fit: contain;
+}
+.remote-video-container .video-off-overlay {
+  width: 100%;
+  height: calc(100% - 32px);
+}
+.remote-video-container .participant-overlay {
+  height: 32px;
+}
+.local-pip-container {
+  width: 200px;
+  height: 150px;
+  overflow: hidden;
+}
+.local-pip-container .participant-preview {
+  margin: 0;
+  border: none;
+}
+.local-pip-container video {
+  width: 100%;
+  height: calc(100% - 32px);
+  object-fit: contain;
+}
+.local-pip-container .video-off-overlay {
+  width: 100%;
+  height: calc(100% - 32px);
+}
+.local-pip-container .participant-overlay {
+  height: 32px;
+}

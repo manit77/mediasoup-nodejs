@@ -10,9 +10,10 @@ interface ParticipantVideoPreviewProps {
     participant?: Participant
     onClick: () => void;
     isSelected?: boolean;
+    style?: React.CSSProperties;
 }
 
-const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected }) => {
+export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected, style }) => {
     const api = useAPI();
     const ui = useUI();
     const { localParticipant, broadCastTrackInfo, conference, callParticipants, muteParticipantTrack, getMediaConstraints } = useCall();
@@ -168,8 +169,6 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
             return;
         }
 
-
-
         // Prevent enabling the camera for a guest if not allowed
         if (newEnabled && targetIsGuest && !conference.conferenceConfig.guestsAllowCamera) {
             console.log(`Cannot enable camera for guest when not allowed.`);
@@ -199,25 +198,79 @@ const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ parti
 
 
     return (
-        <Card className={`mb-2 participant-preview ${isSelected ? 'border-primary' : ''}`} onClick={onClick} style={{ cursor: 'pointer' }}>
-            <div style={{ position: 'relative', width: '100%', paddingTop: '75%' /* 4:3 Aspect Ratio */ }}>
-                <video ref={videoRef} autoPlay playsInline muted={localParticipant.participantId === participant.participantId} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#333' }} />
+        <Card
+            className={`participant-preview ${isSelected ? 'border-primary' : ''}`}
+            style={{
+                cursor: 'pointer',
+                margin: 0, // Remove default Card margins
+                border: 'none', // Remove default Card border to avoid extra space
+                width: '100%',
+                height: '100%',
+                ...style,
+            }}
+        >
+            <div
+                style={{
+                    position: 'relative',
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'hidden', // Ensure no overflow within the Card
+                }}
+            >
+                <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted={localParticipant.participantId === participant.participantId}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain', // Ensure video scales without cropping
+                        background: '#333',
+                        ...style, // Merge external styles
+                    }}
+                />
                 {!videoEnabled ? (
-                    <div className="d-flex align-items-center justify-content-center" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: '#444' }}>
+                    <div
+                        className="d-flex align-items-center justify-content-center"
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            background: '#444',
+                        }}
+                    >
                         video is off
                         <CameraVideoOffFill size={30} />
                     </div>
                 ) : null}
-                <div className="position-absolute bottom-0 start-0 bg-dark bg-opacity-50 text-white px-2 py-1 w-100">
-                    <small>{participant.displayName} {localParticipant.participantId === participant.participantId && "(You)"}</small>
-                    <>
-                        <span className="ms-1" onClick={() => onAudioClick()}>
+                <div
+                    style={{
+                        position: 'absolute',
+                        bottom: '10px',
+                        left: '10px',
+                        display: 'flex',
+                        gap: '5px',
+                        width: 'calc(100% - 20px)', // Match video width minus padding
+                        justifyContent: 'flex-start',
+                        background: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background for visibility
+                        padding: '5px',
+                        borderRadius: '4px',
+                    }}
+                >
+                    <small>
+                        {participant.displayName} {localParticipant.participantId === participant.participantId && '(You)'}
+                    </small>
+                    <div>
+                        <span className="ms-1" onClick={onAudioClick}>
                             {audioEnabled ? <MicFill color="lightgreen" /> : <MicMuteFill color="red" />}
                         </span>
-                        <span className="ms-1" onClick={() => onVideoClick()}>
+                        <span className="ms-1" onClick={onVideoClick}>
                             {videoEnabled ? <CameraVideoFill color="lightgreen" /> : <CameraVideoOffFill color="red" />}
                         </span>
-                    </>
+                    </div>
                 </div>
             </div>
         </Card>
