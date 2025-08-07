@@ -6,6 +6,7 @@ export enum EventTypes {
     disconnected = "disconnected",
 
     registerResult = "registerResult",
+    loggedOff = "loggedOff",
 
     participantsReceived = "participantsReceived",
     conferencesReceived = "conferencesReceived",

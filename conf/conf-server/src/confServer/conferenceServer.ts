@@ -23,12 +23,13 @@ import {
     ParticipantRole,
     ConferenceScheduledInfo,
     PresenterInfoMsg,
-    conferenceType
+    conferenceType,    
+    LoggedOffMsg
 } from '@conf/conf-models';
 import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
 import { jwtVerify } from '../utils/jwtUtil.js';
-import { ErrorMsg, IMsg, OkMsg, payloadTypeServer, RoomConfig } from '@rooms/rooms-models';
+import { IMsg, RoomConfig } from '@rooms/rooms-models';
 import express from 'express';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { getDemoSchedules } from '../demoData/demoData.js';
@@ -145,10 +146,10 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     }
 
-    send(partcipant: Participant, msg: any): boolean {
+    send(participant: Participant, msg: any): boolean {
         consoleLog('send ', msg);
         try {
-            this.fireEvent(ConferenceServerEventTypes.onSendMsg, partcipant, msg);
+            this.fireEvent(ConferenceServerEventTypes.onSendMsg, participant, msg);
             //ws.send(JSON.stringify(msg));
             return true;
         } catch (err) {
@@ -287,9 +288,21 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         if (existingParticipant) {
             consoleError("username already registered.", existingParticipant.username, existingParticipant.participantId);
 
-            let errorMsg = new RegisterResultMsg();
-            errorMsg.data.error = "username already registered";
-            return errorMsg;
+            //if in conference
+            if (existingParticipant.conference) {
+                let errorMsg = new RegisterResultMsg();
+                errorMsg.data.error = "already logged in from another location.";
+                return errorMsg;
+            }
+
+            //if not in conference, logoff and terminate the connection
+
+            //send log off to participant
+            let loggedOffMsg = new LoggedOffMsg();
+            loggedOffMsg.data.reason = "Logged in from another location.";
+            this.send(existingParticipant, loggedOffMsg);
+            
+            this.terminateParticipant(existingParticipant.participantId);
         }
 
         let participantGroup = msgIn.data.clientData ? parseString(msgIn.data.clientData["participantGroup"]) : "";

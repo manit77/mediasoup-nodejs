@@ -5,7 +5,8 @@ import {
     GetParticipantsResultMsg, GetUserMediaConfig, InviteCancelledMsg, InviteMsg, InviteResultMsg,
     JoinConferenceParams, JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo,
     PresenterInfoMsg,
-    RegisterMsg, RegisterResultMsg, RejectMsg
+    RegisterMsg, RegisterResultMsg, RejectMsg,
+    LoggedOffMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
@@ -53,13 +54,13 @@ class ConferenceClient {
 
     init(config: ConferenceClientConfig) {
         console.log(`*** init ConferenceClient`, config);
+
         this.config = config;
         this.apiClient = new ConferenceAPIClient(config);
 
         if (!this.config.conf_call_connect_timeout_secs) {
             this.CallConnectTimeoutSeconds = this.config.conf_call_connect_timeout_secs;
         }
-
     }
 
     dispose() {
@@ -77,6 +78,179 @@ class ConferenceClient {
 
         this.apiClient = null;
 
+    }
+
+    connect(username: string, authToken: string, clientData: any, options?: { socket_ws_uri?: string }) {
+        console.log(`connect to socket server.`, this.config);
+
+        if (!this.config) {
+            console.error(`config is not initialized.`);
+            return;
+        }
+        if (options && options.socket_ws_uri) {
+            this.config.conf_ws_url = options.socket_ws_uri;
+        }
+        this.username = username;
+        this.authToken = authToken;
+        this.clientData = clientData;
+
+        if (this.socket) {
+            console.log(`socket already exists, disconnect.`);
+            this.socket.disconnect();
+            this.socket = null;
+        }
+
+        // Connect to WebSocket server
+        console.log("new socket created, ", this.config);
+        this.socket = new WebSocketClient({ enableLogs: this.config.socket_enable_logs });
+
+        this.socket.addEventHandler("onopen", async () => {
+            console.log("onopen - socket opened");
+            this.isConnected = true;
+            this.onSocketConnected();
+        });
+
+        this.socket.addEventHandler("onclose", async () => {
+            this.isConnected = false;
+            this.onSocketClosed("WebSocket connection closed");
+        });
+
+        this.socket.addEventHandler("onerror", async (error: any) => {
+            console.error('WebSocket Error:', error);
+            this.onSocketClosed("WebSocket error:" + error);
+        });
+
+        this.socket.addEventHandler("onmessage", async (event: any) => {
+            const message = JSON.parse(event.data);
+            await this.onSocketMessage(message);
+        });
+
+        this.socket.connect(this.config.conf_ws_url, true);
+
+    }
+
+    disconnect() {
+        console.log("conferneceClient disconnect");
+
+        this.disconnectRoomsClient("disconnect");
+
+
+        if (this.socket) {
+            console.log(`disconnecting from socket`);
+            this.socket.disconnect();
+            this.socket = null;
+        }
+
+        this.localParticipant.stream.getTracks().forEach(t => t.stop());
+        this.localParticipant = new Participant();
+        for (const p of this.conference.participants.values()) {
+            p.stream.getTracks().forEach(t => t.stop());
+        }
+
+        for (const timerid of this.CallConnectTimeoutTimerIds.values()) {
+            if (timerid) {
+                clearTimeout(timerid);
+            }
+        }
+
+        this.CallConnectTimeoutTimerIds.clear();
+
+        this.acceptInvite = null;
+        this.rejectInvite = null;
+
+        this.authToken = "";
+        this.callState = "disconnected";
+        this.clientData = {};
+        this.conference = new Conference();
+        this.conferencesOnline = [];
+        this.participantsOnline = [];
+        this.isScreenSharing = false;
+    }
+
+    private async onSocketConnected() {
+        console.log("onSocketConnected()");
+
+        if (this.username && this.authToken) {
+            await this.waitRegisterConnection(this.username, this.authToken, this.clientData);
+        } else {
+            console.log("not credentials registerConnection");
+        }
+
+        await this.onEvent(EventTypes.connected, new OkMsg());
+    }
+
+    private async onSocketClosed(reason: string = "") {
+        console.log(`onSocketClosed() - reconnecting: ${this.socket.autoReconnect}, state: ${this.socket.state} reason: ${reason}`);
+
+        if (this.roomsClient) {
+            console.log(`closing roomsClient`);
+            this.roomsClient.roomLeave();
+            this.roomsClient.disconnect();
+            this.roomsClient.dispose();
+            this.roomsClient = null;
+        }
+
+        if (this.isInConference()) {
+            let msg = new ConferenceClosedMsg();
+            msg.data.conferenceId = this.conference.conferenceId;
+            msg.data.reason = "connection closed";
+            await this.onEvent(EventTypes.conferenceClosed, msg);
+        }
+        this.resetConferenceRoom();
+        this.resetParticipant();
+
+        await this.onEvent(EventTypes.disconnected, new OkMsg());
+    }
+
+    private async onSocketMessage(message: { type: CallMessageType, data: any }) {
+        console.log('onSocketMessage ' + message.type, message);
+
+        switch (message.type) {
+            case CallMessageType.registerResult:
+                await this.onRegisterResult(message);
+                break;
+            case CallMessageType.getParticipantsResult:
+                await this.onParticipantsReceived(message);
+                break;
+            case CallMessageType.getConferencesResult:
+                await this.onConferencesReceived(message);
+                break;
+            case CallMessageType.invite:
+                await this.onInviteReceived(message);
+                break;
+            case CallMessageType.reject:
+                await this.onRejectReceived(message);
+                break;
+            case CallMessageType.inviteResult:
+                await this.onInviteResult(message);
+                break;
+            case CallMessageType.inviteCancelled:
+                await this.onInviteCancelled(message);
+                break;
+            case CallMessageType.acceptResult: {
+                await this.onAcceptResult(message);
+                break;
+            }
+            case CallMessageType.createConfResult:
+                await this.onCreateConfResult(message);
+                break;
+            case CallMessageType.joinConfResult:
+                await this.onJoinConfResult(message);
+                break;
+            case CallMessageType.conferenceReady:
+                await this.onConferenceReady(message);
+                break;
+            case CallMessageType.conferenceClosed:
+                await this.onConferenceClosed(message);
+                break;
+            case CallMessageType.presenterInfo:
+                await this.onPresenterInfo(message);
+                break;
+            case CallMessageType.loggedOff:
+                await this.onLoggedOff(message);
+                break;
+
+        }
     }
 
     startCallConnectTimer() {
@@ -304,9 +478,15 @@ class ConferenceClient {
             if (await conferenceClient.publishTracks([screenTrack])) {
                 this.conference.presenter = this.localParticipant;
                 this.isScreenSharing = true;
+
+                //broadCastTrackInfo
+                conferenceClient.broadCastTrackInfo();
+
                 let msg = new PresenterInfoMsg();
                 msg.data.status = "on";
                 this.sendToServer(msg);
+
+
                 return true;
             }
 
@@ -375,175 +555,7 @@ class ConferenceClient {
         return false;
     }
 
-    connect(username: string, authToken: string, clientData: any, options?: { socket_ws_uri?: string }) {
-        console.log(`connect to socket server.`, this.config);
 
-        if (!this.config) {
-            console.error(`config is not initialized.`);
-            return;
-        }
-        if (options && options.socket_ws_uri) {
-            this.config.conf_ws_url = options.socket_ws_uri;
-        }
-        this.username = username;
-        this.authToken = authToken;
-        this.clientData = clientData;
-
-        if (this.socket) {
-            console.log(`socket already exists, disconnect.`);
-            this.socket.disconnect();
-            this.socket = null;
-        }
-
-        // Connect to WebSocket server
-        console.log("new socket created, ", this.config);
-        this.socket = new WebSocketClient({ enableLogs: this.config.socket_enable_logs });
-
-        this.socket.addEventHandler("onopen", async () => {
-            console.log("onopen - socket opened");
-            this.isConnected = true;
-            this.onSocketConnected();
-        });
-
-        this.socket.addEventHandler("onclose", async () => {
-            this.isConnected = false;
-            this.onSocketClosed("WebSocket connection closed");
-        });
-
-        this.socket.addEventHandler("onerror", async (error: any) => {
-            console.error('WebSocket Error:', error);
-            this.onSocketClosed("WebSocket error:" + error);
-        });
-
-        this.socket.addEventHandler("onmessage", async (event: any) => {
-            const message = JSON.parse(event.data);
-            await this.onSocketMessage(message);
-        });
-
-        this.socket.connect(this.config.conf_ws_url, true);
-
-    }
-
-    private async onSocketConnected() {
-        console.log("onSocketConnected()");
-
-        if (this.username && this.authToken) {
-            await this.waitRegisterConnection(this.username, this.authToken, this.clientData);
-        } else {
-            console.log("not credentials registerConnection");
-        }
-
-        await this.onEvent(EventTypes.connected, new OkMsg());
-    }
-
-    private async onSocketClosed(reason: string = "") {
-        console.log(`onSocketClosed() - reconnecting: ${this.socket.autoReconnect}, state: ${this.socket.state} reason: ${reason}`);
-
-        if (this.roomsClient) {
-            console.log(`closing roomsClient`);
-            this.roomsClient.roomLeave();
-            this.roomsClient.disconnect();
-            this.roomsClient.dispose();
-            this.roomsClient = null;
-        }
-
-        if (this.isInConference()) {
-            let msg = new ConferenceClosedMsg();
-            msg.data.conferenceId = this.conference.conferenceId;
-            msg.data.reason = "connection closed";
-            await this.onEvent(EventTypes.conferenceClosed, msg);
-        }
-        this.resetConferenceRoom();
-        this.resetParticipant();
-
-        await this.onEvent(EventTypes.disconnected, new OkMsg());
-    }
-
-    private async onSocketMessage(message: { type: CallMessageType, data: any }) {
-        console.log('onSocketMessage ' + message.type, message);
-
-        switch (message.type) {
-            case CallMessageType.registerResult:
-                await this.onRegisterResult(message);
-                break;
-            case CallMessageType.getParticipantsResult:
-                await this.onParticipantsReceived(message);
-                break;
-            case CallMessageType.getConferencesResult:
-                await this.onConferencesReceived(message);
-                break;
-            case CallMessageType.invite:
-                await this.onInviteReceived(message);
-                break;
-            case CallMessageType.reject:
-                await this.onRejectReceived(message);
-                break;
-            case CallMessageType.inviteResult:
-                await this.onInviteResult(message);
-                break;
-            case CallMessageType.inviteCancelled:
-                await this.onInviteCancelled(message);
-                break;
-            case CallMessageType.acceptResult: {
-                await this.onAcceptResult(message);
-                break;
-            }
-            case CallMessageType.createConfResult:
-                await this.onCreateConfResult(message);
-                break;
-            case CallMessageType.joinConfResult:
-                await this.onJoinConfResult(message);
-                break;
-            case CallMessageType.conferenceReady:
-                await this.onConferenceReady(message);
-                break;
-            case CallMessageType.conferenceClosed:
-                await this.onConferenceClosed(message);
-                break;
-            case CallMessageType.presenterInfo:
-                await this.onPresenterInfo(message);
-                break;
-
-        }
-    }
-
-    disconnect() {
-        console.log("conferneceClient disconnect");
-
-        this.disconnectRoomsClient("disconnect");
-
-
-        if (this.socket) {
-            console.log(`disconnecting from socket`);
-            this.socket.disconnect();
-            this.socket = null;
-        }
-
-        this.localParticipant.stream.getTracks().forEach(t => t.stop());
-        this.localParticipant = new Participant();
-        for (const p of this.conference.participants.values()) {
-            p.stream.getTracks().forEach(t => t.stop());
-        }
-
-        for (const timerid of this.CallConnectTimeoutTimerIds.values()) {
-            if (timerid) {
-                clearTimeout(timerid);
-            }
-        }
-
-        this.CallConnectTimeoutTimerIds.clear();
-
-        this.acceptInvite = null;
-        this.rejectInvite = null;
-
-        this.authToken = "";
-        this.callState = "disconnected";
-        this.clientData = {};
-        this.conference = new Conference();
-        this.conferencesOnline = [];
-        this.participantsOnline = [];
-        this.isScreenSharing = false;
-    }
 
     isInConference() {
         return this.conference.conferenceId > "";
@@ -599,6 +611,7 @@ class ConferenceClient {
             }
         });
     }
+
     /**
      * registers a websocket connection
      * @param username 
@@ -1288,6 +1301,12 @@ class ConferenceClient {
             this.getParticipantsOnline();
         }
     }
+
+    private async onLoggedOff(message: LoggedOffMsg) {
+        console.log("onRegisterResult");
+        
+        await this.onEvent(EventTypes.loggedOff, message);        
+    }    
 
     private async onParticipantsReceived(message: GetParticipantsResultMsg) {
         console.log("onParticipantsReceived");

@@ -6,6 +6,8 @@ export enum CallMessageType {
     loginGuest = "loginGuest",
     loginResult = "loginResult",
 
+    loggedOff = "loggedOff",
+
     register = "register", //register the partcipant as online
     registerResult = "registerResult", //partcipant recieves a registration result
 
@@ -66,6 +68,13 @@ export class LoginResultMsg implements IMsg {
         role?: string,
         error?: string,
         clientData?: {},
+    } = {};
+}
+
+export class LoggedOffMsg implements IMsg {
+    type = CallMessageType.loggedOff;
+    data: {
+        reason?: string        
     } = {};
 }
 
