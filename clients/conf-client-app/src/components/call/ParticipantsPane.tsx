@@ -8,7 +8,7 @@ import { useUI } from '../../hooks/useUI';
 
 interface ParticipantVideoPreviewProps {
     participant?: Participant
-    onClick: () => void;
+    onClick: (participant: Participant) => void;
     isSelected?: boolean;
     style?: React.CSSProperties;
 }
@@ -22,7 +22,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
     const [audioEnabled, setAudioEnabled] = useState(false);
 
     useEffect(() => {
-        console.log(`participant updated, set video srcObject ${participant.displayName}`, participant.tracksInfo);
+        console.warn(`participant updated, set video srcObject ${participant.displayName}`, participant.tracksInfo);
         if (participant.stream && videoRef.current) {
             videoRef.current.srcObject = participant.stream;
             console.log(`videoRef set srcObject ${participant.displayName}`);
@@ -48,7 +48,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
         }
 
 
-    }, [callParticipants, participant.displayName, participant.stream, participant.tracksInfo]);
+    }, [callParticipants, participant]);
 
     const onAudioClick = useCallback(async () => {
         console.log(`onAudioClick.`);
@@ -199,13 +199,16 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 
     return (
         <Card
+            onClick={() => { onClick(participant); }}
             className={`participant-preview ${isSelected ? 'border-primary' : ''}`}
             style={{
+                position: 'relative', // For positioning the content inside
                 cursor: 'pointer',
                 margin: 0, // Remove default Card margins
                 border: 'none', // Remove default Card border to avoid extra space
                 width: '100%',
-                height: '100%',
+                // height: '100%',
+                background: '#333',
                 ...style,
             }}
         >
@@ -246,15 +249,17 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                         <CameraVideoOffFill size={30} />
                     </div>
                 ) : null}
+
                 <div
+                    className="bg-dark bg-opacity-50 text-white px-2 py-1"
                     style={{
                         position: 'absolute',
-                        bottom: '10px',
-                        left: '10px',
+                        bottom: '5px',
+                        left: '5px',
                         display: 'flex',
                         gap: '5px',
-                        width: 'calc(100% - 20px)', // Match video width minus padding
-                        justifyContent: 'flex-start',
+                        width: 'calc(100% - 5px)', // Match video width minus padding
+                        justifyContent: 'space-between',
                         background: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background for visibility
                         padding: '5px',
                         borderRadius: '4px',
@@ -278,7 +283,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 };
 
 interface ParticipantsPaneProps {
-    onSelectVideo: (userId: string, stream?: MediaStream) => void;
+    onSelectVideo: (participant: Participant) => void;
 }
 
 const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo }) => {
@@ -297,7 +302,7 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo }) =>
                 <ParticipantVideoPreview
                     key={localParticipant.participantId}
                     participant={localParticipant}
-                    onClick={() => onSelectVideo(localParticipant.participantId, localParticipant.stream)}
+                    onClick={() => onSelectVideo(localParticipant)}
                     isSelected={callParticipants.size === 0}
                 />
             )}
@@ -309,7 +314,7 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo }) =>
                     <ParticipantVideoPreview
                         key={participant.participantId}
                         participant={participant}
-                        onClick={() => onSelectVideo(participant.participantId, participant.stream)}
+                        onClick={() => onSelectVideo(participant)}
                         isSelected={false}
                     />
                 ))}

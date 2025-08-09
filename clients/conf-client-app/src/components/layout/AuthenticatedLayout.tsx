@@ -108,7 +108,7 @@ const AuthenticatedLayout: React.FC = () => {
   return (
     <div className="d-flex flex-column vh-100 bg-light">
       <TopMenu onShowSettings={() => setShowSettings(true)} />
-      <div className="d-flex flex-grow-1 overflow-hidden">
+      <div className="d-flex flex-column flex-md-row flex-grow-1 overflow-auto">
         <div className="sidebar col-12 col-md-4 border-end p-3">
           {(api.isAdmin() || api.isUser()) && (
             <div className="mb-4">              

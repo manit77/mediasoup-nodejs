@@ -37,8 +37,19 @@ export class Conference {
      * remote participants
      */
     participants: Map<string, Participant> = new Map();
-
+    
+    presenterId: string;
     presenter: Participant;
+    setPresenter(participant: Participant) {
+        console.warn(`setPresenter:`, participant);
+        this.presenter = participant;
+        if(participant) {
+            this.presenterId == participant.participantId;
+        } else {
+            this.presenterId = "";
+        }
+    }
+
 }
 
 

@@ -246,6 +246,7 @@ export class ConferenceReadyMsg implements IMsg {
     data: {
         participantId?: string,
         displayName?: string,
+        presenterId?: string,
 
         conferenceId?: string,
         conferenceName?: string,

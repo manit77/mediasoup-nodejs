@@ -11,7 +11,7 @@ import { Participant } from '@conf/conf-client';
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
     const { localParticipant, isCallActive, callParticipants, selectedDevices, switchDevicesOnCall, presenter } = useCall();
-    const [mainStream, setMainStream] = useState<MediaStream | null>(null);
+    const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
     const [remoteParticipant, setRemoteParticipant] = useState<Participant>(null)
 
     useEffect(() => {
@@ -20,14 +20,12 @@ const OnCallScreen: React.FC = () => {
     }, [localParticipant, selectedDevices, switchDevicesOnCall]);
 
     useEffect(() => {
-        if (localParticipant.stream && !mainStream) {
-            setMainStream(localParticipant.stream);
-        }
-    }, [localParticipant.stream, mainStream]);
+        setSelectedParticipant(localParticipant);
+    }, [localParticipant]);
 
     useEffect(() => {
         if (presenter && presenter.stream) {
-            setMainStream(presenter.stream);
+            setSelectedParticipant(presenter);
         } else {
             console.warn(`no presenter stream`);
         }
@@ -42,12 +40,23 @@ const OnCallScreen: React.FC = () => {
         }
     }, [callParticipants]);
 
-    const handleSelectParticipantVideo = (participantId: string, stream?: MediaStream) => {
-        console.warn(`handleSelectParticipantVideo:`, stream?.getTracks());
-        if (stream) {
-            let videoTrack = stream.getVideoTracks()[0]
+    const handleSelectParticipantVideo = (participant: Participant) => {
+        console.warn(`handleSelectParticipantVideo:`, participant.stream?.getTracks());
+
+        if (presenter) {
+            console.warn("presenter already presenting");
+            return;
+        }
+
+        if(localParticipant == participant) {
+            console.warn("cannot select self");
+            return;
+        }
+
+        if (participant.stream) {
+            let videoTrack = participant.stream.getVideoTracks()[0]
             if (videoTrack && videoTrack.enabled && !videoTrack.muted && videoTrack.readyState === "live") {
-                setMainStream(stream);
+                setSelectedParticipant(participant);
             } else {
                 console.warn(`no video track`);
             }
@@ -69,9 +78,9 @@ const OnCallScreen: React.FC = () => {
                 <div style={{
                     paddingTop: '8px',
                     height: 'calc(100vh - 56px)',
-                    overflow: 'hidden',
+                    overflow: 'auto',
                 }}>
-                    <Container fluid className="flex-grow-1 p-0 m-0">
+                    <Container fluid className="p-0 m-0 h-100">
                         {callParticipants.size === 1 ? (
                             // One participant - waiting screen
                             <div className="d-flex flex-column justify-content-center align-items-center h-100">
@@ -101,8 +110,8 @@ const OnCallScreen: React.FC = () => {
                                     }}
                                 >
                                     <ParticipantVideoPreview
-                                        onClick={() => handleSelectParticipantVideo(remoteParticipant.participantId, remoteParticipant.stream)}
-                                        isSelected={mainStream === remoteParticipant.stream}
+                                        onClick={() => handleSelectParticipantVideo(remoteParticipant)}
+                                        isSelected={selectedParticipant === remoteParticipant}
                                         key={remoteParticipant.participantId}
                                         participant={remoteParticipant}
                                         style={{
@@ -128,8 +137,8 @@ const OnCallScreen: React.FC = () => {
                                     }}
                                 >
                                     <ParticipantVideoPreview
-                                        onClick={() => handleSelectParticipantVideo(localParticipant.participantId, localParticipant.stream)}
-                                        isSelected={mainStream === localParticipant.stream}
+                                        onClick={() => handleSelectParticipantVideo(localParticipant)}
+                                        isSelected={selectedParticipant === localParticipant}
                                         key={localParticipant.participantId}
                                         participant={localParticipant}
                                         style={{
@@ -144,9 +153,9 @@ const OnCallScreen: React.FC = () => {
                             // 3+ participants - grid layout with sidebar
                             <Row className="g-0 h-100">
                                 <Col md={9} className="d-flex flex-column p-1 h-100">
-                                    <MainVideo stream={mainStream} participantId={localParticipant.participantId} />
+                                    <MainVideo />
                                 </Col>
-                                <Col md={3} className="border-start border-secondary p-2 h-100" style={{ overflowY: 'auto', background: '#2a2f34' }}>
+                                <Col md={3} className="border-start border-secondary p-2 d-flex flex-column" style={{ background: '#2a2f34' }}>
                                     <ParticipantsPane onSelectVideo={handleSelectParticipantVideo} />
                                 </Col>
                             </Row>

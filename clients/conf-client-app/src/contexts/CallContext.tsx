@@ -101,6 +101,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         setIsScreenSharing(conferenceClient.isScreenSharing);
         setSelectedDevices(conferenceClient.selectedDevices);
+        setPresenter(conferenceClient.conference.presenter);
 
         setParticipantsOnline(conferenceClient.participantsOnline);
         setConferencesOnline(conferenceClient.conferencesOnline);
@@ -322,7 +323,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 case EventTypes.conferenceJoined: {
                     console.log(`CallContext: onConferenceJoined ${conferenceClient.conference.conferenceId}, conferenceName:${conferenceClient.conference.conferenceName}`);
 
-                    console.log(`participants in room: ${callParticipants.size}`)
+                    console.log(`participants in room: ${conferenceClient.conference.participants.size}`)
+                    console.log(`presenter:`, conferenceClient.conference.presenter);
                     console.log(`localParticipant tracksInfo:`, localParticipant.current.tracksInfo);
 
                     setIsCallActive(true);
@@ -330,6 +332,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setInviteInfoSend(null);
                     setCallParticipants(prev => new Map(conferenceClient.conference.participants));
                     setConferenceRoom(conferenceClient.conference);
+                    setPresenter(conferenceClient.conference.presenter);
+
                     ui.showToast("conference joined");
 
                     break;
@@ -352,15 +356,17 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 case EventTypes.participantJoined: {
                     console.log(`CallContext: onParticipantJoined ${msgIn.data.displayName} (${msgIn.data.participantId})`);
                     setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+                    setPresenter(conference.presenter);
                     break;
                 }
                 case EventTypes.participantLeft: {
                     console.log(`CallContext: onParticipantJoined ${msgIn.data.displayName} (${msgIn.data.participantId})`);
                     setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+                    setPresenter(conference.presenter);
                     break;
                 }
                 case EventTypes.prensenterInfo: {
-                    console.log(`CallContext: prensenterInfo ${msgIn.data.participantId}) ${conferenceClient.conference.presenter.displayName}`);
+                    console.log(`CallContext: prensenterInfo`, conferenceClient.conference.presenter);
                     setPresenter(conferenceClient.conference.presenter);
                     break;
                 }
@@ -574,11 +580,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (await conferenceClient.startScreenShare()) {
             //trigger a refresh of the local stream
-            console.log(`setIsScreenSharing to true`);
-            setPresenter(conference.presenter);
+            conferenceClient.conference.setPresenter(conferenceClient.localParticipant);
+            setPresenter(conferenceClient.conference.presenter);
             setIsScreenSharing(true);
             setIsLocalStreamUpdated(true);
-            setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+            setCallParticipants(prev => new Map(conferenceClient.conference.participants));        
         } else {
             ui.showPopUp("unable to start screen share.", "error");
         }
@@ -596,6 +602,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error("Error stopping screen share:", error);
         }
 
+        conferenceClient.conference.setPresenter(null);
+        setPresenter(null);
         setIsScreenSharing(false);
         setIsLocalStreamUpdated(true);
         setCallParticipants(prev => new Map(conferenceClient.conference.participants));

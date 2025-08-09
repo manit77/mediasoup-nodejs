@@ -1,17 +1,17 @@
 import { Conference, Participant } from "./models.js";
 
-export function getBrowserUserMedia(constraints: MediaStreamConstraints = { video: true, audio: true }): Promise<MediaStream | null> {
+export async function getBrowserUserMedia(constraints: MediaStreamConstraints = { video: true, audio: true }): Promise<MediaStream | null> {
     console.log(`getUserMedia constraints:`, constraints);
     
     try {
-        return navigator.mediaDevices.getUserMedia(constraints);
+        return await navigator.mediaDevices.getUserMedia(constraints);
     } catch (err) {
         console.error(err);
         return null;
     }
 }
 
-export function getBrowserDisplayMedia(): Promise<MediaStream | null> {
+export async function getBrowserDisplayMedia(): Promise<MediaStream | null> {
     console.log(`getBrowserDisplayMedia`);
 
     try {
@@ -20,7 +20,7 @@ export function getBrowserDisplayMedia(): Promise<MediaStream | null> {
             return null;
         }
 
-        return navigator.mediaDevices.getDisplayMedia({
+        return await navigator.mediaDevices.getDisplayMedia({
             video: true,
             audio: false
         });

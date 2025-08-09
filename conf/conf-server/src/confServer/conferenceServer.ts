@@ -23,7 +23,7 @@ import {
     ParticipantRole,
     ConferenceScheduledInfo,
     PresenterInfoMsg,
-    conferenceType,    
+    conferenceType,
     LoggedOffMsg
 } from '@conf/conf-models';
 import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
@@ -178,6 +178,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         conferenceId?: string,
         externalId?: string,
         roomName: string,
+        presenter?: Participant,
         config?: ConferenceConfig
     }) {
 
@@ -205,6 +206,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         conference.minParticipants = args.minParticipants;
         conference.minParticipantsTimeoutSeconds = args.minParticipantsTimeoutSeconds;
         conference.participantGroup = args.participantGroup;
+        conference.presenter = args.presenter;
 
         conference.confType = args.confType;
 
@@ -224,15 +226,17 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         conference.onClose = (conf: Conference, participants: Participant[], reason: string) => {
             this.conferences.delete(conf.id);
-            consoleLog(`conference removed. ${conf.id}`);
+            consoleWarn(`conference removed. ${conf.id}, existing participants ${participants.length}`);
 
             //alert any existing participants the room is closed
             let msgClosed = new ConferenceClosedMsg();
             msgClosed.data.conferenceId = conf.id;
             msgClosed.data.reason = reason;
 
-            const partsToAlert = [...participants.values()].filter(p => p.conference && p.conference === conf);
-            partsToAlert.forEach(p => this.send(p, msgClosed));
+            participants.forEach(p => {
+                consoleWarn(`send close to part ${p.displayName}`);
+                this.send(p, msgClosed);
+            });
 
             //broadcast rooms to existing participants
             this.broadCastConferenceRooms(conf.participantGroup);
@@ -301,7 +305,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             let loggedOffMsg = new LoggedOffMsg();
             loggedOffMsg.data.reason = "Logged in from another location.";
             this.send(existingParticipant, loggedOffMsg);
-            
+
             this.terminateParticipant(existingParticipant.participantId);
         }
 
@@ -782,7 +786,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 minParticipantsTimeoutSeconds: 300,
                 externalId: msgIn.data.conferenceExternalId,
                 roomName: roomName,
-                config: confConfig
+                config: confConfig,
+
             });
 
             if (!await this.startRoom(conference)) {
@@ -944,9 +949,14 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.conferenceName = conference.roomName;
         msg.data.conferenceExternalId = conference.externalId;
         msg.data.conferenceType = conference.confType;
+        msg.data.presenterId = conference.presenter?.participantId;
+
+        //p2p info
         msg.data.participantId = participant.participantId;
         msg.data.displayName = participant.displayName;
+
         msg.data.conferenceConfig = conference.config;
+
 
         msg.data.roomId = conference.roomId;
         msg.data.roomToken = conference.roomToken;
@@ -1035,7 +1045,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
     }
 
     async onPresenterInfo(participant: Participant, msgIn: PresenterInfoMsg) {
-        consoleLog("onLeave");
+        consoleLog("onPresenterInfo");
 
         if (!participant.conference) {
             consoleError(`not in conference`);
@@ -1073,8 +1083,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         if (conf.confType == "p2p") {
             //if the conference was p2p, close the room if only one participant left
             if (conf.participants.size <= 1) {
-                consoleWarn("closing conference room, no participants left.");
-                conf.close("room closed.");
+                consoleWarn("peer left, closing conference room for p2p.");
+                conf.close("peer left, closing conference room.");
                 return
             }
         }

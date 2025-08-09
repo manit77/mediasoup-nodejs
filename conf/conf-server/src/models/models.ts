@@ -92,6 +92,7 @@ export class Conference {
     id: string;
     externalId: string;
     participantGroup: string;
+    presenter: Participant;
 
     timeoutId: any;
     timeoutSecs: number = 0;
@@ -206,6 +207,8 @@ export class Conference {
 
         let existingParticipants = [...this.participants.values()];
 
+        this.presenter = null;
+        
         for (let part of this.participants.values()) {
             part.conference = null;
         }

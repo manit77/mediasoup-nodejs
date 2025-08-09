@@ -476,7 +476,7 @@ class ConferenceClient {
 
             this.localParticipant.tracksInfo.isVideoEnabled = true;
             if (await conferenceClient.publishTracks([screenTrack])) {
-                this.conference.presenter = this.localParticipant;
+                this.conference.setPresenter(this.localParticipant);
                 this.isScreenSharing = true;
 
                 //broadCastTrackInfo
@@ -505,7 +505,7 @@ class ConferenceClient {
 
             this.isScreenSharing = false;
             if (this.conference.presenter == this.localParticipant) {
-                this.conference.presenter = null;
+                this.conference.setPresenter(null);
             }
 
             const screenTrack = this.localParticipant.stream.getVideoTracks().find(track => track.id === this.localParticipant.prevTracksInfo?.screenShareTrackId);
@@ -1304,9 +1304,9 @@ class ConferenceClient {
 
     private async onLoggedOff(message: LoggedOffMsg) {
         console.log("onRegisterResult");
-        
-        await this.onEvent(EventTypes.loggedOff, message);        
-    }    
+
+        await this.onEvent(EventTypes.loggedOff, message);
+    }
 
     private async onParticipantsReceived(message: GetParticipantsResultMsg) {
         console.log("onParticipantsReceived");
@@ -1397,15 +1397,19 @@ class ConferenceClient {
      * @returns 
      */
     private async onConferenceReady(message: ConferenceReadyMsg) {
-        console.log("onConferenceReady()");
+        console.log(`onConferenceReady(), presenterId: ${message.data.presenterId}`);
 
         if (this.conference.conferenceId != message.data.conferenceId) {
             console.error(`onConferenceReady() - conferenceId does not match ${this.conference.conferenceId} ${message.data.conferenceId}`);
             return;
         }
 
-        this.conference.conferenceExternalId = message.data.conferenceId;
+        //p2p call
         this.conference.conferenceName = message.data.conferenceName || `Call with ${message.data.displayName}`;
+
+        this.conference.presenterId = message.data.presenterId;
+
+        this.conference.conferenceExternalId = message.data.conferenceId;
         this.conference.conferenceExternalId = message.data.conferenceExternalId;
         this.conference.conferenceType = message.data.conferenceType;
         this.conference.conferenceConfig = message.data.conferenceConfig;
@@ -1499,13 +1503,19 @@ class ConferenceClient {
         let participant = this.conference.participants.get(message.data.participantId);
         if (participant) {
             if (message.data.status == "on") {
-                this.conference.presenter = participant;
+                this.conference.setPresenter(participant);
             } else {
-                if (this.conference.presenter.participantId == participant.participantId) {
-                    this.conference.presenter = null;
+                this.conference.setPresenter(null);
+            }
+
+            let msg: IMsg = {
+                type: EventTypes.prensenterInfo,
+                data: {
+                    presenter: participant
                 }
             }
-            await this.onEvent(EventTypes.prensenterInfo, message);
+
+            await this.onEvent(EventTypes.prensenterInfo, msg);
         }
     }
 
@@ -1575,7 +1585,7 @@ class ConferenceClient {
 
         this.roomsClient.eventOnRoomJoined = async (roomId: string) => {
             //confirmation for local user has joined a room
-            console.log("onRoomJoinedEvent roomId:", roomId);
+            console.log(`onRoomJoinedEvent roomId: ${roomId} ${this.conference.conferenceId} `);
             this.clearCallConnectTimer();
             this.callState = "connected";
 
@@ -1583,7 +1593,11 @@ class ConferenceClient {
             this.conference.participants.set(this.localParticipant.participantId, this.localParticipant);
             console.log(`add self to conference.participants ${this.conference.participants.size}`);
 
-            this.publishTracks(this.localParticipant.stream.getTracks());
+            await this.publishTracks(this.localParticipant.stream.getTracks());
+
+            if (this.conference.presenterId === this.localParticipant.participantId) {
+                this.conference.setPresenter(this.localParticipant);
+            }
 
             let msg = {
                 type: EventTypes.conferenceJoined,
@@ -1638,6 +1652,10 @@ class ConferenceClient {
             this.conference.participants.set(participant.participantId, participant);
             console.log(`adding new participant to the room: ${participant.displayName}, ${this.conference.participants.size}`);
 
+            if (this.conference.presenterId === participant.participantId) {
+                this.conference.setPresenter(participant);
+            }
+
             let msg = {
                 type: EventTypes.participantJoined,
                 data: {
@@ -1687,7 +1705,7 @@ class ConferenceClient {
 
             this.conference.participants.delete(participant.participantId);
             if (this.conference.presenter == participant) {
-                this.conference.presenter = null;
+                this.conference.setPresenter(null);
             }
 
             let msg = {
