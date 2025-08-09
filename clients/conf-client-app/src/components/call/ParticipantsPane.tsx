@@ -207,9 +207,10 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                 cursor: 'pointer',
                 margin: 0, // Remove default Card margins
                 border: 'none', // Remove default Card border to avoid extra space
-                width: '100%',
+                //width: '100%',
                 // height: '100%',
                 background: '#333',
+                aspectRatio: '16/9', // Set a 16:9 aspect ratio
                 ...style,
             }}
         >
@@ -285,19 +286,50 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 
 interface ParticipantsPaneProps {
     onSelectVideo: (participant: Participant) => void;
+    containerStyle?: React.CSSProperties;
+    cardStyle?: React.CSSProperties;
+
 }
 
-const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo }) => {
+const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, containerStyle, cardStyle }) => {
     const { localParticipant, callParticipants } = useCall();
     const { getCurrentUser } = useAPI();
 
-    useEffect(() => {
+    // const containerStyle: React.CSSProperties = horizontal
+    //     ? {
+    //         display: 'flex',
+    //         flexDirection: 'row',
+    //         flexWrap: 'wrap', // Enable wrapping based on available width
+    //         gap: '8px',
+    //         padding: '8px',
+    //         background: '#2a2f34',
+    //         width: '100%',
+    //         boxSizing: 'border-box',
+    //         justifyContent: 'center', // Align items to the start; change to 'center' if preferred
+    //         overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it              
 
-    }, [getCurrentUser])
+    //     }
+    //     : {
+    //         display: 'flex',
+    //         flexDirection: 'column',
+    //         gap: '8px',
+    //         width: '100%',
+    //     };
+
+    // const cardStyle: React.CSSProperties = horizontal
+    //     ? {
+    //         // flex: '1 0 auto', // Allow growing but not shrinking below minWidth
+    //         //width: '320px', // Minimum width before wrapping
+    //         //height: '240px', // Keep fixed height for consistency
+    //         justifyContent: 'center'
+    //     }
+    //     : {
+    //         width: '100%',
+    //         height: 'auto',
+    //     };
 
     return (
-        <div>
-            <h5 className="mb-3">Participants ({callParticipants.size})</h5>
+        <div style={containerStyle}>
             {/* Local User Preview First */}
             {localParticipant && (
                 <ParticipantVideoPreview
@@ -305,6 +337,7 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo }) =>
                     participant={localParticipant}
                     onClick={() => onSelectVideo(localParticipant)}
                     isSelected={callParticipants.size === 0}
+                    style={cardStyle}
                 />
             )}
 
@@ -317,6 +350,7 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo }) =>
                         participant={participant}
                         onClick={() => onSelectVideo(participant)}
                         isSelected={false}
+                        style={cardStyle}
                     />
                 ))}
         </div>

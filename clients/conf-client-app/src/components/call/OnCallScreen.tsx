@@ -7,6 +7,7 @@ import SettingsPopup from '../popups/SettingsPopup';
 import { useCall } from '../../hooks/useCall';
 import { Navigate } from 'react-router-dom';
 import { Participant } from '@conf/conf-client';
+import { relative } from 'path';
 
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
@@ -48,7 +49,7 @@ const OnCallScreen: React.FC = () => {
             return;
         }
 
-        if(localParticipant == participant) {
+        if (localParticipant == participant) {
             console.warn("cannot select self");
             return;
         }
@@ -150,15 +151,76 @@ const OnCallScreen: React.FC = () => {
                                 </div>
                             </div>
                         ) : callParticipants.size > 2 ? (
-                            // 3+ participants - grid layout with sidebar
-                            <Row className="g-0 h-100">
-                                <Col md={9} className="d-flex flex-column p-1 h-100">
-                                    <MainVideo />
-                                </Col>
-                                <Col md={3} className="border-start border-secondary p-2 d-flex flex-column" style={{ background: '#2a2f34' }}>
-                                    <ParticipantsPane onSelectVideo={handleSelectParticipantVideo} />
-                                </Col>
-                            </Row>
+                            presenter ? (
+                                // Presenter view
+                                <div className="d-flex flex-column h-100">
+
+                                    <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
+                                        <MainVideo />
+                                    </div>
+                                    
+                                    <div
+                                        className="d-flex flex-row overflow-auto p-2"
+                                        style={{
+                                            background: '#2a2f34',
+                                            borderTop: '1px solid #444'
+                                        }}
+                                    >
+                                        <ParticipantsPane
+                                            onSelectVideo={handleSelectParticipantVideo}
+                                            containerStyle={{
+                                                display: 'flex',
+                                                flexDirection: 'row',
+                                                flexWrap: 'wrap', // Enable wrapping based on available width
+                                                gap: '8px',
+                                                padding: '8px',
+                                                background: '#2a2f34',
+                                                width: '100%',
+                                                boxSizing: 'border-box',
+                                                justifyContent: 'flex-start', // Align left to reduce space between elements
+                                                overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it             
+                                            }}
+                                            cardStyle={{
+                                                flex: '0 0 160px', // Fixed basis for consistent width
+                                                aspectRatio: "4/3",
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                // No presenter → participants left to right
+                                <div
+                                    className="d-flex flex-row flex-wrap h-100 p-2"
+                                    style={{ background: '#2a2f34', gap: '8px' }}
+                                >
+                                    <ParticipantsPane
+                                        onSelectVideo={handleSelectParticipantVideo}
+                                        containerStyle={
+                                            {
+                                                display: 'flex',
+                                                flexDirection: 'row',
+                                                flexWrap: 'wrap', // Enable wrapping based on available width
+                                                gap: '8px',
+                                                padding: '8px',
+                                                background: '#2a2f34',
+                                                width: '100%',
+                                                boxSizing: 'border-box',
+                                                justifyContent: 'center', // Align items to the start; change to 'center' if preferred
+                                                overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it            
+
+                                            }
+                                        }
+                                        cardStyle={
+                                            {
+                                                // flex: '1 0 auto', // Allow growing but not shrinking below minWidth
+                                                //width: '320px', // Minimum width before wrapping
+                                                //height: '240px', // Keep fixed height for consistency
+                                                justifyContent: 'center'
+                                            }
+                                        }
+                                    />
+                                </div>
+                            )
                         ) : (<></>)}
                     </Container>
                 </div>
