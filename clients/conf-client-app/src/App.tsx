@@ -9,7 +9,7 @@ import { useAPI } from './hooks/useAPI';
 import { useCall } from './hooks/useCall';
 import { UIProvider } from './contexts/UIContext';
 import { useLocation } from 'react-router-dom';
-import { conferenceClient } from '@conf/conf-client';
+import { conferenceClient } from './services/ConferenceService';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAPI();

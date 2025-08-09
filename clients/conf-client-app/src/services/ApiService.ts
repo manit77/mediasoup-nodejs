@@ -176,4 +176,15 @@ class ApiService {
 
 };
 
-export const apiService = new ApiService(); // Singleton instance
+// Tell TypeScript about our global variable so it doesn't complain
+declare global {
+  // eslint-disable-next-line no-var
+  var __apiService: ApiService | undefined;
+}
+
+// Only create it once
+if (!globalThis.__apiService) {
+  globalThis.__apiService = new ApiService();
+}
+
+export const apiService = globalThis.__apiService!;

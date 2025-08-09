@@ -18,7 +18,7 @@ import { getBrowserDisplayMedia, getBrowserUserMedia } from "./conferenceUtils.j
 
 export type ConferenceEvent = (eventType: EventTypes, payload: IMsg) => Promise<void>;
 
-class ConferenceClient {
+export class ConferenceClient {
 
     private socket: WebSocketClient;
     localParticipant = new Participant();
@@ -47,6 +47,8 @@ class ConferenceClient {
 
     CallConnectTimeoutTimerIds = new Set<any>();
     private config: ConferenceClientConfig;
+
+    private tryRegisterTimerId: any;
 
     constructor() {
         console.log(`*** new instance of ConferenceClient`);
@@ -171,12 +173,47 @@ class ConferenceClient {
         console.log("onSocketConnected()");
 
         if (this.username && this.authToken) {
-            await this.waitRegisterConnection(this.username, this.authToken, this.clientData);
+            this.tryRegister();
         } else {
             console.log("not credentials registerConnection");
         }
+    }
 
-        await this.onEvent(EventTypes.connected, new OkMsg());
+    private async register() {
+        console.log("register()");
+        try {
+            let registerResult = await this.waitRegisterConnection(this.username, this.authToken, this.clientData);
+            if (!registerResult.data.error) {
+                await this.onEvent(EventTypes.connected, new OkMsg());
+                return true;
+            }
+        } catch (err) {
+            console.error(err);
+        }
+        return false;
+
+    }
+
+    private async tryRegister() {
+        console.log("tryRegister()");
+
+        if (this.tryRegisterTimerId) {
+            clearTimeout(this.tryRegisterTimerId);
+        }
+
+        await this.register();
+
+        if (this.isRegistered()) {
+            return;
+        }
+
+        this.tryRegisterTimerId = setTimeout(async () => {
+            if (!await this.register()) {
+                this.tryRegister();
+                return;
+            }
+        }, 5000);
+
     }
 
     private async onSocketClosed(reason: string = "") {
@@ -475,12 +512,12 @@ class ConferenceClient {
             };
 
             this.localParticipant.tracksInfo.isVideoEnabled = true;
-            if (await conferenceClient.publishTracks([screenTrack])) {
+            if (await this.publishTracks([screenTrack])) {
                 this.conference.setPresenter(this.localParticipant);
                 this.isScreenSharing = true;
 
                 //broadCastTrackInfo
-                conferenceClient.broadCastTrackInfo();
+                this.broadCastTrackInfo();
 
                 let msg = new PresenterInfoMsg();
                 msg.data.status = "on";
@@ -515,7 +552,7 @@ class ConferenceClient {
                 screenTrack.stop();
 
                 //unpublish track
-                await conferenceClient.unPublishTracks([])
+                this.unPublishTracks([])
             } else {
                 console.warn("screenshare track not found")
             }
@@ -532,7 +569,7 @@ class ConferenceClient {
                 let cameraTrack = newStream.getTracks().find(t => t.kind === "video");
 
                 if (cameraTrack) {
-                    await conferenceClient.publishTracks(newTracks);
+                    await this.publishTracks(newTracks);
                     let msg = new PresenterInfoMsg();
                     msg.data.status = "off";
                     this.sendToServer(msg);
@@ -1783,5 +1820,3 @@ class ConferenceClient {
     }
 
 }
-
-export const conferenceClient = new ConferenceClient(); //single instance

@@ -1,9 +1,10 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { apiService, LoginResponse } from '../services/ApiService';
 import { useConfig } from '../hooks/useConfig';
-import { conferenceClient } from '@conf/conf-client';
 import { ConferenceScheduledInfo } from '@conf/conf-models';
 import { User } from '../types';
+import { conferenceClient } from '../services/ConferenceService';
+
 
 interface APIContextType {
     isAuthenticated: boolean;

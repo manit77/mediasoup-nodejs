@@ -3,8 +3,9 @@ import { Card, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { useAPI } from '../../hooks/useAPI';
 import { MicFill, MicMuteFill, CameraVideoFill, CameraVideoOffFill } from 'react-bootstrap-icons';
-import { conferenceClient, getBrowserUserMedia, isAudioAllowedFor, isVideoAllowedFor, Participant } from '@conf/conf-client';
+import { getBrowserUserMedia, isAudioAllowedFor, isVideoAllowedFor, Participant } from '@conf/conf-client';
 import { useUI } from '../../hooks/useUI';
+import { conferenceClient } from '../../services/ConferenceService';
 
 interface ParticipantVideoPreviewProps {
     participant?: Participant
