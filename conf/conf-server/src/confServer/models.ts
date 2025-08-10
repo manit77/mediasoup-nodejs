@@ -12,6 +12,7 @@ export interface ConferenceServerConfig {
     conf_data_urls: { getScheduledConferencesURL: string, getScheduledConferenceURL: string, loginURL: string, loginGuestURL: string },
     conf_socket_timeout_secs: 300,
     conf_socket_pong_timeout_secs: 120,
+    conf_socket_ping_interval_secs: 15,
     conf_require_participant_group: boolean;
 
     room_access_token: string,

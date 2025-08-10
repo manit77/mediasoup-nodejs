@@ -161,7 +161,6 @@ export class ConferenceSocketServer {
 
     startHeartbeat(ws: WebSocket, conn: SocketConnection) {
         conn.lastPong = Date.now();
-        let pongInteralSec = 30;
         const heartbeatInterval = setInterval(() => {
             if (ws.readyState === WebSocket.CLOSED) {
                 clearInterval(heartbeatInterval);
@@ -175,8 +174,9 @@ export class ConferenceSocketServer {
                 clearInterval(heartbeatInterval);
                 return;
             }
+            
             ws.ping();
-        }, pongInteralSec * 1000);
+        }, this.config.conf_socket_ping_interval_secs * 1000);
     }
 
     cleanupSocket(ws: WebSocket) {
