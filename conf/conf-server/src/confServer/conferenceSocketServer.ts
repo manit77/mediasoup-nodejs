@@ -35,10 +35,13 @@ export class ConferenceSocketServer {
 
             let newConnection = new SocketConnection(ws, this.config.conf_socket_timeout_secs);
             newConnection.ips.push(req.socket.remoteAddress);
-            newConnection.ips.push(req.socket.localAddress);
+            const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+            if (ip) {
+                newConnection.ips.push(ip);
+            }
 
             newConnection.addEventHandlers(this.onSocketTimeout.bind(this));
-            this.connections.set(ws, newConnection);            
+            this.connections.set(ws, newConnection);
             newConnection.restartSocketTimeout();
 
             ws.onmessage = async (message) => {
@@ -84,7 +87,7 @@ export class ConferenceSocketServer {
                     returnMsg = await this.confServer.handleMsgInWS(conn.participantId, msgIn);
                 }
 
-                if (returnMsg) {                    
+                if (returnMsg) {
                     conn.ws.send(JSON.stringify(returnMsg));
                 }
 
