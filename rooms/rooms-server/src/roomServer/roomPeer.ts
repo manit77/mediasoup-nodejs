@@ -246,7 +246,7 @@ export class RoomPeer {
         //the peer has mute/unmute a remotePeer
         for (let producer of this.producers.values()) {
 
-            let trackEnabled = producer.kind == "audio" ? this.peer.trackInfo.isAudioEnabled : this.peer.trackInfo.isVideoEnabled;
+            let trackEnabled = producer.kind == "audio" ? this.peer.tracksInfo.isAudioEnabled : this.peer.tracksInfo.isVideoEnabled;
 
             //toggle the producer track
             if (trackEnabled && producer.paused) {

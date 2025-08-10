@@ -21,7 +21,7 @@ export class Participant {
 
     peerId: string;
     tracksInfo: PeerTracksInfo = { isAudioEnabled: true, isVideoEnabled: true };
-    prevTracksInfo: { isAudioEnabled: boolean, isVideoEnabled: boolean, screenShareTrackId: string };
+    prevTracksInfo: { isAudioEnabled: boolean, isVideoEnabled: boolean, screenShareTrackId: string } = null;
 }
 
 export class Conference {

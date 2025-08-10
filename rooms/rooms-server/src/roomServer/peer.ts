@@ -12,14 +12,12 @@ export class Peer {
     public displayName: string;
     public authToken: string;
     public role = AuthUserRoles.guest;
+    room?: Room;
+    tracksInfo: PeerTracksInfo = { isAudioEnabled: false, isVideoEnabled: false };
 
     constructor() {
 
     }
-    
-    room?: Room;
-    trackInfo: PeerTracksInfo = { isAudioEnabled: false, isVideoEnabled: false };
-
 
     close() {
         console.log(`peer close() - ${this.id} ${this.displayName}`);

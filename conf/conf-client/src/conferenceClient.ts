@@ -156,8 +156,8 @@ export class ConferenceClient {
 
         this.CallConnectTimeoutTimerIds.clear();
 
-        this.acceptInvite = null;
-        this.rejectInvite = null;
+        this.inviteSendMsg = null;
+        this.inviteReceivedMsg = null;
 
         this.authToken = "";
         this.callState = "disconnected";
@@ -1743,7 +1743,7 @@ export class ConferenceClient {
         };
 
         this.roomsClient.eventOnRoomPeerJoined = async (roomId: string, peer: Peer) => {
-            console.log(`onRoomPeerJoinedEvent roomId: ${roomId} ${peer.peerId} ${peer.displayName} `);
+            console.log(`onRoomPeerJoinedEvent roomId: ${roomId} ${peer.peerId} ${peer.displayName} `, peer);
 
             //the peer.trackingId is the participantId
             let participant = this.conference.participants.get(peer.trackingId);
@@ -1751,6 +1751,12 @@ export class ConferenceClient {
                 console.error(`participant already in local conference: ${peer.trackingId} ${participant.displayName}`);
                 return;
             }
+
+            if(!peer.tracksInfo) {
+                console.error(`peer tracksInfo is required.`);
+                return;
+            }
+
 
             //create a new participant and add it to the conference
             participant = new Participant();

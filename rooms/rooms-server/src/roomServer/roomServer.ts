@@ -97,7 +97,7 @@ export class RoomServer {
             const minPort = START_PORT + i * portsPerWorker;
             const maxPort = (i === NUM_WORKERS - 1) ? END_PORT : minPort + portsPerWorker - 1;
 
-            let workerData : WorkerData = {
+            let workerData: WorkerData = {
                 minPort, maxPort
             };
 
@@ -114,7 +114,7 @@ export class RoomServer {
                 setTimeout(() => process.exit(1), 2000);
             });
 
-            this.workers.push(worker);            
+            this.workers.push(worker);
         }
     }
 
@@ -325,7 +325,7 @@ export class RoomServer {
         let worker = this.getNextWorker();
 
         let router = await worker.createRouter({
-            appData: worker.appData, 
+            appData: worker.appData,
             mediaCodecs: [
                 {
                     kind: 'audio',
@@ -880,7 +880,7 @@ export class RoomServer {
                     producerId: producer.id,
                     kind: producer.kind
                 })),
-                trackInfo: otherPeer.peer.trackInfo
+                trackInfo: otherPeer.peer.tracksInfo
             });
         }
 
@@ -898,7 +898,7 @@ export class RoomServer {
             msg.data.peerTrackingId = peer.trackingId;
             msg.data.displayName = peer.displayName;
             msg.data.producers = producersInfo;
-            msg.data.trackInfo = peer.trackInfo
+            msg.data.trackInfo = peer.tracksInfo;
             this.send(otherPeer.peer.id, msg);
         }
 
@@ -1111,7 +1111,14 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeServer.error, "peer not found.");
         }
 
-        peer.trackInfo = msgIn.data.tracksInfo;
+        if (!msgIn.data.tracksInfo) {
+            consoleError(`no tracksInfo sent`);
+            return new ErrorMsg(payloadTypeServer.error, "`no tracksInfo sent.");
+        }
+
+        peer.tracksInfo.isAudioEnabled = !!(msgIn.data.tracksInfo.isAudioEnabled);
+        peer.tracksInfo.isVideoEnabled = !!(msgIn.data.tracksInfo.isVideoEnabled);
+
         //we don't need to pause/resume the producer on the server side, the client will enable/disable the track
 
         //send to all peers in the room
@@ -1153,7 +1160,14 @@ export class RoomServer {
             return;
         }
 
-        remotePeer.trackInfo = msgIn.data.tracksInfo;
+        if(!msgIn.data.tracksInfo){
+            consoleError(`tracksInfo is null` );
+            return;
+        }
+
+        remotePeer.tracksInfo.isAudioEnabled = !!msgIn.data.tracksInfo.isAudioEnabled;
+        remotePeer.tracksInfo.isVideoEnabled = !!msgIn.data.tracksInfo.isVideoEnabled;
+
         await peer.room.muteProducer(remotePeer);
 
         //send the track state to all peers so they can update their UI

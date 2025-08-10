@@ -29,21 +29,21 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
             console.log(`videoRef set srcObject ${participant.displayName}`);
         }
 
-        setAudioEnabled(participant.tracksInfo?.isAudioEnabled ?? false);
-        setVideoEnabled(participant.tracksInfo?.isVideoEnabled ?? false);
+        setAudioEnabled(participant.tracksInfo.isAudioEnabled ?? false);
+        setVideoEnabled(participant.tracksInfo.isVideoEnabled ?? false);
 
         //check if tracks are in sync
         let audioTrackEnabled = participant.stream.getAudioTracks()[0]?.enabled
         let videoTrackEnabled = participant.stream.getVideoTracks()[0]?.enabled
 
         if (participant.tracksInfo?.isAudioEnabled !== audioTrackEnabled) {
-            console.error(`${participant.displayName} audioTrackEnabled not in sync ${participant.tracksInfo?.isAudioEnabled} ${audioTrackEnabled}`);
+            console.warn(`${participant.displayName} audioTrackEnabled not in sync ${participant.tracksInfo.isAudioEnabled} ${audioTrackEnabled}`);
         } else {
             console.log(`${participant.displayName} audioTrackEnabled in sync`);
         }
 
         if (participant.tracksInfo?.isVideoEnabled !== videoTrackEnabled) {
-            console.error(`${participant.displayName} videoTrackEnabled not in sync ${participant.tracksInfo?.isVideoEnabled} ${videoTrackEnabled}`);
+            console.warn(`${participant.displayName} videoTrackEnabled not in sync ${participant.tracksInfo?.isVideoEnabled} ${videoTrackEnabled}`);
         } else {
             console.log(`${participant.displayName} videoTrackEnabled in sync`);
         }
