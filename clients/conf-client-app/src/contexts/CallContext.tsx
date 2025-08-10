@@ -6,7 +6,9 @@ import { useAPI } from '../hooks/useAPI';
 import { useConfig } from '../hooks/useConfig';
 import { IMsg } from '@rooms/rooms-models';
 import { EventParticpantNewTrackMsg, EventTypes } from '@conf/conf-client';
-import { conferenceClient } from '../services/ConferenceService';
+import { getConferenceClient } from '../services/ConferenceService';
+
+export const conferenceClient = getConferenceClient();
 
 interface CallContextType {
     isConnected: boolean;

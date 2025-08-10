@@ -9,7 +9,7 @@ import { useAPI } from './hooks/useAPI';
 import { useCall } from './hooks/useCall';
 import { UIProvider } from './contexts/UIContext';
 import { useLocation } from 'react-router-dom';
-import { conferenceClient } from './services/ConferenceService';
+import { getConferenceClient } from './services/ConferenceService';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAPI();
@@ -20,7 +20,7 @@ const AppRoutes: React.FC = () => {
     console.log('loading app');
     return () => {
       console.log('unmounting app');
-      conferenceClient.dispose();
+      getConferenceClient().dispose();
     };
   }, []);
 

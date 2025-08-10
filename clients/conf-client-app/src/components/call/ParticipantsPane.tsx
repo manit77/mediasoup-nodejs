@@ -5,7 +5,7 @@ import { useAPI } from '../../hooks/useAPI';
 import { MicFill, MicMuteFill, CameraVideoFill, CameraVideoOffFill } from 'react-bootstrap-icons';
 import { getBrowserUserMedia, isAudioAllowedFor, isVideoAllowedFor, Participant } from '@conf/conf-client';
 import { useUI } from '../../hooks/useUI';
-import { conferenceClient } from '../../services/ConferenceService';
+import { conferenceClient } from '../../contexts/CallContext';
 
 interface ParticipantVideoPreviewProps {
     participant?: Participant
