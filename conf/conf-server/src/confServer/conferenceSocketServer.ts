@@ -34,18 +34,28 @@ export class ConferenceSocketServer {
             consoleLog(LOG, `new socket connected, connections: ${this.connections.size}, participants: ` + this.confServer.participants.size);
 
             let newConnection = new SocketConnection(ws, this.config.conf_socket_timeout_secs);
-            newConnection.ips.push(req.socket.remoteAddress);
+            if (req.socket.remoteAddress) {
+                newConnection.ips.push(req.socket.remoteAddress);
+            }
+
             const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
             if (ip) {
                 newConnection.ips.push(ip);
             }
+            consoleWarn(`socket ips:`, newConnection.ips);
 
             newConnection.addEventHandlers(this.onSocketTimeout.bind(this));
             this.connections.set(ws, newConnection);
             newConnection.restartSocketTimeout();
 
-            ws.onmessage = async (message) => {
-                const msgIn = JSON.parse(message.data.toString()) as IMsg;
+            this.startHeartbeat(ws, newConnection);
+
+            ws.on("message", async (message) => {
+                if (!message) {
+                    return;
+                }
+
+                const msgIn = JSON.parse(message.toString()) as IMsg;
                 let conn = this.connections.get(ws);
                 if (!conn) {
                     consoleError(LOG, `connection not found.`);
@@ -91,19 +101,26 @@ export class ConferenceSocketServer {
                     conn.ws.send(JSON.stringify(returnMsg));
                 }
 
-            };
+            });
 
-            ws.onclose = async () => {
-                consoleLog(LOG, `socket closed`);
-                let conn = this.connections.get(ws);
+            ws.on('pong', () => {
+                const conn = this.connections.get(ws);
                 if (conn) {
-                    this.connections.delete(conn.ws);
-                    if (conn && conn.participantId) {
-                        this.confServer.terminateParticipant(conn.participantId);
-                        conn.dispose();
-                    }
+                    conn.lastPong = Date.now();
+                    consoleLog(LOG, `Pong received for ${conn.username || 'unregistered'}`);
                 }
-            }
+            });
+
+            ws.on("close", async () => {
+                consoleLog(LOG, `socket closed`);
+                this.cleanupSocket(ws);
+            });
+
+            ws.on("error", (event) => {
+                consoleError(`socket error`, event);
+                this.cleanupSocket(ws);
+            });
+
         });
     }
 
@@ -121,6 +138,7 @@ export class ConferenceSocketServer {
 
     onSendMsg(participant: Participant, msg: IMsg) {
         consoleLog(LOG, `onSendMsg`, msg.type);
+
         try {
             let conn = [...this.connections.values()].find(c => c.participantId === participant.participantId);
             if (conn) {
@@ -133,10 +151,44 @@ export class ConferenceSocketServer {
 
     onSocketTimeout(conn: SocketConnection) {
         consoleLog(LOG, `onSocketTimeout`);
+
         if (conn.participantId) {
             this.confServer.terminateParticipant(conn.participantId);
         }
         this.connections.delete(conn.ws);
         conn.dispose();
+    }
+
+    startHeartbeat(ws: WebSocket, conn: SocketConnection) {
+        conn.lastPong = Date.now();
+        let pongInteralSec = 30;
+        const heartbeatInterval = setInterval(() => {
+            if (ws.readyState === WebSocket.CLOSED) {
+                clearInterval(heartbeatInterval);
+                this.cleanupSocket(ws);
+                return;
+            }
+
+            if (Date.now() - conn.lastPong > this.config.conf_socket_pong_timeout_secs * 1000) {
+                consoleWarn(LOG, `No pong received, closing connection`);
+                this.cleanupSocket(ws);
+                clearInterval(heartbeatInterval);
+                return;
+            }
+            ws.ping();
+        }, pongInteralSec * 1000);
+    }
+
+    cleanupSocket(ws: WebSocket) {
+        consoleLog(LOG, `cleanupSocket`);
+
+        let conn = this.connections.get(ws);
+        if (conn) {
+            this.connections.delete(conn.ws);
+            if (conn && conn.participantId) {
+                this.confServer.terminateParticipant(conn.participantId);
+                conn.dispose();
+            }
+        }
     }
 }

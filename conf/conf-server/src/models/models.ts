@@ -21,6 +21,7 @@ export class SocketConnection {
     eventHandlers: onSocketTimeout[] = [];
     dateOfLastMsg: Date = new Date();
     dateCreated = new Date();
+    lastPong : number;
     ips: string[] = [];
 
     constructor(webSocket: WebSocket, socketTimeoutSecs: number) {
