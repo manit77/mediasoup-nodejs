@@ -25,6 +25,8 @@ export class WebSocketClient {
     callbacks: Map<eventsTypes, Function[]> = new Map();
     state: "" | "connecting" | "connected" | "disconnected" | "reconnecting" = "";
     autoReconnect = false;
+    reconnectAttempts = 0;
+
     private messageQueue: Array<{ message: CallMessage; resolve: () => void }> = [];
     private isProcessing: boolean = false;
     private enableLogs = true;
@@ -56,6 +58,7 @@ export class WebSocketClient {
             this.writeLog("socket server connected");
 
             this.state = "connected";
+            this.reconnectAttempts = 0;
             await this.fireEvent("onopen");
         };
 
@@ -69,11 +72,12 @@ export class WebSocketClient {
         this.socket.onclose = async () => {
             this.writeLog("onclose");
 
-            if (this.autoReconnect) {
+            if (this.autoReconnect) {                
                 this.writeLog("Attempting to reconnect...");
                 this.state = "reconnecting";
                 await this.fireEvent("onclose");
                 setTimeout(() => {
+                    this.reconnectAttempts++;
                     this.socket = null; // Reset socket
                     this.connect(uri, this.autoReconnect);
                 }, reconnectSecs * 1000);
