@@ -63,7 +63,8 @@ export enum payloadTypeServer {
     peerTerminated = "peerTerminated",
     error = "error",
     ok = "ok",
-    unauthorized = "",
+    unauthorized = "unauthorized",
+    //notRegistered = "notRegistered",
 }
 
 export interface IMsg {

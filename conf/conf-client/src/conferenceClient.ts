@@ -6,14 +6,16 @@ import {
     JoinConferenceParams, JoinConfMsg, JoinConfResultMsg, LeaveMsg, ParticipantInfo,
     PresenterInfoMsg,
     RegisterMsg, RegisterResultMsg, RejectMsg,
-    LoggedOffMsg
+    LoggedOffMsg,
+    //NotRegisteredMsg,
+    UnauthorizedMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
 import { callStates, Conference, ConferenceClientConfig, Participant, SelectedDevices } from "./models.js";
 import { EventParticpantNewTrackMsg, EventTypes } from "./conferenceEvents.js";
 import { ConferenceAPIClient } from "./conferenceAPIClient.js";
-import { IMsg, OkMsg } from "@rooms/rooms-models";
+import { IMsg, OkMsg, payloadTypeClient, payloadTypeServer } from "@rooms/rooms-models";
 import { getBrowserDisplayMedia, getBrowserUserMedia } from "./conferenceUtils.js";
 
 export type ConferenceEvent = (eventType: EventTypes, payload: IMsg) => Promise<void>;
@@ -124,6 +126,10 @@ export class ConferenceClient {
         this.socket.addEventHandler("onmessage", async (event: any) => {
             const message = JSON.parse(event.data);
             await this.onSocketMessage(message);
+        });
+
+        this.socket.addEventHandler("networkchange", () => {
+            this.onNetworkChange();
         });
 
         this.socket.connect(this.config.conf_ws_url, this.config.socket_autoReconnect ?? true, this.config.socket_reconnect_secs ?? 5);
@@ -259,7 +265,6 @@ export class ConferenceClient {
         });
     }
 
-
     private async onSocketConnected() {
         console.log("onSocketConnected()");
 
@@ -387,12 +392,34 @@ export class ConferenceClient {
                 await this.onPresenterInfo(message);
                 break;
             case CallMessageType.loggedOff:
-                await this.onLoggedOff(message);
+                {
+                    await this.onLoggedOff(message);
+                    break;
+                }
+            case CallMessageType.unauthorized: {
+                await this.onUnauthorized(message);
                 break;
-
+            }
+            // case CallMessageType.notRegistered: {
+            //     await this.onNotRegistred(message);
+            //     break;
+            // }
         }
 
         this.messageQueue.forEach(cb => cb(message));
+    }
+
+    private async onNetworkChange() {
+        console.log("onNetworkChange");
+        //send a test message
+        if (!this.sendToServer(new OkMsg(payloadTypeServer.ok, {}))) {
+            //disconnected from server
+            //this.waitRegisterConnection(this.username, this.authToken, this.clientData);
+            this.disconnectRoomsClient("network change", 0);
+            this.localParticipant.participantId == "";
+            this.localParticipant.peerId = "";
+            this.socket.connect(this.config.conf_ws_url, this.config.socket_autoReconnect);
+        }
     }
 
     startCallConnectTimer() {
@@ -1409,6 +1436,16 @@ export class ConferenceClient {
         await this.onEvent(EventTypes.loggedOff, message);
     }
 
+    private async onUnauthorized(message: UnauthorizedMsg) {
+        console.log("onUnauthorized");
+        await this.onEvent(EventTypes.unAuthorized, message);
+    }
+
+    // private async onNotRegistred(message: NotRegisteredMsg) {
+    //     console.log("onNotRegistred");
+    //     this.onSocketClosed("not registered.");
+    // }
+
     private async onParticipantsReceived(message: GetParticipantsResultMsg) {
         console.log("onParticipantsReceived");
 
@@ -1697,7 +1734,7 @@ export class ConferenceClient {
 
             //add self to the call participants
             this.conference.participants.set(this.localParticipant.participantId, this.localParticipant);
-            console.log(`add self to conference.participants ${this.conference.participants.size}`);            
+            console.log(`add self to conference.participants ${this.conference.participants.size}`);
 
             if (this.conference.presenterId === this.localParticipant.participantId) {
                 this.conference.setPresenter(this.localParticipant);
@@ -1752,7 +1789,7 @@ export class ConferenceClient {
                 return;
             }
 
-            if(!peer.tracksInfo) {
+            if (!peer.tracksInfo) {
                 console.error(`peer tracksInfo is required.`);
                 return;
             }

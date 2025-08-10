@@ -7,6 +7,8 @@ export enum EventTypes {
 
     registerResult = "registerResult",
     loggedOff = "loggedOff",
+    unAuthorized = "unAuthorized",
+    //onNotRegistred = "onNotRegistred",
 
     participantsReceived = "participantsReceived",
     conferencesReceived = "conferencesReceived",

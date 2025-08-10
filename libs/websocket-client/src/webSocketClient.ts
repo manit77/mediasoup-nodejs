@@ -1,4 +1,4 @@
-export type eventsTypes = "onopen" | "onerror" | "onclose" | "onmessage";
+export type eventsTypes = "onopen" | "onerror" | "onclose" | "onmessage" | "networkchange";
 
 export enum CallMessageType {
     registerResult = "registerResult",
@@ -103,29 +103,17 @@ export class WebSocketClient {
 
     private handleBeforeUnload() {
         this.writeLog("Closing WebSocket on page unload");
-        this.disconnect();
+        if (this.socket) {
+            this.socket.close();
+            this.socket = null;
+            this.writeLog("socket closed.");
+        }
+        this.fireEvent("onclose");
     }
 
     private handleNetworkChange() {
         this.writeLog(`Network change detected, online: ${navigator.onLine}`);
-        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-            if (!navigator.onLine) {
-                this.writeLog("Device offline, closing WebSocket");
-                this.disconnect();
-            } else {
-                // Test connection by sending a message
-                this.writeLog("Device online, testing connection");
-                this.send({ type: 'ping-test', data: 'test' });
-                // Optionally force reconnect if no response expected
-                setTimeout(() => {
-                    if (this.state === "connected" && this.socket?.readyState === WebSocket.OPEN) {
-                        this.writeLog("Forcing reconnect due to network change");
-                        this.disconnect();
-                        this.connect(this.uri, this.autoReconnect, this.reconnectSecs);
-                    }
-                }, 3000);
-            }
-        }
+        this.fireEvent("networkchange");
     }
 
     private async enqueueMessage(message: CallMessage): Promise<void> {

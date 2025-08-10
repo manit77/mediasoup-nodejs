@@ -3,8 +3,12 @@ import { ConferenceServer } from './conferenceServer.js';
 import { Participant, SocketConnection } from '../models/models.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import https from 'https';
-import { IMsg } from '@rooms/rooms-models';
-import { CallMessageType, RegisterResultMsg } from '@conf/conf-models';
+import { IMsg, UnauthorizedMsg } from '@rooms/rooms-models';
+import {
+    CallMessageType,
+    // NotRegisteredMsg, 
+    RegisterResultMsg
+} from '@conf/conf-models';
 import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
 import { ConferenceServerConfig, ConferenceServerEventTypes } from './models.js';
 
@@ -54,8 +58,18 @@ export class ConferenceSocketServer {
                 if (!message) {
                     return;
                 }
+                
+                let msgIn: IMsg;
 
-                const msgIn = JSON.parse(message.toString()) as IMsg;
+                try {
+                    msgIn = JSON.parse(message.toString()) as IMsg;
+                } catch (err) {
+                    //not a a json string
+                    consoleError(err, message);
+                    consoleError(message.toString());
+                    return;
+                }
+
                 let conn = this.connections.get(ws);
                 if (!conn) {
                     consoleError(LOG, `connection not found.`);
@@ -91,7 +105,13 @@ export class ConferenceSocketServer {
                     }
                 } else {
                     if (!conn.participantId) {
-                        consoleError(LOG, `participantId is required when registering.`);
+                        consoleError(LOG, `connection is not registered.`, msgIn);
+                        //send back unauthorized
+                        let msg = new UnauthorizedMsg();
+                        conn.ws.send(JSON.stringify(msg));
+
+                        // let msgNotRegistered = new NotRegisteredMsg();
+                        // conn.ws.send(JSON.stringify(msgNotRegistered));
                         return;
                     }
                     returnMsg = await this.confServer.handleMsgInWS(conn.participantId, msgIn);
@@ -174,7 +194,7 @@ export class ConferenceSocketServer {
                 clearInterval(heartbeatInterval);
                 return;
             }
-            
+
             ws.ping();
         }, this.config.conf_socket_ping_interval_secs * 1000);
     }

@@ -7,6 +7,8 @@ export enum CallMessageType {
     loginResult = "loginResult",
 
     loggedOff = "loggedOff",
+    unauthorized = "unauthorized",
+    //notRegistered = "notRegistered",
 
     register = "register", //register the partcipant as online
     registerResult = "registerResult", //partcipant recieves a registration result
@@ -275,5 +277,20 @@ export class PresenterInfoMsg implements IMsg {
     data: {
         participantId?: string,
         status?: "on" | "off"
+    } = {};
+}
+
+// export class NotRegisteredMsg implements IMsg {
+//     type = CallMessageType.notRegistered;
+//     data: {
+//         error?: string
+//     } = {};
+// }
+
+
+export class UnauthorizedMsg implements IMsg {
+    type = CallMessageType.unauthorized;
+    data: {
+        error?: string
     } = {};
 }

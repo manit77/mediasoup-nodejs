@@ -8,6 +8,6 @@
   "main": "dist/index.js",
   "types": "src/index.ts",
   "scripts": {
-    "build": "rm -rf dist && tsc --build --force"
+    "build": "tsc --build --force"
   }
 }
