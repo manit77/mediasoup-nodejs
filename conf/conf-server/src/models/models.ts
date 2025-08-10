@@ -21,7 +21,7 @@ export class SocketConnection {
     eventHandlers: onSocketTimeout[] = [];
     dateOfLastMsg: Date = new Date();
     dateCreated = new Date();
-    ips : string[] = [];
+    ips: string[] = [];
 
     constructor(webSocket: WebSocket, socketTimeoutSecs: number) {
         this.ws = webSocket;
@@ -43,6 +43,15 @@ export class SocketConnection {
         this.eventHandlers.push(cb);
     }
 
+    clearSocketTimeout = () => {
+        consoleLog(`clearSocketTimeout`);
+
+        if (this.socketTimeoutId) {
+            clearTimeout(this.socketTimeoutId);
+            this.socketTimeoutId = null;
+        }
+    };
+
     restartSocketTimeout = () => {
         consoleLog(`restartSocketTimeout`);
 
@@ -57,6 +66,7 @@ export class SocketConnection {
         }
 
         consoleLog(`SocketConnection socketTimeout started:`, this.timeoutSecs);
+        consoleWarn(`Socket has ${this.timeoutSecs} to register.`);
         this.socketTimeoutId = setTimeout(() => {
             consoleLog(`SocketConnection socketTimeout reached ${this.eventHandlers.length}`);
             for (let cb of this.eventHandlers) {
@@ -64,7 +74,7 @@ export class SocketConnection {
                 cb(this);
             }
         }, this.timeoutSecs * 1000);
-    }
+    };
 
 }
 
@@ -82,7 +92,7 @@ export class Participant {
     connection: SocketConnection;
     participantGroup = "";
     dateCreated = new Date();
-    
+
     constructor() {
 
     }
@@ -210,7 +220,7 @@ export class Conference {
         let existingParticipants = [...this.participants.values()];
 
         this.presenter = null;
-        
+
         for (let part of this.participants.values()) {
             part.conference = null;
         }

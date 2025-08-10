@@ -32,12 +32,13 @@ export class ConferenceSocketServer {
         this.wsServer.on('connection', (ws: WebSocket, req) => {
 
             consoleLog(LOG, `new socket connected, connections: ${this.connections.size}, participants: ` + this.confServer.participants.size);
+
             let newConnection = new SocketConnection(ws, this.config.conf_socket_timeout_secs);
             newConnection.ips.push(req.socket.remoteAddress);
             newConnection.ips.push(req.socket.localAddress);
 
             newConnection.addEventHandlers(this.onSocketTimeout.bind(this));
-            this.connections.set(ws, newConnection);
+            this.connections.set(ws, newConnection);            
             newConnection.restartSocketTimeout();
 
             ws.onmessage = async (message) => {
@@ -72,7 +73,7 @@ export class ConferenceSocketServer {
                             conn.participantId = returnMsg.data.participantId;
                             conn.username = returnMsg.data.username
                             consoleLog(LOG, `socket registered`, conn.participantId, conn.username);
-                            conn.restartSocketTimeout();
+                            conn.clearSocketTimeout();
                         }
                     }
                 } else {
@@ -83,10 +84,7 @@ export class ConferenceSocketServer {
                     returnMsg = await this.confServer.handleMsgInWS(conn.participantId, msgIn);
                 }
 
-                if (returnMsg) {
-                    if (!returnMsg.data.error) {
-                        conn.restartSocketTimeout();
-                    }
+                if (returnMsg) {                    
                     conn.ws.send(JSON.stringify(returnMsg));
                 }
 
