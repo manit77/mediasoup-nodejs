@@ -1,6 +1,9 @@
 {
     "conf_ws_url": "wss://localhost:8000",
+    "conf_server_url": "https://localhost:8000",    
+    "conf_call_connect_timeout_secs" : 30,
+    "conf_socket_register_timeout_secs" : 30,
     "socket_enable_logs": false,
-    "conf_server_url": "https://localhost:8000",
-    "conf_call_connect_timeout_secs": 60  
+    "socket_autoReconnect" : true,
+    "socket_reconnect_secs" : 5    
 }

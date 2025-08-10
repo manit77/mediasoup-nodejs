@@ -16,14 +16,12 @@ interface JoinRoomPopUpProps {
 const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show, onClose }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, isCallActive, createConferenceOrJoin, joinConference, getLocalMedia } = useCall();
+    const { localParticipant, isCallActive, createOrJoinConference, joinConference, getLocalMedia, isWaiting } = useCall();
     const navigate = useNavigate();
-
-
+    
     const [conferenceCode, setConferenceCode] = useState<string>('');
     const [requireConfCode, setRequireConfCode] = useState<boolean>(false);
 
-    const [loading, setLoading] = useState<boolean>(false);
     const [micEnabled, setMicEnabled] = useState<boolean>(true); // Default to true
     const [cameraEnabled, setCameraEnabled] = useState<boolean>(true); // Default to true
     const [showMicOption, setShowMicOption] = useState<boolean>(true); // Default to true
@@ -116,8 +114,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
     const handleJoinRoom = async (event: React.FormEvent) => {
         event.preventDefault();
-
-        setLoading(true);
+        
         try {
             //make sure we have a stream before making a call
 
@@ -155,7 +152,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             console.log('conferenceScheduled', conferenceScheduled);
 
             if (api.isUser()) {
-                createConferenceOrJoin(conferenceScheduled.externalId, conferenceCode);
+                createOrJoinConference(conferenceScheduled.externalId, conferenceCode);
             } else {
                 if (conferenceScheduled.conferenceId) {
                     joinConference(conferenceCode, conferenceScheduled);
@@ -167,7 +164,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             console.error('Failed to join conference:', error);
             ui.showPopUp('Failed to join the conferenceScheduled. Please try again.');
         } finally {
-            setLoading(false);
+           
         }
     };
 
@@ -201,7 +198,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                                     onChange={(e) => setConferenceCode(e.target.value)}
                                     placeholder="e.g., 12345"
                                     required
-                                    disabled={loading}
+                                    disabled={isWaiting}
                                 />
                             </Form.Group>
                         ) : null
@@ -214,7 +211,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                                 label="Join with Microphone Enabled"
                                 checked={micEnabled}
                                 onChange={(e) => toggleMic(e.target.checked)}
-                                disabled={loading}
+                                disabled={isWaiting}
                             />
                         </Form.Group>
                     ) : null}
@@ -227,7 +224,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                                 label="Join with Camera Enabled"
                                 checked={cameraEnabled}
                                 onChange={(e) => toggleCamera(e.target.checked)}
-                                disabled={loading}
+                                disabled={isWaiting}
                             />
                         </Form.Group>
                     ) : null}
@@ -248,8 +245,8 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                     } */}
 
                     <div className="d-grid gap-2 mt-4"> {/* Added margin-top for spacing */}
-                        <Button variant="primary" type="submit" disabled={loading}>
-                            {loading ? 'Joining...' : 'Join Room'}
+                        <Button variant="primary" type="submit" disabled={isWaiting}>
+                            {isWaiting ? 'Joining...' : 'Join Room'}
                         </Button>
                     </div>
                 </Form>
@@ -257,7 +254,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             <Modal.Footer>
                 {/* Only one primary action button is usually needed for form submission.
                     If you want a separate cancel button, it goes here. */}
-                <Button variant="secondary" onClick={handleCancelClick} disabled={loading}>
+                <Button variant="secondary" onClick={handleCancelClick} disabled={isWaiting}>
                     Cancel
                 </Button>
             </Modal.Footer>

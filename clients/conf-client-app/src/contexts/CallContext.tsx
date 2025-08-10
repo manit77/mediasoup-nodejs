@@ -1,5 +1,5 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
-import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, GetUserMediaConfig, InviteMsg, JoinConferenceParams, ParticipantInfo } from '@conf/conf-models';
+import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, GetUserMediaConfig, InviteMsg, JoinConferenceParams, ParticipantInfo, RegisterResultMsg } from '@conf/conf-models';
 import { Conference, Device, getBrowserDisplayMedia, getBrowserUserMedia, Participant, SelectedDevices } from '@conf/conf-client';
 import { useUI } from '../hooks/useUI';
 import { useAPI } from '../hooks/useAPI';
@@ -17,6 +17,7 @@ interface CallContextType {
     isLocalStreamUpdated: boolean;
     presenter: Participant;
 
+    isWaiting: boolean;
     isCallActive: boolean;
     conference: Conference;
     callParticipants: Map<string, Participant>;
@@ -39,7 +40,7 @@ interface CallContextType {
 
     createConference: (externalId: string, roomName: string) => void;
     joinConference: (conferenceCode: string, scheduled: ConferenceScheduledInfo) => Promise<void>;
-    createConferenceOrJoin: (externalId: string, conferenceCode: string) => Promise<void>;
+    createOrJoinConference: (externalId: string, conferenceCode: string) => Promise<void>;
 
     sendInvite: (participantInfo: ParticipantInfo, options: GetUserMediaConfig) => Promise<void>;
     acceptInvite: () => Promise<void>;
@@ -74,6 +75,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const localParticipant = useRef<Participant>(conferenceClient.localParticipant);
     const [presenter, setPresenter] = useState<Participant>(conferenceClient.conference?.presenter);
+    
+    const [isWaiting, setIsWaiting] = useState<boolean>(false);
     const [isCallActive, setIsCallActive] = useState<boolean>(conferenceClient.isInConference());
     const [conference, setConferenceRoom] = useState<Conference>(conferenceClient.conference);
     const [callParticipants, setCallParticipants] = useState<Map<string, Participant>>(conferenceClient.conference.participants);
@@ -91,7 +94,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         conferenceClient.init(config);
+        initState();
+    }, [config])
 
+    const initState = () => {
         //init all default values
         setIsConnected(conferenceClient.isConnected);
         setIsAuthenticated(conferenceClient.isConnected && conferenceClient.localParticipant.participantId ? true : false);
@@ -108,8 +114,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setConferencesOnline(conferenceClient.conferencesOnline);
         setInviteInfoSend(conferenceClient.inviteSendMsg);
         setInviteInfoReceived(conferenceClient.inviteReceivedMsg);
+        setIsWaiting(false);
 
-    }, [config])
+    }
 
     useEffect(() => {
         console.log(`** CallProvider mounted isAuthenticated:${isAuthenticated} isConnected: ${isConnected}`);
@@ -229,17 +236,19 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 case EventTypes.loggedOff: {
                     console.log("CallContext: loggedOff");
 
+                    initState();
+
                     let reason = msgIn.data.reason ?? "you have logged off by the server";
-                    ui.showPopUp(reason, "error");
-                    setIsAuthenticated(false);
-                    api.logout();
+                    ui.showPopUp(reason, "error");                    
+                    api.logout();                    
 
                     break;
                 }
                 case EventTypes.connected: {
                     console.log("CallContext: server connected");
 
-                    setIsConnected(true);
+                    initState();
+                   
                     ui.hidePopUp();
                     ui.showToast("connected to server");
                     break;
@@ -247,11 +256,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 case EventTypes.disconnected: {
                     console.log("CallContext: disconnected from server");
 
-                    setIsConnected(false);
-                    setIsAuthenticated(false);
-                    setIsCallActive(false);
-                    setConferenceRoom(conferenceClient.conference);
+                    initState();                    
                     ui.showToast("disconnected from server. trying to reconnect...");
+                    
                     break;
                 }
                 case EventTypes.participantsReceived: {
@@ -375,7 +382,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         };
         return () => { // Cleanup
-            conferenceClient.disconnect();
+            //don't disconnec the conferenceClient
+            //the callcontext can get recreated
         }
     }, [callParticipants, getConferenceRoomsOnline, ui]);
 
@@ -427,11 +435,17 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 externalId: "",
             }
 
+            if (!await waitTryRegister()) {
+                console.error('wait for registration failed.');
+                return;
+            }
+
             let inviteMsg = conferenceClient.sendInvite(participantInfo.participantId, joinArgs);
             if (!inviteMsg) {
                 ui.showPopUp("error unable to initiate a new call", "error");
                 return;
             }
+            ui.showToast(`invite sent`);
             inviteMsg.data.displayName = participantInfo.displayName;
             setInviteInfoSend(inviteMsg);
 
@@ -498,6 +512,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             config: null
         }
 
+        if (!await waitTryRegister()) {
+            console.error('wait for registration failed.');
+            return;
+        }
+
         if (conferenceClient.createConferenceRoom(createArgs)) {
             ui.showToast("creating conference");
         } else {
@@ -512,6 +531,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error("CallContext: joinConference: conferenceId is required");
             return;
         }
+
+        if (!await waitTryRegister()) {
+            console.error('wait for registration failed.');
+            return;
+        }
+
+
         let joinArgs: JoinConferenceParams = {
             //audioEnabledOnStart: startWithAudioEnabled,
             //videoEnabledOnStart: startWithVideoEnabled
@@ -529,8 +555,14 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [api, ui]);
 
-    const createConferenceOrJoin = useCallback(async (externalId: string, conferenceCode: string) => {
-        console.log(`CallContext: createConferenceOrJoin externalId:${externalId}, conferenceCode:${conferenceCode}`);
+    const createOrJoinConference = useCallback(async (externalId: string, conferenceCode: string) => {
+        console.log(`CallContext: createOrJoinConference externalId:${externalId}, conferenceCode:${conferenceCode}`);
+
+        if (!await waitTryRegister()) {
+            console.error('wait for registration failed.');
+            return;
+        }
+
         let createArgs: CreateConferenceParams = {
             conferenceCode: conferenceCode,
             conferenceId: "",
@@ -547,7 +579,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             conferenceId: "",
             roomName: "",
             externalId: externalId,
-
         }
 
         let result = await conferenceClient.waitCreateAndJoinConference(createArgs, joinArgs);
@@ -585,7 +616,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setPresenter(conferenceClient.conference.presenter);
             setIsScreenSharing(true);
             setIsLocalStreamUpdated(true);
-            setCallParticipants(prev => new Map(conferenceClient.conference.participants));        
+            setCallParticipants(prev => new Map(conferenceClient.conference.participants));
         } else {
             ui.showPopUp("unable to start screen share.", "error");
         }
@@ -671,12 +702,34 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     }, [getMediaConstraints, selectedDevices]);
 
+    const waitTryRegister = useCallback(async () => {
+        setIsWaiting(true);
+        let isRegistered = conferenceClient.isRegistered();
+        if (!isRegistered) {
+            ui.showToast('waiting to connect.', "warning");
+            try {
+                isRegistered = await conferenceClient.waitTryRegister();
+            } catch (error) {
+                console.error("waitTryRegister - registration error.", error);
+                isRegistered = false;
+            }
+        }
+
+        if (!isRegistered) {
+            console.error("waitTryRegister: not registered");
+            ui.showPopUp("waitTryRegister: not connected to server, please try again.", "error");
+        }
+        setIsWaiting(false);
+        return isRegistered;
+    }, [])
+
     useEffect(() => {
         setupWebRTCEvents();
     }, [setupWebRTCEvents]);
 
     const disconnect = useCallback(async () => {
-
+        console.warn("CallContext disconnect()");
+        
         conferenceClient.disconnect();
 
         setIsConnected(false);
@@ -704,6 +757,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isLocalStreamUpdated,
             presenter,
 
+            isWaiting,
             isCallActive: isCallActive,
             conference: conference,
             callParticipants,
@@ -727,7 +781,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             createConference,
             joinConference,
-            createConferenceOrJoin,
+            createOrJoinConference,
 
             sendInvite,
             acceptInvite,

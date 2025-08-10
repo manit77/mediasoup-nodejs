@@ -247,7 +247,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                             background: '#444',
                         }}
                     >
-                        video is off
+                        {participant == localParticipant ? "your" : `${participant.displayName}'s`} video is off
                         <CameraVideoOffFill size={30} />
                     </div>
                 ) : null}

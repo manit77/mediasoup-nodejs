@@ -7,7 +7,7 @@ import { useUI } from '../../hooks/useUI';
 import { Button } from 'react-bootstrap';
 import RoomsPane from './RoomsPane';
 import IncomingCallPopup from '../popups/IncomingCallPopup';
-import CallingPopup from '../call/CallingPopup';
+import CallingPopup from '../popups/CallingPopup';
 import { FilePersonFill, Gear } from 'react-bootstrap-icons';
 import { useAPI } from '../../hooks/useAPI';
 import { useNavigate } from 'react-router-dom';
