@@ -29,10 +29,13 @@ export class ConferenceSocketServer {
         this.printStats();
 
         this.wsServer = new WebSocketServer({ server: this.httpServer });
-        this.wsServer.on('connection', (ws: WebSocket) => {
+        this.wsServer.on('connection', (ws: WebSocket, req) => {
 
             consoleLog(LOG, `new socket connected, connections: ${this.connections.size}, participants: ` + this.confServer.participants.size);
             let newConnection = new SocketConnection(ws, this.config.conf_socket_timeout_secs);
+            newConnection.ips.push(req.socket.remoteAddress);
+            newConnection.ips.push(req.socket.localAddress);
+
             newConnection.addEventHandlers(this.onSocketTimeout.bind(this));
             this.connections.set(ws, newConnection);
             newConnection.restartSocketTimeout();
@@ -61,7 +64,7 @@ export class ConferenceSocketServer {
                         returnMsg.data.error = "already registered.";
 
                     } else {
-                        returnMsg =(await this.confServer.onRegister(msgIn) as RegisterResultMsg);
+                        returnMsg = (await this.confServer.onRegister(msgIn) as RegisterResultMsg);
                         if (returnMsg.data.error) {
                             consoleError(LOG, `failed to register socket ${returnMsg.data.error}`);
                             return;
@@ -104,15 +107,16 @@ export class ConferenceSocketServer {
     }
 
     printStats() {
-            consoleWarn(`#### Conference Socket Stats ####`);
-            consoleWarn(`connections: `, this.connections.size);
-            consoleWarn(`registered: `, [...this.connections.values()].filter(c=> c.participantId).length);
-            consoleWarn(`#################################`);
-    
-            setTimeout(() => {
-                this.printStats();
-            }, 30000);
-        }
+        consoleWarn(`#### Conference Socket Stats ####`);
+        consoleWarn(`connections: `, this.connections.size);
+        consoleWarn(`registered: `, [...this.connections.values()].filter(c => c.participantId).length);
+        this.connections.forEach(c => consoleWarn(`username: ${c.username}:`, c.ips));
+        consoleWarn(`#################################`);
+
+        setTimeout(() => {
+            this.printStats();
+        }, 30000);
+    }
 
     onSendMsg(participant: Participant, msg: IMsg) {
         consoleLog(LOG, `onSendMsg`, msg.type);

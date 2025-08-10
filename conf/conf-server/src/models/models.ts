@@ -21,6 +21,7 @@ export class SocketConnection {
     eventHandlers: onSocketTimeout[] = [];
     dateOfLastMsg: Date = new Date();
     dateCreated = new Date();
+    ips : string[] = [];
 
     constructor(webSocket: WebSocket, socketTimeoutSecs: number) {
         this.ws = webSocket;
@@ -80,7 +81,8 @@ export class Participant {
     clientData: {} = {}; //passed down from the user login or the query string from a client    
     connection: SocketConnection;
     participantGroup = "";
-
+    dateCreated = new Date();
+    
     constructor() {
 
     }

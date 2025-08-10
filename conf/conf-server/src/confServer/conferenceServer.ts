@@ -48,6 +48,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
     app: express.Express;
     httpServer: https.Server
     thirdParty: ThirdPartyAPI;
+    dateCreated = new Date();
 
     constructor(args: { config: ConferenceServerConfig }) {
         super({ enableLogs: false });
@@ -59,10 +60,13 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     printStats() {
         consoleWarn(`#### Conference Server Stats ####`);
+        consoleWarn(`dateCreated: ${this.dateCreated}`);
         consoleWarn(`Conferences: `, this.conferences.size);
+        this.conferences.forEach(c => consoleWarn(`roomName: ${c.roomName}, dateCreated: ${c.dateCreated}, id: ${c.id}`));
         consoleWarn(`Participants: `, this.participants.size);
+        this.participants.forEach(p => consoleWarn(`displayName: ${p.displayName}, dateCreated: ${p.dateCreated}, id: ${p.participantId}`));                
         consoleWarn(`#################################`);
-
+        
         setTimeout(() => {
             this.printStats();
         }, 30000);
