@@ -8,6 +8,7 @@ import { useCall } from '../../hooks/useCall';
 import { Navigate } from 'react-router-dom';
 import { Participant } from '@conf/conf-client';
 import { relative } from 'path';
+import { conferenceClient } from '../../contexts/CallContext';
 
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
@@ -42,7 +43,7 @@ const OnCallScreen: React.FC = () => {
     }, [callParticipants]);
 
     const handleSelectParticipantVideo = (participant: Participant) => {
-        console.warn(`handleSelectParticipantVideo:`, participant.stream?.getTracks());
+        console.warn(`handleSelectParticipantVideo- ${participant.displayName}, tracks:`, participant.stream?.getTracks());
 
         if (presenter) {
             console.warn("presenter already presenting");
@@ -53,6 +54,7 @@ const OnCallScreen: React.FC = () => {
             console.warn("cannot select self");
             return;
         }
+       
 
         if (participant.stream) {
             let videoTrack = participant.stream.getVideoTracks()[0]

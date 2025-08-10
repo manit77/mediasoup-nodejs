@@ -57,6 +57,7 @@ export class RoomsClient {
 
   eventOnRoomJoinFailed: (roomId: string) => Promise<void> = async () => { };
   eventOnRoomJoined: (roomId: string) => Promise<void> = async () => { };
+  eventRoomTransportsCreated: () => void = () => { };
   eventOnRoomPeerJoined: (roomId: string, peer: IPeer) => Promise<void> = async () => { };
   eventOnPeerNewTrack: (peer: IPeer, track: MediaStreamTrack) => Promise<void> = async () => { };
   eventOnRoomPeerLeft: (roomId: string, peer: IPeer) => Promise<void> = async () => { };
@@ -143,7 +144,7 @@ export class RoomsClient {
   * @param wsURI 
   * @returns 
   */
-  waitForConnect = (socketURI: string = "", timeoutSecs : number = 30): Promise<IMsg> => {
+  waitForConnect = (socketURI: string = "", timeoutSecs: number = 30): Promise<IMsg> => {
     console.log(`waitForConnect() ${socketURI}`);
     return new Promise<IMsg>((resolve, reject) => {
       try {
@@ -207,7 +208,7 @@ export class RoomsClient {
    * @param displayName 
    * @returns 
    */
-  waitForRegister = (authToken: string, trackingId: string, displayName: string, timeoutSecs : number = 30): Promise<IMsg> => {
+  waitForRegister = (authToken: string, trackingId: string, displayName: string, timeoutSecs: number = 30): Promise<IMsg> => {
     console.log("waitForRegister");
 
     return new Promise<IMsg>((resolve, reject) => {
@@ -277,7 +278,7 @@ export class RoomsClient {
     });
   };
 
-  waitForNewRoomToken = (expiresInMin: number, timeoutSecs : number = 30): Promise<IMsg> => {
+  waitForNewRoomToken = (expiresInMin: number, timeoutSecs: number = 30): Promise<IMsg> => {
     return new Promise<IMsg>((resolve, reject) => {
       let _onmessage: (event: any) => void;
       try {
@@ -318,7 +319,7 @@ export class RoomsClient {
     });
   };
 
-  waitForNewRoom = (maxPeers: number, maxRoomDurationMinutes: number, timeoutSecs : number = 30): Promise<IMsg> => {
+  waitForNewRoom = (maxPeers: number, maxRoomDurationMinutes: number, timeoutSecs: number = 30): Promise<IMsg> => {
     return new Promise<IMsg>((resolve, reject) => {
       let _onmessage: (event: any) => void;
 
@@ -367,7 +368,7 @@ export class RoomsClient {
    * @param roomToken 
    * @returns 
    */
-  waitForRoomJoin = (roomid: string, roomToken: string, timeoutSecs : number = 30): Promise<IMsg> => {
+  waitForRoomJoin = (roomid: string, roomToken: string, timeoutSecs: number = 30): Promise<IMsg> => {
     //remove the old event hanlder    
     return new Promise<IMsg>((resolve, reject) => {
       let _onmessage: (event: any) => void;
@@ -854,38 +855,37 @@ export class RoomsClient {
       return;
     }
 
+    //race condition can occur when onRoomNewProducer is fired before onRoomJoinResult
+    //we may need to store the producer info or fetch the produce info for the peer if we don't have one
     this.localRoom.roomId = msgIn.data.roomId;
+    await this.eventOnRoomJoined(this.localRoom.roomId);
+
+    if (msgIn.data && msgIn.data.peers) {
+      for (const peerInfo of msgIn.data.peers) {
+        let newpeer: Peer = this.createPeer(peerInfo.peerId, peerInfo.peerTrackingId, peerInfo.displayName, peerInfo.trackInfo);
+        await this.eventOnRoomPeerJoined(this.localRoom.roomId, newpeer);
+        let producerInfo = peerInfo.producers.map(p => ({ peer: newpeer, producerId: p.producerId, kind: p.kind }));
+        this.localRoom.producersToConsume.set(newpeer, producerInfo);
+        console.log("** onRoomJoinResult producers :" + peerInfo.producers?.length);
+      }
+    }
 
     console.log("roomId set, joined room " + msgIn.data!.roomId);
     console.log(`-- onRoomJoinResult() peers : ${msgIn.data?.peers.length}`);
 
     let transports = await this.waitForRoomTransports();
-
     if (transports.data.error) {
       console.log("unable to create transports");
       return;
     }
-
     console.log("transports created.");
-
-    //connect to existing peers  
-    if (msgIn.data && msgIn.data.peers) {
-      for (const peerInfo of msgIn.data.peers) {
-        let newpeer: Peer = this.createPeer(peerInfo.peerId, peerInfo.peerTrackingId, peerInfo.displayName, peerInfo.trackInfo);
-        let producerInfo = peerInfo.producers.map(p => ({ peer: newpeer, producerId: p.producerId, kind: p.kind }));
-        this.localRoom.producersToConsume.set(newpeer, producerInfo);
-        console.log("** onRoomJoinResult producers :" + peerInfo.producers?.length);
-
-      }
-    }
-
-    await this.eventOnRoomJoined(this.localRoom.roomId);
 
     for (const peer of this.localRoom.peers.values()) {
       await this.consumePeerProducers(peer);
       console.log(`fire eventOnRoomPeerJoined onRoomJoinResult`);
-      await this.eventOnRoomPeerJoined(this.localRoom.roomId, peer);
     }
+
+    await this.eventRoomTransportsCreated();
 
   }
 

@@ -1350,7 +1350,7 @@ export class ConferenceClient {
         this.inviteReceivedMsg = null;
         this.clearCallConnectTimer();
         this.localParticipant.peerId = "";
-        this.isScreenSharing = false;        
+        this.isScreenSharing = false;
     }
 
     private resetLocalParticipant() {
@@ -1697,9 +1697,7 @@ export class ConferenceClient {
 
             //add self to the call participants
             this.conference.participants.set(this.localParticipant.participantId, this.localParticipant);
-            console.log(`add self to conference.participants ${this.conference.participants.size}`);
-
-            await this.publishTracks(this.localParticipant.stream.getTracks());
+            console.log(`add self to conference.participants ${this.conference.participants.size}`);            
 
             if (this.conference.presenterId === this.localParticipant.participantId) {
                 this.conference.setPresenter(this.localParticipant);
@@ -1713,6 +1711,11 @@ export class ConferenceClient {
             }
             await this.onEvent(EventTypes.conferenceJoined, msg);
 
+        };
+
+        this.roomsClient.eventRoomTransportsCreated = () => {
+            console.log(`eventRoomTransportsCreated`);
+            this.publishTracks(this.localParticipant.stream.getTracks());
         };
 
         this.roomsClient.eventOnRoomClosed = async (roomId: string, peers: Peer[]) => {
