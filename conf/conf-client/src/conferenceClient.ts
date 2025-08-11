@@ -104,6 +104,11 @@ export class ConferenceClient {
         this.authToken = authToken;
         this.clientData = clientData;
 
+        if(this.socket) {
+            console.warn(`disconnect existing target.`);
+            this.socket.disconnect();
+        }
+
         // Connect to WebSocket server
         console.log("new socket created, ", this.config);
         this.socket = new WebSocketClient({ enableLogs: this.config.socket_enable_logs });
@@ -413,12 +418,11 @@ export class ConferenceClient {
         console.log("onNetworkChange");
         //send a test message
         if (!this.sendToServer(new OkMsg(payloadTypeServer.ok, {}))) {
+            console.error("failed to send ok message, forcing a reconnect");
             //disconnected from server
             //this.waitRegisterConnection(this.username, this.authToken, this.clientData);
-            this.disconnectRoomsClient("network change", 0);
-            this.localParticipant.participantId == "";
-            this.localParticipant.peerId = "";
-            this.socket.connect(this.config.conf_ws_url, this.config.socket_autoReconnect);
+            //this.disconnectRoomsClient("network change", 0);            
+            this.connect(this.username, this.authToken, this.clientData);            
         }
     }
 
@@ -1438,6 +1442,8 @@ export class ConferenceClient {
 
     private async onUnauthorized(message: UnauthorizedMsg) {
         console.log("onUnauthorized");
+        
+        this.connect(this.username, this.authToken, this.clientData);
         await this.onEvent(EventTypes.unAuthorized, message);
     }
 
