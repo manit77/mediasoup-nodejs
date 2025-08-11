@@ -8,7 +8,7 @@
   "conf_token_expires_min": 720,
   "conf_socket_timeout_secs": 360,
   "conf_require_participant_group": true,
-  "conf_data_cache_timeoutsecs": 360,
+  "conf_data_cache_timeout_secs": 360,
   "conf_data_access_token": "!!!**** access token for conf_data_urls",
   "conf_data_urls": {
     "getScheduledConferencesURL": "",

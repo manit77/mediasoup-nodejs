@@ -25,12 +25,12 @@ const RoomsPane: React.FC = () => {
   }, [conferencesScheduled]);
 
   const handleRefreshRooms = useCallback(async () => {
-    console.log('handleRefreshRooms:');
+    //console.log('handleRefreshRooms:');
     try {
       setLoading(true);
       let conferences = await fetchConferencesScheduled();
       setMergedConferences(conferences);
-      console.log(conferences);
+      //console.log(conferences);
       setLoading(false);
     } catch (error) {
       console.error('Failed to refresh rooms:', error);
@@ -48,10 +48,10 @@ const RoomsPane: React.FC = () => {
 
   useEffect(() => {
     // Merge whenever either data source changes
-    console.log("Merging conferences ", conferencesOnline, conferencesScheduled);
+    //console.log("Merging conferences ", conferencesOnline, conferencesScheduled);
 
     if (conferencesOnline && conferencesScheduled) {
-      console.log("conferencesOnline.length", conferencesOnline.length);
+      //console.log("conferencesOnline.length", conferencesOnline.length);
 
       const merged = conferencesScheduled.map(scheduled => {
         const conf = conferencesOnline.find(conf => scheduled.externalId === conf.externalId);

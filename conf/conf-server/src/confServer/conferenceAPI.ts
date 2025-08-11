@@ -219,7 +219,7 @@ export class ConferenceAPI {
             let resultMsg = new GetConferencesScheduledResultMsg();            
             if (cachedResults) {
                 resultMsg.data.conferences = cachedResults;
-                console.log(`${WebRoutes.getConferencesScheduled} from cache`);
+                //console.log(`${WebRoutes.getConferencesScheduled} from cache`);
             } else {
                 if (this.config.conf_data_urls.getScheduledConferencesURL) {
                     //make a post to the url
@@ -240,7 +240,7 @@ export class ConferenceAPI {
                         return clone;
                     });
 
-                    this.cache.set(cacheKey, resultMsg.data.conferences, this.config.conf_data_cache_timeoutsecs);
+                    this.cache.set(cacheKey, resultMsg.data.conferences, this.config.conf_data_cache_timeout_secs);
 
                 } else {
                     //get from demo data
@@ -286,7 +286,7 @@ export class ConferenceAPI {
                     return;
                 }
 
-                console.log(`getScheduledConference result:`, result, result.data.conference.config);
+                //console.log(`getScheduledConference result:`, result, result.data.conference.config);
 
                 //hide the conference code
                 let conf = new ConferenceScheduledInfo();

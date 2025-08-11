@@ -271,7 +271,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 }
                 case EventTypes.conferencesReceived: {
                     const msg = msgIn as GetConferencesScheduledResultMsg
-                    console.log("CallContext: onConferencesReceived", msg.data.conferences);
+                    //console.log("CallContext: onConferencesReceived", msg.data.conferences);
                     setConferencesOnline(msg.data.conferences);
                     break;
                 }

@@ -13,14 +13,22 @@ type onSocketTimeout = (conn: SocketConnection) => void;
 
 export class SocketConnection {
 
-    socketTimeoutId: any;
+    
     ws: WebSocket;
+    
+    /**
+     * time allowed until registration
+     */
     timeoutSecs: number;
+    socketTimeoutId: any;
+
     participantId: string;
     username: string;
     eventHandlers: onSocketTimeout[] = [];
     dateOfLastMsg: Date = new Date();
     dateCreated = new Date();
+    
+    pingInterval: any;
     lastPong : number;
     ips: string[] = [];
 

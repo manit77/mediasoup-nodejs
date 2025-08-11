@@ -1442,7 +1442,7 @@ export class ConferenceClient {
 
     private async onUnauthorized(message: UnauthorizedMsg) {
         console.log("onUnauthorized");
-        
+
         this.connect(this.username, this.authToken, this.clientData);
         await this.onEvent(EventTypes.unAuthorized, message);
     }
@@ -1460,7 +1460,7 @@ export class ConferenceClient {
     }
 
     private async onConferencesReceived(message: GetConferencesResultMsg) {
-        console.log("onConferencesReceived");
+        //console.log("onConferencesReceived");
 
         this.conferencesOnline = message.data.conferences;
         await this.onEvent(EventTypes.conferencesReceived, message);

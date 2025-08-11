@@ -131,7 +131,7 @@ class ApiService {
 
     fetchConferencesScheduled = async (): Promise<ConferenceScheduledInfo[]> => {
         try {
-            console.log("fetchConferencesScheduled", this.getClientData());
+            //console.log("fetchConferencesScheduled", this.getClientData());
 
             if (!this.conferenceAPIClient) {
                 console.error(`conferenceAPIClient not initialized.`);
@@ -141,8 +141,7 @@ class ApiService {
             let user = this.getUser();
             //get rooms from API
             let result = await this.conferenceAPIClient.getConferencesScheduled(user.authToken, this.getClientData());
-            console.warn(result);
-
+           
             if (result.data.error) {
                 console.error(`ERROR:`, result.data.error);
                 return this.conferencesScheduled;
@@ -160,7 +159,7 @@ class ApiService {
 
 
     startFetchConferencesScheduled = () => {
-        console.log("startFetchConferencesScheduled");
+        //console.log("startFetchConferencesScheduled");
         if (this.startFetchConferencesScheduledTimerId) {
             clearTimeout(this.startFetchConferencesScheduledTimerId);
         }

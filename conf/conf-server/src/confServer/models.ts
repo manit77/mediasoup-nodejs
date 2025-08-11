@@ -8,10 +8,16 @@ export interface ConferenceServerConfig {
     conf_token_expires_min: number,
     conf_callback_urls: {},
     conf_data_access_token: string,
-    conf_data_cache_timeoutsecs: number,
+    conf_data_cache_timeout_secs: number,
     conf_data_urls: { getScheduledConferencesURL: string, getScheduledConferenceURL: string, loginURL: string, loginGuestURL: string },
     conf_socket_timeout_secs: 300,
-    conf_socket_pong_timeout_secs: 120,
+    /**
+     * socket has x seconds to respond to a ping
+     */
+    conf_socket_pong_timeout_secs: 10,
+    /**
+     * ping the socket every x seconds
+     */
     conf_socket_ping_interval_secs: 15,
     conf_require_participant_group: boolean;
 

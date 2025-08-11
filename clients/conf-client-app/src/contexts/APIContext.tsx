@@ -120,7 +120,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, []);
 
     const fetchConferencesScheduled = useCallback(async (): Promise<ConferenceScheduledInfo[]> => {
-        console.log("fetchConferencesScheduled");
+        //console.log("fetchConferencesScheduled");
         let conferences = await apiService.fetchConferencesScheduled();
         return conferences;
     }, []);
@@ -129,7 +129,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.log(`setUpConnections`);
 
         apiService.onConferencesReceived = async (conferences) => {
-            console.log("onConferencesReceived", conferences);
+            //console.log("onConferencesReceived", conferences);
             setConferencesScheduled(prev => conferences);
         };
 

@@ -72,14 +72,12 @@ export class ConferenceAPIClient {
     };
 
     getConferencesScheduled = async (authToken: string, clientData: {}): Promise<GetConferencesScheduledResultMsg | null> => {
-        console.log("getConferencesScheduled", clientData);
+        //console.log("getConferencesScheduled", clientData);
         try {
 
             let post = new apiGetScheduledConferencesPost();
             post.data.clientData = clientData;
-
-
-            console.warn("getConferencesScheduled", post);
+            //console.warn("getConferencesScheduled", post);
 
             const response = await fetch(`${this.config.conf_server_url}${WebRoutes.getConferencesScheduled}`, {
                 method: 'POST',

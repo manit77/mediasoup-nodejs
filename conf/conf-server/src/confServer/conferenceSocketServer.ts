@@ -37,6 +37,7 @@ export class ConferenceSocketServer {
 
             consoleLog(LOG, `new socket connected, connections: ${this.connections.size}, participants: ` + this.confServer.participants.size);
 
+            //log remote ip addresses
             let newConnection = new SocketConnection(ws, this.config.conf_socket_timeout_secs);
             if (req.socket.remoteAddress) {
                 newConnection.ips.push(req.socket.remoteAddress);
@@ -48,17 +49,19 @@ export class ConferenceSocketServer {
             }
             consoleWarn(`socket ips:`, newConnection.ips);
 
-            newConnection.addEventHandlers(this.onSocketTimeout.bind(this));
+            //start registration timeout
+            newConnection.addEventHandlers(() => this.onSocketTimeout(newConnection));
             this.connections.set(ws, newConnection);
             newConnection.restartSocketTimeout();
 
-            this.startHeartbeat(ws, newConnection);
+            //start ping timeout
+            this.startPingTimeOut(ws, newConnection);
 
             ws.on("message", async (message) => {
                 if (!message) {
                     return;
                 }
-                
+
                 let msgIn: IMsg;
 
                 try {
@@ -127,7 +130,7 @@ export class ConferenceSocketServer {
                 const conn = this.connections.get(ws);
                 if (conn) {
                     conn.lastPong = Date.now();
-                    consoleLog(LOG, `Pong received for ${conn.username || 'unregistered'}`);
+                    consoleWarn(LOG, `Pong received for ${conn.username || 'unregistered'}`, Date.now());
                 }
             });
 
@@ -179,31 +182,65 @@ export class ConferenceSocketServer {
         conn.dispose();
     }
 
-    startHeartbeat(ws: WebSocket, conn: SocketConnection) {
-        conn.lastPong = Date.now();
-        const heartbeatInterval = setInterval(() => {
-            if (ws.readyState === WebSocket.CLOSED) {
-                clearInterval(heartbeatInterval);
+    /**
+     * start ping pong timeout check for stale connections
+     * conf_socket_pong_timeout_secs must be larger than the conf_socket_ping_interval_secs
+     * @param ws 
+     * @param conn 
+     */
+    startPingTimeOut(ws: WebSocket, conn: SocketConnection) {
+
+        if (this.config.conf_socket_pong_timeout_secs <= this.config.conf_socket_ping_interval_secs) {
+            consoleError(`error conf_socket_pong_timeout_secs must be > than conf_socket_ping_interval_secs`);
+        }
+        
+        const pingInterval = setInterval(() => {
+            if (ws.readyState !== WebSocket.OPEN) {
+                clearInterval(pingInterval);
                 this.cleanupSocket(ws);
                 return;
             }
 
-            if (Date.now() - conn.lastPong > this.config.conf_socket_pong_timeout_secs * 1000) {
-                consoleWarn(LOG, `No pong received, closing connection`);
+            const timeSincePong = Date.now() - conn.lastPong;
+            consoleWarn(LOG, timeSincePong, this.config.conf_socket_pong_timeout_secs * 1000);
+
+            if (timeSincePong >= this.config.conf_socket_pong_timeout_secs * 1000) {
+                consoleError(LOG, `No pong received, closing connection`);
+                clearInterval(pingInterval);
                 this.cleanupSocket(ws);
-                clearInterval(heartbeatInterval);
                 return;
             }
 
-            ws.ping();
+            try {
+                ws.ping();
+                consoleWarn(`ping sent`);
+            } catch (err) {
+                consoleError(LOG, 'Ping error', err);
+                clearInterval(pingInterval);
+                this.cleanupSocket(ws);
+            }
         }, this.config.conf_socket_ping_interval_secs * 1000);
+
+
+        try {
+            ws.ping();
+            consoleWarn(`ping sent`);
+        } catch (err) {
+            consoleError(LOG, 'Ping error', err);
+            clearInterval(pingInterval);
+            this.cleanupSocket(ws);
+        }
+
+        conn.pingInterval = pingInterval; // so cleanupSocket can clear it
     }
+
 
     cleanupSocket(ws: WebSocket) {
         consoleLog(LOG, `cleanupSocket`);
 
         let conn = this.connections.get(ws);
         if (conn) {
+            clearInterval(conn.pingInterval);
             this.connections.delete(conn.ws);
             if (conn && conn.participantId) {
                 this.confServer.terminateParticipant(conn.participantId);
