@@ -3,6 +3,7 @@ import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { GetUserMediaConfig, ParticipantInfo } from '@conf/conf-models';
 import { ArrowRepeat, CameraVideoFill, Circle, CircleFill, MicFill, Phone } from 'react-bootstrap-icons';
+import ThrottledButton from './ThrottledButton';
 
 const ParticipantsOnlinePane: React.FC = () => {
     const {
@@ -61,26 +62,52 @@ const ParticipantsOnlinePane: React.FC = () => {
                         <ListGroup.Item
                             key={participantInfo.participantId}
                             action
-                            onClick={(event) => { event.preventDefault(); handleContactClick(participantInfo, true, false); }}
                             className="d-flex justify-content-between align-items-center"
-                            disabled={isCallActive || !!inviteInfoSend}
                         >
                             {participantInfo.displayName}
-                            <MicFill onClick={(event) => { event.stopPropagation(); event.preventDefault(); handleContactClick(participantInfo, true, false); }}></MicFill>
-                            <CameraVideoFill onClick={(event) => {  event.stopPropagation();  event.preventDefault(); handleContactClick(participantInfo, true, true); }}></CameraVideoFill>
 
-                            <Badge pill bg={participantInfo.participantId ? 'success' : 'secondary'} className="ms-2">
-                                {participantInfo.participantId ? (
-                                    <>
-                                        <CircleFill /> Online
-                                    </>
-                                )
-                                    : (
+                            <div className="d-flex align-items-center ms-auto gap-2">
+
+                                <ThrottledButton
+                                    variant="primary"
+
+                                    disabled={isCallActive || !!inviteInfoSend}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        event.preventDefault();
+                                        handleContactClick(participantInfo, true, false);
+                                    }}
+                                    style={{ width: "50px" }}
+                                >
+                                    <MicFill />
+                                </ThrottledButton>
+
+                                <ThrottledButton
+                                    variant="primary"
+                                    disabled={isCallActive || !!inviteInfoSend}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        event.preventDefault();
+                                        handleContactClick(participantInfo, true, true);
+                                    }}
+                                    style={{ width: "50px" }}
+                                >
+                                    <CameraVideoFill />
+                                </ThrottledButton>
+
+                                <Badge pill bg={participantInfo.participantId ? 'success' : 'secondary'} className="ms-2">
+                                    {participantInfo.participantId ? (
                                         <>
-                                            <Circle /> Offline
+                                            <CircleFill /> Online
                                         </>
-                                    )}
-                            </Badge>
+                                    )
+                                        : (
+                                            <>
+                                                <Circle /> Offline
+                                            </>
+                                        )}
+                                </Badge>
+                            </div>
                         </ListGroup.Item>
                     ))}
                 </ListGroup>

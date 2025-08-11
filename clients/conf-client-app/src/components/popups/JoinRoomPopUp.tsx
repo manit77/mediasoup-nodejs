@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
 import { ConferenceScheduledInfo, GetUserMediaConfig } from '@conf/conf-models';
+import ThrottledButton from '../layout/ThrottledButton';
 
 
 interface JoinRoomPopUpProps {
@@ -184,7 +185,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                <Form onSubmit={handleJoinRoom}>
+                <Form>
                     <Form.Group className="mb-3" controlId="roomName">
                         <Form.Label>Conference Room Name:</Form.Label> {conferenceScheduled.name}
                     </Form.Group>
@@ -245,9 +246,9 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                     } */}
 
                     <div className="d-grid gap-2 mt-4"> {/* Added margin-top for spacing */}
-                        <Button variant="primary" type="submit" disabled={isWaiting}>
+                        <ThrottledButton onClick={handleJoinRoom} variant="primary" disabled={isWaiting}>
                             {isWaiting ? 'Joining...' : 'Join Room'}
-                        </Button>
+                        </ThrottledButton>
                     </div>
                 </Form>
             </Modal.Body>

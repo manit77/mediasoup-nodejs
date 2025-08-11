@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col } from 'react-bootstrap';
 import CallTopMenu from './CallTopMenu';
-import ParticipantsPane, { ParticipantVideoPreview } from './ParticipantsPane';
+import ParticipantsPane from './ParticipantsPane';
 import MainVideo from './MainVideo';
 import SettingsPopup from '../popups/SettingsPopup';
 import { useCall } from '../../hooks/useCall';
@@ -9,6 +9,7 @@ import { Navigate } from 'react-router-dom';
 import { Participant } from '@conf/conf-client';
 import { relative } from 'path';
 import { conferenceClient } from '../../contexts/CallContext';
+import { ParticipantVideoPreview } from './ParticipantVideoPreview';
 
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);

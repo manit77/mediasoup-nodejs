@@ -4,6 +4,7 @@ import { useCall } from '../../hooks/useCall';
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../hooks/useUI';
 import { GetUserMediaConfig } from '@conf/conf-models';
+import ThrottledButton from '../layout/ThrottledButton';
 
 const IncomingCallPopup: React.FC = () => {
     const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite, localParticipant, getLocalMedia } = useCall();
@@ -68,9 +69,9 @@ const IncomingCallPopup: React.FC = () => {
                 </p>
             </Modal.Body>
             <Modal.Footer>
-                <Button variant="success" onClick={() => handleAccept(true, false)}>
+                <ThrottledButton variant="success" onClick={() => handleAccept(true, false)}>
                     Accept Audio Only
-                </Button>
+                </ThrottledButton>
                 <Button variant="success" onClick={() => handleAccept(true, true)}>
                     Accept Audio and Video
                 </Button>
