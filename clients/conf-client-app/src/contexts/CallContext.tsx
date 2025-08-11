@@ -11,6 +11,7 @@ import { getConferenceClient } from '../services/ConferenceService';
 export const conferenceClient = getConferenceClient();
 
 interface CallContextType {
+    isConnecting: boolean;
     isConnected: boolean;
     isLoggedOff: boolean;
     setIsLoggedOff: React.Dispatch<React.SetStateAction<boolean>>;
@@ -71,8 +72,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const api = useAPI();
     const { config } = useConfig();
 
-    const [isConnected, setIsConnected] = useState<boolean>(conferenceClient.isConnected);
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(conferenceClient.isConnected && conferenceClient.localParticipant.participantId ? true : false);
+    const [isConnected, setIsConnected] = useState<boolean>(conferenceClient.isConnected());
+    const [isConnecting, setIsConnecting] = useState<boolean>(conferenceClient.isConnecting());
+
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(conferenceClient.isRegistered());
     const [isLoggedOff, setIsLoggedOff] = useState<boolean>(false);
 
     const localParticipant = useRef<Participant>(conferenceClient.localParticipant);
@@ -101,8 +104,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const initState = () => {
         //init all default values
-        setIsConnected(conferenceClient.isConnected);
-        setIsAuthenticated(conferenceClient.isConnected && conferenceClient.localParticipant.participantId ? true : false);
+        setIsConnected(conferenceClient.isConnected());
+        setIsConnecting(conferenceClient.isConnecting());
+        setIsAuthenticated(conferenceClient.isRegistered());
         localParticipant.current = conferenceClient.localParticipant;
         setIsCallActive(conferenceClient.isInConference());
         setConferenceRoom(conferenceClient.conference);
@@ -752,6 +756,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return (
         <CallContext.Provider value={{
+            isConnecting,
             isConnected,
             isAuthenticated,
             isLoggedOff, setIsLoggedOff,

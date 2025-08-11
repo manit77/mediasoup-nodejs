@@ -28,6 +28,20 @@ export class ConferenceSocketServer {
         this.confServer.addEventHandler(ConferenceServerEventTypes.onSendMsg, this.onSendMsg.bind(this));
     }
 
+    send(ws: WebSocket, msg: any) {
+        if(!ws){
+            consoleError(`cannot send msg, socket is null`);
+            return;
+        }
+        try {
+            ws.send(JSON.stringify(msg));
+            return true;
+        } catch (err) {
+            consoleError(err);
+        }
+        return false;
+    }
+
     start() {
         consoleLog(LOG, `start ConferenceSocketServer`);
         this.printStats();
@@ -111,7 +125,7 @@ export class ConferenceSocketServer {
                         consoleError(LOG, `connection is not registered.`, msgIn);
                         //send back unauthorized
                         let msg = new UnauthorizedMsg();
-                        conn.ws.send(JSON.stringify(msg));
+                        this.send(conn.ws, msg);
 
                         // let msgNotRegistered = new NotRegisteredMsg();
                         // conn.ws.send(JSON.stringify(msgNotRegistered));
@@ -121,7 +135,7 @@ export class ConferenceSocketServer {
                 }
 
                 if (returnMsg) {
-                    conn.ws.send(JSON.stringify(returnMsg));
+                    this.send(conn.ws, returnMsg);
                 }
 
             });
@@ -165,7 +179,7 @@ export class ConferenceSocketServer {
         try {
             let conn = [...this.connections.values()].find(c => c.participantId === participant.participantId);
             if (conn) {
-                conn.ws.send(JSON.stringify(msg));
+                this.send(conn.ws, msg);
             }
         } catch (err) {
             consoleError(LOG, err);
@@ -193,7 +207,7 @@ export class ConferenceSocketServer {
         if (this.config.conf_socket_pong_timeout_secs <= this.config.conf_socket_ping_interval_secs) {
             consoleError(`error conf_socket_pong_timeout_secs must be > than conf_socket_ping_interval_secs`);
         }
-        
+
         const pingInterval = setInterval(() => {
             if (ws.readyState !== WebSocket.OPEN) {
                 clearInterval(pingInterval);
@@ -231,7 +245,7 @@ export class ConferenceSocketServer {
             this.cleanupSocket(ws);
         }
 
-        conn.pingInterval = pingInterval; // so cleanupSocket can clear it
+        conn.pingInterval = pingInterval;
     }
 
 

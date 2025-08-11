@@ -35,7 +35,6 @@ export class ConferenceClient {
     private roomsClient: RoomsClient;
     private roomsClientDisconnectTimerId: any;
 
-    isConnected = false;
     isScreenSharing = false;
     selectedDevices: SelectedDevices = new SelectedDevices();
 
@@ -104,7 +103,7 @@ export class ConferenceClient {
         this.authToken = authToken;
         this.clientData = clientData;
 
-        if(this.socket) {
+        if (this.socket) {
             console.warn(`disconnect existing target.`);
             this.socket.disconnect();
         }
@@ -119,7 +118,6 @@ export class ConferenceClient {
         });
 
         this.socket.addEventHandler("onclose", async () => {
-            this.isConnected = false;
             this.onSocketClosed("WebSocket connection closed");
         });
 
@@ -273,7 +271,6 @@ export class ConferenceClient {
     private async onSocketConnected() {
         console.log("onSocketConnected()");
 
-        this.isConnected = true;
         this.resetConferenceRoom();
         this.resetLocalParticipant();
 
@@ -422,7 +419,7 @@ export class ConferenceClient {
             //disconnected from server
             //this.waitRegisterConnection(this.username, this.authToken, this.clientData);
             //this.disconnectRoomsClient("network change", 0);            
-            this.connect(this.username, this.authToken, this.clientData);            
+            this.connect(this.username, this.authToken, this.clientData);
         }
     }
 
@@ -729,12 +726,19 @@ export class ConferenceClient {
     }
 
     isInConference() {
-        return this.conference.conferenceId > "";
+        return !!(this.isConnected() && this.conference.conferenceId);
+    }
+
+    isConnected() {
+        return !!(this.socket && this.socket.state === "connected");
     }
 
     isRegistered() {
-        console.log(`*** isRegistered`, this.socket?.state, this.localParticipant.participantId);
-        return !!(this.socket && this.socket.state === "connected" && this.localParticipant.participantId);
+        return !!(this.isConnected() && this.localParticipant.participantId);
+    }
+
+    isConnecting() {
+        return !!(this.socket && ["connecting", "reconnecting"].includes(this.socket.state));
     }
 
     /**

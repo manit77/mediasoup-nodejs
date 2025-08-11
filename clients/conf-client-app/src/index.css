@@ -118,3 +118,7 @@ code {
 .local-pip-container .participant-overlay {
   height: 32px;
 }
+
+.text-warn {
+    color: #fd7e14 !important; /* Bootstrap's orange-500 */
+}
