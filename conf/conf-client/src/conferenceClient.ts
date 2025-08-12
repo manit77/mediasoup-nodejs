@@ -1788,7 +1788,7 @@ export class ConferenceClient {
             this.publishTracks(this.localParticipant.stream.getTracks());
         };
 
-        this.roomsClient.eventOnRoomClosed = async (roomId: string, peers: Peer[]) => {
+        this.roomsClient.eventOnRoomClosed = async (roomId: string) => {
             console.log("onRoomClosedEvent roomId:", roomId);
 
             //leave the conference

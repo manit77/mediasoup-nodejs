@@ -13,6 +13,7 @@ export class RoomPeer {
     peer: Peer;
     room: Room;
     config: RoomServerConfig;
+    lastPong: number = Date.now();
 
     constructor(config: RoomServerConfig, room: Room, peer: Peer) {
         this.room = room;

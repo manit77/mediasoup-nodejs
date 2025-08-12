@@ -22,7 +22,9 @@ import {
     PeerMuteTracksMsg,
     RoomCloseProducerMsg,
     RoomConsumerClosedMsg,
-    AuthUserRoles
+    AuthUserRoles,
+    RoomPingMsg,
+    RoomPongMsg
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
@@ -197,6 +199,10 @@ export class RoomServer {
             case payloadTypeClient.peerMuteTracks: {
                 return this.onPeerMuteTracks(peerId, msgIn);
             }
+            case payloadTypeClient.roomPong: {
+                return this.onRoomPong(peerId, msgIn);
+            }
+
         }
         return null;
     }
@@ -354,13 +360,15 @@ export class RoomServer {
         };
 
         room.onPeerRemovedEvent = (r, peer) => {
+            consoleLog(`room.onPeerRemovedEvent ${r.id} ${peer.displayName}`);
 
             //broad cast to all peers in the room the the peer has left the room
             let msg = new RoomPeerLeftMsg();
             msg.data.roomId = r.id;
             msg.data.peerId = peer.id;
 
-            let peers = r.getPeers();
+            //alert the peer they were removed
+            let peers = [...r.getPeers(), peer];
             for (let p of peers) {
                 this.send(p.id, msg);
             }
@@ -374,6 +382,12 @@ export class RoomServer {
             msg.data.consumerId = consumer.id;
             msg.data.producerId = consumer.producerId;
             msg.data.kind = consumer.kind;
+            msg.data.roomId = room.id;
+            this.send(peer.id, msg);
+        };
+
+        room.onNeedPing = (peer) => {            
+            let msg = new RoomPingMsg();
             msg.data.roomId = room.id;
             this.send(peer.id, msg);
         };
@@ -781,7 +795,7 @@ export class RoomServer {
     }
 
     terminateRoom(msg: RoomTerminateMsg): RoomTerminateResultMsg {
-        console.log(`terimnateRoom() - ${msg.data.roomId}`);
+        console.log(`terminateRoom() - ${msg.data.roomId}`);
 
         const room = this.rooms.get(msg.data.roomId);
         if (!room) {
@@ -1180,6 +1194,32 @@ export class RoomServer {
         this.send(remotePeer.id, msgIn);
 
     }
+
+     private async onRoomPong(peerId: string, msgIn: RoomPongMsg): Promise<IMsg> {
+        consoleWarn("onRoomPong");
+
+        let peer = this.peers.get(peerId);
+        if (!peer) {
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeServer.error, "peer not found.");
+        }
+
+
+        //the peer must be in room
+        if (!peer.room) {
+            consoleError("peer not in room.");
+            return;
+        }
+
+        if (peer.room.id !== msgIn.data.roomId) {
+            consoleError("invalid roomid");
+            return;
+        }
+
+        peer.room.pong(peer);
+
+    }
+    
 
     async printStats() {
         console.log("### STATS ###");

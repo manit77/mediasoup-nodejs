@@ -38,6 +38,7 @@ defaultPeerSocketServerSecurityMap[payloadTypeClient.roomNew] = [AuthUserRoles.a
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomNewToken] = [AuthUserRoles.admin, AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomTerminate] = [AuthUserRoles.admin, AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.terminatePeer] = [AuthUserRoles.admin, AuthUserRoles.user];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.roomPong] = [];
 
 export class SocketConnection {
     peerId: string;

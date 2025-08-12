@@ -12,6 +12,8 @@ import {
   RoomProduceStreamResultMsg,
   PeerTracksInfo,
   RoomCloseProducerMsg,
+  RoomPingMsg,
+  RoomPongMsg,
 } from "@rooms/rooms-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { MediaKind, Transport } from 'mediasoup-client/types';
@@ -61,7 +63,7 @@ export class RoomsClient {
   eventOnRoomPeerJoined: (roomId: string, peer: IPeer) => Promise<void> = async () => { };
   eventOnPeerNewTrack: (peer: IPeer, track: MediaStreamTrack) => Promise<void> = async () => { };
   eventOnRoomPeerLeft: (roomId: string, peer: IPeer) => Promise<void> = async () => { };
-  eventOnRoomClosed: (roomId: string, peers: IPeer[]) => Promise<void> = async () => { };
+  eventOnRoomClosed: (roomId: string) => Promise<void> = async () => { };
   eventOnPeerTrackInfoUpdated: (peer: IPeer) => Promise<void> = async () => { };
   eventOnRoomSocketClosed: () => Promise<void> = async () => { };
 
@@ -79,14 +81,14 @@ export class RoomsClient {
     console.log("disposeRoom()");
 
     this.disconnect();
-    this.eventOnRoomJoinFailed = null;
-    this.eventOnRoomJoined = null;
-    this.eventOnRoomPeerJoined = null;
-    this.eventOnPeerNewTrack = null;
-    this.eventOnRoomPeerLeft = null;
-    this.eventOnRoomClosed = null;
-    this.eventOnPeerTrackInfoUpdated = null;
-    this.eventOnRoomSocketClosed = null;
+    this.eventOnRoomJoinFailed = async () => { };
+    this.eventOnRoomJoined = async () => { };
+    this.eventOnRoomPeerJoined = async () => { };
+    this.eventOnPeerNewTrack = async () => { };
+    this.eventOnRoomPeerLeft = async () => { };
+    this.eventOnRoomClosed = async () => { };
+    this.eventOnPeerTrackInfoUpdated = async () => { };
+    this.eventOnRoomSocketClosed = async () => { };
     console.log("dispose() - complete");
   };
 
@@ -130,10 +132,9 @@ export class RoomsClient {
   private socketOnClose = async () => {
     console.error("socketOnClose closed");
     let roomId = this.localRoom.roomId;
-    if (roomId) {
-      let copyPeers = [...this.localRoom.peers.values()];
+    if (roomId) {     
       this.roomClose();
-      await this.eventOnRoomClosed(roomId, copyPeers);
+      await this.eventOnRoomClosed(roomId);
     }
 
     await this.eventOnRoomSocketClosed();
@@ -729,6 +730,9 @@ export class RoomsClient {
         case payloadTypeServer.roomClosed:
           this.onRoomClosed(msgIn);
           break;
+        case payloadTypeServer.roomPing:
+          this.onRoomPing(msgIn);
+          break;
       }
     } catch (err) {
       console.error(err);
@@ -920,6 +924,14 @@ export class RoomsClient {
   private onRoomPeerLeft = async (msgIn: RoomPeerLeftMsg) => {
     console.log("peer left the room, peerid:" + msgIn.data.peerId);
 
+    if (msgIn.data.peerId === this.localPeer.peerId) {
+      console.log("local peer removed from room");
+      this.roomClose();     
+      await this.eventOnRoomClosed(msgIn.data.roomId);
+
+      return;
+    }
+
     let peer = this.localRoom.peers.get(msgIn.data.peerId);
     if (!peer) {
       console.error(`peer not found ${msgIn.data.peerId}, current peers:`, this.localRoom.peers);
@@ -930,7 +942,6 @@ export class RoomsClient {
     let roomid = msgIn.data.roomId;
     await this.eventOnRoomPeerLeft(roomid, peer);
   }
-
 
   private onPeerTracksInfo(msgIn: PeerTracksInfoMsg) {
     console.log("onPeerTracksInfo");
@@ -1010,11 +1021,8 @@ export class RoomsClient {
 
   private onRoomClosed = async (msgIn: RoomClosedMsg) => {
     console.log("onRoomClosed:" + msgIn.data.roomId);
-
-    let copyPeers = [...this.localRoom.peers.values()];
     this.roomClose();
-
-    await this.eventOnRoomClosed(msgIn.data.roomId, copyPeers);
+    await this.eventOnRoomClosed(msgIn.data.roomId);
   }
 
   private roomClose() {
@@ -1324,5 +1332,22 @@ export class RoomsClient {
 
   private onProduced = async (msgIn: RoomProduceStreamResultMsg) => {
     console.log("onProduced " + msgIn.data?.kind);
+
   };
+
+  private onRoomPing = async (msgIn: RoomPingMsg) => {
+    console.log("onRoomPing ");
+
+    if (!this.localRoom.roomId) {
+      console.log("not in room");
+      return;
+    }
+
+    //send back pong
+    let msg = new RoomPongMsg();
+    msg.data.roomId = this.localRoom.roomId;
+
+    this.send(msg);
+  };
+
 }

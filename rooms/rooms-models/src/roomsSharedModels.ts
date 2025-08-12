@@ -18,6 +18,7 @@ export enum payloadTypeClient {
     roomJoin = "roomJoin",
     roomLeave = "roomLeave",
     roomTerminate = "roomTerminate",
+    roomPong = "roomPong",
     roomGetLogs = "roomGetLogs",
 
     roomProduceStream = "roomProduceStream",
@@ -59,7 +60,9 @@ export enum payloadTypeServer {
     roomPeerLeft = "roomPeerLeft",
     roomTerminateResult = "roomTerminateResult",
     roomClosed = "roomClosed",
+    roomPing = "roomPing",
     roomGetLogsResult = "roomGetLogsResult",
+
     peerTerminated = "peerTerminated",
     error = "error",
     ok = "ok",
@@ -503,7 +506,7 @@ export enum payloadTypeCallBacks {
 
 }
 export class RoomPeerCallBackMsg implements IMsg {
-    type: payloadTypeCallBacks.roomPeerCallBackMsg;
+    type = payloadTypeCallBacks.roomPeerCallBackMsg;
     data: {
         peerId?: string;
         peerTrackingId?: string;
@@ -513,7 +516,7 @@ export class RoomPeerCallBackMsg implements IMsg {
 }
 
 export class RoomCallBackMsg implements IMsg {
-    type: payloadTypeCallBacks.roomCallBackMsg;
+    type = payloadTypeCallBacks.roomCallBackMsg;
     data: {
         roomId?: string;
         roomTrackingId?: string;
@@ -537,15 +540,29 @@ export interface RoomLog {
 }
 
 export class RoomGetLogsMsg implements IMsg {
-    type: payloadTypeClient.roomGetLogs;
+    type = payloadTypeClient.roomGetLogs;
     data = {};
 }
 
 export class RoomGetLogsResultMsg implements IMsg {
-    type: payloadTypeServer.roomGetLogsResult;
+    type = payloadTypeServer.roomGetLogsResult;
     data: {
         logs: RoomLog[]
     } = { logs: [] };
+}
+
+export class RoomPingMsg implements IMsg {
+    type = payloadTypeServer.roomPing;
+    data: {
+        roomId?: string
+    } = {};
+}
+
+export class RoomPongMsg implements IMsg {
+    type = payloadTypeClient.roomPong;
+    data: {
+        roomId?: string
+    } = {};
 }
 
 export class UniqueMap<K, T> {
@@ -586,6 +603,7 @@ export class UniqueMap<K, T> {
         return this.items.size;
     }
 }
+
 
 export class TestObject {
     hello() {

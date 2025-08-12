@@ -1,7 +1,7 @@
 import * as mediasoup from 'mediasoup';
 import { Peer } from './peer.js';
 import { PeerTracksInfo, RoomCallBackMsg, RoomConfig, RoomLog, RoomLogAction, RoomPeerCallBackMsg, UniqueMap } from "@rooms/rooms-models";
-import { setTimeout, setInterval } from 'node:timers';
+import { setTimeout, setInterval, clearInterval } from 'node:timers';
 import axios from 'axios';
 import { RoomPeer } from './roomPeer.js';
 import { consoleError, consoleWarn } from '../utils/utils.js';
@@ -25,6 +25,7 @@ export class Room {
     config = new RoomConfig();
     private serverConfig: RoomServerConfig;
 
+    timerIdInterval ?: NodeJS.Timeout = null;
     timerIdMaxRoomDuration?: NodeJS.Timeout = null;
     timerIdNoParticipants?: NodeJS.Timeout = null;
 
@@ -34,6 +35,7 @@ export class Room {
     onClosedEvent: (room: Room, peers: Peer[], reason: string) => void;
     onPeerRemovedEvent: (room: Room, peers: Peer) => void;
     onConsumerClosed: (peer: Peer, consumer: Consumer) => void;
+    onNeedPing: (peer: Peer) => void;
 
     constructor(serverConfig: RoomServerConfig) {
         this.serverConfig = serverConfig;
@@ -55,12 +57,40 @@ export class Room {
 
         this.startTimerNoParticipants();
 
+        //every 30 seconds check of the peer has responded
+        let room_socket_pong_timeout_secs = 30;
+        this.timerIdInterval = setInterval(() => {
+
+            for (let roomPeer of this.roomPeers.values()) {
+                const timeSincePong = Date.now() - roomPeer.lastPong;
+                consoleWarn(roomPeer.peer.displayName, timeSincePong, room_socket_pong_timeout_secs * 1000);
+
+                if (timeSincePong >= room_socket_pong_timeout_secs * 1000) {
+                    consoleError(`No pong received, removing peer. ${roomPeer.peer.displayName}`);
+                    this.removePeer(roomPeer.peer);
+                    return;
+                }
+
+                this.onNeedPing(roomPeer.peer);
+                consoleWarn(`room ping sent`);
+            }
+
+        }, 10000);
+
         this.writeRoomLog({
             Action: RoomLogAction.roomCreated,
             Date: new Date(),
             PeerId: "",
             RoomId: this.id
         });
+    }
+
+    pong(peer: Peer){
+        let roomPeer = this.roomPeers.get(peer);
+        if(!roomPeer){
+            return;
+        }
+        roomPeer.lastPong = Date.now();
     }
 
     private startTimerNoParticipants() {
@@ -313,6 +343,9 @@ export class Room {
 
         if (this.timerIdMaxRoomDuration) {
             clearTimeout(this.timerIdMaxRoomDuration);
+        }
+        if(this.timerIdInterval) {
+            clearInterval(this.timerIdInterval);
         }
 
         this.roomRouter?.close();
