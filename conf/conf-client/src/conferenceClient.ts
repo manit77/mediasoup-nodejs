@@ -8,7 +8,8 @@ import {
     RegisterMsg, RegisterResultMsg, RejectMsg,
     LoggedOffMsg,
     //NotRegisteredMsg,
-    UnauthorizedMsg
+    UnauthorizedMsg,
+    TerminateConfMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
@@ -1374,6 +1375,28 @@ export class ConferenceClient {
 
         this.resetConferenceRoom();
         this.resetLocalTracks();
+    }
+
+    terminate() {
+        console.log(`terminate`);
+
+        if (!this.isInConference()) {
+            console.error("not in conference");
+            return;
+        }
+
+        if (this.roomsClient) {
+            this.roomsClient.roomLeave();
+            this.disconnectRoomsClient("terminate");
+        }
+
+        let terminateMsg = new TerminateConfMsg();
+        terminateMsg.data.conferenceId = this.conference.conferenceId;
+        this.sendToServer(terminateMsg);
+
+        this.resetConferenceRoom();
+        this.resetLocalTracks();
+
     }
 
     private resetConferenceRoom() {

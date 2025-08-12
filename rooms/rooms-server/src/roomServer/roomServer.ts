@@ -161,9 +161,6 @@ export class RoomServer {
             case payloadTypeClient.roomNew: {
                 return this.onRoomNew(peerId, msgIn);
             }
-            case payloadTypeClient.roomTerminate: {
-                return this.onRoomTerminate(peerId, msgIn);
-            }
             case payloadTypeClient.roomJoin: {
                 return this.onRoomJoin(peerId, msgIn);
             }
@@ -774,36 +771,37 @@ export class RoomServer {
             return msgError;
         }
 
-        return this.onRoomTerminateMsg(msg);
-    }
-
-    onRoomTerminateMsg(msg: RoomTerminateMsg): RoomTerminateResultMsg {
-        console.log(`onRoomTerminate() - ${msg.data.roomId}`);
-
-        const room = this.rooms.get(msg.data.roomId);
-        if (room) {
-
-            let msg = new RoomTerminateMsg();
-            msg.data.roomId = room.id;
-            this.broadCastAll(room, msg);
-
-            this.roomTerminate(room);
-
-            this.printStats();
-
-            let msgResult = new RoomTerminateResultMsg();
-            msgResult.data.roomId = room.id;
-
-            return msgResult;
-        } else {
-            console.log("room not found: " + msg.data.roomId)
+        if (!msg.data.roomId) {
+            let msgError = new RoomTerminateResultMsg();
+            msgError.data.error = "invalid roomId";
+            return msgError;
         }
 
-        let msgError = new RoomTerminateResultMsg();
-        msgError.data.roomId = room.id;
-        msgError.data.error = "unable to terminate room.";
+        return this.terminateRoom(msg);
+    }
 
-        return msgError;
+    terminateRoom(msg: RoomTerminateMsg): RoomTerminateResultMsg {
+        console.log(`terimnateRoom() - ${msg.data.roomId}`);
+
+        const room = this.rooms.get(msg.data.roomId);
+        if (!room) {
+            let msgError = new RoomTerminateResultMsg();
+            msgError.data.roomId = msg.data.roomId;
+            msgError.data.error = "unable to terminate room.";
+
+            return msgError;
+        }
+
+        let msgBroadCast = new RoomTerminateMsg();
+        msgBroadCast.data.roomId = room.id;
+        this.broadCastAll(room, msgBroadCast);
+        this.roomTerminate(room);
+        this.printStats();
+
+        let msgResult = new RoomTerminateResultMsg();
+        msgResult.data.roomId = room.id;
+
+        return msgResult;
     }
 
     onRoomGetLogsMsg(msg: RoomGetLogsMsg) {
@@ -1160,8 +1158,8 @@ export class RoomServer {
             return;
         }
 
-        if(!msgIn.data.tracksInfo){
-            consoleError(`tracksInfo is null` );
+        if (!msgIn.data.tracksInfo) {
+            consoleError(`tracksInfo is null`);
             return;
         }
 

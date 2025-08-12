@@ -24,12 +24,13 @@ import {
     ConferenceScheduledInfo,
     PresenterInfoMsg,
     conferenceType,
-    LoggedOffMsg
+    LoggedOffMsg,
+    TerminateConfMsg
 } from '@conf/conf-models';
 import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
 import { jwtVerify } from '../utils/jwtUtil.js';
-import { IMsg, RoomConfig } from '@rooms/rooms-models';
+import { AuthUserRoles, IMsg, OkMsg, payloadTypeServer, RoomConfig } from '@rooms/rooms-models';
 import express from 'express';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { getDemoSchedules } from '../demoData/demoData.js';
@@ -64,9 +65,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         consoleWarn(`Conferences: `, this.conferences.size);
         this.conferences.forEach(c => consoleWarn(`roomName: ${c.roomName}, dateCreated: ${c.dateCreated}, id: ${c.id}`));
         consoleWarn(`Participants: `, this.participants.size);
-        this.participants.forEach(p => consoleWarn(`displayName: ${p.displayName}, dateCreated: ${p.dateCreated}, id: ${p.participantId}`));                
+        this.participants.forEach(p => consoleWarn(`displayName: ${p.displayName}, dateCreated: ${p.dateCreated}, id: ${p.participantId}`));
         consoleWarn(`#################################`);
-        
+
         setTimeout(() => {
             this.printStats();
         }, 30000);
@@ -141,6 +142,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 case CallMessageType.presenterInfo:
                     resultMsg = await this.onPresenterInfo(participant, msgIn);
                     break;
+                case CallMessageType.terminateConf:
+                    resultMsg = await this.onTerminateConf(participant, msgIn);
+                    break;
 
             }
             return resultMsg;
@@ -178,11 +182,11 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         confType: conferenceType,
         participantGroup: string,
         minParticipants?: number,
-        minParticipantsTimeoutSeconds?: number,
+        minParticipantsTimeoutSec?: number,
+        noUserTimeoutSec?: number,
         conferenceId?: string,
         externalId?: string,
         roomName: string,
-        presenter?: Participant,
         config?: ConferenceConfig
     }) {
 
@@ -205,26 +209,19 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         conference = new Conference();
         conference.id = stringIsNullOrEmpty(args.conferenceId) ? this.generateConferenceId() : args.conferenceId;
-        conference.externalId = args.externalId;
-        conference.roomName = args.roomName;
-        conference.minParticipants = args.minParticipants;
-        conference.minParticipantsTimeoutSeconds = args.minParticipantsTimeoutSeconds;
-        conference.participantGroup = args.participantGroup;
-        conference.presenter = args.presenter;
-
+        conference.externalId = args.externalId ?? "";
+        conference.roomName = args.roomName ?? "";
+        conference.minParticipants = args.minParticipants ?? conference.minParticipants;
+        conference.minParticipantsTimeoutSec = args.minParticipantsTimeoutSec ?? conference.minParticipantsTimeoutSec;
+        conference.participantGroup = args.participantGroup ?? "";
         conference.confType = args.confType;
 
         if (args.config) {
-            conference.config = args.config;
+            fill(args.config, conference.config);
         }
 
-        if (conference.config.roomTimeoutSecs) {
-            conference.timeoutSecs = conference.config.roomTimeoutSecs;
-        }
-
-        if (!conference.timeoutSecs) {
-            conference.timeoutSecs = 12 * 60; //max upper limit of timeout
-        }
+        conference.timeoutSecs = conference.config.roomTimeoutSecs ?? conference.timeoutSecs;
+        conference.noUserTimeoutSec = args.noUserTimeoutSec ?? conference.noUserTimeoutSec;
 
         this.conferences.set(conference.id, conference);
 
@@ -244,6 +241,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
             //broadcast rooms to existing participants
             this.broadCastConferenceRooms(conf.participantGroup);
+            
+            this.taskCloseRoom(conf.roomId, conf.roomURI);
         };
 
         consoleLog(`conference created: ${conference.id} ${conference.roomName} `);
@@ -525,8 +524,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             participantGroup: participant.participantGroup,
             roomName: `call with ${participant.displayName} and ${remote.displayName}`,
             confType: "p2p",
-            minParticipants: 2,
-            minParticipantsTimeoutSeconds: 60
+            minParticipants: 2, //close the roomm if both particpants are not in the room within 1 minute 
+            minParticipantsTimeoutSec: 60
         });
         conference.addParticipant(participant);
 
@@ -783,16 +782,17 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleLog("conference already created");
         } else {
             conference = this.getOrCreateConference({
-                participantGroup: participant.participantGroup,
+                participantGroup: participant.participantGroup,                
                 confType: "room",
                 conferenceId: "",
                 minParticipants: 2,
-                minParticipantsTimeoutSeconds: 300,
+                minParticipantsTimeoutSec: 5 * 60, //if no one joins for 5 minutes close the room
                 externalId: msgIn.data.conferenceExternalId,
                 roomName: roomName,
                 config: confConfig,
-
             });
+            
+            conference.leader = participant;
 
             if (!await this.startRoom(conference)) {
                 consoleError("unable to start a conference");
@@ -1068,6 +1068,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     private async onLeave(participant: Participant, msgIn: LeaveMsg): Promise<IMsg | null> {
         consoleLog("onLeave");
+
         msgIn = fill(msgIn, new LeaveMsg());
 
         let conf = this.conferences.get(msgIn.data.conferenceId);
@@ -1100,7 +1101,42 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             msg.data.participantId = participant.participantId;
             this.send(p, msg);
         }
-        return;
+        return new OkMsg(payloadTypeServer.ok);
+    }
+
+    private async onTerminateConf(participant: Participant, msgIn: TerminateConfMsg): Promise<IMsg | null> {
+        consoleLog("onTerminateConf");
+
+        msgIn = fill(msgIn, new LeaveMsg());
+
+        let conf = participant.conference;
+
+        if (!conf) {
+            consoleError("participant not in conference.");
+            return;
+        }
+
+        if (conf.id !== msgIn.data.conferenceId) {
+            consoleError("not the same conference.");
+            return;
+        }
+
+        if (!(participant.role === AuthUserRoles.user || participant.role === AuthUserRoles.admin)) {
+            consoleError("not allowed to terminate conf");
+            return;
+        }
+
+        if (conf.leader !== participant) {
+            consoleError("only conf leader is allowed to terminate conf");
+            return;
+        }
+
+        this.taskCloseRoom(conf.roomId, conf.roomURI);
+
+        conf.close("closed by user");
+
+        return new OkMsg(payloadTypeServer.ok);
+
     }
 
     private async onGetConferences(participant: Participant, msgIn: GetConferencesMsg) {
@@ -1143,6 +1179,21 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             this.nextRoomURIIdx = 0;
         }
         return uri;
+    }
+
+    /**
+     * in case the clients didnt shutdown the room, close the room in 30 seconds
+     * @param roomId 
+     * @param roomURI 
+     */
+    taskCloseRoom(roomId: string, roomURI: string) {
+        if (roomId) {
+            setTimeout(() => {
+                consoleLog(`terminating room`);
+                let roomsAPI = new RoomsAPI(roomURI, this.config.room_access_token);
+                roomsAPI.terminateRoom(roomId)
+            }, 30 * 1000);
+        }
     }
 
 }

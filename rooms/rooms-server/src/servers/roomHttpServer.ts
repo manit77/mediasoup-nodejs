@@ -122,7 +122,7 @@ export class RoomHTTPServer {
             let msgIn = req.body as RoomTerminateMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
-            let resultMsg = this.roomServer.onRoomTerminateMsg(msgIn);
+            let resultMsg = this.roomServer.terminateRoom(msgIn);
             res.send(resultMsg);
         });
 

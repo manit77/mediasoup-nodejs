@@ -17,6 +17,7 @@ export enum CallMessageType {
     createConfResult = "createConfResult",
     joinConf = "joinConf",
     joinConfResult = "joinConfResult",
+    terminateConf = "terminateConf",
 
     invite = "invite", //invite to join room
     inviteCancelled = "inviteCancelled", //invite cancelled
@@ -291,6 +292,15 @@ export class PresenterInfoMsg implements IMsg {
 export class UnauthorizedMsg implements IMsg {
     type = CallMessageType.unauthorized;
     data: {
+        error?: string
+    } = {};
+}
+
+
+export class TerminateConfMsg implements IMsg {
+    type = CallMessageType.terminateConf;
+    data: {
+        conferenceId?: string,
         error?: string
     } = {};
 }

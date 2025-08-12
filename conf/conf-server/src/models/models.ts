@@ -1,7 +1,7 @@
 import { ConferenceConfig, conferenceType, ParticipantRole } from "@conf/conf-models";
 import { WebSocket } from "ws";
-import { AbstractEventHandler } from "../utils/evenHandler.js";
 import { consoleLog, consoleWarn } from "../utils/utils.js";
+import { AuthUserRoles } from "@rooms/rooms-models";
 
 export interface IAuthPayload {
     username: string,
@@ -13,9 +13,9 @@ type onSocketTimeout = (conn: SocketConnection) => void;
 
 export class SocketConnection {
 
-    
+
     ws: WebSocket;
-    
+
     /**
      * time allowed until registration
      */
@@ -27,9 +27,9 @@ export class SocketConnection {
     eventHandlers: onSocketTimeout[] = [];
     dateOfLastMsg: Date = new Date();
     dateCreated = new Date();
-    
+
     pingInterval: any;
-    lastPong : number;
+    lastPong: number;
     ips: string[] = [];
 
     constructor(webSocket: WebSocket, socketTimeoutSecs: number) {
@@ -114,9 +114,13 @@ export class Conference {
     externalId: string;
     participantGroup: string;
     presenter: Participant;
+    leader: Participant;
 
     timeoutId: any;
-    timeoutSecs: number = 0;
+    /**
+     * default 12 hours
+     */
+    timeoutSecs: number = 12 * 60;
     roomName: string;
     roomURI: string;
     roomId: string;
@@ -127,9 +131,21 @@ export class Conference {
     config = new ConferenceConfig();
     confType: conferenceType = "p2p"
 
-    minParticipantsTimeoutSeconds = 30;
-    minParticipants = 0;
+    /**
+     * default 45 secs
+     */
+    minParticipantsTimeoutSec = 45;
+    /**
+     * default 1
+     */
+    minParticipants = 1;
     minParticipantsTimerId: any;
+
+    /**
+    * default 60 secs
+    */
+    noUserTimeoutSec = 60;
+    noUserTimeoutId: any;
 
     onReadyListeners: (() => void)[] = [];
     dateCreated: Date;
@@ -175,12 +191,15 @@ export class Conference {
             consoleLog("participant removed");
         }
 
-        this.startTimerMinParticipants();
-
         if (this.participants.size == 0) {
             consoleLog("closing room, no participants.");
             this.close("no participants");
+            return;
         }
+
+        this.startTimerMinParticipants();
+
+        this.startTimerNoUser();
     }
 
     addParticipant(part: Participant): boolean {
@@ -208,11 +227,23 @@ export class Conference {
         this.participants.set(part.participantId, part);
         part.conference = this;
 
+        if(!this.leader && this.config.leaderTrackingId === part.participantId){
+            consoleLog(`leader set ${this.roomName} ${part.displayName}`);
+            this.leader = part;
+        }
+
         if (this.minParticipants >= this.participants.size) {
             if (this.minParticipantsTimerId) {
                 clearTimeout(this.minParticipantsTimerId);
             }
         }
+
+        if (part.role === AuthUserRoles.admin || part.role === AuthUserRoles.user) {
+            if (this.noUserTimeoutId) {
+                clearTimeout(this.noUserTimeoutId);
+            }
+        }
+
         return true;
     }
 
@@ -229,6 +260,7 @@ export class Conference {
         let existingParticipants = [...this.participants.values()];
 
         this.presenter = null;
+        this.leader = null;
 
         for (let part of this.participants.values()) {
             part.conference = null;
@@ -245,6 +277,11 @@ export class Conference {
         if (this.minParticipantsTimerId) {
             clearTimeout(this.minParticipantsTimerId);
             this.minParticipantsTimerId = null;
+        }
+
+        if (this.noUserTimeoutId) {
+            clearTimeout(this.noUserTimeoutId);
+            this.noUserTimeoutId = null;
         }
 
         if (this.onClose) {
@@ -275,11 +312,11 @@ export class Conference {
 
     /**
      * starts a timer for min participants
+     * this triggers a scenario there is one person in a room.
      * @param timeoutSeconds 
      */
     private startTimerMinParticipants() {
-        consoleLog(`startTimerMinParticipants, timeout in ${this.minParticipantsTimeoutSeconds}`);
-        this.minParticipantsTimeoutSeconds = this.minParticipantsTimeoutSeconds;
+        consoleLog(`startTimerMinParticipants, timeout in ${this.minParticipantsTimeoutSec}`);
 
         if (this.minParticipantsTimerId) {
             clearTimeout(this.minParticipantsTimerId);
@@ -289,16 +326,42 @@ export class Conference {
             return;
         }
 
-        if (this.minParticipants > 0 && this.minParticipantsTimeoutSeconds > 0) {
+        if (this.minParticipants > 0 && this.minParticipantsTimeoutSec > 0) {
             consoleLog(`startTimerMinParticipants started ${this.minParticipants}`);
-            consoleWarn(`shutting down conf ${this.roomName} in ${Math.round(this.minParticipantsTimeoutSeconds / 60)} min. if minParticipants of ${this.minParticipants} not met.`);
+            consoleWarn(`shutting down conf ${this.roomName} in ${Math.round(this.minParticipantsTimeoutSec / 60)} min. if minParticipants of ${this.minParticipants} not met.`);
 
             this.minParticipantsTimerId = setTimeout(() => {
                 if (this.participants.size < this.minParticipants) {
                     consoleLog("TimerMinParticipants executed.");
                     this.close("minimum participants reached.");
                 }
-            }, this.minParticipantsTimeoutSeconds * 1000);
+            }, this.minParticipantsTimeoutSec * 1000);
+        }
+    }
+
+    /**
+     * if there are no authorized users, only guests close the room on timeout
+     * this timer allows a user to reconnect if disconnected from a conference.
+     * @returns 
+     */
+    private startTimerNoUser() {
+
+        if (this.noUserTimeoutId) {
+            clearTimeout(this.noUserTimeoutId);
+        }
+
+        if (this.noUserTimeoutSec <= 0) {
+            return;
+        }
+
+        let userCount = [...this.participants.values()].filter(p => p.role == AuthUserRoles.user || p.role === AuthUserRoles.admin).length;
+        if (userCount == 0) {
+            this.noUserTimeoutId = setTimeout(() => {
+                let userCount = [...this.participants.values()].filter(p => p.role == AuthUserRoles.user || p.role === AuthUserRoles.admin);
+                if (userCount) {
+                    this.close("No admin, closing room.");
+                }
+            }, this.noUserTimeoutSec * 1000);
         }
     }
 

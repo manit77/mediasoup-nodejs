@@ -54,6 +54,7 @@ export class ConferenceConfig {
     guestsRequireConferenceCode: boolean = false;
     isRecorded = false;
     isPrivate = false;
+    leaderTrackingId : string = "";
 }
 
 export class ConferenceScheduledInfo {

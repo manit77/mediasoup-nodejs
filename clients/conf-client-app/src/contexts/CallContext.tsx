@@ -50,8 +50,9 @@ interface CallContextType {
     declineInvite: () => void;
     cancelInvite: () => void;
 
-    endCurrentCall: () => void;
-
+    leaveCurrentConference: () => void;
+    terinateCurrentConference: () => void;
+    
     broadCastTrackInfo: () => void;
     muteParticipantTrack: (participantId: string, audioEnabled: boolean, videoEnabled: boolean) => void;
 
@@ -497,9 +498,20 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         ui.showToast("call cancelled.");
     }, [ui]);
 
-    const endCurrentCall = useCallback(() => {
-        console.log("Ending current call.");
+    const leaveCurrentConference = useCallback(() => {
+        console.log("leaving current conference.");
         conferenceClient.leave();
+        setIsCallActive(false);
+        setInviteInfoSend(null);
+        setInviteInfoReceived(null);
+        setIsScreenSharing(false);
+        setCallParticipants(new Map());
+
+    }, []);
+
+    const terinateCurrentConference = useCallback(() => {
+        console.log("terinateCurrentConference current conference.");
+        conferenceClient.terminate();
         setIsCallActive(false);
         setInviteInfoSend(null);
         setInviteInfoReceived(null);
@@ -794,7 +806,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             acceptInvite,
             declineInvite,
             cancelInvite,
-            endCurrentCall,
+            leaveCurrentConference,
+            terinateCurrentConference,
 
             broadCastTrackInfo,
             muteParticipantTrack,

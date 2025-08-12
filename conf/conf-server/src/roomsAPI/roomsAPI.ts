@@ -5,7 +5,7 @@ import {
     RoomLeaveMsg,
     RoomLeaveResultMsg,
     RoomNewResultMsg,
-    AuthUserRoles,    
+    AuthUserRoles,
 } from "@rooms/rooms-models";
 import https from "https"
 
@@ -29,14 +29,14 @@ export class RoomsAPI {
     }
 
     async newRoomToken(): Promise<RoomNewTokenResultMsg> {
-        let msgIn = new RoomNewTokenMsg();        
+        let msgIn = new RoomNewTokenMsg();
         return await this.post(RoomServerAPIRoutes.newRoomToken, msgIn) as RoomNewTokenResultMsg;
     }
 
     async newAuthUserToken(role: AuthUserRoles) {
-        let msgIn = new AuthUserNewTokenMsg();       
-        msgIn.data.expiresInMin = 0;      
-        msgIn.data.role = role;  
+        let msgIn = new AuthUserNewTokenMsg();
+        msgIn.data.expiresInMin = 0;
+        msgIn.data.role = role;
         return await this.post(RoomServerAPIRoutes.newAuthUserToken, msgIn) as AuthUserNewTokenResultMsg;
     }
 
@@ -68,16 +68,17 @@ export class RoomsAPI {
         const url = `${this.config.apiURI}${path}`;
         console.log(`POST: ${url}`);
 
-        const agent = new https.Agent({ rejectUnauthorized: false }); // Use only in development
-        const options = {
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.config.accessToken}`
-            },
-            httpsAgent: agent,
-        };
-
         try {
+
+            const agent = new https.Agent({ rejectUnauthorized: false }); // Use only in development
+            const options = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.config.accessToken}`
+                },
+                httpsAgent: agent,
+            };
+
             console.log(`POST: ${url}, Data:`, dataObj);
             const result = await axios.post(url, dataObj, options); // Pass dataObj directly
             if (result.status >= 200 && result.status < 300) { // Handle all 2xx status codes

@@ -208,9 +208,9 @@ export class ConferenceSocketServer {
             consoleError(`error conf_socket_pong_timeout_secs must be > than conf_socket_ping_interval_secs`);
         }
 
-        const pingInterval = setInterval(() => {
+        conn.pingInterval = setInterval(() => {
             if (ws.readyState !== WebSocket.OPEN) {
-                clearInterval(pingInterval);
+                clearInterval(conn.pingInterval);
                 this.cleanupSocket(ws);
                 return;
             }
@@ -220,7 +220,7 @@ export class ConferenceSocketServer {
 
             if (timeSincePong >= this.config.conf_socket_pong_timeout_secs * 1000) {
                 consoleError(LOG, `No pong received, closing connection`);
-                clearInterval(pingInterval);
+                clearInterval(conn.pingInterval);
                 this.cleanupSocket(ws);
                 return;
             }
@@ -230,7 +230,7 @@ export class ConferenceSocketServer {
                 consoleWarn(`ping sent`);
             } catch (err) {
                 consoleError(LOG, 'Ping error', err);
-                clearInterval(pingInterval);
+                clearInterval(conn.pingInterval);
                 this.cleanupSocket(ws);
             }
         }, this.config.conf_socket_ping_interval_secs * 1000);
@@ -241,11 +241,9 @@ export class ConferenceSocketServer {
             consoleWarn(`ping sent`);
         } catch (err) {
             consoleError(LOG, 'Ping error', err);
-            clearInterval(pingInterval);
+            clearInterval(conn.pingInterval);
             this.cleanupSocket(ws);
         }
-
-        conn.pingInterval = pingInterval;
     }
 
 
