@@ -466,7 +466,7 @@ export class PeerMuteTracksMsg {
 
 export interface PeerTracksInfo {
     isAudioEnabled: boolean,
-    isVideoEnabled?: boolean
+    isVideoEnabled: boolean
 }
 
 export class UnauthorizedMsg implements IMsg {

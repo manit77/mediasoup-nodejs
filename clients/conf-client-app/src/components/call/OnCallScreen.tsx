@@ -44,7 +44,7 @@ const OnCallScreen: React.FC = () => {
     }, [callParticipants]);
 
     const handleSelectParticipantVideo = (participant: Participant) => {
-        console.warn(`handleSelectParticipantVideo- ${participant.displayName}, tracks:`, participant.stream?.getTracks());
+        console.warn(`handleSelectParticipantVideo- ${participant.displayName}, tracks:`, participant.stream.getTracks());
 
         if (presenter) {
             console.warn("presenter already presenting");
@@ -62,7 +62,7 @@ const OnCallScreen: React.FC = () => {
             if (videoTrack && videoTrack.enabled && !videoTrack.muted && videoTrack.readyState === "live") {
                 setSelectedParticipant(participant);
             } else {
-                console.warn(`no video track`);
+                console.warn(`no video track`, videoTrack, videoTrack.enabled, !videoTrack.muted, videoTrack.readyState);
             }
         } else {
             console.warn(`no stream`);

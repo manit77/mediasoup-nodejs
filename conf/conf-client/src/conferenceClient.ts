@@ -1385,18 +1385,14 @@ export class ConferenceClient {
             return;
         }
 
-        if (this.roomsClient) {
-            this.roomsClient.roomLeave();
-            this.disconnectRoomsClient("terminate");
-        }
+        let conferenceId = this.conference.conferenceId;
 
-        let terminateMsg = new TerminateConfMsg();
-        terminateMsg.data.conferenceId = this.conference.conferenceId;
+         let terminateMsg = new TerminateConfMsg();
+        terminateMsg.data.conferenceId = conferenceId;
         this.sendToServer(terminateMsg);
 
-        this.resetConferenceRoom();
-        this.resetLocalTracks();
-
+        //leave room incase we don't have permissions to terminate the room
+        this.leave();
     }
 
     private resetConferenceRoom() {

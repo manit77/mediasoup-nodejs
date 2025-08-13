@@ -187,6 +187,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         conferenceId?: string,
         externalId?: string,
         roomName: string,
+        leader?:Participant,
         config?: ConferenceConfig
     }) {
 
@@ -215,6 +216,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         conference.minParticipantsTimeoutSec = args.minParticipantsTimeoutSec ?? conference.minParticipantsTimeoutSec;
         conference.participantGroup = args.participantGroup ?? "";
         conference.confType = args.confType;
+
+        conference.leader = args.leader;
 
         if (args.config) {
             fill(args.config, conference.config);
@@ -789,10 +792,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 minParticipantsTimeoutSec: 5 * 60, //if no one joins for 5 minutes close the room
                 externalId: msgIn.data.conferenceExternalId,
                 roomName: roomName,
-                config: confConfig,
+                leader: participant,
+                config: confConfig,                
             });
-
-            conference.leader = participant;
 
             if (!await this.startRoom(conference)) {
                 consoleError("unable to start a conference");

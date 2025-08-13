@@ -244,18 +244,22 @@ export class RoomPeer {
     }
 
     async muteProducer() {
+        consoleError(`muteProducer ${this.peer.displayName}`);
+
         //the peer has mute/unmute a remotePeer
         for (let producer of this.producers.values()) {
 
             let trackEnabled = producer.kind == "audio" ? this.peer.tracksInfo.isAudioEnabled : this.peer.tracksInfo.isVideoEnabled;
 
+            consoleError(`producer ${producer.kind} is paused: ${producer.paused}`);
+
             //toggle the producer track
             if (trackEnabled && producer.paused) {
                 await producer.resume();
-                consoleWarn(`${this.peer.displayName}:Producer ${producer.id} ${producer.kind} resumed.`);
+                consoleError(`${this.peer.displayName}:Producer ${producer.id} ${producer.kind} resumed.`);
             } else if (!trackEnabled && !producer.paused) {
                 await producer.pause();
-                consoleWarn(`${this.peer.displayName}:Producer ${producer.id} ${producer.kind} paused.`);
+                consoleError(`${this.peer.displayName}:Producer ${producer.id} ${producer.kind} paused.`);
             }
         }
     }

@@ -228,7 +228,7 @@ export class Conference {
         part.conference = this;
 
         if(!this.leader && this.config.leaderTrackingId === part.participantId){
-            consoleLog(`leader set ${this.roomName} ${part.displayName}`);
+            consoleWarn(`leader set ${this.roomName} ${part.displayName}`);
             this.leader = part;
         }
 

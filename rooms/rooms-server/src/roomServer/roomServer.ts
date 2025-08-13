@@ -1128,6 +1128,7 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeServer.error, "`no tracksInfo sent.");
         }
 
+        consoleWarn(`onPeerTracksInfo ${peer.displayName} isAudioEnabled:${peer.tracksInfo.isAudioEnabled}, isVideoEnabled:${peer.tracksInfo.isVideoEnabled}`);
         peer.tracksInfo.isAudioEnabled = !!(msgIn.data.tracksInfo.isAudioEnabled);
         peer.tracksInfo.isVideoEnabled = !!(msgIn.data.tracksInfo.isVideoEnabled);
 
@@ -1177,8 +1178,11 @@ export class RoomServer {
             return;
         }
 
+        consoleLog(`current tracksInfo${remotePeer.displayName} isAudioEnabled: ${remotePeer.tracksInfo.isAudioEnabled} isVideoEnabled: ${remotePeer.tracksInfo.isVideoEnabled}`);
         remotePeer.tracksInfo.isAudioEnabled = !!msgIn.data.tracksInfo.isAudioEnabled;
         remotePeer.tracksInfo.isVideoEnabled = !!msgIn.data.tracksInfo.isVideoEnabled;
+        consoleLog(`after tracksInfo${remotePeer.displayName} isAudioEnabled: ${remotePeer.tracksInfo.isAudioEnabled} isVideoEnabled: ${remotePeer.tracksInfo.isVideoEnabled}`);
+
 
         await peer.room.muteProducer(remotePeer);
 
@@ -1240,7 +1244,7 @@ export class RoomServer {
 
         console.log(`### peers: ${this.peers.size} ###`);
         for (let [peerid, peer] of this.peers) {
-            console.log(`##### peerid: ${peerid}, displayName: ${peer.displayName}, roomid: ${peer.room?.id}`);
+            console.log(`##### peerid: ${peerid}, displayName: ${peer.displayName}, roomName: ${peer.room?.roomName}, isAudioEnabled: ${peer.tracksInfo.isAudioEnabled}, isVideoEnabled: ${peer.tracksInfo.isVideoEnabled}` );
         }
         console.log("### ##### ###");
     }

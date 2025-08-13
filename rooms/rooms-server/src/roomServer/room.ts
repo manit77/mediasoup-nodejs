@@ -314,6 +314,8 @@ export class Room {
     }
 
     async muteProducer(peer: Peer) {
+        consoleWarn(`muteProducer ${peer.displayName}`);
+
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
             consoleError(`peer not found. ${peer.id} ${peer.displayName}`);

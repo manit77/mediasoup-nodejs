@@ -505,7 +505,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, []);
 
     const terinateCurrentConference = useCallback(() => {
-        console.log("terinateCurrentConference current conference.");
+        console.log("terinateCurrentConference current conference.");       
         conferenceClient.terminate();
         setIsCallActive(false);
         setInviteInfoSend(null);
