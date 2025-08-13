@@ -11,10 +11,11 @@ interface CallTopMenuProps {
 }
 
 const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
-    const { conference, leaveCurrentConference, terinateCurrentConference, startScreenShare, stopScreenShare, isScreenSharing } = useCall();
+    const { conference, leaveCurrentConference, terinateCurrentConference, startScreenShare, stopScreenShare, isScreenSharing, localParticipant } = useCall();
     const { isUser, getCurrentUser } = useAPI();
     const navigate = useNavigate();
     const [allowScreenShare, setAllowScreenShare] = useState(true);
+    const [allowTerminateConf, setAllowTerminateConf] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
 
     const handleOpenModal = () => setShowConfirmModal(true);
@@ -61,6 +62,10 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
             }
         }
 
+        if (conference.leaderId && conference.leaderId === localParticipant.participantId) {
+            setAllowTerminateConf(true);
+        }
+
     }, [conference, isUser])
 
     return (
@@ -88,9 +93,9 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                             <GearFill size={20} /> <span className="d-none d-md-inline">Settings</span>
                         </Button>
 
-                        <Button variant="danger" onClick={handleOpenModal} title="Terminate">
+                        {allowTerminateConf ? (<Button variant="danger" onClick={handleOpenModal} title="Terminate">
                             <XSquareFill size={20} /> <span className="d-none d-md-inline">End for All</span>
-                        </Button>
+                        </Button>) : null}
 
                         <Button variant="danger" onClick={handleExitCall} title="Exit Call">
                             <BoxArrowRight size={20} /> <span className="d-none d-md-inline">Leave</span>

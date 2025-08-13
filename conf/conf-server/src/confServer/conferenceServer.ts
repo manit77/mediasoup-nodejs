@@ -791,7 +791,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 roomName: roomName,
                 config: confConfig,
             });
-            
+
             conference.leader = participant;
 
             if (!await this.startRoom(conference)) {
@@ -924,7 +924,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         let resultMsg = new JoinConfResultMsg();
         resultMsg.data.conferenceId = conference.roomId;
-
+        resultMsg.data.leaderId = conference.leader?.participantId;
+        
         return resultMsg;
     }
 

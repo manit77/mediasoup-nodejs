@@ -283,13 +283,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 case EventTypes.participantNewTrack: {
                     let msg = msgIn as EventParticpantNewTrackMsg;
 
-                    console.log('CallContext: onParticipantTrack');
-
-                    if (!msg.data.participantId) {
-                        console.error("CallContext: no participantId");
-                        return;
-                    }
-
+                    console.warn('CallContext: onParticipantTrack', msgIn);
+                    
                     if (!msg.data.track) {
                         console.error("CallContext: no track");
                         return;

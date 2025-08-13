@@ -16,7 +16,7 @@ import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
 import { callStates, Conference, ConferenceClientConfig, Participant, SelectedDevices } from "./models.js";
 import { EventParticpantNewTrackMsg, EventTypes } from "./conferenceEvents.js";
 import { ConferenceAPIClient } from "./conferenceAPIClient.js";
-import { IMsg, OkMsg, payloadTypeClient, payloadTypeServer } from "@rooms/rooms-models";
+import { IMsg, OkMsg, payloadTypeServer } from "@rooms/rooms-models";
 import { getBrowserDisplayMedia, getBrowserUserMedia } from "./conferenceUtils.js";
 
 export type ConferenceEvent = (eventType: EventTypes, payload: IMsg) => Promise<void>;
@@ -1558,6 +1558,8 @@ export class ConferenceClient {
             return;
         }
 
+        this.conference.leaderId = message.data.leaderId;        
+
         //!!! don't send event for EventTypes.conferenceJoined, wait for room client to send event
         //!!! next event received is onConferenceReady
 
@@ -1856,7 +1858,7 @@ export class ConferenceClient {
         };
 
         this.roomsClient.eventOnPeerNewTrack = async (peer: IPeer, track: MediaStreamTrack) => {
-            console.log(`onPeerNewTrackEvent peerId: ${peer.peerId}, ${peer.trackingId} ${peer.displayName}`, this.conference.participants);
+            console.log(`onPeerNewTrackEvent peerId: ${peer.peerId}, ${peer.trackingId} ${peer.displayName}`);
 
             let participant = this.conference.participants.get(peer.trackingId);
             if (!participant) {
@@ -1872,9 +1874,10 @@ export class ConferenceClient {
                 participant.stream.removeTrack(existingTrack);
             }
             participant.stream.addTrack(track);
+            console.warn(`total tracks for ${participant.displayName}`, participant.stream.getTracks());
 
             let msg = new EventParticpantNewTrackMsg();
-            msg.data.participantId = participant.participantId;
+            msg.data.participant = participant;
             msg.data.track = track;
             await this.onEvent(EventTypes.participantNewTrack, msg);
 

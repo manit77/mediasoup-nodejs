@@ -174,6 +174,7 @@ export class JoinConfResultMsg implements IMsg {
     type = CallMessageType.joinConfResult;
     data: {
         conferenceId?: string,
+        leaderId?: string,
         error?: string
     } = {};
 }
@@ -304,3 +305,4 @@ export class TerminateConfMsg implements IMsg {
         error?: string
     } = {};
 }
+

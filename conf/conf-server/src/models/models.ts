@@ -113,8 +113,8 @@ export class Conference {
     id: string;
     externalId: string;
     participantGroup: string;
-    presenter: Participant;
-    leader: Participant;
+    presenter?: Participant;
+    leader?: Participant;
 
     timeoutId: any;
     /**

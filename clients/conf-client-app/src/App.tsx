@@ -10,6 +10,7 @@ import { useCall } from './hooks/useCall';
 import { UIProvider } from './contexts/UIContext';
 import { useLocation } from 'react-router-dom';
 import { getConferenceClient } from './services/ConferenceService';
+import LoginGuestPage from './components/auth/LoginGuestPage';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAPI();
@@ -32,11 +33,12 @@ const AppRoutes: React.FC = () => {
     <Routes>
       {!isAuthenticated ? (
         <>
+          <Route path="/loginGuest" element={<LoginGuestPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route
             path="*"
             element={              
-              !location.pathname.startsWith("/login")
+              !location.pathname.startsWith("/login") && !location.pathname.startsWith("/loginGuest")
                 ? <Navigate to={`/login${location.search}`} replace />
                 : null
             }

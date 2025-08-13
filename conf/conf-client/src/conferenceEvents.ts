@@ -1,4 +1,5 @@
 import { IMsg } from "@rooms/rooms-models";
+import { Participant } from "./models.js";
 
 export enum EventTypes {
 
@@ -33,10 +34,11 @@ export enum EventTypes {
     prensenterInfo = "prensenterInfo"
 }
 
+
 export class EventParticpantNewTrackMsg implements IMsg {
-    type: EventTypes.particpantNewTrack;
+    type = EventTypes.particpantNewTrack;
     data: {
-        participantId?: string,
+        participant?: Participant,        
         track?: MediaStreamTrack
     } = {}
 }

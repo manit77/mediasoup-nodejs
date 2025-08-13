@@ -25,11 +25,14 @@ export class Participant {
 }
 
 export class Conference {
+
     conferenceId: string;
     conferenceName: string;
     conferenceExternalId: string;
     conferenceType: conferenceType = "p2p"; // default to p2p
     conferenceConfig: ConferenceConfig;
+    leaderId?: string;
+    
     roomAuthToken: string;
     roomToken: string;
     roomId: string;

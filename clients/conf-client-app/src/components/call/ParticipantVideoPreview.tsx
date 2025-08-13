@@ -25,17 +25,23 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 
     useEffect(() => {
         console.warn(`participant updated, set video srcObject ${participant.displayName}`, participant.tracksInfo);
+
+        if(participant.tracksInfo)
+
         if (participant.stream && videoRef.current) {
             videoRef.current.srcObject = participant.stream;
             console.log(`videoRef set srcObject ${participant.displayName}`);
         }
 
-        setAudioEnabled(participant.tracksInfo.isAudioEnabled ?? false);
-        setVideoEnabled(participant.tracksInfo.isVideoEnabled ?? false);
+        setAudioEnabled(participant.tracksInfo.isAudioEnabled);
+        setVideoEnabled(participant.tracksInfo.isVideoEnabled);
 
         //check if tracks are in sync
-        let audioTrackEnabled = participant.stream.getAudioTracks()[0]?.enabled
-        let videoTrackEnabled = participant.stream.getVideoTracks()[0]?.enabled
+        let audioTrackEnabled = !!participant.stream.getAudioTracks()[0]?.enabled
+        let videoTrackEnabled = !!(participant.stream.getVideoTracks()[0]?.enabled)
+
+        console.warn(`Has audio track, ${participant.displayName}: `, participant.stream.getAudioTracks()[0]);
+        console.warn(`Has video track, ${participant.displayName}: `, participant.stream.getVideoTracks()[0]);
 
         if (participant.tracksInfo?.isAudioEnabled !== audioTrackEnabled) {
             console.warn(`${participant.displayName} audioTrackEnabled not in sync ${participant.tracksInfo.isAudioEnabled} ${audioTrackEnabled}`);

@@ -5,9 +5,8 @@ import { useUI } from '../../hooks/useUI';
 import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
 import { getQueryParams } from '../../utils/utils';
 
-const LoginPage: React.FC = () => {
+const LoginGuestPage: React.FC = () => {
     const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const api = useAPI();
@@ -16,10 +15,11 @@ const LoginPage: React.FC = () => {
 
     useEffect(() => {
         console.log("getQueryParams:", getQueryParams());
-    }, []);
+    }, []);    
 
-    const handleSubmitAdmin = async (e: React.FormEvent) => {
+    const handleSubmitGuest = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError('');
         if (!username.trim()) {
             setError('Display name is required.');
             return;
@@ -27,16 +27,16 @@ const LoginPage: React.FC = () => {
         setLoading(true);
         try {
             let clientData = getQueryParams();
-            let response = await api.login(username, password, clientData);
+            let response = await api.loginGuest(username, clientData);
             if (response.error) {
                 setError(response.error);
                 ui.showToast(`Login failed. ${response.error}`, "error");
                 return;
             }
             setError('');
-            navigate('/app'); // Navigate to authenticated area
+            navigate('/app');
         } catch (err: any) {
-            setError('Login failed. Please try again.');
+            setError(err.message || 'Login failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -44,27 +44,18 @@ const LoginPage: React.FC = () => {
 
     return (
         <Container className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
-            <Card style={{ width: '400px', borderColor: '#ff9800' }}>
+            <Card style={{ width: '400px', borderColor: '#007bff' }}>
                 <Card.Body>
-                    <Card.Title className="card-title-bg-orange text-center mb-4">Login as Admin</Card.Title>
+                    <Card.Title className="text-center mb-4">Login as Guest</Card.Title>
                     {error && <Alert variant="danger">{error}</Alert>}
-                    <Form onSubmit={handleSubmitAdmin}>
-                        <Form.Group className="mb-3" controlId="username">                            
+                    <Form onSubmit={handleSubmitGuest}>
+                        <Form.Group className="mb-3" controlId="username">
+                            <Form.Label>Guest Display Name</Form.Label>
                             <Form.Control
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                placeholder="Enter your username"
-                                required
-                                disabled={loading}
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-3" controlId="password">
-                            <Form.Control
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Enter your passsword"
+                                placeholder="Enter your display name"
                                 required
                                 disabled={loading}
                             />
@@ -74,10 +65,9 @@ const LoginPage: React.FC = () => {
                         </Button>
                     </Form>
                 </Card.Body>
-            </Card>
-
+            </Card> 
         </Container>
     );
 };
 
-export default LoginPage;
+export default LoginGuestPage;
