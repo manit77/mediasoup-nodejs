@@ -26,17 +26,16 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
     useEffect(() => {
         console.warn(`participant updated, set video srcObject ${participant.displayName}`, participant.tracksInfo);
 
-        if(participant.tracksInfo)
-
-        if (participant.stream && videoRef.current) {
+        if (videoRef.current.srcObject != participant.stream) {
+            //stream never changes, we just add and remove tracks
             videoRef.current.srcObject = participant.stream;
-            console.log(`videoRef set srcObject ${participant.displayName}`);
+            console.warn(`video.srcObject set for ${participant.displayName}`);
         }
 
         setAudioEnabled(participant.tracksInfo.isAudioEnabled);
         setVideoEnabled(participant.tracksInfo.isVideoEnabled);
 
-        //check if tracks are in sync
+        //check if tracks are in sync for debugging
         let audioTrackEnabled = !!participant.stream.getAudioTracks()[0]?.enabled
         let videoTrackEnabled = !!(participant.stream.getVideoTracks()[0]?.enabled)
 
@@ -56,7 +55,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
         }
 
 
-    }, [callParticipants, participant]);
+    }, [participant, participant.tracksInfo]);
 
     const onAudioClick = useCallback(async () => {
         console.log(`onAudioClick.`);
@@ -234,6 +233,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                     autoPlay
                     playsInline
                     muted={localParticipant.participantId === participant.participantId}
+                    onError={() => console.error(`Video render error for ${participant.displayName}`)}
                     style={{
                         width: '100%',
                         height: '100%',

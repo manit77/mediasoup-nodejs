@@ -7,6 +7,7 @@ import { useConfig } from '../hooks/useConfig';
 import { IMsg } from '@rooms/rooms-models';
 import { EventParticpantNewTrackMsg, EventTypes } from '@conf/conf-client';
 import { getConferenceClient } from '../services/ConferenceService';
+import { debounce } from 'lodash';
 
 export const conferenceClient = getConferenceClient();
 
@@ -52,7 +53,7 @@ interface CallContextType {
 
     leaveCurrentConference: () => void;
     terinateCurrentConference: () => void;
-    
+
     broadCastTrackInfo: () => void;
     muteParticipantTrack: (participantId: string, audioEnabled: boolean, videoEnabled: boolean) => void;
 
@@ -81,7 +82,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const localParticipant = useRef<Participant>(conferenceClient.localParticipant);
     const [presenter, setPresenter] = useState<Participant>(conferenceClient.conference?.presenter);
-    
+
     const [isWaiting, setIsWaiting] = useState<boolean>(false);
     const [isCallActive, setIsCallActive] = useState<boolean>(conferenceClient.isInConference());
     const [conference, setConferenceRoom] = useState<Conference>(conferenceClient.conference);
@@ -214,6 +215,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
     }, [getMediaDevices]);
 
+    const debouncedSetCallParticipants = useCallback(
+        debounce((newParticipants: Map<string, Participant>) => {
+            setCallParticipants(new Map(newParticipants));
+        }, 500),
+        []
+    );
+
     const getParticipantsOnline = useCallback(() => {
         conferenceClient.getParticipantsOnline();
     }, []);
@@ -246,8 +254,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     initState();
 
                     let reason = msgIn.data.reason ?? "you have logged off by the server";
-                    ui.showPopUp(reason, "error");                    
-                    api.logout();                    
+                    ui.showPopUp(reason, "error");
+                    api.logout();
 
                     break;
                 }
@@ -255,7 +263,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     console.log("CallContext: server connected");
 
                     initState();
-                   
+
                     ui.hidePopUp();
                     ui.showToast("connected to server");
                     break;
@@ -263,9 +271,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 case EventTypes.disconnected: {
                     console.log("CallContext: disconnected from server");
 
-                    initState();                    
+                    initState();
                     ui.showToast("disconnected from server. trying to reconnect...");
-                    
+
                     break;
                 }
                 case EventTypes.participantsReceived: {
@@ -284,14 +292,15 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     let msg = msgIn as EventParticpantNewTrackMsg;
 
                     console.warn('CallContext: onParticipantTrack', msgIn);
-                    
+
                     if (!msg.data.track) {
                         console.error("CallContext: no track");
                         return;
                     }
 
                     //update the call participants
-                    setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+                    //setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+                    debouncedSetCallParticipants(conferenceClient.conference.participants);
 
                     break;
                 }
@@ -505,7 +514,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, []);
 
     const terinateCurrentConference = useCallback(() => {
-        console.log("terinateCurrentConference current conference.");       
+        console.log("terinateCurrentConference current conference.");
         conferenceClient.terminate();
         setIsCallActive(false);
         setInviteInfoSend(null);
@@ -742,7 +751,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const disconnect = useCallback(async () => {
         console.warn("CallContext disconnect()");
-        
+
         conferenceClient.disconnect();
 
         setIsConnected(false);
