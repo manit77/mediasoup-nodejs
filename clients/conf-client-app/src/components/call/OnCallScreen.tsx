@@ -18,6 +18,11 @@ const OnCallScreen: React.FC = () => {
     const [remoteParticipant, setRemoteParticipant] = useState<Participant>(null)
 
     useEffect(() => {
+        console.error('on call screen rendered.');
+    }, []);
+
+
+    useEffect(() => {
         console.log(`try to switch devices, selectedDevices triggered `, localParticipant.stream.getTracks());
         switchDevicesOnCall();
     }, [localParticipant, selectedDevices, switchDevicesOnCall]);
@@ -55,15 +60,36 @@ const OnCallScreen: React.FC = () => {
             console.warn("cannot select self");
             return;
         }
-       
+
 
         if (participant.stream) {
+
             let videoTrack = participant.stream.getVideoTracks()[0]
-            if (videoTrack && videoTrack.enabled && !videoTrack.muted && videoTrack.readyState === "live") {
-                setSelectedParticipant(participant);
-            } else {
-                console.warn(`no video track`, videoTrack, videoTrack.enabled, !videoTrack.muted, videoTrack.readyState);
+            if (!videoTrack) {
+                console.warn(`not video track for ${participant.displayName}`);
+                return;
             }
+
+            if (videoTrack.enabled && !videoTrack.muted && videoTrack.readyState === "live") {
+                setSelectedParticipant(participant);
+
+                const videoEl = document.createElement("video");
+                videoEl.autoplay = true;
+                videoEl.playsInline = true;
+                videoEl.muted = true;
+                videoEl.style.width = "100%";
+
+                videoEl.srcObject = participant.stream;
+                const container = document.getElementById("video-container");
+                if (container) {
+                    container.appendChild(videoEl);
+                }
+
+
+            } else {
+                console.warn(`video track not enabled, muted or ended:`, videoTrack, videoTrack.enabled, !videoTrack.muted, videoTrack.readyState);
+            }
+
         } else {
             console.warn(`no stream`);
         }
@@ -78,6 +104,8 @@ const OnCallScreen: React.FC = () => {
         <div className="d-flex flex-column vh-100 bg-dark text-light">
             <CallTopMenu onShowSettings={() => setShowSettings(true)} />
 
+            <div id="video-container"></div>
+
             <div className="pt-5">
                 <div style={{
                     paddingTop: '8px',
@@ -89,7 +117,9 @@ const OnCallScreen: React.FC = () => {
                             // One participant - waiting screen
                             <div className="d-flex flex-column justify-content-center align-items-center h-100">
                                 <div style={{ width: '60%', maxWidth: '600px' }}>
-                                    <ParticipantVideoPreview onClick={() => { }} isSelected={true} key={localParticipant.participantId} participant={localParticipant}></ParticipantVideoPreview>
+                                    <ParticipantVideoPreview onClick={() => { }} isSelected={true}
+                                        key={1}
+                                        participant={localParticipant}></ParticipantVideoPreview>
                                 </div>
                                 <p className="mt-3 fs-5">Waiting for other participants...</p>
                             </div>
@@ -161,7 +191,7 @@ const OnCallScreen: React.FC = () => {
                                     <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
                                         <MainVideo />
                                     </div>
-                                    
+
                                     <div
                                         className="d-flex flex-row overflow-auto p-2"
                                         style={{

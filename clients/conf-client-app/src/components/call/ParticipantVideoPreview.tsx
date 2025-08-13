@@ -7,6 +7,15 @@ import { useAPI } from "../../hooks/useAPI";
 import { useCall } from "../../hooks/useCall";
 import { useUI } from "../../hooks/useUI";
 import ThrottledButton from "../layout/ThrottledButton";
+import VideoPlayer from "./VideoPlayer";
+
+const debounce = (func: (...args: any[]) => void, wait: number) => {
+    let timeout: NodeJS.Timeout;
+    return (...args: any[]) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    };
+};
 
 interface ParticipantVideoPreviewProps {
     participant?: Participant
@@ -19,43 +28,43 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
     const api = useAPI();
     const ui = useUI();
     const { localParticipant, broadCastTrackInfo, conference, callParticipants, muteParticipantTrack, getMediaConstraints } = useCall();
-    const videoRef = React.useRef<HTMLVideoElement>(null);
+    // const videoRef = React.useRef<HTMLVideoElement>(null);
     const [videoEnabled, setVideoEnabled] = useState(false);
     const [audioEnabled, setAudioEnabled] = useState(false);
 
     useEffect(() => {
+        // console.warn(`ParticipantVideoPreview for ${participant.displayName} mount`);
+        // const videoEl = videoRef.current; // store it so cleanup can still access
+
+        // if (!videoRef.current) {
+        //     console.warn(`videoRef.current is null`);
+        //     return;
+        // }
+
+        // console.warn(`ParticipantVideoPreview set participant stream ${participant.displayName}`);
+
+        // if (videoRef.current.srcObject != participant.stream) {
+        //     //stream never changes, we just add and remove tracks
+        //     videoRef.current.srcObject = participant.stream;
+        //     console.warn(`ParticipantVideoPreview video.srcObject for ${participant.displayName} is set`);
+        // }
+
+        // Cleanup on unmount
+        return () => {
+            // console.warn(`ParticipantVideoPreview for ${participant.displayName} unmount`);
+            // videoEl.srcObject = null; // Detach stream to free resources
+            // console.warn(`ParticipantVideoPreview video.srcObject for for ${participant.displayName} is detached`);
+
+        };
+
+    }, []);
+
+
+    useEffect(() => {
         console.warn(`participant updated, set video srcObject ${participant.displayName}`, participant.tracksInfo);
-
-        if (videoRef.current.srcObject != participant.stream) {
-            //stream never changes, we just add and remove tracks
-            videoRef.current.srcObject = participant.stream;
-            console.warn(`video.srcObject set for ${participant.displayName}`);
-        }
-
         setAudioEnabled(participant.tracksInfo.isAudioEnabled);
         setVideoEnabled(participant.tracksInfo.isVideoEnabled);
-
-        //check if tracks are in sync for debugging
-        let audioTrackEnabled = !!participant.stream.getAudioTracks()[0]?.enabled
-        let videoTrackEnabled = !!(participant.stream.getVideoTracks()[0]?.enabled)
-
-        console.warn(`Has audio track, ${participant.displayName}: `, participant.stream.getAudioTracks()[0]);
-        console.warn(`Has video track, ${participant.displayName}: `, participant.stream.getVideoTracks()[0]);
-
-        if (participant.tracksInfo?.isAudioEnabled !== audioTrackEnabled) {
-            console.warn(`${participant.displayName} audioTrackEnabled not in sync ${participant.tracksInfo.isAudioEnabled} ${audioTrackEnabled}`);
-        } else {
-            console.log(`${participant.displayName} audioTrackEnabled in sync`);
-        }
-
-        if (participant.tracksInfo?.isVideoEnabled !== videoTrackEnabled) {
-            console.warn(`${participant.displayName} videoTrackEnabled not in sync ${participant.tracksInfo?.isVideoEnabled} ${videoTrackEnabled}`);
-        } else {
-            console.log(`${participant.displayName} videoTrackEnabled in sync`);
-        }
-
-
-    }, [participant, participant.tracksInfo]);
+    }, [participant.tracksInfo]);
 
     const onAudioClick = useCallback(async () => {
         console.log(`onAudioClick.`);
@@ -228,12 +237,32 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                     overflow: 'hidden', // Ensure no overflow within the Card
                 }}
             >
-                <video
+
+                <VideoPlayer stream={participant.stream}/>
+                {/* <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     muted={localParticipant.participantId === participant.participantId}
-                    onError={() => console.error(`Video render error for ${participant.displayName}`)}
+
+                    onError={(event: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+
+                        const videoElement = event.target as HTMLVideoElement;
+                        const mediaError = videoElement.error; // Access MediaError
+                        console.error(`Video render error for ${participant.displayName}`, {
+                            errorCode: mediaError?.code,
+                            errorMessage: mediaError?.message,
+                            readyState: videoElement.readyState,
+                            networkState: videoElement.networkState,
+                            streamActive: participant.stream?.active,
+                            streamTracks: participant.stream?.getTracks().map((track) => ({
+                                kind: track.kind,
+                                enabled: track.enabled,
+                                readyState: track.readyState,
+                            })),
+                        });
+                    }}
+
                     style={{
                         width: '100%',
                         height: '100%',
@@ -242,6 +271,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                         ...style, // Merge external styles
                     }}
                 />
+                 */}
                 {!videoEnabled ? (
                     <div
                         className="d-flex align-items-center justify-content-center"

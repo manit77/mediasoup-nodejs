@@ -26,6 +26,7 @@
   },
   "scripts": {
     "start": "PORT=3001 react-scripts start",
+    "start-local": "HTTPS=true SSL_CRT_FILE=../../certs/localhost-fullchain.pem SSL_KEY_FILE=../../certs/localhost-key.pem HOST=192.168.40.24 react-scripts start",
     "build": "rm -rf build && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",

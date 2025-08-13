@@ -484,7 +484,9 @@ export class ConferenceClient {
             let newTracks = newStream.getTracks();
             this.localParticipant.stream.getTracks().forEach(t => this.localParticipant.stream.removeTrack(t));
             newTracks.forEach(t => this.localParticipant.stream.addTrack(t));
-            console.log(`new tracks created for localParticipant tracksInfo`, this.localParticipant.tracksInfo);
+            console.warn(`new tracks created for localParticipant tracks`, this.localParticipant.stream.getTracks());
+            console.warn(`new tracks created for localParticipant tracksInfo`, this.localParticipant.tracksInfo);
+
 
             let audioTrack = newTracks.find(t => t.kind === "audio");
             if (audioTrack) {
@@ -521,15 +523,24 @@ export class ConferenceClient {
             return false;
         }
 
-        let kinds = tracks.map(t => t.kind);
-        //remove existing tracks with the same kind
-        this.localParticipant.stream.getTracks().forEach(t => {
-            if (kinds.includes(t.kind)) {
-                this.localParticipant.stream.removeTrack(t);
-                t.enabled = false;
-                console.log(`track ${t.kind} removed from localParticipant and disabled.`);
+
+        for (let track of tracks) {
+            //is the track in the localparticipants?
+            let partTrack = this.localParticipant.stream.getTracks().find(t => t == track);
+            if (!partTrack) {
+                //do we have an existing track of the same kind? if so remove it
+                partTrack = this.localParticipant.stream.getTracks().find(t => t.kind == track.kind);
+                if (partTrack) {
+                    this.localParticipant.stream.removeTrack(partTrack);
+                    console.warn(`track ${track.kind} removed from localParticipant`);
+                    partTrack.stop();
+                }
+                this.localParticipant.stream.addTrack(track);
+                console.warn(`track ${track.kind} added to localParticipant`);
+            } else {
+                console.warn(`track ${track.kind} already in localParticipant`);
             }
-        });
+        }
 
         //check whether new tracks should be enabled
         if (this.isInConference()) {
@@ -553,11 +564,6 @@ export class ConferenceClient {
         //publish the tracks
         if (this.roomsClient) {
             await this.roomsClient.publishTracks(tracks);
-        }
-
-        //add new tracks to the localParticipant
-        for (let track of tracks) {
-            this.localParticipant.stream.addTrack(track);
         }
 
         return true;

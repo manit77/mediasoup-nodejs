@@ -13,11 +13,11 @@ loadConferenceConfig().then(config => {
     document.getElementById('root') as HTMLElement
   );
   root.render(
-    <React.StrictMode>
+    // <React.StrictMode>
       <ConfigProvider>
         <App />
       </ConfigProvider>
-    </React.StrictMode>
+    //</React.StrictMode>
   );
 }).catch(error => {
   console.error('Error loading config:', error);

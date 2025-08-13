@@ -8,6 +8,7 @@ import { IMsg } from '@rooms/rooms-models';
 import { EventParticpantNewTrackMsg, EventTypes } from '@conf/conf-client';
 import { getConferenceClient } from '../services/ConferenceService';
 import { debounce } from 'lodash';
+import { unstable_batchedUpdates } from 'react-dom';
 
 export const conferenceClient = getConferenceClient();
 
@@ -190,14 +191,20 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         const tracks = await conferenceClient.getNewTracksForLocalParticipant(options);
+
+        console.warn('conferenceClient.localParticipant', conferenceClient.localParticipant.stream.getTracks());
+        console.warn('localParticipant', localParticipant.current.stream.getTracks());
+
         const audioTrack = tracks.find(t => t.kind === "audio");
         if (audioTrack) {
             audioTrack.enabled = options.isAudioEnabled;
+            console.warn(`audioTrack:`, audioTrack.enabled);
         }
 
         const videoTrack = tracks.find(t => t.kind === "video");
         if (videoTrack) {
             videoTrack.enabled = options.isVideoEnabled;
+            console.warn(`videoTrack:`, videoTrack.enabled);
         }
 
         setIsLocalStreamUpdated(true);
@@ -216,11 +223,21 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [getMediaDevices]);
 
     const debouncedSetCallParticipants = useCallback(
-        debounce((newParticipants: Map<string, Participant>) => {
-            setCallParticipants(new Map(newParticipants));
+        debounce(() => {
+            setCallParticipants(new Map(conferenceClient.conference.participants));
         }, 500),
         []
     );
+
+    const updateCallParticipants = useCallback(() => {
+        console.error(`updateCallParticipants`);
+        //unstable_batchedUpdates(() => {
+        //    setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+        //});
+
+        setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+        // setCallParticipants(conferenceClient.conference.participants);
+    }, []);
 
     const getParticipantsOnline = useCallback(() => {
         conferenceClient.getParticipantsOnline();
@@ -299,8 +316,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     }
 
                     //update the call participants
-                    //setCallParticipants(prev => new Map(conferenceClient.conference.participants));
-                    debouncedSetCallParticipants(conferenceClient.conference.participants);
+                    // updateCallParticipants();
 
                     break;
                 }
@@ -315,7 +331,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         return;
                     }
 
-                    setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+                    updateCallParticipants();
                     break;
                 }
                 case EventTypes.inviteReceived: {
@@ -349,7 +365,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setIsCallActive(true);
                     setInviteInfoReceived(null);
                     setInviteInfoSend(null);
-                    setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+                    updateCallParticipants();
                     setConferenceRoom(conferenceClient.conference);
                     setPresenter(conferenceClient.conference.presenter);
 
@@ -374,13 +390,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 }
                 case EventTypes.participantJoined: {
                     console.log(`CallContext: onParticipantJoined ${msgIn.data.displayName} (${msgIn.data.participantId})`);
-                    setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+                    updateCallParticipants();
                     setPresenter(conference.presenter);
                     break;
                 }
                 case EventTypes.participantLeft: {
                     console.log(`CallContext: onParticipantJoined ${msgIn.data.displayName} (${msgIn.data.participantId})`);
-                    setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+                    updateCallParticipants();
                     setPresenter(conference.presenter);
                     break;
                 }
@@ -638,7 +654,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setPresenter(conferenceClient.conference.presenter);
             setIsScreenSharing(true);
             setIsLocalStreamUpdated(true);
-            setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+            updateCallParticipants();
         } else {
             ui.showPopUp("unable to start screen share.", "error");
         }
@@ -660,7 +676,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setPresenter(null);
         setIsScreenSharing(false);
         setIsLocalStreamUpdated(true);
-        setCallParticipants(prev => new Map(conferenceClient.conference.participants));
+        updateCallParticipants();
         console.warn(`setIsScreenSharing to false`, localParticipant.current.stream.getTracks());
 
     }, [getMediaConstraints]);
