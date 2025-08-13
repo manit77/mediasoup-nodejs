@@ -165,6 +165,8 @@ export class Room {
             return;
         }
 
+        roomPeer.close();
+        
         this.roomPeers.delete(peer);
         consoleWarn(`peer removed from room ${peer.id} ${peer.displayName}`);
 

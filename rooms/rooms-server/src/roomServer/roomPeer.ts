@@ -27,7 +27,7 @@ export class RoomPeer {
     consumers: UniqueMap<string, mediasoup.types.Consumer> = new UniqueMap();
 
     async createProducerTransport() {
-        console.log(`createProducerTransport()`);
+        console.log(`createProducerTransport() ${this.peer.displayName}`);
         if (this.producerTransport) {
             console.log(`producer transport already created.`);
             return;
@@ -61,7 +61,7 @@ export class RoomPeer {
     }
 
     async createConsumerTransport() {
-        console.log(`createConsumerTransport() ${this.peer.id} ${this.peer.displayName}`);
+        console.log(`createConsumerTransport() ${this.peer.displayName}`);
         if (this.consumerTransport) {
             console.log(`consumer transport already created. ${this.peer.id} ${this.peer.displayName}`);
             return;
@@ -98,7 +98,7 @@ export class RoomPeer {
     }
 
     async createConsumer(producer: Producer, rtpCapabilities: mediasoup.types.RtpCapabilities) {
-        console.log(`createConsumer`);
+        console.log(`createConsumer ${this.peer.displayName}`);
 
         if (!this.consumerTransport) {
             consoleError(`no consumer transport. ${this.peer.id} ${this.peer.displayName}`);
@@ -145,7 +145,7 @@ export class RoomPeer {
     }
 
     async createProducer(kind: MediaKind, rtpParameters: mediasoup.types.RtpParameters) {
-        console.log(`createProducer`);
+        console.log(`createProducer ${this.peer.displayName}, ${this.producers.size}`);
 
         //requires a producerTransport
         if (!this.producerTransport) {
@@ -161,25 +161,27 @@ export class RoomPeer {
 
         this.producers.set(kind, producer);
 
+        consoleWarn(`producer ceated for ${this.peer.displayName}, paused: ${producer.paused}`);
+
         // Auto-cleanup when producer closes                
         producer.on('@close', () => {
-            console.log(chalk.yellow(`Producer ${producer.id} closed, removing from peer ${this.peer.id} ${this.peer.displayName}`));
+            console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} closed, removing from peer ${this.peer.id} ${this.peer.displayName}`));
             this.producers.delete(kind);
         });
 
         // Handle transport close events
         producer.on('transportclose', () => {
-            console.log(chalk.yellow(`Producer ${producer.id} transport closed for ${this.peer.id} ${this.peer.displayName}`));
+            console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} transport closed for ${this.peer.id} ${this.peer.displayName}`));
             this.producers.delete(producer.kind);
         });
 
         producer.on("videoorientationchange", (args) => {
-            console.log(chalk.yellow(`Producer ${producer.id} videoorientationchange for ${this.peer.id} ${this.peer.displayName}`));
+            console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} videoorientationchange for ${this.peer.id} ${this.peer.displayName}`));
             console.log(args);
         });
 
         producer.on("listenererror", (args) => {
-            console.log(chalk.yellow(`Producer ${producer.id} listenererror for ${this.peer.id} ${this.peer.displayName}`));
+            console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} listenererror for ${this.peer.id} ${this.peer.displayName}`));
             console.log(args);
         });
 
@@ -187,7 +189,7 @@ export class RoomPeer {
     }
 
     async closeProducer(kind: MediaKind) {
-        console.log(`closeProducuer ${kind} - ${this.peer.id} ${this.peer.displayName}`);
+        console.warn(`closeProducuer ${kind} - ${this.peer.id} ${this.peer.displayName}`);
         let producer = this.producers.get(kind);
         if (producer) {
             producer.close();
@@ -195,7 +197,7 @@ export class RoomPeer {
     }
 
     close() {
-        console.log(`peerRoom close() - ${this.peer.id} ${this.peer.displayName}`);
+        consoleWarn(`peerRoom close() - ${this.peer.id} ${this.peer.displayName}`);
 
         this.producerTransport?.close();
         this.consumerTransport?.close();
@@ -214,12 +216,9 @@ export class RoomPeer {
             }
         })
 
-        this.producers.clear()
-        this.consumers.clear()
-
-        if (this.room) {
-            this.room.removePeer(this.peer);
-        }
+        this.producers.clear();
+        this.consumers.clear();
+       
         this.room = null;
         this.peer.room = null;
 
