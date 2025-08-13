@@ -4,6 +4,7 @@ import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
 import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
 import { getQueryParams } from '../../utils/utils';
+import { getConferenceConfig } from '../../services/ConferenceConfig';
 
 const LoginPage: React.FC = () => {
     const [username, setUsername] = useState('');
@@ -14,8 +15,11 @@ const LoginPage: React.FC = () => {
     const ui = useUI();
     const navigate = useNavigate();
 
+    let config = getConferenceConfig();
+
     useEffect(() => {
-        console.log("getQueryParams:", getQueryParams());
+        console.log("getQueryParams:", getQueryParams());        
+
     }, []);
 
     const handleSubmitAdmin = async (e: React.FormEvent) => {
@@ -72,6 +76,7 @@ const LoginPage: React.FC = () => {
                         <Button variant="primary" type="submit" className="w-100" disabled={loading}>
                             {loading ? 'Logging in...' : 'Login'}
                         </Button>
+                        <small>version: {config.version}</small> <small>commit: {config.commit}</small>
                     </Form>
                 </Card.Body>
             </Card>

@@ -9,6 +9,8 @@ export class ConferenceClientConfig {
     conf_server_url = "https://localhost:3100";
     conf_call_connect_timeout_secs = 30;
     conf_socket_register_timeout_secs = 15;
+    version = "0.0";
+    commit = "####"
 }
 
 export type callStates = "calling" | "answering" | "connecting" | "connected" | "disconnected";

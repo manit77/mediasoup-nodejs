@@ -5,5 +5,8 @@
     "conf_socket_register_timeout_secs" : 30,
     "socket_enable_logs": true,
     "socket_autoReconnect" : true,
-    "socket_reconnect_secs" : 5    
+    "socket_reconnect_secs" : 5,
+    "version": "1.0",
+    "commit": "{commit}"
+
 }
