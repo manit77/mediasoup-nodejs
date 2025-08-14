@@ -16,6 +16,7 @@ const OnCallScreen: React.FC = () => {
     const { localParticipant, isCallActive, callParticipants, selectedDevices, switchDevicesOnCall, presenter, onConferencePing, conferencePong } = useCall();
     const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
     const [remoteParticipant, setRemoteParticipant] = useState<Participant>(null)
+    const localVideoPreview = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         console.error('on call screen rendered.');
@@ -57,7 +58,16 @@ const OnCallScreen: React.FC = () => {
         }
 
         if (localParticipant == participant) {
-            console.warn("cannot select self");
+            if (localVideoPreview.current) {
+                if (localVideoPreview.current.style.height == "50px") {
+                    localVideoPreview.current.style.height = "240px";
+                } else {
+                    localVideoPreview.current.style.height = "50px";
+                }
+                
+                //localParticipant.videoEle.parentElement.style.height = "50px";
+            }
+
             return;
         }
 
@@ -105,40 +115,45 @@ const OnCallScreen: React.FC = () => {
         return <Navigate to="/app" />;
     }
 
-    const PARTICIPANTS_BAR_HEIGHT = 'clamp(144px, 22vh, 260px)'; // min 144px, ~22% of viewport, max 260px
-
-
     return (
-        <div className="d-flex flex-column vh-100 bg-dark text-light">
+        <div className="d-flex flex-column bg-dark text-light" style={{ height: "100dvh" }}>
             <CallTopMenu onShowSettings={() => setShowSettings(true)} />
-
-            <div id="video-container"></div>
 
             <div className="pt-5">
                 <div style={{
                     paddingTop: '8px',
-                    height: 'calc(100vh - 56px)',
+                    height: 'calc(100dvh - 56px)',
                     overflow: 'auto',
                 }}>
                     <Container fluid className="p-0 m-0 h-100">
                         {callParticipants.size === 1 ? (
                             // One participant - waiting screen
                             <div className="d-flex flex-column justify-content-center align-items-center h-100" style={{ width: "100%", objectFit: 'contain' }}>
-                                <ParticipantVideoPreview onClick={() => { }} isSelected={true}
-                                    key={1}
-                                    participant={localParticipant}></ParticipantVideoPreview>
+
                                 <p className="mt-3 fs-5">Waiting for other participants...</p>
+                                <ParticipantVideoPreview
+                                    key={localParticipant.participantId}
+                                    participant={localParticipant}
+                                    onClick={() => handleSelectParticipantVideo(localParticipant)}
+                                    style={{
+                                        flex: '1 1 auto',
+                                        width: '100%',
+                                        minHeight: '0',              // also important in Safari
+                                        overflow: 'hidden',
+                                    }}
+                                />
+
                             </div>
                         ) : callParticipants.size === 2 && remoteParticipant ? (
                             // Two participants - PiP layout
-                             <div className="d-flex flex-column h-100" style={{minHeight: "0"}}>                           
+                            <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
                                 {/* Remote */}
                                 <div
-                                     style={{
-                                         flex: '1 1 auto',
-                                         width: '100%',                                        
-                                         minHeight: '0',              // also important in Safari
-                                         overflow: 'hidden',
+                                    style={{
+                                        flex: '1 1 auto',
+                                        width: '100%',
+                                        minHeight: '0',              // also important in Safari
+                                        overflow: 'hidden',
                                     }}
                                 >
                                     <ParticipantVideoPreview
@@ -155,7 +170,7 @@ const OnCallScreen: React.FC = () => {
                                 </div>
 
                                 {/* Local in bottom right */}
-                                <div
+                                <div ref={localVideoPreview}
                                     style={{
                                         position: 'absolute',
                                         bottom: '60px',
@@ -185,7 +200,7 @@ const OnCallScreen: React.FC = () => {
                         ) : callParticipants.size > 2 ? (
                             presenter ? (
                                 // Presenter view
-                                <div className="d-flex flex-column h-100" style={{minHeight: "0"}}>
+                                <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
 
                                     {/* presenter video */}
                                     <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
@@ -259,10 +274,10 @@ const OnCallScreen: React.FC = () => {
                         ) : (<></>)}
                     </Container>
                 </div>
-            </div>
+            </div >
 
             <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />
-        </div>
+        </div >
     );
 };
 

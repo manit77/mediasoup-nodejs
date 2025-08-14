@@ -18,7 +18,7 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
 };
 
 interface ParticipantVideoPreviewProps {
-    participant?: Participant
+    participant: Participant
     onClick: (participant: Participant) => void;
     isSelected?: boolean;
     style?: React.CSSProperties;
@@ -66,10 +66,14 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
         console.warn(`participant updated, set video srcObject ${participant.displayName}`, participant.tracksInfo);
         setAudioEnabled(participant.tracksInfo.isAudioEnabled);
         setVideoEnabled(participant.tracksInfo.isVideoEnabled);
+
     }, [participant.tracksInfo]);
 
-    const onAudioClick = useCallback(async () => {
+    const onAudioClick = useCallback(async (event) => {
         console.log(`onAudioClick.`);
+
+        event.preventDefault();
+        event.stopPropagation();
 
         let audioAllowedFor = isAudioAllowedFor(conference, participant);
         if (!audioAllowedFor) {
@@ -142,8 +146,12 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
         }
     }, [api, conference, localParticipant, muteParticipantTrack, participant, ui, broadCastTrackInfo]);
 
-    const onVideoClick = useCallback(async () => {
+    const onVideoClick = useCallback(async (event) => {
         console.log("onVideoClick ", participant);
+
+        event.preventDefault();
+        event.stopPropagation();
+
 
         let videoAllowedFor = isVideoAllowedFor(conference, participant);
         if (!videoAllowedFor) {
@@ -299,7 +307,6 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                     </ThrottledButton>
                 </div>
             </div>
-
 
         </Card>
 

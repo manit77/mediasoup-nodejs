@@ -11,14 +11,19 @@ const ThrottledButton = ({
     const [isCoolingDown, setIsCoolingDown] = useState(false);
     const lastClickTime = useRef(0);
 
-    const handleClick = (e) => {
+    const handleClick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
         const now = Date.now();
         if (now - lastClickTime.current < (cooldownSecs * 1000)) {
-            return; // Ignore fast click
+            return false;
         }
         lastClickTime.current = now;
 
-        if (onClick) onClick(e);
+        if (onClick) {
+            onClick(event);
+        }
 
         setIsCoolingDown(true);
         setTimeout(() => {
@@ -29,7 +34,7 @@ const ThrottledButton = ({
     return (
         <Button
             {...props}
-            disabled={disabled || isCoolingDown}
+            disabled={disabled}
             onClick={handleClick}
         >
             {children}

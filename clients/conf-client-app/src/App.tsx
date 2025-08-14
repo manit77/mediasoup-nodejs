@@ -25,6 +25,23 @@ const AppRoutes: React.FC = () => {
     };
   }, []);
 
+
+
+
+  useEffect(() => {
+
+    const updateVh = () => {
+      const vh = window.innerHeight;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+
+    updateVh(); // set initially
+    window.addEventListener('resize', updateVh);
+
+    return () => window.removeEventListener('resize', updateVh);
+  }, []);
+
   if (isLoading) {
     return <div className="d-flex justify-content-center align-items-center vh-100">Loading...</div>;
   }
@@ -37,7 +54,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route
             path="*"
-            element={              
+            element={
               !location.pathname.startsWith("/login") && !location.pathname.startsWith("/loginGuest")
                 ? <Navigate to={`/login${location.search}`} replace />
                 : null

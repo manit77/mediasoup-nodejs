@@ -352,6 +352,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setIsCallActive(false);
                     setInviteInfoSend(null);
                     setInviteInfoReceived(null);
+                    setIsScreenSharing(false);
 
                     break;
                 }
@@ -378,6 +379,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setIsCallActive(false);
                     setInviteInfoSend(null);
                     setInviteInfoReceived(null);
+                    setIsScreenSharing(false);
 
                     if (msg.data.reason) {
                         ui.showToast(msg.data.reason);
