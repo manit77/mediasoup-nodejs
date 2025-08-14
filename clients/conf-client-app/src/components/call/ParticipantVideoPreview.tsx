@@ -27,37 +27,37 @@ interface ParticipantVideoPreviewProps {
 export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected, style }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, broadCastTrackInfo, conference, callParticipants, muteParticipantTrack, getMediaConstraints } = useCall();
+    const { localParticipant, broadCastTrackInfo, conference, muteParticipantTrack, getMediaConstraints } = useCall();
     // const videoRef = React.useRef<HTMLVideoElement>(null);
     const [videoEnabled, setVideoEnabled] = useState(false);
     const [audioEnabled, setAudioEnabled] = useState(false);
+    const containerRef = React.useRef<HTMLDivElement>(null);
+
+    const videoStyle = {
+        width: '100%',
+        height: '100%',
+        objectFit: 'contain', // Ensure video scales without cropping
+        background: '#333',
+    };
 
     useEffect(() => {
-        // console.warn(`ParticipantVideoPreview for ${participant.displayName} mount`);
-        // const videoEl = videoRef.current; // store it so cleanup can still access
 
-        // if (!videoRef.current) {
-        //     console.warn(`videoRef.current is null`);
-        //     return;
-        // }
+        if (containerRef.current && participant.videoEle) {
+            if (!containerRef.current.contains(participant.videoEle)) {
+                containerRef.current.innerHTML = "";
+                containerRef.current.appendChild(participant.videoEle);
+                participant.videoEle.muted = !!(localParticipant.participantId === participant.participantId);
+                Object.assign(participant.videoEle.style, videoStyle);
+                console.warn(`videoEle added ${participant.displayName}`);
+                participant.videoEle.srcObject = participant.stream;
 
-        // console.warn(`ParticipantVideoPreview set participant stream ${participant.displayName}`);
-
-        // if (videoRef.current.srcObject != participant.stream) {
-        //     //stream never changes, we just add and remove tracks
-        //     videoRef.current.srcObject = participant.stream;
-        //     console.warn(`ParticipantVideoPreview video.srcObject for ${participant.displayName} is set`);
-        // }
-
-        // Cleanup on unmount
-        return () => {
-            // console.warn(`ParticipantVideoPreview for ${participant.displayName} unmount`);
-            // videoEl.srcObject = null; // Detach stream to free resources
-            // console.warn(`ParticipantVideoPreview video.srcObject for for ${participant.displayName} is detached`);
-
-        };
-
-    }, []);
+            } else {
+                console.warn(`videoEle already ${participant.displayName}`);
+            }
+        } else {
+            console.warn(`videoEle null context ${participant.displayName}`);
+        }
+    }, [participant]);
 
 
     useEffect(() => {
@@ -238,7 +238,17 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                 }}
             >
 
-                <VideoPlayer stream={participant.stream}/>
+                {/* <VideoPlayer stream={participant.stream} /> */}
+
+                <div ref={containerRef} style={{
+                background: "#000",
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                ...style,
+            }}/>
+
+
                 {/* <video
                     ref={videoRef}
                     autoPlay

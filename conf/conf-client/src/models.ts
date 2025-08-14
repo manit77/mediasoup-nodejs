@@ -20,10 +20,18 @@ export class Participant {
     displayName: string;
     stream: MediaStream = new MediaStream();
     role: string = ParticipantRole.guest;
+    videoEle: HTMLVideoElement;
 
     peerId: string;
     tracksInfo: PeerTracksInfo = { isAudioEnabled: true, isVideoEnabled: true };
     prevTracksInfo: { isAudioEnabled: boolean, isVideoEnabled: boolean, screenShareTrackId: string } = null;
+    constructor() {
+        this.videoEle = document.createElement("video");
+        this.videoEle.srcObject = this.stream;
+        this.videoEle.autoplay = true;
+        this.videoEle.playsInline = true;
+        this.videoEle.muted = false;
+    }
 }
 
 export class Conference {
@@ -34,7 +42,7 @@ export class Conference {
     conferenceType: conferenceType = "p2p"; // default to p2p
     conferenceConfig: ConferenceConfig;
     leaderId?: string;
-    
+
     roomAuthToken: string;
     roomToken: string;
     roomId: string;
@@ -45,13 +53,13 @@ export class Conference {
      * remote participants
      */
     participants: Map<string, Participant> = new Map();
-    
+
     presenterId: string;
     presenter: Participant;
     setPresenter(participant: Participant) {
         console.warn(`setPresenter:`, participant);
         this.presenter = participant;
-        if(participant) {
+        if (participant) {
             this.presenterId == participant.participantId;
         } else {
             this.presenterId = "";
@@ -73,5 +81,5 @@ export class SelectedDevices {
     audioInId?: string;
     audioInLabel?: string;
     audioOutId?: string;
-    audioOutLabel?: string; 
+    audioOutLabel?: string;
 }

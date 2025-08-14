@@ -73,17 +73,18 @@ const OnCallScreen: React.FC = () => {
             if (videoTrack.enabled && !videoTrack.muted && videoTrack.readyState === "live") {
                 setSelectedParticipant(participant);
 
-                const videoEl = document.createElement("video");
-                videoEl.autoplay = true;
-                videoEl.playsInline = true;
-                videoEl.muted = true;
-                videoEl.style.width = "100%";
+                // code to debug black screen, sometimes react video element goes black, may have to create an html video element and inject it                
+                // const videoEl = document.createElement("video");
+                // videoEl.autoplay = true;
+                // videoEl.playsInline = true;
+                // videoEl.muted = true;
+                // videoEl.style.width = "100%";
 
-                videoEl.srcObject = participant.stream;
-                const container = document.getElementById("video-container");
-                if (container) {
-                    container.appendChild(videoEl);
-                }
+                // videoEl.srcObject = participant.stream;
+                // const container = document.getElementById("video-container");
+                // if (container) {
+                //     container.appendChild(videoEl);
+                // }
 
 
             } else {
