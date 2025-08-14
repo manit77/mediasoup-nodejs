@@ -18,20 +18,30 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
 
     const handleLogout = async () => {
         try {
+
+            let role = getCurrentUser()?.role;
+            let path = "/login";
+            
+            if (role === "guest") {
+                path = "/loginGuest";
+            }
+
             let clientData = getClientData();
             console.log(`logout clientData:`, clientData);
+            
             flushSync(() => {
                 logout();
                 disconnect();
             });
 
-            if (clientData) {
-                let url = "/login?" + objectToQueryString(clientData);
-                console.log(`navigate to`, url);
-                navigate(url, { replace: true });
-            } else {
-                navigate('/login', { replace: true });
-            }
+            navigate(path, { replace: true });
+
+            // if (clientData) {                
+            //     console.log(`navigate to`, path);
+            //     navigate(path, { replace: true });
+            // } else {
+            //     navigate('/login', { replace: true });
+            // }
 
         } catch (error) {
             console.error("Logout failed", error);

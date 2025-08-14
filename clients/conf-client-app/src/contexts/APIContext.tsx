@@ -56,19 +56,31 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return false;
     }, [getCurrentUser]);
 
-    const loginGuest = useCallback(async (displayName: string, clientData: {}) => {
+    const loginGuest = useCallback(async (displayName: string, clientData: any) => {
         console.log("loginGuest");
         try {
             setIsLoading(true);
-            const loginResult = await apiService.loginGuest(displayName, clientData);
+
+            if (!clientData) {
+                clientData = {};
+            }
+
+            let storedClientData = getClientData() ?? {};
+            console.warn(`storedClientData`, storedClientData);
+            let loginClientData = { ...storedClientData, ...clientData };
+            console.warn(`using clientData`, loginClientData);
+
+            const loginResult = await apiService.loginGuest(displayName, loginClientData);
 
             if (loginResult.error) {
                 setIsAuthenticated(false);
                 console.error(loginResult.error);
                 return loginResult;
             }
+            
             console.log("authenticated");
             setIsAuthenticated(true);
+
             return loginResult;
         } catch (error) {
             console.error('Login failed:', error);
@@ -92,9 +104,9 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 console.error(loginResult.error);
                 return loginResult;
             }
-            setIsAuthenticated(true);           
+            setIsAuthenticated(true);
             return loginResult;
-        } catch (error) {            
+        } catch (error) {
             console.error('Login failed:', error);
             let errorResponse: LoginResponse = {
                 user: null,

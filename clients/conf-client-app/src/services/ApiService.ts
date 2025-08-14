@@ -97,6 +97,10 @@ class ApiService {
 
             console.warn(`LoginResponse`, result);
             localStorage.setItem('user', JSON.stringify(result.user));
+            if(result.user.clientData) {
+                localStorage.setItem('clientData', JSON.stringify(result.user.clientData));
+            }
+
             return result;
         } catch (err) {
             console.error(err);
@@ -126,7 +130,15 @@ class ApiService {
     }
 
     getClientData() {
-        return this.getUser()?.clientData;
+        const str = localStorage.getItem('clientData');
+        if (str) {
+            try {
+                return JSON.parse(str);                
+            } catch (error) {
+                console.error("Failed to parse client data", error);
+            }
+        }
+        return null;
     }
 
     fetchConferencesScheduled = async (): Promise<ConferenceScheduledInfo[]> => {

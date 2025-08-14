@@ -27,12 +27,12 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
 
     const handleExitCall = () => {
         leaveCurrentConference();
-        navigate('/app'); // Navigate after ending call
+        navigate('/app');
     };
 
     const handleTerminateConference = () => {
         terinateCurrentConference();
-        navigate('/app'); // Navigate after ending call
+        navigate('/app');
     };
 
     const handleToggleScreenShare = () => {
