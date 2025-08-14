@@ -44,12 +44,14 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 
         if (containerRef.current && participant.videoEle) {
             if (!containerRef.current.contains(participant.videoEle)) {
-                containerRef.current.innerHTML = "";
-                containerRef.current.appendChild(participant.videoEle);
+                
                 participant.videoEle.muted = !!(localParticipant.participantId === participant.participantId);
                 Object.assign(participant.videoEle.style, videoStyle);
-                console.warn(`videoEle added ${participant.displayName}`);
+                containerRef.current.innerHTML = "";
+                containerRef.current.appendChild(participant.videoEle);
+
                 participant.videoEle.srcObject = participant.stream;
+                console.warn(`videoEle added ${participant.displayName}`);
 
             } else {
                 console.warn(`videoEle already ${participant.displayName}`);
@@ -241,12 +243,12 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                 {/* <VideoPlayer stream={participant.stream} /> */}
 
                 <div ref={containerRef} style={{
-                background: "#000",
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                ...style,
-            }}/>
+                    background: "#000",
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    ...style,
+                }} />
 
 
                 {/* <video

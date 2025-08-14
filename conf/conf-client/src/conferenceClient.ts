@@ -9,7 +9,8 @@ import {
     LoggedOffMsg,
     //NotRegisteredMsg,
     UnauthorizedMsg,
-    TerminateConfMsg
+    TerminateConfMsg,
+    ConferenceConfig
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
@@ -172,7 +173,7 @@ export class ConferenceClient {
         this.authToken = "";
         this.callState = "disconnected";
         this.clientData = {};
-        this.conference = new Conference();
+        this.resetConferenceRoom();
         this.conferencesOnline = [];
         this.participantsOnline = [];
         this.isScreenSharing = false;
@@ -1071,6 +1072,8 @@ export class ConferenceClient {
             return false;
         }
 
+        this.resetConferenceRoom();
+
         this.conference.joinParams = args;
 
         //get the conference config first
@@ -1393,7 +1396,7 @@ export class ConferenceClient {
 
         let conferenceId = this.conference.conferenceId;
 
-         let terminateMsg = new TerminateConfMsg();
+        let terminateMsg = new TerminateConfMsg();
         terminateMsg.data.conferenceId = conferenceId;
         this.sendToServer(terminateMsg);
 
@@ -1405,7 +1408,23 @@ export class ConferenceClient {
         console.log("resetConferenceRoom()");
 
         this.callState = "disconnected";
-        this.conference = new Conference();
+
+        this.conference.conferenceExternalId = "";        
+        this.conference.conferenceConfig = new ConferenceConfig();
+        this.conference.conferenceId = "";
+        this.conference.conferenceName = "";
+        this.conference.conferenceType = "p2p";
+        this.conference.joinParams = null;
+        this.conference.leaderId = null;
+        this.conference.participants.clear();
+        this.conference.presenter = null;
+        this.conference.presenterId = "";
+        this.conference.roomAuthToken = "";
+        this.conference.roomId = "";
+        this.conference.roomAuthToken = "";
+        this.conference.roomToken = "";
+        this.conference.roomURI = "";
+        
         this.inviteSendMsg = null;
         this.inviteReceivedMsg = null;
         this.clearCallConnectTimer();
@@ -1433,6 +1452,26 @@ export class ConferenceClient {
     getParticipant(participantId: string): Participant {
         console.log("getParticipant");
         return this.conference.participants.get(participantId);
+    }
+
+    sendPong(conferenceId: string) {
+        console.log(`sendPong `, conferenceId);
+
+        if (!this.isInConference()) {
+            return;
+        }
+
+        if (conferenceId !== this.conference.conferenceId) {
+            console.error(`not the same conference`, conferenceId, this.conference.conferenceId);
+            return;
+        }
+
+        if (!this.roomsClient) {
+            console.error(`room not initialized.`);
+            return;
+        }
+
+        this.roomsClient.roomPong(this.conference.roomId);
     }
 
     private sendToServer(message: IMsg) {
@@ -1560,7 +1599,7 @@ export class ConferenceClient {
             return;
         }
 
-        this.conference.leaderId = message.data.leaderId;        
+        this.conference.leaderId = message.data.leaderId;
 
         //!!! don't send event for EventTypes.conferenceJoined, wait for room client to send event
         //!!! next event received is onConferenceReady
@@ -1937,6 +1976,28 @@ export class ConferenceClient {
                 }
             }
             await this.onEvent(EventTypes.participantTrackInfoUpdated, msg);
+        };
+
+        this.roomsClient.eventOnRoomPing = async (roomId: string) => {
+            //send this to the UI
+            if (!this.isInConference()) {
+                console.error(`not in conference`);
+                return;
+            }
+
+            if (this.conference.roomId !== roomId) {
+                console.error(`not in the same room`);
+                return;
+            }
+
+            let msg = {
+                type: EventTypes.conferencePing,
+                data: {
+                    conferenceId: this.conference.conferenceId
+                }
+            }
+            await this.onEvent(EventTypes.conferencePing, msg);
+
         };
 
         await this.roomsClient.inititalize({ rtp_capabilities: roomRtpCapabilities });

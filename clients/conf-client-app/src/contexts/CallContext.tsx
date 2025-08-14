@@ -26,6 +26,8 @@ interface CallContextType {
     isCallActive: boolean;
     conference: Conference;
     callParticipants: Map<string, Participant>;
+    onConferencePing: any;
+    conferencePong: () => void;
 
     isScreenSharing: boolean;
     participantsOnline: ParticipantInfo[];
@@ -86,11 +88,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const [isWaiting, setIsWaiting] = useState<boolean>(false);
     const [isCallActive, setIsCallActive] = useState<boolean>(conferenceClient.isInConference());
-    const [conference, setConferenceRoom] = useState<Conference>(conferenceClient.conference);
+    const conference = useRef<Conference>(conferenceClient.conference);
     const [callParticipants, setCallParticipants] = useState<Map<string, Participant>>(conferenceClient.conference.participants);
     const [isScreenSharing, setIsScreenSharing] = useState<boolean>(conferenceClient.isScreenSharing);
     const [selectedDevices, setSelectedDevices] = useState<SelectedDevices>(conferenceClient.selectedDevices);
-
 
     const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>(conferenceClient.participantsOnline);
     const [conferencesOnline, setConferencesOnline] = useState<ConferenceScheduledInfo[]>(conferenceClient.conferencesOnline);
@@ -99,6 +100,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const [isLocalStreamUpdated, setIsLocalStreamUpdated] = useState<boolean>(false);
     const [availableDevices, setAvailableDevices] = useState<{ video: Device[]; audioIn: Device[]; audioOut: Device[] }>({ video: [], audioIn: [], audioOut: [] });
+    const [onConferencePing, setOnConferencePing] = useState({});
 
     useEffect(() => {
         conferenceClient.init(config);
@@ -112,7 +114,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsAuthenticated(conferenceClient.isRegistered());
         localParticipant.current = conferenceClient.localParticipant;
         setIsCallActive(conferenceClient.isInConference());
-        setConferenceRoom(conferenceClient.conference);
         setCallParticipants(conferenceClient.conference.participants);
 
         setIsScreenSharing(conferenceClient.isScreenSharing);
@@ -351,7 +352,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setIsCallActive(false);
                     setInviteInfoSend(null);
                     setInviteInfoReceived(null);
-                    setConferenceRoom(conferenceClient.conference);
 
                     break;
                 }
@@ -366,7 +366,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setInviteInfoReceived(null);
                     setInviteInfoSend(null);
                     updateCallParticipants();
-                    setConferenceRoom(conferenceClient.conference);
                     setPresenter(conferenceClient.conference.presenter);
 
                     ui.showToast("conference joined");
@@ -379,7 +378,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setIsCallActive(false);
                     setInviteInfoSend(null);
                     setInviteInfoReceived(null);
-                    setConferenceRoom(conferenceClient.conference);
 
                     if (msg.data.reason) {
                         ui.showToast(msg.data.reason);
@@ -391,18 +389,23 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 case EventTypes.participantJoined: {
                     console.log(`CallContext: onParticipantJoined ${msgIn.data.displayName} (${msgIn.data.participantId})`);
                     updateCallParticipants();
-                    setPresenter(conference.presenter);
+                    setPresenter(conference.current.presenter);
                     break;
                 }
                 case EventTypes.participantLeft: {
                     console.log(`CallContext: onParticipantJoined ${msgIn.data.displayName} (${msgIn.data.participantId})`);
                     updateCallParticipants();
-                    setPresenter(conference.presenter);
+                    setPresenter(conference.current.presenter);
                     break;
                 }
                 case EventTypes.prensenterInfo: {
                     console.log(`CallContext: prensenterInfo`, conferenceClient.conference.presenter);
                     setPresenter(conferenceClient.conference.presenter);
+                    break;
+                }
+                case EventTypes.conferencePing: {
+                    console.log(`CallContext: conferencePing`);
+                    setOnConferencePing({});
                     break;
                 }
             }
@@ -659,7 +662,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             ui.showPopUp("unable to start screen share.", "error");
         }
 
-    }, [conference.presenter, ui]);
+    }, [conference.current.presenter, ui]);
 
     const stopScreenShare = useCallback(async () => {
         console.log("stopScreenShare");
@@ -761,6 +764,12 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return isRegistered;
     }, [])
 
+    const conferencePong = useCallback(async () => {
+        console.warn(`conferencePong`, conference);
+        conferenceClient.sendPong(conferenceClient.conference.conferenceId);
+    }, [])
+
+
     useEffect(() => {
         setupWebRTCEvents();
     }, [setupWebRTCEvents]);
@@ -774,7 +783,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsAuthenticated(false);
         localParticipant.current = conferenceClient.localParticipant;
         setIsCallActive(false);
-        setConferenceRoom(conferenceClient.conference);
         setCallParticipants(conferenceClient.conference.participants);
         setIsScreenSharing(conferenceClient.isScreenSharing);
         setSelectedDevices(conferenceClient.selectedDevices);
@@ -795,10 +803,12 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             localParticipant: localParticipant.current,
             isLocalStreamUpdated,
             presenter,
+            onConferencePing,
+            conferencePong,
 
             isWaiting,
             isCallActive: isCallActive,
-            conference: conference,
+            conference: conference.current,
             callParticipants,
             isScreenSharing: isScreenSharing,
             participantsOnline: participantsOnline,

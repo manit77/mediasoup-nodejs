@@ -13,7 +13,7 @@ import { ParticipantVideoPreview } from './ParticipantVideoPreview';
 
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
-    const { localParticipant, isCallActive, callParticipants, selectedDevices, switchDevicesOnCall, presenter } = useCall();
+    const { localParticipant, isCallActive, callParticipants, selectedDevices, switchDevicesOnCall, presenter, onConferencePing, conferencePong } = useCall();
     const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
     const [remoteParticipant, setRemoteParticipant] = useState<Participant>(null)
 
@@ -95,6 +95,10 @@ const OnCallScreen: React.FC = () => {
             console.warn(`no stream`);
         }
     };
+
+    useEffect(() => {        
+        conferencePong();
+    }, [onConferencePing]);
 
     if (!isCallActive && !localParticipant.stream && callParticipants.size === 0) { // Check if call ended/not properly started
         console.log("OnCallScreen: No active call, redirecting.");

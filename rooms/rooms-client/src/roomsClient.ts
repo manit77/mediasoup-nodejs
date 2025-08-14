@@ -66,6 +66,7 @@ export class RoomsClient {
   eventOnRoomClosed: (roomId: string) => Promise<void> = async () => { };
   eventOnPeerTrackInfoUpdated: (peer: IPeer) => Promise<void> = async () => { };
   eventOnRoomSocketClosed: () => Promise<void> = async () => { };
+  eventOnRoomPing: (roomId: string) => Promise<void> = async () => { };
 
   inititalize = async (options: { rtp_capabilities?: any }) => {
     console.log("inititalize");
@@ -132,7 +133,7 @@ export class RoomsClient {
   private socketOnClose = async () => {
     console.error("socketOnClose closed");
     let roomId = this.localRoom.roomId;
-    if (roomId) {     
+    if (roomId) {
       this.roomClose();
       await this.eventOnRoomClosed(roomId);
     }
@@ -926,7 +927,7 @@ export class RoomsClient {
 
     if (msgIn.data.peerId === this.localPeer.peerId) {
       console.log("local peer removed from room");
-      this.roomClose();     
+      this.roomClose();
       await this.eventOnRoomClosed(msgIn.data.roomId);
 
       return;
@@ -1343,11 +1344,29 @@ export class RoomsClient {
       return;
     }
 
+    await this.eventOnRoomPing(this.localRoom.roomId);
+
+  };
+
+  roomPong(roomId: string) {
+    console.log("roomPong ");
+
+    if (!this.isInRoom()) {
+      console.warn("not in room.");
+      return;
+    }
+
+    if(roomId !== this.localRoom.roomId) {
+      console.error(`not the same roomid`);
+      return;
+    }
+
     //send back pong
     let msg = new RoomPongMsg();
     msg.data.roomId = this.localRoom.roomId;
 
     this.send(msg);
-  };
+
+  }
 
 }
