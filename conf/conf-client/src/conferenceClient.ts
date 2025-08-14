@@ -637,13 +637,14 @@ export class ConferenceClient {
             return false;
         }
 
-        //disable camera track
-        let cameraTrack = this.localParticipant.stream.getVideoTracks()[0];
-        if (cameraTrack) {
-            cameraTrack.enabled = false;
-        }
-
         const screenTrack = (await getBrowserDisplayMedia())?.getVideoTracks()[0];
+        if(!screenTrack) {
+            console.error(`could not get screenTrack, user may have cancelled or permission error.`);
+            return false;
+        }
+        
+        //camera track will be removed and stopped
+        let cameraTrack = this.localParticipant.stream.getVideoTracks()[0];       
 
         if (screenTrack) {
             this.localParticipant.prevTracksInfo = {
@@ -653,6 +654,7 @@ export class ConferenceClient {
             };
 
             this.localParticipant.tracksInfo.isVideoEnabled = true;
+
             if (await this.publishTracks([screenTrack])) {
                 this.conference.setPresenter(this.localParticipant);
                 this.isScreenSharing = true;
@@ -1409,7 +1411,7 @@ export class ConferenceClient {
 
         this.callState = "disconnected";
 
-        this.conference.conferenceExternalId = "";        
+        this.conference.conferenceExternalId = "";
         this.conference.conferenceConfig = new ConferenceConfig();
         this.conference.conferenceId = "";
         this.conference.conferenceName = "";
@@ -1424,7 +1426,7 @@ export class ConferenceClient {
         this.conference.roomAuthToken = "";
         this.conference.roomToken = "";
         this.conference.roomURI = "";
-        
+
         this.inviteSendMsg = null;
         this.inviteReceivedMsg = null;
         this.clearCallConnectTimer();
