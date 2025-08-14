@@ -96,7 +96,7 @@ const OnCallScreen: React.FC = () => {
         }
     };
 
-    useEffect(() => {        
+    useEffect(() => {
         conferencePong();
     }, [onConferencePing]);
 
@@ -104,6 +104,9 @@ const OnCallScreen: React.FC = () => {
         console.log("OnCallScreen: No active call, redirecting.");
         return <Navigate to="/app" />;
     }
+
+    const PARTICIPANTS_BAR_HEIGHT = 'clamp(144px, 22vh, 260px)'; // min 144px, ~22% of viewport, max 260px
+
 
     return (
         <div className="d-flex flex-column vh-100 bg-dark text-light">
@@ -120,32 +123,22 @@ const OnCallScreen: React.FC = () => {
                     <Container fluid className="p-0 m-0 h-100">
                         {callParticipants.size === 1 ? (
                             // One participant - waiting screen
-                            <div className="d-flex flex-column justify-content-center align-items-center h-100">
-                                <div style={{ width: '60%', maxWidth: '600px' }}>
-                                    <ParticipantVideoPreview onClick={() => { }} isSelected={true}
-                                        key={1}
-                                        participant={localParticipant}></ParticipantVideoPreview>
-                                </div>
+                            <div className="d-flex flex-column justify-content-center align-items-center h-100" style={{ width: "100%", objectFit: 'contain' }}>
+                                <ParticipantVideoPreview onClick={() => { }} isSelected={true}
+                                    key={1}
+                                    participant={localParticipant}></ParticipantVideoPreview>
                                 <p className="mt-3 fs-5">Waiting for other participants...</p>
                             </div>
                         ) : callParticipants.size === 2 && remoteParticipant ? (
                             // Two participants - PiP layout
-                            <div
-                                style={{
-                                    position: 'relative',
-                                    width: '100%',
-                                    height: 'calc(100vh - 56px)',
-                                    overflow: 'hidden',
-                                }}
-                            >
+                             <div className="d-flex flex-column h-100" style={{minHeight: "0"}}>                           
                                 {/* Remote */}
                                 <div
-                                    style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        maxWidth: '100%',
-                                        maxHeight: 'calc(100vh - 56px)',
-                                        overflow: 'hidden',
+                                     style={{
+                                         flex: '1 1 auto',
+                                         width: '100%',                                        
+                                         minHeight: '0',              // also important in Safari
+                                         overflow: 'hidden',
                                     }}
                                 >
                                     <ParticipantVideoPreview
@@ -165,13 +158,14 @@ const OnCallScreen: React.FC = () => {
                                 <div
                                     style={{
                                         position: 'absolute',
-                                        bottom: '50px',
-                                        right: '20px',
-                                        width: '200px',
-                                        height: '150px', // 4:3 aspect ratio for PiP
-                                        border: '2px solid #aaa',
+                                        bottom: '60px',
+                                        right: '10px',
+                                        width: '320px',
+                                        height: '240px', // 4:3 aspect ratio for PiP
+                                        // border: '2px solid #000',
                                         borderRadius: '8px',
                                         overflow: 'hidden',
+                                        background: "transparent",
                                         boxShadow: '0 0 10px rgba(0,0,0,0.5)',
                                     }}
                                 >
@@ -191,17 +185,20 @@ const OnCallScreen: React.FC = () => {
                         ) : callParticipants.size > 2 ? (
                             presenter ? (
                                 // Presenter view
-                                <div className="d-flex flex-column h-100">
+                                <div className="d-flex flex-column h-100" style={{minHeight: "0"}}>
 
+                                    {/* presenter video */}
                                     <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
                                         <MainVideo />
                                     </div>
 
+                                    {/* participants list */}
                                     <div
                                         className="d-flex flex-row overflow-auto p-2"
                                         style={{
                                             background: '#2a2f34',
-                                            borderTop: '1px solid #444'
+                                            borderTop: '1px solid #444',
+                                            minHeight: "170px"
                                         }}
                                     >
                                         <ParticipantsPane

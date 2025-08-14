@@ -106,47 +106,40 @@ const AuthenticatedLayout: React.FC = () => {
   }, [api, isLoggedOff, navigate, setIsLoggedOff]);
 
   return (
-    <div className="d-flex flex-column vh-100 bg-light">
-      <TopMenu onShowSettings={() => setShowSettings(true)} />
-      <div className="d-flex flex-column flex-md-row flex-grow-1 overflow-auto">
-        <div className="sidebar col-12 col-md-4 border-end p-3">
-          {(api.isAdmin() || api.isUser()) && (
-            <div className="mb-4">              
-              <ContactsPane />
-            </div>
-          )}
-          <div>            
-            <RoomsPane />
-          </div>
-        </div>
-        <div className="main-content col-12 col-md-8 p-3">
-          <div className="d-flex gap-2 mb-3">
-            <Button variant="primary" onClick={handleShowSettingsClick} className="d-flex align-items-center">
-              <Gear className="me-1" /> Device Settings
-            </Button>
-            <Button
-              variant="outline-secondary"
-              onClick={previewClick}
-              className="d-flex align-items-center"
-            >
-              <FilePersonFill className="me-1" /> {showingPreview ? 'Stop Preview' : 'Preview Video'}
-            </Button>
-          </div>
-          <div className="video-container">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-100 h-auto rounded shadow-sm"
-            />
-          </div>
-        </div>
+
+
+    <div className="d-flex flex-column bg-light" style={{ minHeight: "100%", height: "100dvh" }}>
+  <TopMenu onShowSettings={() => setShowSettings(true)} />
+
+  {/* Responsive layout */}
+  <div
+    className="
+      d-flex
+      flex-column flex-lg-row
+      justify-content-start justify-content-lg-center
+      align-items-center align-items-lg-start
+      flex-grow-1 overflow-auto p-3
+    "
+  >
+    {(api.isAdmin() || api.isUser()) && (
+      <div className="w-100 w-lg-auto me-lg-4" style={{ maxWidth: "500px" }}>
+        <ContactsPane />
       </div>
-      <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />
-      {inviteInfoReceived && <IncomingCallPopup />}
-      {inviteInfoSend && <CallingPopup />}
+    )}
+    <div className="w-100 w-lg-auto" style={{ maxWidth: "500px" }}>
+      <RoomsPane />
     </div>
+  </div>
+
+  <SettingsPopup show={showSettings} handleClose={() => setShowSettings(false)} />
+  {inviteInfoReceived && <IncomingCallPopup />}
+  {inviteInfoSend && <CallingPopup />}
+</div>
+
+
+
+
+
   );
 };
 

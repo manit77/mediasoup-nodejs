@@ -52,15 +52,18 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
                 <Navbar.Toggle aria-controls="basic-navbar-nav" />
                 <Navbar.Collapse id="basic-navbar-nav">
                     <Nav className="ms-auto">
-                        <Nav.Link disabled>
+
+                        <Nav.Item className="d-flex align-items-center text-white">
                             <Person className="me-1" size={16} />
                             {getCurrentUser()?.displayName}
-                        </Nav.Link>
-                        <Nav.Link onClick={onShowSettings}>
+                        </Nav.Item>
+
+
+                        <Nav.Link className="text-white" onClick={onShowSettings}>
                             <Gear className="me-1" size={16} />
                             Settings
                         </Nav.Link>
-                        <Nav.Link onClick={handleLogout}>
+                        <Nav.Link className="text-white" onClick={handleLogout}>
                             <BoxArrowRight className="me-1" size={16} />
                             Logout
                         </Nav.Link>

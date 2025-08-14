@@ -44,7 +44,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 
         if (containerRef.current && participant.videoEle) {
             if (!containerRef.current.contains(participant.videoEle)) {
-                
+
                 participant.videoEle.muted = !!(localParticipant.participantId === participant.participantId);
                 Object.assign(participant.videoEle.style, videoStyle);
                 containerRef.current.innerHTML = "";
@@ -218,73 +218,32 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
     return (
         <Card
             onClick={() => { onClick(participant); }}
-            className={`participant-preview ${isSelected ? 'border-primary' : ''}`}
+            className={`participant-preview`}
             style={{
-                position: 'relative', // For positioning the content inside
-                cursor: 'pointer',
-                margin: 0, // Remove default Card margins
-                border: 'none', // Remove default Card border to avoid extra space
-                //width: '100%',
-                // height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
                 background: '#333',
-                aspectRatio: '16/9', // Set a 16:9 aspect ratio
+                aspectRatio: '16/9',
                 ...style,
             }}
         >
+            {/* Video section */}
             <div
                 style={{
+                    flex: 1,
                     position: 'relative',
                     width: '100%',
-                    height: '100%',
-                    overflow: 'hidden', // Ensure no overflow within the Card
+                    overflow: 'hidden'
                 }}
             >
-
-                {/* <VideoPlayer stream={participant.stream} /> */}
-
-                <div ref={containerRef} style={{
-                    background: "#000",
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    ...style,
-                }} />
-
-
-                {/* <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted={localParticipant.participantId === participant.participantId}
-
-                    onError={(event: React.SyntheticEvent<HTMLVideoElement, Event>) => {
-
-                        const videoElement = event.target as HTMLVideoElement;
-                        const mediaError = videoElement.error; // Access MediaError
-                        console.error(`Video render error for ${participant.displayName}`, {
-                            errorCode: mediaError?.code,
-                            errorMessage: mediaError?.message,
-                            readyState: videoElement.readyState,
-                            networkState: videoElement.networkState,
-                            streamActive: participant.stream?.active,
-                            streamTracks: participant.stream?.getTracks().map((track) => ({
-                                kind: track.kind,
-                                enabled: track.enabled,
-                                readyState: track.readyState,
-                            })),
-                        });
-                    }}
-
+                <div
+                    ref={containerRef}
                     style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain', // Ensure video scales without cropping
-                        background: '#333',
-                        ...style, // Merge external styles
+                        ...style,
                     }}
                 />
-                 */}
-                {!videoEnabled ? (
+
+                {!videoEnabled && (
                     <div
                         className="d-flex align-items-center justify-content-center"
                         style={{
@@ -296,47 +255,53 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                             background: '#444',
                         }}
                     >
-                        {participant == localParticipant ? "your" : `${participant.displayName}'s`} video is off
+                        {participant === localParticipant ? "your" : `${participant.displayName}'s`} video is off
                         <CameraVideoOffFill size={30} />
                     </div>
-                ) : null}
+                )}
+            </div>
 
-                <div
-                    className="bg-dark bg-opacity-50 text-white px-2 py-1"
+            {/* Name + controls below video */}
+            <div
+                className="bg-dark bg-opacity-50 text-white px-2 py-1"
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '5px',
+                    whiteSpace: 'nowrap',      // prevent wrapping
+                    overflow: 'hidden',        // hide overflow
+                }}
+            >
+                <small
                     style={{
-                        position: 'absolute',
-                        bottom: '5px',
-                        left: '5px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        width: 'calc(100% - 5px)', // Match video width minus padding
-                        justifyContent: 'space-between',
-                        background: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background for visibility
-                        padding: '5px',
-                        borderRadius: '4px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 1, // allow name to shrink instead of wrapping
                     }}
                 >
-                    <small>
-                        {participant.displayName} {localParticipant.participantId === participant.participantId && '(You)'}
-                    </small>
-                    <div>
-                        <ThrottledButton onClick={onAudioClick} style={{
-                            backgroundColor: '#444',
-                            borderColor: '#444',
-                            margin: '3px',
-                        }}>
-                            {audioEnabled ? <MicFill color="lightgreen" /> : <MicMuteFill color="red" />}
-                        </ThrottledButton>
-                        <ThrottledButton onClick={onVideoClick} style={{
-                            backgroundColor: '#444',
-                            borderColor: '#444'
-                        }}>
-                            {videoEnabled ? <CameraVideoFill color="lightgreen" /> : <CameraVideoOffFill color="red" />}
-                        </ThrottledButton>
-                    </div>
+                    {participant.displayName}{" "}
+                    {localParticipant.participantId === participant.participantId && '(You)'}
+                </small>
+                <div style={{ flexShrink: 0 }}> {/* keep buttons together */}
+                    <ThrottledButton
+                        onClick={onAudioClick}
+                        style={{ backgroundColor: '#444', borderColor: '#444', margin: '3px' }}
+                    >
+                        {audioEnabled ? <MicFill color="lightgreen" /> : <MicMuteFill color="red" />}
+                    </ThrottledButton>
+                    <ThrottledButton
+                        onClick={onVideoClick}
+                        style={{ backgroundColor: '#444', borderColor: '#444' }}
+                    >
+                        {videoEnabled ? <CameraVideoFill color="lightgreen" /> : <CameraVideoOffFill color="red" />}
+                    </ThrottledButton>
                 </div>
             </div>
+
+
         </Card>
+
     );
 };
