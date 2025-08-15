@@ -219,7 +219,7 @@ export class ConferenceAPI {
             let resultMsg = new GetConferencesScheduledResultMsg();            
             if (cachedResults) {
                 resultMsg.data.conferences = cachedResults;
-                //console.log(`${WebRoutes.getConferencesScheduled} from cache`);
+                console.log(`${WebRoutes.getConferencesScheduled} from cache ${cacheKey}`);
             } else {
                 if (this.config.conf_data_urls.getScheduledConferencesURL) {
                     //make a post to the url
