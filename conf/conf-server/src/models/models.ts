@@ -189,6 +189,10 @@ export class Conference {
             part.conference = null;
             this.participants.delete(id);
             consoleLog("participant removed");
+
+            if(this.leader == part){
+                this.leader = null;
+            }
         }
 
         if (this.participants.size == 0) {

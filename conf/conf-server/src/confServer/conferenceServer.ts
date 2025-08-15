@@ -187,7 +187,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         conferenceId?: string,
         externalId?: string,
         roomName: string,
-        leader?:Participant,
+        leader?: Participant,
         config?: ConferenceConfig
     }) {
 
@@ -195,18 +195,21 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         let conference: Conference;
 
         if (args.externalId) {
-            conference = [...this.conferences.values()].find(c => c.externalId === args.externalId);
-            if (conference) {
-                consoleLog("conference found by externalId", args.externalId)
-                return conference;
-            }
-        } else if (args.conferenceId) {
+            conference = [...this.conferences.values()].find(c => c.externalId === args.externalId);            
+        } 
+        
+        if (!conference && args.conferenceId) {
             conference = [...this.conferences.values()].find(c => c.id === args.conferenceId);
-            if (conference) {
-                consoleLog("conference found by externalId", args.externalId)
-                return conference;
-            }
         }
+
+        if (conference) {
+            consoleLog("conference found by externalId", args.externalId);
+            if(!conference.leader) {
+                conference.leader = args.leader;
+            }
+            return conference;
+        }
+
 
         conference = new Conference();
         conference.id = stringIsNullOrEmpty(args.conferenceId) ? this.generateConferenceId() : args.conferenceId;
@@ -244,7 +247,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
             //broadcast rooms to existing participants
             this.broadCastConferenceRooms(conf.participantGroup);
-            
+
             this.taskCloseRoom(conf.roomId, conf.roomURI);
         };
 
@@ -785,7 +788,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleLog("conference already created");
         } else {
             conference = this.getOrCreateConference({
-                participantGroup: participant.participantGroup,                
+                participantGroup: participant.participantGroup,
                 confType: "room",
                 conferenceId: "",
                 minParticipants: 2,
@@ -793,7 +796,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 externalId: msgIn.data.conferenceExternalId,
                 roomName: roomName,
                 leader: participant,
-                config: confConfig,                
+                config: confConfig,
             });
 
             if (!await this.startRoom(conference)) {
@@ -926,8 +929,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         let resultMsg = new JoinConfResultMsg();
         resultMsg.data.conferenceId = conference.roomId;
-        resultMsg.data.leaderId = conference.leader?.participantId;
-        
+        resultMsg.data.leaderId = conference.leader?.participantId
+        resultMsg.data.presenterId = conference.presenter?.participantId;
+
         return resultMsg;
     }
 
@@ -956,6 +960,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.conferenceName = conference.roomName;
         msg.data.conferenceExternalId = conference.externalId;
         msg.data.conferenceType = conference.confType;
+        msg.data.leaderId = conference.leader?.participantId;
         msg.data.presenterId = conference.presenter?.participantId;
 
         //p2p info
@@ -1058,8 +1063,13 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`not in conference`);
         }
 
+        if(msgIn.data.status == "on") {
+            participant.conference.presenter = participant;
+        } else if(participant == participant.conference.presenter) {
+            participant.conference.presenter = null;
+        }
+        
         msgIn.data.participantId = participant.participantId;
-
         //forward leave to all other participants
         for (let p of participant.conference.participants.values()) {
             if (p != participant) {

@@ -175,6 +175,7 @@ export class JoinConfResultMsg implements IMsg {
     data: {
         conferenceId?: string,
         leaderId?: string,
+        presenterId?: string,
         error?: string
     } = {};
 }
@@ -250,6 +251,7 @@ export class ConferenceReadyMsg implements IMsg {
     data: {
         participantId?: string,
         displayName?: string,
+        leaderId?: string,
         presenterId?: string,
 
         conferenceId?: string,
