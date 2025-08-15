@@ -4,8 +4,10 @@ import { useCall } from '../../hooks/useCall';
 import { GetUserMediaConfig, ParticipantInfo } from '@conf/conf-models';
 import { ArrowRepeat, CameraVideoFill, Circle, CircleFill, MicFill, Phone } from 'react-bootstrap-icons';
 import ThrottledButton from './ThrottledButton';
+import { useUI } from '../../hooks/useUI';
 
 const ParticipantsOnlinePane: React.FC = () => {
+    const ui = useUI()
     const {
         localParticipant,
         isAuthenticated,
@@ -14,7 +16,8 @@ const ParticipantsOnlinePane: React.FC = () => {
         getParticipantsOnline,
         sendInvite,
         isCallActive,
-        inviteInfoSend } = useCall();
+        inviteInfoSend,
+        getLocalMedia } = useCall();
 
     // Handle initial loading state
     useEffect(() => {
@@ -40,6 +43,12 @@ const ParticipantsOnlinePane: React.FC = () => {
         let getUserMediaConfig = new GetUserMediaConfig();
         getUserMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
         getUserMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
+
+        let tracks = await getLocalMedia(getUserMediaConfig);
+        if (tracks.length === 0) {
+            ui.showPopUp("ERROR: could not get media stream.", "error");
+            return;
+        }
 
         sendInvite(participant, getUserMediaConfig);
     };

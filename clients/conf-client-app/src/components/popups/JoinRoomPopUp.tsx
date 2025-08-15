@@ -19,7 +19,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
     const ui = useUI();
     const { localParticipant, isCallActive, createOrJoinConference, joinConference, getLocalMedia, isWaiting } = useCall();
     const navigate = useNavigate();
-    
+
     const [conferenceCode, setConferenceCode] = useState<string>('');
     const [requireConfCode, setRequireConfCode] = useState<boolean>(false);
 
@@ -115,7 +115,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
     const handleJoinRoom = async (event: React.FormEvent) => {
         event.preventDefault();
-        
+
         try {
             //make sure we have a stream before making a call
 
@@ -128,26 +128,10 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             getUserMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
             getUserMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
 
-
-            if (!localParticipant.stream) {
-                console.error(`stream is null`);
-                ui.showPopUp("error: media stream not initialized");
+            let tracks = await getLocalMedia(getUserMediaConfig);
+            if (tracks.length === 0) {
+                ui.showPopUp("ERROR: could not get media stream.");
                 return;
-            }
-
-            if (localParticipant?.stream.getTracks().length === 0) {
-                console.log(`getting media stream`);
-                ui.showToast("getting media stream");
-                //it's not required to have a usermedia in a room, you can be just a listener
-                if (getUserMediaConfig.isAudioEnabled || getUserMediaConfig.isVideoEnabled) {
-                    let tracks = await getLocalMedia(getUserMediaConfig);
-                    if (tracks.length === 0) {
-                        ui.showPopUp("ERROR: could not get media stream.");
-                        return;
-                    }
-                } else {
-                    console.warn(`joining room with no media`);
-                }
             }
 
             console.log('conferenceScheduled', conferenceScheduled);
@@ -165,7 +149,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             console.error('Failed to join conference:', error);
             ui.showPopUp('Failed to join the conferenceScheduled. Please try again.');
         } finally {
-           
+
         }
     };
 

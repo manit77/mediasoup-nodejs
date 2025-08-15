@@ -14,6 +14,7 @@ interface APIContextType {
     login: (username: string, password: string, clientData: {}) => Promise<LoginResponse>;
     logout: () => {};
     fetchConferencesScheduled: () => Promise<ConferenceScheduledInfo[]>;
+    startFetchConferencesScheduled: () => void;
     getCurrentUser: () => User | null;
     conferencesScheduled: ConferenceScheduledInfo[];
     setConferencesScheduled: React.Dispatch<React.SetStateAction<ConferenceScheduledInfo[]>>;
@@ -104,14 +105,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 clientData = {};
             }
 
-            let loginClientData = getClientData() ?? {};
-            for (let key of Object.keys(clientData)) {
-                loginClientData[key] = clientData[key];
-            }
-
-            console.warn(`using loginClientData`, loginClientData);
-
-            const loginResult = await apiService.login(username, password, loginClientData);
+            const loginResult = await apiService.login(username, password, clientData);
 
             if (loginResult.error) {
                 setIsAuthenticated(false);
@@ -145,8 +139,12 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, []);
 
+    const startFetchConferencesScheduled = useCallback(() => {
+        apiService.startFetchConferencesScheduled();
+    }, []);
+
     const fetchConferencesScheduled = useCallback(async (): Promise<ConferenceScheduledInfo[]> => {
-        //console.log("fetchConferencesScheduled");
+        console.log("fetchConferencesScheduled, ", apiService.getClientData());
         let conferences = await apiService.fetchConferencesScheduled();
         return conferences;
     }, []);
@@ -199,6 +197,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         login,
         logout,
         fetchConferencesScheduled,
+        startFetchConferencesScheduled,
         setConferencesScheduled,
         getClientData
     }), [conferencesScheduled, getCurrentUser, isAuthenticated, isAdmin, isUser, isLoading, loginGuest, login, logout, fetchConferencesScheduled, getClientData]);

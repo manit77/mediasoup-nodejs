@@ -72,7 +72,7 @@ export class ConferenceAPIClient {
     };
 
     getConferencesScheduled = async (authToken: string, clientData: {}): Promise<GetConferencesScheduledResultMsg | null> => {
-        //console.log("getConferencesScheduled", clientData);
+        console.log("getConferencesScheduled", clientData);
         try {
 
             let post = new apiGetScheduledConferencesPost();

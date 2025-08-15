@@ -44,26 +44,29 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
     };
 
     useEffect(() => {
+        console.log(`CallTopMenu conference updated, `, conference);
 
         //check if screen share is present on the browser
         if (!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia)) {
             console.warn(`screen share not available on this device.`);
             setAllowScreenShare(false);
-            return;
-        }
-
-        if (isUser()) {
-            setAllowScreenShare(true);
         } else {
-            if (conference.conferenceConfig.guestsAllowScreenShare) {
+            if (isUser()) {
                 setAllowScreenShare(true);
             } else {
-                setAllowScreenShare(false);
+                if (conference.conferenceConfig.guestsAllowScreenShare) {
+                    setAllowScreenShare(true);
+                } else {
+                    setAllowScreenShare(false);
+                }
             }
         }
 
         if (conference.leaderId && conference.leaderId === localParticipant.participantId) {
+            console.warn(`CallTopMenu setAllowTerminateConf true`);
             setAllowTerminateConf(true);
+        } else {
+            console.warn(`CallTopMenu setAllowTerminateConf false`);
         }
 
     }, [conference, isUser])

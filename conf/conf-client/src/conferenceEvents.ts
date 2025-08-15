@@ -26,6 +26,7 @@ export enum EventTypes {
     conferenceFailed = "conferenceFailed",
     conferencePing = "conferencePing",
 
+
     participantNewTrack = "participantNewTrack",
     participantTrackInfoUpdated = "participantTrackInfoUpdated",
     participantJoined = "participantJoined",

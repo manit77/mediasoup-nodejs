@@ -483,7 +483,11 @@ export class ConferenceClient {
         let newStream = await getBrowserUserMedia(options.constraints);
         if (newStream) {
             let newTracks = newStream.getTracks();
-            this.localParticipant.stream.getTracks().forEach(t => this.localParticipant.stream.removeTrack(t));
+            this.localParticipant.stream.getTracks().forEach(t => {
+                t.stop();
+                this.localParticipant.stream.removeTrack(t);
+            });
+
             newTracks.forEach(t => this.localParticipant.stream.addTrack(t));
             console.warn(`new tracks created for localParticipant tracks`, this.localParticipant.stream.getTracks());
             console.warn(`new tracks created for localParticipant tracksInfo`, this.localParticipant.tracksInfo);
@@ -519,11 +523,13 @@ export class ConferenceClient {
     async publishTracks(tracks: MediaStreamTrack[]) {
         console.log(`publishTracks, length: ${tracks?.length}`);
 
+        tracks.filter(t => t.readyState == "ended").forEach(t => this.localParticipant.stream.removeTrack(t));
+        tracks = tracks.filter(t => t.readyState === "live");
+
         if (tracks.length == 0) {
             console.error(`no tracks`);
             return false;
         }
-
 
         for (let track of tracks) {
             //is the track in the localparticipants?
@@ -638,13 +644,13 @@ export class ConferenceClient {
         }
 
         const screenTrack = (await getBrowserDisplayMedia())?.getVideoTracks()[0];
-        if(!screenTrack) {
+        if (!screenTrack) {
             console.error(`could not get screenTrack, user may have cancelled or permission error.`);
             return false;
         }
-        
+
         //camera track will be removed and stopped
-        let cameraTrack = this.localParticipant.stream.getVideoTracks()[0];       
+        let cameraTrack = this.localParticipant.stream.getVideoTracks()[0];
 
         if (screenTrack) {
             this.localParticipant.prevTracksInfo = {
@@ -665,7 +671,6 @@ export class ConferenceClient {
                 let msg = new PresenterInfoMsg();
                 msg.data.status = "on";
                 this.sendToServer(msg);
-
 
                 return true;
             }
@@ -1602,6 +1607,8 @@ export class ConferenceClient {
         }
 
         this.conference.leaderId = message.data.leaderId;
+        this.conference.presenterId = message.data.presenterId;
+        console.log(`onJoinConfResult leaderId: ${this.conference.leaderId}, presenterId: ${this.conference.presenterId} `);
 
         //!!! don't send event for EventTypes.conferenceJoined, wait for room client to send event
         //!!! next event received is onConferenceReady
@@ -1614,7 +1621,7 @@ export class ConferenceClient {
      * @returns 
      */
     private async onConferenceReady(message: ConferenceReadyMsg) {
-        console.log(`onConferenceReady(), presenterId: ${message.data.presenterId}`);
+        console.log(`onConferenceReady(), leaderId:${message.data.leaderId}, presenterId: ${message.data.presenterId}`);
 
         if (this.conference.conferenceId != message.data.conferenceId) {
             console.error(`onConferenceReady() - conferenceId does not match ${this.conference.conferenceId} ${message.data.conferenceId}`);
@@ -1625,6 +1632,7 @@ export class ConferenceClient {
         this.conference.conferenceName = message.data.conferenceName || `Call with ${message.data.displayName}`;
 
         this.conference.presenterId = message.data.presenterId;
+        this.conference.leaderId = message.data.leaderId;
 
         this.conference.conferenceExternalId = message.data.conferenceId;
         this.conference.conferenceExternalId = message.data.conferenceExternalId;
@@ -1871,7 +1879,6 @@ export class ConferenceClient {
                 console.error(`peer tracksInfo is required.`);
                 return;
             }
-
 
             //create a new participant and add it to the conference
             participant = new Participant();

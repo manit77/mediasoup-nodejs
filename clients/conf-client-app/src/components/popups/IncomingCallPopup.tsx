@@ -30,10 +30,12 @@ const IncomingCallPopup: React.FC = () => {
         localParticipant.tracksInfo.isAudioEnabled = isAudioEnabled;
         localParticipant.tracksInfo.isVideoEnabled = isVideoEnabled;
 
+        localParticipant?.stream.getTracks().filter(t => t.readyState === "ended").forEach(t => localParticipant?.stream.removeTrack(t));
+
         if (localParticipant?.stream.getTracks().length === 0) {
             console.log(`no, steam getting new media stream`);
             ui.showToast("getting media stream");
-         
+
             let getUserMediaConfig = new GetUserMediaConfig();
             getUserMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
             getUserMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;

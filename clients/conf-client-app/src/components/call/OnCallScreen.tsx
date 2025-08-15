@@ -262,9 +262,9 @@ const OnCallScreen: React.FC = () => {
                                         }
                                         cardStyle={
                                             {
-                                                // flex: '1 0 auto', // Allow growing but not shrinking below minWidth
-                                                //width: '320px', // Minimum width before wrapping
-                                                //height: '240px', // Keep fixed height for consistency
+                                                //flex: '0 0 160px', // Fixed basis for consistent width
+                                                maxHeight: "480px",
+                                                aspectRatio: "4/3",
                                                 justifyContent: 'center'
                                             }
                                         }

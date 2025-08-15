@@ -9,7 +9,7 @@ import { ConferenceScheduledInfo } from '@conf/conf-models';
 
 const RoomsPane: React.FC = () => {
   const { isAuthenticated, isCallActive, inviteInfoSend, conferencesOnline } = useCall();
-  const { isAdmin, isUser, conferencesScheduled, fetchConferencesScheduled } = useAPI();
+  const { isAdmin, isUser, conferencesScheduled, fetchConferencesScheduled, startFetchConferencesScheduled } = useAPI();
   const ui = useUI();
 
   const [loading, setLoading] = useState(false);
@@ -21,8 +21,15 @@ const RoomsPane: React.FC = () => {
   const [selectedConferenceToJoin, setSelectedConferenceToJoin] = useState<ConferenceScheduledInfo | null>(null);
 
   useEffect(() => {
+
+    startFetchConferencesScheduled();
+
+  }, []);
+
+  useEffect(() => {
     setMergedConferences(conferencesScheduled);
   }, [conferencesScheduled]);
+
 
   const handleRefreshRooms = useCallback(async () => {
     //console.log('handleRefreshRooms:');
@@ -93,7 +100,7 @@ const RoomsPane: React.FC = () => {
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-2">
-       <h5 className="fw-semibold text-dark">Rooms</h5>
+        <h5 className="fw-semibold text-dark">Rooms</h5>
         <Button variant="outline-primary" size="sm" onClick={handleRefreshRooms} disabled={loading}>
           <ArrowRepeat />
         </Button>

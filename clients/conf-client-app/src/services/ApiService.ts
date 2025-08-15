@@ -39,23 +39,22 @@ class ApiService {
                     error: loginResult.data.error
                 } as LoginResponse;
             }
-
-            if (loginResult.data.clientData) {
-                clientData = loginResult.data.clientData;
-            }
-
+            
             let result: LoginResponse = {
                 user: {
                     username: loginResult.data.username,
                     displayName: loginResult.data.displayName,
                     role: loginResult.data.role as any,
                     authToken: loginResult.data.authToken,
-                    clientData: clientData
+                    clientData: loginResult.data.clientData
                 }
             }
 
             console.log(`LoginResponse`, result);
             localStorage.setItem('user', JSON.stringify(result.user));
+            if(loginResult.data.clientData) {
+                localStorage.setItem('clientData', JSON.stringify(loginResult.data.clientData));
+            }
 
             return result;
         } catch (err) {
@@ -143,7 +142,7 @@ class ApiService {
 
     fetchConferencesScheduled = async (): Promise<ConferenceScheduledInfo[]> => {
         try {
-            //console.log("fetchConferencesScheduled", this.getClientData());
+            console.log("ApiService fetchConferencesScheduled, clientData:", this.getClientData());
 
             if (!this.conferenceAPIClient) {
                 console.error(`conferenceAPIClient not initialized.`);
@@ -173,14 +172,13 @@ class ApiService {
     startFetchConferencesScheduled = () => {
         //console.log("startFetchConferencesScheduled");
         if (this.startFetchConferencesScheduledTimerId) {
-            clearTimeout(this.startFetchConferencesScheduledTimerId);
+            clearInterval(this.startFetchConferencesScheduledTimerId);
         }
 
-        this.startFetchConferencesScheduledTimerId = setTimeout(() => {
+        this.startFetchConferencesScheduledTimerId = setInterval(() => {
             let user = this.getUser();
             if (user) {
-                this.fetchConferencesScheduled();
-                this.startFetchConferencesScheduled();
+                this.fetchConferencesScheduled();                
             }
         }, 30 * 1000);
     };

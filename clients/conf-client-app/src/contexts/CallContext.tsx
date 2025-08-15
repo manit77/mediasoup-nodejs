@@ -113,6 +113,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsConnecting(conferenceClient.isConnecting());
         setIsAuthenticated(conferenceClient.isRegistered());
         localParticipant.current = conferenceClient.localParticipant;
+        conference.current = conferenceClient.conference;
         setIsCallActive(conferenceClient.isInConference());
         setCallParticipants(conferenceClient.conference.participants);
 
@@ -409,7 +410,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     console.log(`CallContext: conferencePing`);
                     setOnConferencePing({});
                     break;
-                }
+                }               
             }
 
         };
