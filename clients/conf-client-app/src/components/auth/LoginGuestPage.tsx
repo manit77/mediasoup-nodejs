@@ -6,20 +6,35 @@ import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
 import { getQueryParams } from '../../utils/utils';
 
 const LoginGuestPage: React.FC = () => {
-    const [username, setUsername] = useState('');
-    const [error, setError] = useState('');
+
+    const [username, setUsername] = useState("");    
+    const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const api = useAPI();
     const ui = useUI();
     const navigate = useNavigate();
+    const [participantGroupName, setParticipantGroupName] = useState("");
 
     useEffect(() => {
         console.log("getQueryParams:", getQueryParams());
-    }, []);    
+        let query = getQueryParams();
+
+        let clientData: any = api.getClientData();
+
+        if (query.participantGroupName) {
+            setParticipantGroupName(query.participantGroupName);
+        }
+
+         if (clientData?.participantGroupName) {
+            setParticipantGroupName(clientData.participantGroupName);
+        }
+
+
+    }, []);
 
     const handleSubmitGuest = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
+        setError("");
         if (!username.trim()) {
             setError('Display name is required.');
             return;
@@ -33,7 +48,7 @@ const LoginGuestPage: React.FC = () => {
                 ui.showToast(`Login failed. ${response.error}`, "error");
                 return;
             }
-            setError('');
+            setError("");
             navigate('/app');
         } catch (err: any) {
             setError(err.message || 'Login failed. Please try again.');
@@ -44,6 +59,7 @@ const LoginGuestPage: React.FC = () => {
 
     return (
         <Container className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
+            <h1>{participantGroupName}</h1>
             <Card style={{ width: '400px', borderColor: '#007bff' }}>
                 <Card.Body>
                     <Card.Title className="text-center mb-4">Login as Guest</Card.Title>
@@ -65,7 +81,7 @@ const LoginGuestPage: React.FC = () => {
                         </Button>
                     </Form>
                 </Card.Body>
-            </Card> 
+            </Card>
         </Container>
     );
 };

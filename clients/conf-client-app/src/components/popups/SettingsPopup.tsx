@@ -134,7 +134,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                             id="ctlMic"
                                             title='Select Microphone'
                                             aria-label="Select Microphone"
-                                            value={audioId || ''}
+                                            value={audioId || ""}
                                             onChange={(e) => handleDeviceChange('audioIn', e.target.value)}
                                             className="mb-3"
                                         >
@@ -153,7 +153,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                             id="ctlCam"
                                             title="Select Camera"
                                             aria-label="Select Camera"
-                                            value={videoId || ''}
+                                            value={videoId || ""}
                                             onChange={(e) => handleDeviceChange('video', e.target.value)}
                                             className="mb-3"
                                         >
@@ -192,7 +192,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                         <Form.Select
                                         title-"Select Speaker"    
                                         aria-label="Select Speaker"
-                                            value={speakerId || ''}
+                                            value={speakerId || ""}
                                             onChange={(e) => handleDeviceChange('audioOut', e.target.value)}
                                             className="mb-3"
                                         >

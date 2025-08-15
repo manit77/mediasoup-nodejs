@@ -22,7 +22,7 @@ export function getConferenceConfig() {
 
 export async function loadConferenceConfig(): Promise<ConferenceClientConfig> {
   try {
-    const response = await fetch(`${process.env.PUBLIC_URL || ''}/config.json`);
+    const response = await fetch(`${process.env.PUBLIC_URL || ""}/config.json`);
     if (!response.ok) {
       throw new Error(`Failed to load config: ${response.statusText}`);
     }

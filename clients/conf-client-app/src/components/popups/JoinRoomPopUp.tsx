@@ -20,7 +20,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
     const { localParticipant, isCallActive, createOrJoinConference, joinConference, getLocalMedia, isWaiting } = useCall();
     const navigate = useNavigate();
 
-    const [conferenceCode, setConferenceCode] = useState<string>('');
+    const [conferenceCode, setConferenceCode] = useState<string>("");
     const [requireConfCode, setRequireConfCode] = useState<boolean>(false);
 
     const [micEnabled, setMicEnabled] = useState<boolean>(true); // Default to true

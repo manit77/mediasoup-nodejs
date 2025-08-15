@@ -34,7 +34,7 @@ describe('RoomPeerSocketServer', () => {
     console.log('### beforeAll');
 
     // Initialize configuration and RoomServer
-    config = await getENV('') as any;
+    config = await getENV("") as any;
     roomServer = new RoomServer(config);
 
     await roomServer.init();

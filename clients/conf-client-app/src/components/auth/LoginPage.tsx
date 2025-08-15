@@ -7,18 +7,32 @@ import { getQueryParams } from '../../utils/utils';
 import { getConferenceConfig } from '../../services/ConferenceConfig';
 
 const LoginPage: React.FC = () => {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const api = useAPI();
     const ui = useUI();
     const navigate = useNavigate();
-
     let config = getConferenceConfig();
 
+    const [participantGroupName, setParticipantGroupName] = useState("");
+
     useEffect(() => {
-        console.log("getQueryParams:", getQueryParams());        
+        console.log("getQueryParams:", getQueryParams());
+        let query = getQueryParams();
+
+        let clientData: any = api.getClientData();
+        console.log("clientData:", clientData);
+
+        if (query.participantGroupName) {
+            setParticipantGroupName(query.participantGroupName);
+        }
+
+        if (clientData?.participantGroupName) {
+            setParticipantGroupName(clientData.participantGroupName);
+        }
+
 
     }, []);
 
@@ -37,7 +51,7 @@ const LoginPage: React.FC = () => {
                 ui.showToast(`Login failed. ${response.error}`, "error");
                 return;
             }
-            setError('');
+            setError("");
             navigate('/app'); // Navigate to authenticated area
         } catch (err: any) {
             setError('Login failed. Please try again.');
@@ -48,12 +62,13 @@ const LoginPage: React.FC = () => {
 
     return (
         <Container className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
+            <h1>{participantGroupName}</h1>
             <Card style={{ width: '400px', borderColor: '#ff9800' }}>
                 <Card.Body>
                     <Card.Title className="card-title-bg-orange text-center mb-4">Login as Admin</Card.Title>
                     {error && <Alert variant="danger">{error}</Alert>}
                     <Form onSubmit={handleSubmitAdmin}>
-                        <Form.Group className="mb-3" controlId="username">                            
+                        <Form.Group className="mb-3" controlId="username">
                             <Form.Control
                                 type="text"
                                 value={username}
