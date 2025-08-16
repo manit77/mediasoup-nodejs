@@ -42,8 +42,7 @@ const IncomingCallPopup: React.FC = () => {
 
             let tracks = await getLocalMedia(getUserMediaConfig);
             if (tracks.length === 0) {
-                ui.showPopUp("ERROR: could not get media stream.");
-                return;
+                console.warn(`joining with no media`);
             }
         }
 

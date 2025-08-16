@@ -185,7 +185,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (!options.isAudioEnabled && !options.isVideoEnabled) {
             ui.showToast(`at least one device must be enabled.`);
-            return;
+            return [];
         }
 
         if (!options.constraints) {

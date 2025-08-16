@@ -46,8 +46,7 @@ const ParticipantsOnlinePane: React.FC = () => {
 
         let tracks = await getLocalMedia(getUserMediaConfig);
         if (tracks.length === 0) {
-            ui.showPopUp("ERROR: could not get media stream.", "error");
-            return;
+            console.warn(`joining with no media`);
         }
 
         sendInvite(participant, getUserMediaConfig);

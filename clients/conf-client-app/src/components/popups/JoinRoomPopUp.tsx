@@ -130,8 +130,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
             let tracks = await getLocalMedia(getUserMediaConfig);
             if (tracks.length === 0) {
-                ui.showPopUp("ERROR: could not get media stream.");
-                return;
+                console.warn(`joining with no media`);
             }
 
             console.log('conferenceScheduled', conferenceScheduled);
