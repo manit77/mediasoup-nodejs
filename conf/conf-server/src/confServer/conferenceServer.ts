@@ -195,18 +195,26 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         let conference: Conference;
 
         if (args.externalId) {
-            conference = [...this.conferences.values()].find(c => c.externalId === args.externalId);            
-        } 
-        
+            conference = [...this.conferences.values()].find(c => c.externalId === args.externalId);
+        }
+
         if (!conference && args.conferenceId) {
             conference = [...this.conferences.values()].find(c => c.id === args.conferenceId);
         }
 
+        //existing room found
         if (conference) {
             consoleLog("conference found by externalId", args.externalId);
-            if(!conference.leader) {
+            //first part that creates the conference is the leader
+            if (!conference.leader) {
                 conference.leader = args.leader;
             }
+            
+            //if presenter layout the partc that creaets the conf is the leader
+            if (!conference.presenter && conference.config.layout == "presenter") {
+                conference.presenter = args.leader;
+            }
+
             return conference;
         }
 
@@ -220,10 +228,15 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         conference.participantGroup = args.participantGroup ?? "";
         conference.confType = args.confType;
 
-        conference.leader = args.leader;
+        conference.leader = args.leader;        
 
+        //copy the configs from the args to the conference
         if (args.config) {
             fill(args.config, conference.config);
+        }
+
+        if (conference.config.layout == "presenter") {
+            conference.presenter = args.leader;
         }
 
         conference.timeoutSecs = conference.config.roomTimeoutSecs ?? conference.timeoutSecs;
@@ -750,7 +763,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                     return errorMsg;
                 }
 
-                if (resultMsg) {
+                if (resultMsg.data.conference.config) {
+                    consoleWarn(`conferenceConfig:`, resultMsg.data.conference.config)
                     fill(resultMsg.data.conference.config, confConfig);
                     roomName = resultMsg.data.conference.name;
                 }
@@ -1063,12 +1077,12 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`not in conference`);
         }
 
-        if(msgIn.data.status == "on") {
+        if (msgIn.data.status == "on") {
             participant.conference.presenter = participant;
-        } else if(participant == participant.conference.presenter) {
+        } else if (participant == participant.conference.presenter) {
             participant.conference.presenter = null;
         }
-        
+
         msgIn.data.participantId = participant.participantId;
         //forward leave to all other participants
         for (let p of participant.conference.participants.values()) {

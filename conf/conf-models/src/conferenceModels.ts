@@ -10,6 +10,8 @@ export enum WebRoutes {
 }
 
 export type conferenceType = "p2p" | "room";
+export type conferenceLayout = "pip" | "nopresenter" | "presenter" | "auto";
+
 export enum ParticipantRole {
     "admin" = "admin",
     "monitor" = "monitor",
@@ -55,6 +57,7 @@ export class ConferenceConfig {
     isRecorded = false;
     isPrivate = false;
     leaderTrackingId : string = "";
+    layout: conferenceLayout = "auto";
 }
 
 export class ConferenceScheduledInfo {
@@ -90,3 +93,4 @@ export class TestObject {
         console.error("hello.")
     }
 }
+

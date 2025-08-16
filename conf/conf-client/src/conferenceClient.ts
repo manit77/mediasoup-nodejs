@@ -152,9 +152,8 @@ export class ConferenceClient {
             this.socket.disconnect();
             this.socket = null;
         }
-
-        this.localParticipant.stream.getTracks().forEach(t => t.stop());
-        this.localParticipant = new Participant();
+        
+        this.resetLocalParticipant();
         for (const p of this.conference.participants.values()) {
             p.stream.getTracks().forEach(t => t.stop());
         }
@@ -1446,6 +1445,7 @@ export class ConferenceClient {
         this.localParticipant.displayName = "";
         this.localParticipant.peerId = "";
         this.localParticipant.role = "";
+        this.localParticipant.stream.getTracks().forEach(t => t.stop());
     }
 
     private resetLocalTracks() {

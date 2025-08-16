@@ -33,6 +33,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
     const [audioEnabled, setAudioEnabled] = useState(false);
     const containerRef = React.useRef<HTMLDivElement>(null);
 
+
     const videoStyle = {
         width: '100%',
         height: '100%',
@@ -224,7 +225,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 
 
     return (
-        <Card
+        <Card           
             onClick={() => { onClick(participant); }}
             className={`participant-preview`}
             style={{

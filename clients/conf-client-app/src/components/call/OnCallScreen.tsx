@@ -10,16 +10,22 @@ import { Participant } from '@conf/conf-client';
 import { relative } from 'path';
 import { conferenceClient } from '../../contexts/CallContext';
 import { ParticipantVideoPreview } from './ParticipantVideoPreview';
+import { conferenceLayout } from '@conf/conf-models';
 
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
-    const { localParticipant, isCallActive, callParticipants, selectedDevices, switchDevicesOnCall, presenter, onConferencePing, conferencePong } = useCall();
+    const { conference, localParticipant, isCallActive, callParticipants, selectedDevices, switchDevicesOnCall, presenter, onConferencePing, conferencePong } = useCall();
     const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
     const [remoteParticipant, setRemoteParticipant] = useState<Participant>(null)
     const localVideoPreview = React.useRef<HTMLDivElement>(null);
+    const [layout, setLayout] = useState<conferenceLayout>("auto");
 
     useEffect(() => {
-        console.error('on call screen rendered.');
+        console.error('on call screen rendered. layout ', conference.conferenceConfig.layout);
+        if (conference.conferenceConfig.layout) {
+            setLayout(conference.conferenceConfig.layout);
+        }
+
     }, []);
 
 
@@ -64,8 +70,6 @@ const OnCallScreen: React.FC = () => {
                 } else {
                     localVideoPreview.current.style.height = "50px";
                 }
-                
-                //localParticipant.videoEle.parentElement.style.height = "50px";
             }
 
             return;
@@ -144,61 +148,61 @@ const OnCallScreen: React.FC = () => {
                                 />
 
                             </div>
-                        ) : callParticipants.size === 2 && remoteParticipant ? (
-                            // Two participants - PiP layout
-                            <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
-                                {/* Remote */}
-                                <div
-                                    style={{
-                                        flex: '1 1 auto',
-                                        width: '100%',
-                                        minHeight: '0',              // also important in Safari
-                                        overflow: 'hidden',
-                                    }}
-                                >
-                                    <ParticipantVideoPreview
-                                        onClick={() => handleSelectParticipantVideo(remoteParticipant)}
-                                        isSelected={selectedParticipant === remoteParticipant}
-                                        key={remoteParticipant.participantId}
-                                        participant={remoteParticipant}
+                        ) :
+                            (layout == "auto" || layout == "pip") && callParticipants.size === 2 && remoteParticipant ? (
+                                // Two participants - PiP layout
+                                <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
+                                    {/* Remote */}
+                                    <div
                                         style={{
+                                            flex: '1 1 auto',
                                             width: '100%',
-                                            height: '100%',
-                                            objectFit: 'contain', // Ensure video scales without cropping
+                                            minHeight: '0',              // also important in Safari
+                                            overflow: 'hidden',
                                         }}
-                                    />
-                                </div>
+                                    >
+                                        <ParticipantVideoPreview
+                                            onClick={() => handleSelectParticipantVideo(remoteParticipant)}
+                                            isSelected={selectedParticipant === remoteParticipant}
+                                            key={remoteParticipant.participantId}
+                                            participant={remoteParticipant}
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'contain', // Ensure video scales without cropping
+                                            }}
+                                        />
+                                    </div>
 
-                                {/* Local in bottom right */}
-                                <div ref={localVideoPreview}
-                                    style={{
-                                        position: 'absolute',
-                                        bottom: '60px',
-                                        right: '10px',
-                                        width: '320px',
-                                        height: '240px', // 4:3 aspect ratio for PiP
-                                        // border: '2px solid #000',
-                                        borderRadius: '8px',
-                                        overflow: 'hidden',
-                                        background: "transparent",
-                                        boxShadow: '0 0 10px rgba(0,0,0,0.5)',
-                                    }}
-                                >
-                                    <ParticipantVideoPreview
-                                        onClick={() => handleSelectParticipantVideo(localParticipant)}
-                                        isSelected={selectedParticipant === localParticipant}
-                                        key={localParticipant.participantId}
-                                        participant={localParticipant}
+                                    {/* Local in bottom right */}
+                                    <div ref={localVideoPreview}
                                         style={{
-                                            width: '100%',
-                                            height: '100%',
-                                            objectFit: 'contain', // Ensure local video scales properly
+                                            position: 'absolute',
+                                            bottom: '60px',
+                                            right: '10px',
+                                            width: '320px',
+                                            height: '240px', // 4:3 aspect ratio for PiP
+                                            // border: '2px solid #000',
+                                            borderRadius: '8px',
+                                            overflow: 'hidden',
+                                            background: "transparent",
+                                            boxShadow: '0 0 10px rgba(0,0,0,0.5)',
                                         }}
-                                    />
+                                    >
+                                        <ParticipantVideoPreview
+                                            onClick={() => handleSelectParticipantVideo(localParticipant)}
+                                            isSelected={selectedParticipant === localParticipant}
+                                            key={localParticipant.participantId}
+                                            participant={localParticipant}
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'contain', // Ensure local video scales properly
+                                            }}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                        ) : callParticipants.size > 2 ? (
-                            presenter ? (
+                            ) : (layout == "presenter" || (presenter === undefined || presenter === null)) ? (
                                 // Presenter view
                                 <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
 
@@ -256,8 +260,7 @@ const OnCallScreen: React.FC = () => {
                                                 width: '100%',
                                                 boxSizing: 'border-box',
                                                 justifyContent: 'center', // Align items to the start; change to 'center' if preferred
-                                                overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it            
-
+                                                overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it
                                             }
                                         }
                                         cardStyle={
@@ -271,7 +274,7 @@ const OnCallScreen: React.FC = () => {
                                     />
                                 </div>
                             )
-                        ) : (<></>)}
+                        }
                     </Container>
                 </div>
             </div >

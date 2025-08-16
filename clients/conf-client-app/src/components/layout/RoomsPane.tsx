@@ -5,7 +5,7 @@ import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
 import { ArrowRepeat, Circle, CircleFill } from 'react-bootstrap-icons';
 import JoinRoomPopUp from '../popups/JoinRoomPopUp';
-import { ConferenceScheduledInfo } from '@conf/conf-models';
+import { ConferenceScheduledInfo, conferenceLayout } from '@conf/conf-models';
 
 const RoomsPane: React.FC = () => {
   const { isAuthenticated, isCallActive, inviteInfoSend, conferencesOnline } = useCall();
@@ -20,10 +20,9 @@ const RoomsPane: React.FC = () => {
   // State to hold the conference selected by the user to join
   const [selectedConferenceToJoin, setSelectedConferenceToJoin] = useState<ConferenceScheduledInfo | null>(null);
 
+
   useEffect(() => {
-
     startFetchConferencesScheduled();
-
   }, []);
 
   useEffect(() => {
