@@ -29,7 +29,7 @@ export class Participant {
         this.videoEle = document.createElement("video");        
         this.videoEle.autoplay = true;
         this.videoEle.playsInline = true;
-        this.videoEle.muted = true; //default to muted
+        this.videoEle.muted = true;
     }
 }
 

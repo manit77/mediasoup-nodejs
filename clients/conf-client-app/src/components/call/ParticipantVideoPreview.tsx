@@ -47,10 +47,21 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                 participant.videoEle.muted = !!(localParticipant.participantId === participant.participantId);
                 Object.assign(participant.videoEle.style, videoStyle);
                 videoContainerRef.current.innerHTML = "";
-                videoContainerRef.current.appendChild(participant.videoEle);
 
-                participant.videoEle.srcObject = participant.stream;
-                console.warn(`videoEle added ${participant.displayName}`);
+                if (!videoContainerRef.current.contains(participant.videoEle)) {
+                    // Do not nuke innerHTML (it can cause blank video in Chrome/Safari)
+                    videoContainerRef.current.appendChild(participant.videoEle);
+                    console.warn(`videoEle appended ${participant.displayName}`);
+                }
+
+                if (participant.videoEle.srcObject !== participant.stream) {
+                    participant.videoEle.srcObject = participant.stream;
+                    console.warn(`videoEle added ${participant.displayName}`);
+                }
+
+                participant.videoEle.play().catch(err => {
+                    console.warn(`autoplay failed for ${participant.displayName}`, err);
+                });
 
             } else {
                 console.warn(`videoEle already ${participant.displayName}`);
