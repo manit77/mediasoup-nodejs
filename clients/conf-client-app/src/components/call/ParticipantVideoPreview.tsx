@@ -7,7 +7,6 @@ import { useAPI } from "../../hooks/useAPI";
 import { useCall } from "../../hooks/useCall";
 import { useUI } from "../../hooks/useUI";
 import ThrottledButton from "../layout/ThrottledButton";
-import VideoPlayer from "./VideoPlayer";
 
 const debounce = (func: (...args: any[]) => void, wait: number) => {
     let timeout: NodeJS.Timeout;
@@ -41,12 +40,16 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 
     useEffect(() => {
 
+        setAudioEnabled(participant.tracksInfo.isAudioEnabled);
+        setVideoEnabled(participant.tracksInfo.isVideoEnabled);
+
         if (videoContainerRef.current && participant.videoEle) {
             if (!videoContainerRef.current.contains(participant.videoEle)) {
 
                 participant.videoEle.muted = !!(localParticipant.participantId === participant.participantId);
+                console.warn(`videoEle muted--- ${participant.videoEle.muted} for ${participant.displayName}`);
                 Object.assign(participant.videoEle.style, videoStyle);
-                videoContainerRef.current.innerHTML = "";
+                //videoContainerRef.current.innerHTML = "";
 
                 if (!videoContainerRef.current.contains(participant.videoEle)) {
                     // Do not nuke innerHTML (it can cause blank video in Chrome/Safari)
@@ -56,13 +59,13 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 
                 if (participant.videoEle.srcObject !== participant.stream) {
                     participant.videoEle.srcObject = participant.stream;
-                    console.warn(`videoEle added ${participant.displayName}`);
+                    console.warn(`videoEle srcObject set ${participant.displayName}`);
                 }
 
                 participant.videoEle.play().catch(err => {
-                    console.warn(`autoplay failed for ${participant.displayName}`, err);
+                    console.warn(`play failed for ${participant.displayName}`, err);
                 });
-                
+
                 participant.videoEle.onclick = () => {
                     toggleFullscreen(participant.videoEle);
                 }
@@ -70,18 +73,11 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
             } else {
                 console.warn(`videoEle already ${participant.displayName}`);
             }
+            console.warn(`videoEle muted- ${participant.videoEle.muted} for ${participant.displayName}`);
         } else {
             console.warn(`videoEle null context ${participant.displayName}`);
         }
     }, [participant]);
-
-
-    useEffect(() => {
-        console.warn(`participant updated, set video srcObject ${participant.displayName}`, participant.tracksInfo);
-        setAudioEnabled(participant.tracksInfo.isAudioEnabled);
-        setVideoEnabled(participant.tracksInfo.isVideoEnabled);
-    }, [participant]);
-
 
     const onAudioClick = useCallback(async (event) => {
         console.log(`onAudioClick.`);
@@ -235,7 +231,6 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
             muteParticipantTrack(participant.participantId, isAudioEnabled, newEnabled);
         }
     }, [api, conference, localParticipant, muteParticipantTrack, participant, ui, broadCastTrackInfo]);
-
 
     const toggleFullscreen = (ele: HTMLElement) => {
         if (!document.fullscreenElement) {

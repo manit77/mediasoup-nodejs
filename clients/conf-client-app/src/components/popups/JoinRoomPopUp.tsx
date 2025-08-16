@@ -124,11 +124,11 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             localParticipant.tracksInfo.isVideoEnabled = cameraEnabled;
             console.log(`localParticipant.tracksInfo`, localParticipant.tracksInfo);
 
-            let getUserMediaConfig = new GetUserMediaConfig();
-            getUserMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
-            getUserMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
+            let joinMediaConfig = new GetUserMediaConfig();
+            joinMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
+            joinMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
 
-            let tracks = await getLocalMedia(getUserMediaConfig);
+            let tracks = await getLocalMedia(joinMediaConfig);
             if (tracks.length === 0) {
                 console.warn(`joining with no media`);
             }
@@ -136,10 +136,10 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             console.log('conferenceScheduled', conferenceScheduled);
 
             if (api.isUser()) {
-                createOrJoinConference(conferenceScheduled.externalId, conferenceCode);
+                createOrJoinConference(conferenceScheduled.externalId, conferenceCode, joinMediaConfig);
             } else {
                 if (conferenceScheduled.conferenceId) {
-                    joinConference(conferenceCode, conferenceScheduled);
+                    joinConference(conferenceCode, conferenceScheduled, joinMediaConfig);
                 } else {
                     ui.showToast("conference is not active.");
                 }

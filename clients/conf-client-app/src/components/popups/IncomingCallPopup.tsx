@@ -30,23 +30,11 @@ const IncomingCallPopup: React.FC = () => {
         localParticipant.tracksInfo.isAudioEnabled = isAudioEnabled;
         localParticipant.tracksInfo.isVideoEnabled = isVideoEnabled;
 
-        localParticipant?.stream.getTracks().filter(t => t.readyState === "ended").forEach(t => localParticipant?.stream.removeTrack(t));
-
-        if (localParticipant?.stream.getTracks().length === 0) {
-            console.log(`no, steam getting new media stream`);
-            ui.showToast("getting media stream");
-
-            let getUserMediaConfig = new GetUserMediaConfig();
-            getUserMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
-            getUserMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
-
-            let tracks = await getLocalMedia(getUserMediaConfig);
-            if (tracks.length === 0) {
-                console.warn(`joining with no media`);
-            }
-        }
-
-        await acceptInvite();
+        let joinMediaConfig = new GetUserMediaConfig();
+        joinMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
+        joinMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
+        
+        await acceptInvite(joinMediaConfig);
     };
 
     const handleDecline = () => {

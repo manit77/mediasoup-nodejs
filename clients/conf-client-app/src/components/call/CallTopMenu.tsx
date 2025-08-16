@@ -11,7 +11,7 @@ interface CallTopMenuProps {
 }
 
 const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
-    const { conference, leaveCurrentConference, terinateCurrentConference, startScreenShare, stopScreenShare, isScreenSharing, localParticipant } = useCall();
+    const { conference, leaveCurrentConference, terminateCurrentConference, startScreenShare, stopScreenShare, isScreenSharing, localParticipant } = useCall();
     const { isUser, getCurrentUser } = useAPI();
     const navigate = useNavigate();
     const [allowScreenShare, setAllowScreenShare] = useState(true);
@@ -31,7 +31,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
     };
 
     const handleTerminateConference = () => {
-        terinateCurrentConference();
+        terminateCurrentConference();
         navigate('/app');
     };
 

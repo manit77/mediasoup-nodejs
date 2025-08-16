@@ -152,7 +152,7 @@ export class ConferenceClient {
             this.socket.disconnect();
             this.socket = null;
         }
-        
+
         this.resetLocalParticipant();
         this.resetLocalTracks();
 
@@ -336,17 +336,17 @@ export class ConferenceClient {
             this.roomsClient = null;
         }
 
-        if (this.isInConference()) {            
+        if (this.isInConference()) {
             let msg = new ConferenceClosedMsg();
             msg.data.conferenceId = this.conference.conferenceId;
             msg.data.reason = "connection closed";
             await this.onEvent(EventTypes.conferenceClosed, msg);
         }
-        
+
         this.resetConferenceRoom();
         this.resetLocalParticipant();
         this.resetLocalTracks();
-        
+
         console.log(`reconnectAttempts: ${this.socket.reconnectAttempts}`);
         if (this.socket.reconnectAttempts == 0) {
             console.log(`fire EventTypes.disconnected`);
@@ -481,7 +481,6 @@ export class ConferenceClient {
         if (!options.constraints) {
             options.constraints = { video: true, audio: true };
         }
-
 
         let newStream = await getBrowserUserMedia(options.constraints);
         if (newStream) {
@@ -1448,7 +1447,7 @@ export class ConferenceClient {
         this.localParticipant.participantId = "";
         this.localParticipant.displayName = "";
         this.localParticipant.peerId = "";
-        this.localParticipant.role = "";        
+        this.localParticipant.role = "";
     }
 
     private resetLocalTracks() {
@@ -1841,9 +1840,14 @@ export class ConferenceClient {
 
         };
 
-        this.roomsClient.eventRoomTransportsCreated = () => {
+        this.roomsClient.eventRoomTransportsCreated = async () => {
             console.log(`eventRoomTransportsCreated`);
-            this.publishTracks(this.localParticipant.stream.getTracks());
+            if (this.conference.joinParams.joinMediaConfig) {
+                await this.getNewTracksForLocalParticipant(this.conference.joinParams.joinMediaConfig);
+                this.publishTracks(this.localParticipant.stream.getTracks());
+            } else {
+                console.warn(`no joinMediaConfig`);
+            }
         };
 
         this.roomsClient.eventOnRoomClosed = async (roomId: string) => {

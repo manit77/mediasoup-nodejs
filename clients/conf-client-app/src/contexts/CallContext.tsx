@@ -46,16 +46,16 @@ interface CallContextType {
     getParticipantsOnline: () => void;
 
     createConference: (externalId: string, roomName: string) => void;
-    joinConference: (conferenceCode: string, scheduled: ConferenceScheduledInfo) => Promise<void>;
-    createOrJoinConference: (externalId: string, conferenceCode: string) => Promise<void>;
+    joinConference: (conferenceCode: string, scheduled: ConferenceScheduledInfo, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
+    createOrJoinConference: (externalId: string, conferenceCode: string, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
 
-    sendInvite: (participantInfo: ParticipantInfo, options: GetUserMediaConfig) => Promise<void>;
-    acceptInvite: () => Promise<void>;
+    sendInvite: (participantInfo: ParticipantInfo, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
+    acceptInvite: (joinMediaConfig: GetUserMediaConfig) => Promise<void>;
     declineInvite: () => void;
     cancelInvite: () => void;
 
     leaveCurrentConference: () => void;
-    terinateCurrentConference: () => void;
+    terminateCurrentConference: () => void;
 
     broadCastTrackInfo: () => void;
     muteParticipantTrack: (participantId: string, audioEnabled: boolean, videoEnabled: boolean) => void;
@@ -462,7 +462,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [callParticipants, getConferenceRoomsOnline, ui]);
 
-    const sendInvite = useCallback(async (participantInfo: ParticipantInfo, options: GetUserMediaConfig) => {
+    const sendInvite = useCallback(async (participantInfo: ParticipantInfo, joinMediaConfig: GetUserMediaConfig) => {
         console.log(`sendInvite to ${participantInfo.participantId} ${participantInfo.displayName}`);
 
         try {
@@ -477,32 +477,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 console.error(`inviteInfoSend is not null`);
                 ui.showPopUp("error: there is a pending invite.", "error");
                 return;
-            }
-
-            if (!localParticipant.current.stream) {
-                console.error(`stream is null`);
-                ui.showPopUp("error: media stream not initialized", "error");
-                return;
-            }
-
-            if (localParticipant.current.stream.getTracks().length === 0) {
-                console.log(`getting media stream`);
-                ui.showToast("getting media stream");
-                let tracks = await getLocalMedia(options);
-                if (tracks.length === 0) {
-                    ui.showPopUp("ERROR: could not get media stream.", "error");
-                    return;
-                }
-            }
-
-            //if no local tracks
-            if (localParticipant.current.stream.getTracks().length === 0) {
-                console.error(`no media tracks`);
-                ui.showPopUp("no devices enabled.", "error");
-                return;
-            }
+            }          
 
             let joinArgs: JoinConferenceParams = {
+                joinMediaConfig: joinMediaConfig,
                 clientData: api.getCurrentUser()?.clientData,
                 conferenceCode: "",
                 conferenceId: "",
@@ -531,12 +509,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [api, getLocalMedia, inviteInfoSend, isCallActive, ui]);
 
-    const acceptInvite = useCallback(async () => {
+    const acceptInvite = useCallback(async (joinMediaConfig: GetUserMediaConfig) => {
         try {
 
             let joinArgs: JoinConferenceParams = {
-                //audioEnabledOnStart: selectedDevices.isAudioEnabled,
-                //videoEnabledOnStart: selectedDevices.isVideoEnabled,
+                joinMediaConfig: joinMediaConfig,
                 clientData: api.getCurrentUser().clientData,
                 conferenceCode: "",
                 conferenceId: inviteInfoReceived.data.conferenceId,
@@ -577,8 +554,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     }, []);
 
-    const terinateCurrentConference = useCallback(() => {
-        console.log("terinateCurrentConference current conference.");
+    const terminateCurrentConference = useCallback(() => {
+        console.log("terminateCurrentConference current conference.");
         conferenceClient.terminate();
         setIsCallActive(false);
         setInviteInfoSend(null);
@@ -610,7 +587,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [ui]);
 
-    const joinConference = useCallback(async (conferenceCode: string, scheduled: ConferenceScheduledInfo) => {
+    const joinConference = useCallback(async (conferenceCode: string, scheduled: ConferenceScheduledInfo, joinMediaConfig: GetUserMediaConfig) => {
         console.log("CallContext: joinConference");
 
         if (!scheduled.conferenceId) {
@@ -625,8 +602,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 
         let joinArgs: JoinConferenceParams = {
-            //audioEnabledOnStart: startWithAudioEnabled,
-            //videoEnabledOnStart: startWithVideoEnabled
+            joinMediaConfig: joinMediaConfig,
             clientData: api.getCurrentUser()?.clientData,
             conferenceCode: conferenceCode,
             conferenceId: scheduled.conferenceId,
@@ -641,7 +617,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [api, ui]);
 
-    const createOrJoinConference = useCallback(async (externalId: string, conferenceCode: string) => {
+    const createOrJoinConference = useCallback(async (externalId: string, conferenceCode: string, joinMediaConfig: GetUserMediaConfig) => {
         console.log(`CallContext: createOrJoinConference externalId:${externalId}, conferenceCode:${conferenceCode}`);
 
         if (!await waitTryRegister()) {
@@ -658,8 +634,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         let joinArgs: JoinConferenceParams = {
-            //audioEnabledOnStart: startWithAudioEnabled,
-            //videoEnabledOnStart: startWithVideoEnabled
+            joinMediaConfig: joinMediaConfig,
             clientData: api.getCurrentUser()?.clientData,
             conferenceCode: conferenceCode,
             conferenceId: "",
@@ -882,7 +857,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             declineInvite,
             cancelInvite,
             leaveCurrentConference,
-            terinateCurrentConference,
+            terminateCurrentConference,
 
             broadCastTrackInfo,
             muteParticipantTrack,

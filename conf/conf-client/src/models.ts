@@ -23,7 +23,7 @@ export class Participant {
     videoEle: HTMLVideoElement;
 
     peerId: string;
-    tracksInfo: PeerTracksInfo = { isAudioEnabled: true, isVideoEnabled: true };
+    tracksInfo: PeerTracksInfo = { isAudioEnabled: false, isVideoEnabled: false };
     prevTracksInfo: { isAudioEnabled: boolean, isVideoEnabled: boolean, screenShareTrackId: string } = null;
     constructor() {
         this.videoEle = document.createElement("video");        

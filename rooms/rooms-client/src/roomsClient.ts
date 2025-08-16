@@ -470,7 +470,7 @@ export class RoomsClient {
           let producer = this.localRoom.getProducers()?.values().find(p => p.kind === track.kind);
           if (producer) {
             await producer.replaceTrack({ track: track });
-            console.log(`replacing existing track`);
+            console.log(`producer, replacing existing ${track.kind}`);
           }
           return;
         }
