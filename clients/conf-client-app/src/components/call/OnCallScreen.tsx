@@ -202,7 +202,7 @@ const OnCallScreen: React.FC = () => {
                                         />
                                     </div>
                                 </div>
-                            ) : (layout == "presenter" || (presenter === undefined || presenter === null)) ? (
+                            ) : (layout == "presenter" || presenter) ? (
                                 // Presenter view
                                 <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
 

@@ -184,7 +184,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log("getLocalMedia");
 
         if (!options.isAudioEnabled && !options.isVideoEnabled) {
-            ui.showToast(`at least one device must be enabled.`);
             return [];
         }
 
@@ -233,12 +232,28 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const updateCallParticipants = useCallback(() => {
         console.error(`updateCallParticipants`);
-        //unstable_batchedUpdates(() => {
-        //    setCallParticipants(prev => new Map(conferenceClient.conference.participants));
-        //});
+        //setCallParticipants(prev => new Map(conferenceClient.conference.participants));        
 
-        setCallParticipants(prev => new Map(conferenceClient.conference.participants));
-        // setCallParticipants(conferenceClient.conference.participants);
+        setCallParticipants(prev => {
+            ;
+            const next = new Map(prev)
+            const latest = conferenceClient.conference.participants;
+
+            // Add or update
+            for (const [id, participant] of latest.entries()) {
+                next.set(id, participant);
+            }
+
+            // Remove
+            for (const id of next.keys()) {
+                if (!latest.has(id)) {
+                    next.delete(id);
+                }
+            }
+
+            return next;
+        });
+
     }, []);
 
     const getParticipantsOnline = useCallback(() => {
@@ -317,9 +332,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         return;
                     }
 
-                    //update the call participants
-                    // updateCallParticipants();
-
                     break;
                 }
                 case EventTypes.participantTrackInfoUpdated: {
@@ -333,7 +345,36 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         return;
                     }
 
-                    updateCallParticipants();
+                    // setCallParticipants(prev => {
+                    //     const next = new Map(prev)
+                    //     const latest = conferenceClient.conference.participants;
+                    //     let latestPart = latest.get(participantId);
+                    //     let currPart = next.get(participantId);
+                    //     if (latestPart && currPart) {
+                    //         currPart.tracksInfo = { ...latestPart.tracksInfo };
+                    //     }
+                    //     return next;
+                    // });
+
+                    setCallParticipants(prev => {
+                        const next = new Map(prev);
+
+                        const latest = conferenceClient.conference.participants;
+                        const latestPart = latest.get(participantId);
+                        const currPart = next.get(participantId);
+
+                        if (latestPart && currPart) {
+                            const updatedPart = {
+                                ...currPart,
+                                tracksInfo: { ...latestPart.tracksInfo },
+                            };
+
+                            next.set(participantId, updatedPart);
+                        }
+
+                        return next;
+                    });
+
                     break;
                 }
                 case EventTypes.inviteReceived: {
@@ -381,6 +422,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setInviteInfoSend(null);
                     setInviteInfoReceived(null);
                     setIsScreenSharing(false);
+                    updateCallParticipants();
 
                     if (msg.data.reason) {
                         ui.showToast(msg.data.reason);
@@ -410,7 +452,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     console.log(`CallContext: conferencePing`);
                     setOnConferencePing({});
                     break;
-                }               
+                }
             }
 
         };

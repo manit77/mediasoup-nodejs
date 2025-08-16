@@ -142,7 +142,7 @@ export class ConferenceClient {
     }
 
     disconnect() {
-        console.log("conferneceClient disconnect");
+        console.log("conferenceClient disconnect");
 
         this.disconnectRoomsClient("disconnect");
 
@@ -154,6 +154,8 @@ export class ConferenceClient {
         }
         
         this.resetLocalParticipant();
+        this.resetLocalTracks();
+
         for (const p of this.conference.participants.values()) {
             p.stream.getTracks().forEach(t => t.stop());
         }
@@ -274,6 +276,7 @@ export class ConferenceClient {
 
         this.resetConferenceRoom();
         this.resetLocalParticipant();
+        this.resetLocalTracks();
 
         if (this.username && this.authToken) {
             this.tryRegister();
@@ -333,16 +336,17 @@ export class ConferenceClient {
             this.roomsClient = null;
         }
 
-        if (this.isInConference()) {
-            this.resetLocalTracks();
+        if (this.isInConference()) {            
             let msg = new ConferenceClosedMsg();
             msg.data.conferenceId = this.conference.conferenceId;
             msg.data.reason = "connection closed";
             await this.onEvent(EventTypes.conferenceClosed, msg);
         }
+        
         this.resetConferenceRoom();
         this.resetLocalParticipant();
-
+        this.resetLocalTracks();
+        
         console.log(`reconnectAttempts: ${this.socket.reconnectAttempts}`);
         if (this.socket.reconnectAttempts == 0) {
             console.log(`fire EventTypes.disconnected`);
@@ -1444,13 +1448,14 @@ export class ConferenceClient {
         this.localParticipant.participantId = "";
         this.localParticipant.displayName = "";
         this.localParticipant.peerId = "";
-        this.localParticipant.role = "";
-        this.localParticipant.stream.getTracks().forEach(t => t.stop());
+        this.localParticipant.role = "";        
     }
 
     private resetLocalTracks() {
         console.log("resetLocalTracks()");
+
         this.localParticipant.stream.getTracks().forEach(t => {
+            t.stop();
             this.localParticipant.stream.removeTrack(t);
         });
         this.isScreenSharing = false;
