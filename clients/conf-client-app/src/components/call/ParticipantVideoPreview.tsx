@@ -62,6 +62,10 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                 participant.videoEle.play().catch(err => {
                     console.warn(`autoplay failed for ${participant.displayName}`, err);
                 });
+                
+                participant.videoEle.onclick = () => {
+                    toggleFullscreen(participant.videoEle);
+                }
 
             } else {
                 console.warn(`videoEle already ${participant.displayName}`);
@@ -233,9 +237,9 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
     }, [api, conference, localParticipant, muteParticipantTrack, participant, ui, broadCastTrackInfo]);
 
 
-    const toggleFullscreen = () => {
+    const toggleFullscreen = (ele: HTMLElement) => {
         if (!document.fullscreenElement) {
-            videoContainerRef.current?.requestFullscreen();
+            ele.requestFullscreen();
         } else {
             document.exitFullscreen();
         }
@@ -243,7 +247,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 
     return (
         <Card
-            onClick={toggleFullscreen}
+            //onClick={toggleFullscreen}
             //onClick={() => { onClick(participant); }}
             className={`participant-preview`}
             style={{
