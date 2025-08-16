@@ -28,11 +28,9 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
     const api = useAPI();
     const ui = useUI();
     const { localParticipant, broadCastTrackInfo, conference, muteParticipantTrack, getMediaConstraints } = useCall();
-    // const videoRef = React.useRef<HTMLVideoElement>(null);
     const [videoEnabled, setVideoEnabled] = useState(false);
     const [audioEnabled, setAudioEnabled] = useState(false);
-    const containerRef = React.useRef<HTMLDivElement>(null);
-
+    const videoContainerRef = React.useRef<HTMLDivElement>(null);
 
     const videoStyle = {
         width: '100%',
@@ -43,13 +41,13 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 
     useEffect(() => {
 
-        if (containerRef.current && participant.videoEle) {
-            if (!containerRef.current.contains(participant.videoEle)) {
+        if (videoContainerRef.current && participant.videoEle) {
+            if (!videoContainerRef.current.contains(participant.videoEle)) {
 
                 participant.videoEle.muted = !!(localParticipant.participantId === participant.participantId);
                 Object.assign(participant.videoEle.style, videoStyle);
-                containerRef.current.innerHTML = "";
-                containerRef.current.appendChild(participant.videoEle);
+                videoContainerRef.current.innerHTML = "";
+                videoContainerRef.current.appendChild(participant.videoEle);
 
                 participant.videoEle.srcObject = participant.stream;
                 console.warn(`videoEle added ${participant.displayName}`);
@@ -68,7 +66,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
         setAudioEnabled(participant.tracksInfo.isAudioEnabled);
         setVideoEnabled(participant.tracksInfo.isVideoEnabled);
     }, [participant]);
-    
+
 
     const onAudioClick = useCallback(async (event) => {
         console.log(`onAudioClick.`);
@@ -224,9 +222,18 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
     }, [api, conference, localParticipant, muteParticipantTrack, participant, ui, broadCastTrackInfo]);
 
 
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            videoContainerRef.current?.requestFullscreen();
+        } else {
+            document.exitFullscreen();
+        }
+    };
+
     return (
-        <Card           
-            onClick={() => { onClick(participant); }}
+        <Card
+            onClick={toggleFullscreen}
+            //onClick={() => { onClick(participant); }}
             className={`participant-preview`}
             style={{
                 display: 'flex',
@@ -246,7 +253,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                 }}
             >
                 <div
-                    ref={containerRef}
+                    ref={videoContainerRef}
                     style={{
                         ...style,
                     }}
