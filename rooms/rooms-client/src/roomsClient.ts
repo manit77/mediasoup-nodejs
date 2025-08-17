@@ -1167,7 +1167,8 @@ export class RoomsClient {
       iceCandidates: msgIn.data.iceCandidates,
       iceParameters: msgIn.data.iceParameters,
       dtlsParameters: msgIn.data.dtlsParameters,
-      iceTransportPolicy: msgIn.data.iceTransportPolicy ?? "relay"
+      iceTransportPolicy: msgIn.data.iceTransportPolicy ?? "all"
+      //iceTransportPolicy: "relay"
     });
 
     this.localRoom.transportReceive.on('connect', ({ dtlsParameters }, callback) => {
@@ -1227,7 +1228,8 @@ export class RoomsClient {
       iceCandidates: msgIn.data.iceCandidates,
       iceParameters: msgIn.data.iceParameters,
       dtlsParameters: msgIn.data.dtlsParameters,
-      iceTransportPolicy: msgIn.data.iceTransportPolicy ?? "relay"
+      iceTransportPolicy: msgIn.data.iceTransportPolicy ?? "all"
+      //iceTransportPolicy: "relay"
     });
 
     this.localRoom.transportSend.on("connect", ({ dtlsParameters }, callback) => {

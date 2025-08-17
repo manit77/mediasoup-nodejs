@@ -14,6 +14,7 @@ export class Peer {
     public role = AuthUserRoles.guest;
     room?: Room;
     tracksInfo: PeerTracksInfo = { isAudioEnabled: false, isVideoEnabled: false };
+    dateCreated = new Date();
 
     constructor() {
 

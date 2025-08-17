@@ -14,6 +14,7 @@ export class RoomPeer {
     room: Room;
     config: RoomServerConfig;
     lastPong: number = Date.now();
+    dateCreated = new Date();
 
     constructor(config: RoomServerConfig, room: Room, peer: Peer) {
         this.room = room;
@@ -97,8 +98,14 @@ export class RoomPeer {
 
     }
 
-    async createConsumer(producer: Producer, rtpCapabilities: mediasoup.types.RtpCapabilities) {
-        console.log(`createConsumer ${this.peer.displayName}`);
+    /**
+     * consume a remote peer's producer
+     * @param producer 
+     * @param rtpCapabilities 
+     * @returns 
+     */
+    async createConsumer(remotePeer: Peer, producer: Producer, rtpCapabilities: mediasoup.types.RtpCapabilities) {
+        console.log(`createConsumer: ${this.peer.displayName} consuming ${remotePeer.displayName} ${producer.kind}`);
 
         if (!this.consumerTransport) {
             consoleError(`no consumer transport. ${this.peer.id} ${this.peer.displayName}`);
@@ -120,10 +127,10 @@ export class RoomPeer {
 
         this.consumers.set(consumer.id, consumer);
 
-        // Auto-cleanup when consumer closes
+        //the remote peer's producer closed, close this consumer and remove it
         consumer.on("producerclose", () => {
-            console.log(`Consumer ${consumer.id} closed, removing from peer ${this.peer.id} ${this.peer.displayName}. producerid: ${consumer.producerId}`);
-            consumer.close();
+            consoleWarn(`producerclose ${remotePeer.displayName} ${producer.kind}, removing from peer ${this.peer.id} ${this.peer.displayName}. producerid: ${consumer.producerId}`);
+            consumer.close();            
             this.consumers.delete(consumer.id);
 
             //TODO: need to send, alert all consumers
@@ -131,13 +138,13 @@ export class RoomPeer {
         });
 
         consumer.on('@close', () => {
-            console.log(`Consumer ${consumer.id} closed, removing from peer ${this.peer.id}`);
+            consoleWarn(`Consumer ${consumer.id} closed, removing from peer ${this.peer.id}`);
             this.consumers.delete(consumer.id);
         });
 
         // Handle transport close events
         consumer.on('transportclose', () => {
-            console.log(`Consumer ${consumer.id} transport closed`);
+            consoleWarn(`Consumer ${consumer.id} transport closed`);
             this.consumers.delete(consumer.id);
         });
 
@@ -199,12 +206,7 @@ export class RoomPeer {
     close() {
         consoleWarn(`peerRoom close() - ${this.peer.id} ${this.peer.displayName}`);
 
-        this.producerTransport?.close();
-        this.consumerTransport?.close();
-        this.producerTransport = null;
-        this.consumerTransport = null;
-
-        this.producers.values().forEach(p => {
+         this.producers.values().forEach(p => {
             if (!p.closed) {
                 p.close();
             }
@@ -218,7 +220,12 @@ export class RoomPeer {
 
         this.producers.clear();
         this.consumers.clear();
-       
+
+        this.producerTransport?.close();
+        this.consumerTransport?.close();
+        this.producerTransport = null;
+        this.consumerTransport = null;       
+
         this.room = null;
         this.peer.room = null;
 

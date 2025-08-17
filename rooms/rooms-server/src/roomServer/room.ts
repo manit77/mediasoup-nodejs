@@ -24,8 +24,9 @@ export class Room {
 
     config = new RoomConfig();
     private serverConfig: RoomServerConfig;
+    dateCreated = new Date();
 
-    timerIdInterval ?: NodeJS.Timeout = null;
+    timerIdInterval?: NodeJS.Timeout = null;
     timerIdMaxRoomDuration?: NodeJS.Timeout = null;
     timerIdNoParticipants?: NodeJS.Timeout = null;
 
@@ -42,6 +43,21 @@ export class Room {
 
     }
 
+    printStats() {
+        consoleWarn(`# Room: ${this.roomName} ${this.id}`);
+        consoleWarn(`## RoomPeers: ${this.roomPeers.size}`);
+        this.roomPeers.values().forEach(rp => {
+            consoleWarn(`### ${rp.peer.displayName} send closed: ${rp.producerTransport?.closed} receive closed:  ${rp.consumerTransport?.closed}`);
+            consoleWarn(`### ${rp.peer.displayName} producers: ${rp.producers?.size} consumers:  ${rp.consumers?.size}`);
+            rp.producers?.values().forEach(p => {
+                consoleWarn(`#### producers ${p.closed}`);
+            });
+            rp.consumers?.values().forEach(c => {
+                consoleWarn(`#### consumers ${c.closed}`);
+            });
+        });
+
+    }
     startTimers() {
 
         console.log(`room startTimer() maxRoomDurationMinutes:${this.config.maxRoomDurationMinutes}`);
@@ -85,9 +101,9 @@ export class Room {
         });
     }
 
-    pong(peer: Peer){
+    pong(peer: Peer) {
         let roomPeer = this.roomPeers.get(peer);
-        if(!roomPeer){
+        if (!roomPeer) {
             return;
         }
         roomPeer.lastPong = Date.now();
@@ -153,6 +169,8 @@ export class Room {
             axios.post(this.config.callBackURL_OnPeerJoined, cbData);
         }
 
+        this.printStats();
+
         return true;
     }
 
@@ -166,7 +184,7 @@ export class Room {
         }
 
         roomPeer.close();
-        
+
         this.roomPeers.delete(peer);
         consoleWarn(`peer removed from room ${peer.id} ${peer.displayName}`);
 
@@ -199,6 +217,8 @@ export class Room {
 
             axios.post(this.config.callBackURL_OnPeerLeft, cbData);
         }
+
+        this.printStats();
     }
 
     getPeers(): Peer[] {
@@ -293,7 +313,7 @@ export class Room {
             consoleError(`producer not found ${producer.id}`);
         }
 
-        return roomPeer.createConsumer(producer, rtpParameters);
+        return roomPeer.createConsumer(peer, producer, rtpParameters);
 
     }
 
@@ -348,7 +368,7 @@ export class Room {
         if (this.timerIdMaxRoomDuration) {
             clearTimeout(this.timerIdMaxRoomDuration);
         }
-        if(this.timerIdInterval) {
+        if (this.timerIdInterval) {
             clearInterval(this.timerIdInterval);
         }
 

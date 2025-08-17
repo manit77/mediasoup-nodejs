@@ -47,9 +47,33 @@ export class RoomServer {
     private config: RoomServerConfig;
     private timerIdResourceInterval: any;
     private roomLogAdapter = new RoomLogAdapterInMemory();
+    dateCreated = new Date();
 
     constructor(c: RoomServerConfig) {
         this.config = c;
+        this.printStats1();
+    }
+
+    printStats1() {
+        consoleWarn(`#### Conference Server Stats ####`);
+        consoleWarn(`dateCreated: ${this.dateCreated}`);
+        consoleWarn(`rooms: `, this.rooms.size);
+        this.rooms.forEach(r => {
+            consoleWarn(`roomName: ${r.roomName}, dateCreated: ${r.dateCreated}, id: ${r.id}`);
+            //loop through roomPeers
+            r.printStats();
+
+        });
+
+
+
+        consoleWarn(`peers: `, this.peers.size);
+        this.peers.forEach(p => consoleWarn(`displayName: ${p.displayName}, dateCreated: ${p.dateCreated}, id: ${p.id}`));
+        consoleWarn(`#################################`);
+
+        setTimeout(() => {
+            this.printStats();
+        }, 30000);
     }
 
     dispose() {
