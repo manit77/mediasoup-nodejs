@@ -124,7 +124,7 @@ export function generateAuthUserToken(secretKey: string, role: AuthUserRoles, ex
  * creates a transport for the peer, can be a consumer or producer
  * @returns
  */
-export async function createTransport(router: mediasoup.types.Router, listeningIP: string,  publicIP: string, minPort: number, maxPort: number) {
+export async function createTransport(router: mediasoup.types.Router, listeningIP: string, publicIP: string, minPort: number, maxPort: number) {
     consoleWarn(`createTransport() ${listeningIP} ${publicIP} ${minPort} ${maxPort}`);
 
     if (!router) {
@@ -143,7 +143,7 @@ export async function createTransport(router: mediasoup.types.Router, listeningI
                         max: maxPort
                     }
                 }
-            ],
+            ],             
             enableUdp: true,
             enableTcp: false,
             preferUdp: true,

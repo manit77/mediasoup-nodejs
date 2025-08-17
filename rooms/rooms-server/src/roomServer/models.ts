@@ -12,8 +12,12 @@ export interface RoomServerConfig {
     room_maxRoomDurationMinutes: number,
     room_timeOutNoParticipantsSecs: number,
     room_peer_timeOutInactivitySecs: number,
+
+    room_iceServers :[];
+    room_iceTransportPolicy: "all" | "relay"
+    
     cert_file_path: string,
-    cert_key_path: string
+    cert_key_path: string,
 }
 
 export interface WorkerData {

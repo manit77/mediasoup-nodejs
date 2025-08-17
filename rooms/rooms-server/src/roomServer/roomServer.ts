@@ -386,7 +386,7 @@ export class RoomServer {
             this.send(peer.id, msg);
         };
 
-        room.onNeedPing = (peer) => {            
+        room.onNeedPing = (peer) => {
             let msg = new RoomPingMsg();
             msg.data.roomId = room.id;
             this.send(peer.id, msg);
@@ -536,12 +536,11 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeServer.createProducerTransportResult, "could not create producer transport");
         }
 
-
         let producerTransportCreated = new ProducerTransportCreatedMsg();
         producerTransportCreated.data = {
             roomId: peer.room.id,
-            iceServers: null,
-            iceTransportPolicy: null,
+            iceServers: this.config.room_iceServers,
+            iceTransportPolicy: this.config.room_iceTransportPolicy,
             transportId: producerTransport.id,
             iceParameters: producerTransport.iceParameters,
             iceCandidates: producerTransport.iceCandidates,
@@ -577,8 +576,8 @@ export class RoomServer {
         let consumerTransportCreated = new ConsumerTransportCreatedMsg();
         consumerTransportCreated.data = {
             roomId: peer.room.id,
-            iceServers: null,
-            iceTransportPolicy: null,
+            iceServers: this.config.room_iceServers,
+            iceTransportPolicy: this.config.room_iceTransportPolicy,
             transportId: consumerTransport.id,
             iceParameters: consumerTransport.iceParameters,
             iceCandidates: consumerTransport.iceCandidates,
@@ -935,8 +934,7 @@ export class RoomServer {
         }
 
         let room = peer.room;
-        //peer.close will broadcast to all peers that the peer has left the room, see onPeerRemovedEvent
-        peer.close();
+        room.removePeer(peer);
 
         // let msg = new RoomPeerLeftMsg();
         // msg.data = {
@@ -1199,7 +1197,7 @@ export class RoomServer {
 
     }
 
-     private async onRoomPong(peerId: string, msgIn: RoomPongMsg): Promise<IMsg> {
+    private async onRoomPong(peerId: string, msgIn: RoomPongMsg): Promise<IMsg> {
         consoleWarn("onRoomPong");
 
         let peer = this.peers.get(peerId);
@@ -1223,7 +1221,7 @@ export class RoomServer {
         peer.room.pong(peer);
 
     }
-    
+
 
     async printStats() {
         console.log("### STATS ###");
@@ -1244,7 +1242,7 @@ export class RoomServer {
 
         console.log(`### peers: ${this.peers.size} ###`);
         for (let [peerid, peer] of this.peers) {
-            console.log(`##### peerid: ${peerid}, displayName: ${peer.displayName}, roomName: ${peer.room?.roomName}, isAudioEnabled: ${peer.tracksInfo.isAudioEnabled}, isVideoEnabled: ${peer.tracksInfo.isVideoEnabled}` );
+            console.log(`##### peerid: ${peerid}, displayName: ${peer.displayName}, roomName: ${peer.room?.roomName}, isAudioEnabled: ${peer.tracksInfo.isAudioEnabled}, isVideoEnabled: ${peer.tracksInfo.isVideoEnabled}`);
         }
         console.log("### ##### ###");
     }

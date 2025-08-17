@@ -1152,7 +1152,7 @@ export class RoomsClient {
   }
 
   private onConsumerTransportCreated = async (msgIn: ConsumerTransportCreatedMsg) => {
-    console.log("** onConsumerTransportCreated");
+    console.log("** onConsumerTransportCreated", msgIn);
 
     //the server has created a consumer transport for the peer 
     //roomid should match the local roomid
@@ -1167,7 +1167,7 @@ export class RoomsClient {
       iceCandidates: msgIn.data.iceCandidates,
       iceParameters: msgIn.data.iceParameters,
       dtlsParameters: msgIn.data.dtlsParameters,
-      iceTransportPolicy: msgIn.data.iceTransportPolicy
+      iceTransportPolicy: msgIn.data.iceTransportPolicy ?? "relay"
     });
 
     this.localRoom.transportReceive.on('connect', ({ dtlsParameters }, callback) => {
@@ -1180,6 +1180,27 @@ export class RoomsClient {
       callback();
     });
 
+    this.localRoom.transportReceive.on("connectionstatechange", (args) => {
+      console.warn(`transportReceive connectionstatechange`, args);
+    });
+
+    this.localRoom.transportReceive.on("icecandidateerror", (args) => {
+      console.warn(`transportReceive icecandidateerror`, args);
+    });
+
+    this.localRoom.transportReceive.on("icegatheringstatechange", (args) => {
+      console.warn(`transportReceive icegatheringstatechange`, args);
+    });
+
+    this.localRoom.transportReceive.on("produce", (args) => {
+      console.warn(`transportReceive produce`, args);
+    });
+
+    this.localRoom.transportReceive.on("producedata", (args) => {
+      console.warn(`transportReceive producedata`, args);
+    });
+
+
     if (this.onTransportsReadyEvent) {
       this.onTransportsReadyEvent(this.localRoom.transportReceive);
     }
@@ -1190,7 +1211,7 @@ export class RoomsClient {
   }
 
   private onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
-    console.log("** onProducerTransportCreated");
+    console.warn("** onProducerTransportCreated:", msgIn);
 
     //the server has created a producer transport for the peer
     //roomid should match the local roomid
@@ -1206,11 +1227,11 @@ export class RoomsClient {
       iceCandidates: msgIn.data.iceCandidates,
       iceParameters: msgIn.data.iceParameters,
       dtlsParameters: msgIn.data.dtlsParameters,
-      iceTransportPolicy: msgIn.data.iceTransportPolicy
+      iceTransportPolicy: msgIn.data.iceTransportPolicy ?? "relay"
     });
 
     this.localRoom.transportSend.on("connect", ({ dtlsParameters }, callback) => {
-      console.log("** sendTransport connect");
+      console.log("** transportSend connect");
       //fires when the transport connects to the mediasoup server
 
       let msg = new ConnectProducerTransportMsg();
@@ -1227,7 +1248,7 @@ export class RoomsClient {
 
     this.localRoom.transportSend.on('produce', ({ kind, rtpParameters }, callback) => {
 
-      console.log("** sendTransport produce");
+      console.log("** transportSend produce");
 
       //fires when we call produce with local tracks
       let msg = new RoomProduceStreamMsg();
@@ -1238,8 +1259,21 @@ export class RoomsClient {
       }
       this.send(msg);
       //what is the id value???
-      callback({ id: 'placeholder' });
+      callback({ id: msgIn.data!.transportId });
     });
+
+    this.localRoom.transportSend.on("connectionstatechange", (args) => {
+      console.warn(`transportSend connectionstatechange`, args);
+    });
+
+    this.localRoom.transportSend.on("icecandidateerror", (args) => {
+      console.warn(`transportSend icecandidateerror`, args);
+    });
+
+    this.localRoom.transportSend.on("icegatheringstatechange", (args) => {
+      console.warn(`transportSend icegatheringstatechange`, args);
+    });  
+
 
     if (this.onTransportsReadyEvent) {
       this.onTransportsReadyEvent(this.localRoom.transportSend);
@@ -1356,7 +1390,7 @@ export class RoomsClient {
       return;
     }
 
-    if(roomId !== this.localRoom.roomId) {
+    if (roomId !== this.localRoom.roomId) {
       console.error(`not the same roomid`);
       return;
     }
