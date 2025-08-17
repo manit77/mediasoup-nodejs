@@ -193,19 +193,19 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         const tracks = await conferenceClient.getNewTracksForLocalParticipant(options);
 
-        console.warn('conferenceClient.localParticipant', conferenceClient.localParticipant.stream.getTracks());
-        console.warn('localParticipant', localParticipant.current.stream.getTracks());
+        console.log('conferenceClient.localParticipant', conferenceClient.localParticipant.stream.getTracks());
+        console.log('localParticipant', localParticipant.current.stream.getTracks());
 
         const audioTrack = tracks.find(t => t.kind === "audio");
         if (audioTrack) {
             audioTrack.enabled = options.isAudioEnabled;
-            console.warn(`audioTrack:`, audioTrack.enabled);
+            console.log(`audioTrack:`, audioTrack.enabled);
         }
 
         const videoTrack = tracks.find(t => t.kind === "video");
         if (videoTrack) {
             videoTrack.enabled = options.isVideoEnabled;
-            console.warn(`videoTrack:`, videoTrack.enabled);
+            console.log(`videoTrack:`, videoTrack.enabled);
         }
 
         setIsLocalStreamUpdated(true);
@@ -235,7 +235,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         //setCallParticipants(prev => new Map(conferenceClient.conference.participants));        
 
         setCallParticipants(prev => {
-            ;
+
             const next = new Map(prev)
             const latest = conferenceClient.conference.participants;
 
@@ -269,7 +269,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         conferenceClient.onEvent = async (eventType: EventTypes, msgIn: IMsg) => {
             switch (eventType) {
                 case EventTypes.registerResult: {
-                    console.warn("CallContext: registerResult", msgIn.data);
+                    console.log("CallContext: registerResult", msgIn.data);
 
                     if (msgIn.data.error) {
                         console.log("CallContext: onRegisterFailed: error", msgIn.data.error);
@@ -325,7 +325,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 case EventTypes.participantNewTrack: {
                     let msg = msgIn as EventParticpantNewTrackMsg;
 
-                    console.warn('CallContext: onParticipantTrack', msgIn);
+                    console.log('CallContext: onParticipantTrack', msgIn);
 
                     if (!msg.data.track) {
                         console.error("CallContext: no track");
@@ -700,7 +700,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsScreenSharing(false);
         setIsLocalStreamUpdated(true);
         updateCallParticipants();
-        console.warn(`setIsScreenSharing to false`, localParticipant.current.stream.getTracks());
+        console.log(`setIsScreenSharing to false`, localParticipant.current.stream.getTracks());
 
     }, [getMediaConstraints]);
 
@@ -785,7 +785,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [])
 
     const conferencePong = useCallback(async () => {
-        console.warn(`conferencePong`, conference);
+        console.log(`conferencePong`, conference);
         conferenceClient.sendPong(conferenceClient.conference.conferenceId);
     }, [])
 
@@ -795,7 +795,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [setupWebRTCEvents]);
 
     const disconnect = useCallback(async () => {
-        console.warn("CallContext disconnect()");
+        console.log("CallContext disconnect()");
 
         conferenceClient.disconnect();
 

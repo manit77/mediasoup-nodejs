@@ -1182,23 +1182,23 @@ export class RoomsClient {
     });
 
     this.localRoom.transportReceive.on("connectionstatechange", (args) => {
-      console.warn(`transportReceive connectionstatechange`, args);
+      console.log(`transportReceive connectionstatechange`, args);
     });
 
     this.localRoom.transportReceive.on("icecandidateerror", (args) => {
-      console.warn(`transportReceive icecandidateerror`, args);
+      console.log(`transportReceive icecandidateerror`, args);
     });
 
     this.localRoom.transportReceive.on("icegatheringstatechange", (args) => {
-      console.warn(`transportReceive icegatheringstatechange`, args);
+      console.log(`transportReceive icegatheringstatechange`, args);
     });
 
     this.localRoom.transportReceive.on("produce", (args) => {
-      console.warn(`transportReceive produce`, args);
+      console.log(`transportReceive produce`, args);
     });
 
     this.localRoom.transportReceive.on("producedata", (args) => {
-      console.warn(`transportReceive producedata`, args);
+      console.log(`transportReceive producedata`, args);
     });
 
 
@@ -1212,7 +1212,7 @@ export class RoomsClient {
   }
 
   private onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
-    console.warn("** onProducerTransportCreated:", msgIn);
+    console.log("** onProducerTransportCreated:", msgIn);
 
     //the server has created a producer transport for the peer
     //roomid should match the local roomid
@@ -1265,15 +1265,15 @@ export class RoomsClient {
     });
 
     this.localRoom.transportSend.on("connectionstatechange", (args) => {
-      console.warn(`transportSend connectionstatechange`, args);
+      console.log(`transportSend connectionstatechange`, args);
     });
 
     this.localRoom.transportSend.on("icecandidateerror", (args) => {
-      console.warn(`transportSend icecandidateerror`, args);
+      console.log(`transportSend icecandidateerror`, args);
     });
 
     this.localRoom.transportSend.on("icegatheringstatechange", (args) => {
-      console.warn(`transportSend icegatheringstatechange`, args);
+      console.log(`transportSend icegatheringstatechange`, args);
     });  
 
 
@@ -1388,7 +1388,7 @@ export class RoomsClient {
     console.log("roomPong ");
 
     if (!this.isInRoom()) {
-      console.warn("not in room.");
+      console.log("not in room.");
       return;
     }
 

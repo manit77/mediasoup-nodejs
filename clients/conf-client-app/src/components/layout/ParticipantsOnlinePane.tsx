@@ -21,7 +21,7 @@ const ParticipantsOnlinePane: React.FC = () => {
 
     // Handle initial loading state
     useEffect(() => {
-        console.warn(`isAuthenticated: ${isAuthenticated} isConnected: ${isConnected}`)
+        console.log(`isAuthenticated: ${isAuthenticated} isConnected: ${isConnected}`)
 
     }, [isAuthenticated, isConnected]);
 
@@ -46,7 +46,7 @@ const ParticipantsOnlinePane: React.FC = () => {
 
         let tracks = await getLocalMedia(getUserMediaConfig);
         if (tracks.length === 0) {
-            console.warn(`joining with no media`);
+            console.log(`joining with no media`);
         }
 
         sendInvite(participant, getUserMediaConfig);

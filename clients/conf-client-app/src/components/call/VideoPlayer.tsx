@@ -23,7 +23,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ stream, muted = false, classN
             const playPromise = videoEl.play();
             if (playPromise !== undefined) {
                 playPromise.catch(err => {
-                    console.warn("Video autoplay failed:", err);
+                    console.log("Video autoplay failed:", err);
                 });
             }
         }
@@ -31,7 +31,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ stream, muted = false, classN
         // Watch for live tracks going away
         const checkTracks = () => {
             if (!stream.active || stream.getTracks().every(t => t.readyState === "ended")) {
-                console.warn("Stream ended or all tracks stopped");
+                console.log("Stream ended or all tracks stopped");
             }
         };
         stream.addEventListener("removetrack", checkTracks);

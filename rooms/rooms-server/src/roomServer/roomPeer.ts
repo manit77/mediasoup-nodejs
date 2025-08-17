@@ -196,7 +196,7 @@ export class RoomPeer {
     }
 
     async closeProducer(kind: MediaKind) {
-        console.warn(`closeProducuer ${kind} - ${this.peer.id} ${this.peer.displayName}`);
+        console.log(`closeProducuer ${kind} - ${this.peer.id} ${this.peer.displayName}`);
         let producer = this.producers.get(kind);
         if (producer) {
             producer.close();

@@ -98,7 +98,7 @@ export class ConferenceAPI {
                 if (result.data.clientData) {
                     clientData = result.data.clientData;
                     participantGroup = parseString(result.data.clientData["participantGroup"]),
-                    console.warn(`new clientData received.`, clientData);
+                    console.log(`new clientData received.`, clientData);
                 }
             }
 
@@ -197,7 +197,7 @@ export class ConferenceAPI {
                 res.send(resultMsg);
                 return;
             } else {
-                console.warn(`return 401`);
+                console.log(`return 401`);
                 let errorMsg = new LoginResultMsg();
                 errorMsg.data.error = "authentication failed";
                 res.status(401).send(errorMsg);

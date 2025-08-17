@@ -42,7 +42,7 @@ const OnCallScreen: React.FC = () => {
         if (presenter && presenter.stream) {
             setSelectedParticipant(presenter);
         } else {
-            console.warn(`no presenter stream`);
+            console.log(`no presenter stream`);
         }
     }, [presenter]);
 
@@ -56,58 +56,49 @@ const OnCallScreen: React.FC = () => {
     }, [callParticipants]);
 
     const handleSelectParticipantVideo = (participant: Participant) => {
-        console.warn(`handleSelectParticipantVideo- ${participant.displayName}, tracks:`, participant.stream.getTracks());
+        console.log(`handleSelectParticipantVideo- ${participant.displayName}, tracks:`, participant.stream.getTracks());
 
-        if (presenter) {
-            console.warn("presenter already presenting");
+        // if (presenter) {
+        //     console.log("presenter already presenting");
+        //     return;
+        // }
+
+        // if (localParticipant == participant) {
+        //     if (localVideoPreview.current) {
+        //         if (localVideoPreview.current.style.height == "50px") {
+        //             localVideoPreview.current.style.height = "240px";
+        //         } else {
+        //             localVideoPreview.current.style.height = "50px";
+        //         }
+        //     }
+
+        //     return;
+        // }
+
+
+        let videoTrack = participant.stream.getVideoTracks()[0]
+        if (!videoTrack) {
+            console.log(`not video track for ${participant.displayName}`);
             return;
         }
 
-        if (localParticipant == participant) {
-            if (localVideoPreview.current) {
-                if (localVideoPreview.current.style.height == "50px") {
-                    localVideoPreview.current.style.height = "240px";
-                } else {
-                    localVideoPreview.current.style.height = "50px";
-                }
-            }
 
-            return;
-        }
+        setSelectedParticipant(participant);
 
+        // code to debug black screen, sometimes react video element goes black, may have to create an html video element and inject it                
+        // const videoEl = document.createElement("video");
+        // videoEl.autoplay = true;
+        // videoEl.playsInline = true;
+        // videoEl.muted = true;
+        // videoEl.style.width = "100%";
 
-        if (participant.stream) {
-
-            let videoTrack = participant.stream.getVideoTracks()[0]
-            if (!videoTrack) {
-                console.warn(`not video track for ${participant.displayName}`);
-                return;
-            }
-
-            if (videoTrack.enabled && !videoTrack.muted && videoTrack.readyState === "live") {
-                setSelectedParticipant(participant);
-
-                // code to debug black screen, sometimes react video element goes black, may have to create an html video element and inject it                
-                // const videoEl = document.createElement("video");
-                // videoEl.autoplay = true;
-                // videoEl.playsInline = true;
-                // videoEl.muted = true;
-                // videoEl.style.width = "100%";
-
-                // videoEl.srcObject = participant.stream;
-                // const container = document.getElementById("video-container");
-                // if (container) {
-                //     container.appendChild(videoEl);
-                // }
+        // videoEl.srcObject = participant.stream;
+        // const container = document.getElementById("test-video-container");
+        // if (container) {
+        //     container.appendChild(videoEl);
+        // }
 
 
-            } else {
-                console.warn(`video track not enabled, muted or ended:`, videoTrack, videoTrack.enabled, !videoTrack.muted, videoTrack.readyState);
-            }
-
-        } else {
-            console.warn(`no stream`);
-        }
     };
 
     useEffect(() => {
@@ -122,6 +113,8 @@ const OnCallScreen: React.FC = () => {
     return (
         <div className="d-flex flex-column bg-dark text-light" style={{ height: "100dvh" }}>
             <CallTopMenu onShowSettings={() => setShowSettings(true)} />
+
+            {/* <div id="test-video-container" style={{ width: "50px", height: "50px" }}></div> */}
 
             <div className="pt-5">
                 <div style={{
@@ -151,7 +144,7 @@ const OnCallScreen: React.FC = () => {
                         ) :
                             (layout == "auto" || layout == "pip") && callParticipants.size === 2 && remoteParticipant ? (
                                 // Two participants - PiP layout
-                                <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
+                                <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>                            
                                     {/* Remote */}
                                     <div
                                         style={{

@@ -80,9 +80,9 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         navigator.mediaDevices.getUserMedia(constraints)
             .then((stream) => {
 
-                console.warn('got stream', stream.getTracks());
+                console.log('got stream', stream.getTracks());
                 videoRef.current.srcObject = stream;
-                console.warn(`videoRefSet`);
+                console.log(`videoRefSet`);
 
                 // Mute audio
                 const audioTrack = stream.getAudioTracks()[0];

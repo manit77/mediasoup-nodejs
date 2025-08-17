@@ -48,7 +48,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
 
         //check if screen share is present on the browser
         if (!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia)) {
-            console.warn(`screen share not available on this device.`);
+            console.log(`screen share not available on this device.`);
             setAllowScreenShare(false);
         } else {
             if (isUser()) {
@@ -63,10 +63,10 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
         }
 
         if (conference.leaderId && conference.leaderId === localParticipant.participantId) {
-            console.warn(`CallTopMenu setAllowTerminateConf true`);
+            console.log(`CallTopMenu setAllowTerminateConf true`);
             setAllowTerminateConf(true);
         } else {
-            console.warn(`CallTopMenu setAllowTerminateConf false`);
+            console.log(`CallTopMenu setAllowTerminateConf false`);
         }
 
     }, [conference, isUser])

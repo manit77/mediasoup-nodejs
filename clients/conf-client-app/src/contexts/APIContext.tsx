@@ -71,7 +71,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 loginClientData[key] = clientData[key];
             }
 
-            console.warn(`using loginClientData`, loginClientData);
+            console.log(`using loginClientData`, loginClientData);
 
             const loginResult = await apiService.loginGuest(displayName, loginClientData);
 

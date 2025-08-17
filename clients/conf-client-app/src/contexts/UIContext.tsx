@@ -83,7 +83,7 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
   }, []);
 
   const showToast = useCallback((message: string, type: AlertType = 'normal', durationSec: number = 5) => {
-    console.warn('showToast', message, type);
+    console.log('showToast', message, type);
     const id = toastIdRef.current++;
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {

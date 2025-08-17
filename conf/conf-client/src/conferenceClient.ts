@@ -90,7 +90,7 @@ export class ConferenceClient {
         console.log(`connect to socket server.`, this.config);
 
         if (this.socket && this.socket.state != "disconnected") {
-            console.warn(`socket already exists and in connecting state, disconnect.`);
+            console.log(`socket already exists and in connecting state, disconnect.`);
             return;
         }
 
@@ -106,7 +106,7 @@ export class ConferenceClient {
         this.clientData = clientData;
 
         if (this.socket) {
-            console.warn(`disconnect existing target.`);
+            console.log(`disconnect existing target.`);
             this.socket.disconnect();
         }
 
@@ -491,8 +491,8 @@ export class ConferenceClient {
             });
 
             newTracks.forEach(t => this.localParticipant.stream.addTrack(t));
-            console.warn(`new tracks created for localParticipant tracks`, this.localParticipant.stream.getTracks());
-            console.warn(`new tracks created for localParticipant tracksInfo`, this.localParticipant.tracksInfo);
+            console.log(`new tracks created for localParticipant tracks`, this.localParticipant.stream.getTracks());
+            console.log(`new tracks created for localParticipant tracksInfo`, this.localParticipant.tracksInfo);
 
 
             let audioTrack = newTracks.find(t => t.kind === "audio");
@@ -541,13 +541,13 @@ export class ConferenceClient {
                 partTrack = this.localParticipant.stream.getTracks().find(t => t.kind == track.kind);
                 if (partTrack) {
                     this.localParticipant.stream.removeTrack(partTrack);
-                    console.warn(`track ${track.kind} removed from localParticipant`);
+                    console.log(`track ${track.kind} removed from localParticipant`);
                     partTrack.stop();
                 }
                 this.localParticipant.stream.addTrack(track);
-                console.warn(`track ${track.kind} added to localParticipant`);
+                console.log(`track ${track.kind} added to localParticipant`);
             } else {
-                console.warn(`track ${track.kind} already in localParticipant`);
+                console.log(`track ${track.kind} already in localParticipant`);
             }
         }
 
@@ -704,7 +704,7 @@ export class ConferenceClient {
                 //unpublish track
                 this.unPublishTracks([])
             } else {
-                console.warn("screenshare track not found")
+                console.log("screenshare track not found")
             }
 
             //set from the prev state
@@ -1846,7 +1846,7 @@ export class ConferenceClient {
                 await this.getNewTracksForLocalParticipant(this.conference.joinParams.joinMediaConfig);
                 this.publishTracks(this.localParticipant.stream.getTracks());
             } else {
-                console.warn(`no joinMediaConfig`);
+                console.log(`no joinMediaConfig`);
             }
         };
 
@@ -1917,19 +1917,19 @@ export class ConferenceClient {
         };
 
         this.roomsClient.eventOnPeerNewTrack = async (peer: IPeer, track: MediaStreamTrack) => {
-            console.log(`onPeerNewTrackEvent peerId: ${peer.peerId}, ${peer.trackingId} ${peer.displayName}`);
+            console.warn(`onPeerNewTrackEvent peerId: ${peer.displayName} ${peer.peerId}, ${peer.trackingId}`);
 
             let participant = this.conference.participants.get(peer.trackingId);
             if (!participant) {
-                console.error(`participant not found. ${peer.trackingId} ${peer.displayName}`, participant, this.conference.participants);
+                console.error(`participant not found. ${peer.displayName} ${peer.trackingId}`, participant, this.conference.participants);
                 return;
             }
-            console.log(`add track for ${participant.displayName} of type ${track.kind} `);
+            console.warn(`add track for ${participant.displayName} of type ${track.kind} `);
 
             //remove the track is exists
             let existingTrack = participant.stream.getTracks().find(t => t.kind === track.kind);
             if (existingTrack) {
-                console.log(`existing track removed ${existingTrack.id}`);
+                console.warn(`existing track removed ${existingTrack.id}`);
                 participant.stream.removeTrack(existingTrack);
             }
             participant.stream.addTrack(track);

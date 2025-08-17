@@ -1,12 +1,11 @@
 {
     "conf_ws_url": "wss://192.168.40.24:8000",
-    "conf_server_url": "https://192.168.40.24:8000",    
-    "conf_call_connect_timeout_secs" : 30,
-    "conf_socket_register_timeout_secs" : 30,
+    "conf_server_url": "https://192.168.40.24:8000",
+    "conf_call_connect_timeout_secs": 30,
+    "conf_socket_register_timeout_secs": 30,
     "socket_enable_logs": true,
-    "socket_autoReconnect" : true,
-    "socket_reconnect_secs" : 5,
+    "socket_autoReconnect": true,
+    "socket_reconnect_secs": 5,
     "version": "1.0",
     "commit": "{commit}"
-
 }

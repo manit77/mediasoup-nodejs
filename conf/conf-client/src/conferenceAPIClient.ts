@@ -77,7 +77,7 @@ export class ConferenceAPIClient {
 
             let post = new apiGetScheduledConferencesPost();
             post.data.clientData = clientData;
-            //console.warn("getConferencesScheduled", post);
+            //console.log("getConferencesScheduled", post);
 
             const response = await fetch(`${this.config.conf_server_url}${WebRoutes.getConferencesScheduled}`, {
                 method: 'POST',

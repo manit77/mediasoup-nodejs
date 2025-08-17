@@ -38,46 +38,57 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
         background: '#333',
     };
 
+    const { participantId, videoEle, stream, displayName } = participant;
+    const localParticipantId = localParticipant.participantId;
+
     useEffect(() => {
+        // This function will now be stable and not redefined on every render
+        const attachVideo = () => {
+            if (videoContainerRef.current && videoEle) {
+                // Mute the video element if it belongs to the local user
+                videoEle.muted = localParticipantId === participantId;
+
+                // Assign standard styles
+                Object.assign(videoEle.style, videoStyle);
+
+                // Attach the video element to the container if it's not already there
+                if (!videoContainerRef.current.contains(videoEle)) {
+                    // Clear previous children to be safe, though appendChild moves the element
+                    videoContainerRef.current.innerHTML = "";
+                    videoContainerRef.current.appendChild(videoEle);
+                }
+
+                // Ensure the srcObject is correctly set
+                if (videoEle.srcObject !== stream) {
+                    videoEle.srcObject = stream;
+                }
+
+                // Attempt to play the video, catching any errors
+                videoEle.play().catch(err => {
+                    console.error(`Autoplay failed for ${displayName}:`, err);
+                });
+
+            } else {
+                console.log(`Video element or container ref is missing for ${displayName}`);
+            }
+        };
+
+        attachVideo();
 
         setAudioEnabled(participant.tracksInfo.isAudioEnabled);
         setVideoEnabled(participant.tracksInfo.isVideoEnabled);
 
-        if (videoContainerRef.current && participant.videoEle) {
-            if (!videoContainerRef.current.contains(participant.videoEle)) {
-
-                participant.videoEle.muted = !!(localParticipant.participantId === participant.participantId);
-                console.warn(`videoEle muted--- ${participant.videoEle.muted} for ${participant.displayName}`);
-                Object.assign(participant.videoEle.style, videoStyle);
-                //videoContainerRef.current.innerHTML = "";
-
-                if (!videoContainerRef.current.contains(participant.videoEle)) {
-                    // Do not nuke innerHTML (it can cause blank video in Chrome/Safari)
-                    videoContainerRef.current.appendChild(participant.videoEle);
-                    console.warn(`videoEle appended ${participant.displayName}`);
-                }
-
-                if (participant.videoEle.srcObject !== participant.stream) {
-                    participant.videoEle.srcObject = participant.stream;
-                    console.warn(`videoEle srcObject set ${participant.displayName}`);
-                }
-
-                participant.videoEle.play().catch(err => {
-                    console.warn(`play failed for ${participant.displayName}`, err);
-                });
-
-                participant.videoEle.onclick = () => {
-                    toggleFullscreen(participant.videoEle);
-                }
-
-            } else {
-                console.warn(`videoEle already ${participant.displayName}`);
+        // CRITICAL: Cleanup function to run when the component unmounts
+        // This removes the video element to prevent it from playing in the background
+        return () => {
+            if (videoContainerRef.current && videoEle && videoContainerRef.current.contains(videoEle)) {
+                videoContainerRef.current.removeChild(videoEle);
             }
-            console.warn(`videoEle muted- ${participant.videoEle.muted} for ${participant.displayName}`);
-        } else {
-            console.warn(`videoEle null context ${participant.displayName}`);
-        }
-    }, [participant]);
+        };
+
+        // Use stable, specific dependencies instead of the whole participant object
+    }, [participantId, localParticipantId, videoEle, stream, displayName]); // videoStyle could be added if it changes
+
 
     const onAudioClick = useCallback(async (event) => {
         console.log(`onAudioClick.`);
@@ -124,7 +135,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
         }
 
         if (!isLocalParticipant && !audioTrack) {
-            console.warn(`remote participant does not have their audio enabled.`);
+            console.log(`remote participant does not have their audio enabled.`);
             ui.showToast(`participant does not have their audio enabled.`);
             return;
         }
@@ -200,7 +211,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
         }
 
         if (!isLocalParticipant && !videoTrack) {
-            console.warn(`remote participant does not have their video enabled.`);
+            console.log(`remote participant does not have their video enabled.`);
             ui.showToast(`participant does not have their video enabled.`);
             return;
         }
@@ -243,7 +254,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
     return (
         <Card
             //onClick={toggleFullscreen}
-            //onClick={() => { onClick(participant); }}
+            onClick={() => { onClick(participant); }}
             className={`participant-preview`}
             style={{
                 display: 'flex',

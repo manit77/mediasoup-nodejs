@@ -130,7 +130,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
             let tracks = await getLocalMedia(joinMediaConfig);
             if (tracks.length === 0) {
-                console.warn(`joining with no media`);
+                console.log(`joining with no media`);
             }
 
             console.log('conferenceScheduled', conferenceScheduled);

@@ -56,7 +56,7 @@ export class Conference {
     presenterId: string;
     presenter: Participant;
     setPresenter(participant: Participant) {
-        console.warn(`setPresenter:`, participant);
+        console.log(`setPresenter:`, participant);
         this.presenter = participant;
         if (participant) {
             this.presenterId == participant.participantId;

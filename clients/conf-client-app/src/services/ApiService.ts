@@ -94,7 +94,7 @@ class ApiService {
                 }
             }
 
-            console.warn(`LoginResponse`, result);
+            console.log(`LoginResponse`, result);
             localStorage.setItem('user', JSON.stringify(result.user));
             if(result.user.clientData) {
                 localStorage.setItem('clientData', JSON.stringify(result.user.clientData));

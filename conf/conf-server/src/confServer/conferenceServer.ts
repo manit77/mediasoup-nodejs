@@ -361,7 +361,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     async broadCastParticipantsExcept(exceptParticipant: Participant) {
 
-        console.warn("broadCastParticipants except", exceptParticipant);
+        console.log("broadCastParticipants except", exceptParticipant);
         //broadcast to all participants of contacts        
         const allPartsInfo = [...this.participants.values()].filter(p => p.participantGroup === exceptParticipant.participantGroup).map(p => ({
             participantId: p.participantId,
@@ -376,7 +376,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             //do not send the participant info back to self
             const contactsMsg = new GetParticipantsResultMsg();
             contactsMsg.data.participants = allPartsInfo.filter(partInfo => partInfo.participantId != p.participantId);
-            console.warn(`send contactsMsg to ${p.displayName}`, contactsMsg);
+            console.log(`send contactsMsg to ${p.displayName}`, contactsMsg);
             this.send(p, contactsMsg);
         }
 
@@ -384,7 +384,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     async broadCastParticipants(partcipantGroup: string) {
 
-        console.warn("broadCastParticipants ", partcipantGroup);
+        console.log("broadCastParticipants ", partcipantGroup);
         //broadcast to all participants of contacts        
         const allPartsInfo = [...this.participants.values()].filter(p => p.participantGroup === partcipantGroup).map(p => ({
             participantId: p.participantId,
@@ -399,7 +399,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             //do not send the participant info back to self
             const contactsMsg = new GetParticipantsResultMsg();
             contactsMsg.data.participants = allPartsInfo.filter(partInfo => partInfo.participantId != p.participantId);
-            console.warn(`send contactsMsg to ${p.displayName}`, contactsMsg);
+            console.log(`send contactsMsg to ${p.displayName}`, contactsMsg);
             this.send(p, contactsMsg);
         }
 
