@@ -9,7 +9,7 @@ export interface ConferenceServerConfig {
     conf_callback_urls: {},
     conf_data_access_token: string,
     conf_data_cache_timeout_secs: number,
-    conf_data_urls: { getScheduledConferencesURL: string, getScheduledConferenceURL: string, loginURL: string, loginGuestURL: string },
+    conf_data_urls: { getScheduledConferencesURL: string, getScheduledConferenceURL: string, loginURL: string, loginGuestURL: string, getUser: string },
     conf_socket_timeout_secs: 300,
     /**
      * socket has x seconds to respond to a ping

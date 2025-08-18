@@ -9,6 +9,15 @@ export class ThirdPartyAPI {
 
     }
 
+    async getUser(externalId: string, clientData: {}) {
+        console.log('getUser', externalId);
+
+        let postData = new apiLoginPost();
+        postData.data.externalId = externalId;    
+        postData.data.clientData = clientData;
+        return await this.post(this.config.conf_data_urls.getUser, postData) as apiLoginResult;
+    }
+
     async login(username: string, password: string, clientData: {}) {
         console.log('login', username);
 

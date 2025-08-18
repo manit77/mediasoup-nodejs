@@ -5,6 +5,7 @@ import { AuthUserRoles } from "@rooms/rooms-models";
 
 export interface IAuthPayload {
     username: string,
+    externalId: string,
     participantGroup: string,
     role: ParticipantRole | string,
 }

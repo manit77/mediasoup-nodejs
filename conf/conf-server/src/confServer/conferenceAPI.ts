@@ -106,6 +106,7 @@ export class ConferenceAPI {
             }
 
             let authTokenPayload: IAuthPayload = {
+                externalId : result.data.externalId,
                 username: msg.data.displayName,
                 participantGroup: participantGroup,
                 role: ParticipantRole.guest
@@ -115,7 +116,6 @@ export class ConferenceAPI {
             let resultMsg = new LoginResultMsg();
             resultMsg.data.participantGroup = participantGroup;
             resultMsg.data.participantGroupName = participantGroupName;
-
             resultMsg.data.username = msg.data.displayName;
             resultMsg.data.displayName = msg.data.displayName;
             resultMsg.data.authToken = authToken;
@@ -141,6 +141,7 @@ export class ConferenceAPI {
             let role: string = ParticipantRole.user;
             let participantGroup = "demo";
             let participantGroupName = "demo";
+            let externalId = "";
 
             if (msg.data.username && msg.data.password) {
                 //use a third party service to send a username and password
@@ -158,6 +159,7 @@ export class ConferenceAPI {
                         role = result.data.role;
                         participantGroup = result.data.participantGroup;
                         participantGroupName = result.data.participantGroupName
+                        externalId = result.data.externalId;
                     }
 
                 } else {
@@ -177,6 +179,32 @@ export class ConferenceAPI {
                         displayName = username;
                         role = payload.role;
                     }
+                    if (this.confServer.config.conf_data_urls.getUser) {
+
+                        if (payload.externalId) {
+                            isAuthenticated = false;
+                        } else {
+                            var result = await this.thirdPartyAPI.getUser(payload.externalId, msg.data.clientData);
+                            if (result.data.error) {
+                                console.error(`getUser error ${this.config.conf_data_urls.getUser}`, result.data.error);
+                            } else {
+                                console.log(`getUser `, result);
+                                isAuthenticated = true;
+                                username = result.data.username;
+                                displayName = result.data.displayName;
+                                returnedClientData = result.data.clientData;
+                                role = result.data.role;
+                                participantGroup = result.data.participantGroup;
+                                participantGroupName = result.data.participantGroupName
+                                externalId = result.data.externalId;
+                            }
+                        }
+                    } else {
+                        isAuthenticated = true;
+                        username = msg.data.username;
+                        displayName = username;
+                    }
+
                 } catch (err) {
                     console.error(err);
                 }
@@ -187,6 +215,7 @@ export class ConferenceAPI {
 
             if (isAuthenticated) {
                 let authTokenPayload: IAuthPayload = {
+                    externalId: externalId,
                     username: username,
                     participantGroup: participantGroup,
                     role: role

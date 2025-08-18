@@ -64,7 +64,7 @@ export class LoginMsg implements IMsg {
 
 export class LoginResultMsg implements IMsg {
     type = CallMessageType.loginResult
-    data: {
+    data: {        
         participantGroup?: string,
         participantGroupName?: string,
         username?: string,

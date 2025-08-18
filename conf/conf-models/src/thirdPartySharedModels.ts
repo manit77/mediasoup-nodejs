@@ -14,6 +14,7 @@ export class apiLoginPost {
     data: {
         username?: string;
         password?: string;
+        externalId?: string;
         clientData?: {};
     } = {}
 }
@@ -25,6 +26,7 @@ export class apiLoginResult {
         participantGroupName?: string;
         username?: string;
         displayName?: string;
+        externalId?: string;
         role?: string;
         clientData?: {};
         error?: string;
