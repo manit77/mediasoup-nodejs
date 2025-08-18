@@ -3,7 +3,7 @@ import { Button } from 'react-bootstrap';
 
 const ThrottledButton = ({    
     onClick,
-    cooldownSecs = 3,
+    cooldownSecs = 1,
     disabled = false,
     children,
     ...props
@@ -26,6 +26,7 @@ const ThrottledButton = ({
         }
 
         setIsCoolingDown(true);
+        
         setTimeout(() => {
             setIsCoolingDown(false);
         }, cooldownSecs * 1000);

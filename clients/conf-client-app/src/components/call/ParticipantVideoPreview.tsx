@@ -26,7 +26,7 @@ interface ParticipantVideoPreviewProps {
 export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected, style }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, broadCastTrackInfo, conference, muteParticipantTrack, getMediaConstraints } = useCall();
+    const { callParticipants, localParticipant, broadCastTrackInfo, conference, muteParticipantTrack, getMediaConstraints } = useCall();
     const [videoEnabled, setVideoEnabled] = useState(false);
     const [audioEnabled, setAudioEnabled] = useState(false);
     const videoContainerRef = React.useRef<HTMLDivElement>(null);
@@ -38,18 +38,21 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
         background: '#333',
     };
 
-    const { participantId, videoEle, stream, displayName } = participant;
+    //this loads once, since we always have to stream, and video element for the participant
+    const { participantId, videoEle, stream, displayName, tracksInfo } = participant;
     const localParticipantId = localParticipant.participantId;
 
     useEffect(() => {
+        console.warn(`attach video triggered. ${participant.displayName}`);
+
+        if (!videoContainerRef.current) {
+            console.warn(`-- attach video triggered, no videoContainerRef ${participant.displayName}`);
+            return;
+        }
+
         // This function will now be stable and not redefined on every render
         const attachVideo = () => {
             if (videoContainerRef.current && videoEle) {
-                // Mute the video element if it belongs to the local user
-                videoEle.muted = localParticipantId === participantId;
-
-                // Assign standard styles
-                Object.assign(videoEle.style, videoStyle);
 
                 // Attach the video element to the container if it's not already there
                 if (!videoContainerRef.current.contains(videoEle)) {
@@ -57,6 +60,12 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                     videoContainerRef.current.innerHTML = "";
                     videoContainerRef.current.appendChild(videoEle);
                 }
+
+                // Mute the video element if it belongs to the local user
+                videoEle.muted = localParticipantId === participantId;
+
+                // Assign standard styles
+                Object.assign(videoEle.style, videoStyle);
 
                 // Ensure the srcObject is correctly set
                 if (videoEle.srcObject !== stream) {
@@ -81,13 +90,20 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
         // CRITICAL: Cleanup function to run when the component unmounts
         // This removes the video element to prevent it from playing in the background
         return () => {
+            console.warn(`dispose video triggered.`);
             if (videoContainerRef.current && videoEle && videoContainerRef.current.contains(videoEle)) {
                 videoContainerRef.current.removeChild(videoEle);
             }
         };
 
-        // Use stable, specific dependencies instead of the whole participant object
-    }, [participantId, localParticipantId, videoEle, stream, displayName]); // videoStyle could be added if it changes
+    }, []);
+
+
+    useEffect(() => {
+        console.warn(`attach video triggered, tracksInfo updated`, participant.tracksInfo);
+        setAudioEnabled(participant.tracksInfo.isAudioEnabled);
+        setVideoEnabled(participant.tracksInfo.isVideoEnabled);
+    }, [participant.tracksInfo]);
 
 
     const onAudioClick = useCallback(async (event) => {

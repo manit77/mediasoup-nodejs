@@ -146,7 +146,7 @@ class ApiService {
 
     fetchConferencesScheduled = async (): Promise<ConferenceScheduledInfo[]> => {
         try {
-            console.error("ApiService fetchConferencesScheduled, clientData:", this.getClientData());
+            //console.log("ApiService fetchConferencesScheduled, clientData:", this.getClientData());
 
             if (!this.conferenceAPIClient) {
                 console.error(`conferenceAPIClient not initialized.`);
@@ -164,8 +164,7 @@ class ApiService {
 
             this.conferencesScheduled = result.data.conferences;
             this.onConferencesReceived(this.conferencesScheduled);
-            console.error(`conferencesScheduled:`, this.conferencesScheduled);
-
+            
             return this.conferencesScheduled;
         } catch (err) {
             console.error(err);

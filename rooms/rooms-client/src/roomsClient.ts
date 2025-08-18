@@ -589,6 +589,31 @@ export class RoomsClient {
     this.send(msg);
   };
 
+  isBroadcastingVideo() {
+    if (!this.isInRoom()) {
+      return false;
+    }
+
+    let videoTrack = this.localRoom.getProducerTracks().find(t => t.kind == "video");
+    if (videoTrack && videoTrack.enabled && videoTrack.readyState == "live") {
+      return true;
+    }
+    return false;
+  }
+
+  isBroadcastingAudio() {
+    if (!this.isInRoom()) {
+      return false;
+    }
+
+    let audioTrack = this.localRoom.getProducerTracks().find(t => t.kind == "audio");
+    if (audioTrack && audioTrack.enabled && audioTrack.readyState == "live") {
+      return true;
+    }
+
+    return false;
+  }
+
   // findTrack = (kind: string) => {
   //   return this.localRoom.tracks.getTrack(kind);
   // }
@@ -619,7 +644,7 @@ export class RoomsClient {
   };
 
   broadCastTrackInfo = async (tracksInfo: PeerTracksInfo) => {
-    console.log(`broadCastTrackInfo`);
+    console.log(`broadCastTrackInfo`, tracksInfo);
 
     this.localPeer.tracksInfo = tracksInfo;
     console.log(`tracksInfo updated`, this.localPeer.tracksInfo);

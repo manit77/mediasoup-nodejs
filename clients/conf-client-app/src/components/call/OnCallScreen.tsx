@@ -141,10 +141,49 @@ const OnCallScreen: React.FC = () => {
                                 />
 
                             </div>
+                        ) : (layout == "presenter" || presenter) ? (
+                            // Presenter view
+                            <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
+
+                                {/* presenter video */}
+                                <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
+                                    <MainVideo />
+                                </div>
+
+                                {/* participants list */}
+                                <div
+                                    className="d-flex flex-row overflow-auto p-2"
+                                    style={{
+                                        background: '#2a2f34',
+                                        borderTop: '1px solid #444',
+                                        minHeight: "170px"
+                                    }}
+                                >
+                                    <ParticipantsPane
+                                        onSelectVideo={handleSelectParticipantVideo}
+                                        containerStyle={{
+                                            display: 'flex',
+                                            flexDirection: 'row',
+                                            flexWrap: 'wrap', // Enable wrapping based on available width
+                                            gap: '8px',
+                                            padding: '8px',
+                                            background: '#2a2f34',
+                                            width: '100%',
+                                            boxSizing: 'border-box',
+                                            justifyContent: 'flex-start', // Align left to reduce space between elements
+                                            overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it             
+                                        }}
+                                        cardStyle={{
+                                            flex: '0 0 160px', // Fixed basis for consistent width
+                                            aspectRatio: "4/3",
+                                        }}
+                                    />
+                                </div>
+                            </div>
                         ) :
-                            (layout == "auto" || layout == "pip") && callParticipants.size === 2 && remoteParticipant ? (
+                            (layout == "auto") && callParticipants.size === 2 && remoteParticipant ? (
                                 // Two participants - PiP layout
-                                <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>                            
+                                <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
                                     {/* Remote */}
                                     <div
                                         style={{
@@ -191,45 +230,6 @@ const OnCallScreen: React.FC = () => {
                                                 width: '100%',
                                                 height: '100%',
                                                 objectFit: 'contain', // Ensure local video scales properly
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            ) : (layout == "presenter" || presenter) ? (
-                                // Presenter view
-                                <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
-
-                                    {/* presenter video */}
-                                    <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
-                                        <MainVideo />
-                                    </div>
-
-                                    {/* participants list */}
-                                    <div
-                                        className="d-flex flex-row overflow-auto p-2"
-                                        style={{
-                                            background: '#2a2f34',
-                                            borderTop: '1px solid #444',
-                                            minHeight: "170px"
-                                        }}
-                                    >
-                                        <ParticipantsPane
-                                            onSelectVideo={handleSelectParticipantVideo}
-                                            containerStyle={{
-                                                display: 'flex',
-                                                flexDirection: 'row',
-                                                flexWrap: 'wrap', // Enable wrapping based on available width
-                                                gap: '8px',
-                                                padding: '8px',
-                                                background: '#2a2f34',
-                                                width: '100%',
-                                                boxSizing: 'border-box',
-                                                justifyContent: 'flex-start', // Align left to reduce space between elements
-                                                overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it             
-                                            }}
-                                            cardStyle={{
-                                                flex: '0 0 160px', // Fixed basis for consistent width
-                                                aspectRatio: "4/3",
                                             }}
                                         />
                                     </div>

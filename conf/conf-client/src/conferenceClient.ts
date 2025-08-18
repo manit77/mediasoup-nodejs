@@ -618,11 +618,27 @@ export class ConferenceClient {
      * this will send message the the server
      */
     broadCastTrackInfo() {
-        console.log(`updateTrackInfo`);
+        console.warn(`broadCastTrackInfo`);
 
         if (this.roomsClient) {
             this.roomsClient?.broadCastTrackInfo(this.localParticipant.tracksInfo);
         }
+    }
+
+    isBroadcastingVideo() {
+        if (!this.roomsClient) {
+            return false;
+        }
+
+        return this.roomsClient.isBroadcastingVideo();
+    }
+
+    isBroadcastingAudio() {
+        if (!this.roomsClient) {
+            return false;
+        }
+
+        return this.roomsClient.isBroadcastingAudio();
     }
 
     /**
@@ -734,7 +750,6 @@ export class ConferenceClient {
                 if (cameraTrack) {
                     await this.publishTracks(newTracks);
                     this.sendPresenting(false);
-                    return true;
                 }
             } else {
                 //remove the track since we didn't publish it
@@ -743,12 +758,15 @@ export class ConferenceClient {
                 }
             }
 
+            this.broadCastTrackInfo();
+
             return true;
 
         } catch (error) {
             console.error("Error stopping screen share:", error);
         }
 
+        this.broadCastTrackInfo();
         return false;
     }
 
@@ -1962,6 +1980,7 @@ export class ConferenceClient {
             console.warn(`total tracks for ${participant.displayName}`, participant.stream.getTracks());
 
             let msg = new EventParticpantNewTrackMsg();
+            msg.data.participantId = participant.participantId;
             msg.data.participant = participant;
             msg.data.track = track;
             await this.onEvent(EventTypes.participantNewTrack, msg);

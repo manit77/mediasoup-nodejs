@@ -93,7 +93,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isWaiting, setIsWaiting] = useState<boolean>(false);
     const [isCallActive, setIsCallActive] = useState<boolean>(conferenceClient.isInConference());
     const conference = useRef<Conference>(conferenceClient.conference);
-    const [callParticipants, setCallParticipants] = useState<Map<string, Participant>>(conferenceClient.conference.participants);
+    const [callParticipants, setCallParticipants] = useState<Map<string, Participant>>(new Map(conferenceClient.conference.participants));
     const [isScreenSharing, setIsScreenSharing] = useState<boolean>(conferenceClient.isScreenSharing);
     const [selectedDevices, setSelectedDevices] = useState<SelectedDevices>(conferenceClient.selectedDevices);
 
@@ -119,7 +119,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localParticipant.current = conferenceClient.localParticipant;
         conference.current = conferenceClient.conference;
         setIsCallActive(conferenceClient.isInConference());
-        setCallParticipants(conferenceClient.conference.participants);
+        setCallParticipants(new Map(conferenceClient.conference.participants));
 
         setIsScreenSharing(conferenceClient.isScreenSharing);
         setSelectedDevices(conferenceClient.selectedDevices);
@@ -226,18 +226,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             navigator.mediaDevices.removeEventListener('devicechange', getMediaDevices);
         };
     }, [getMediaDevices]);
-
-    const debouncedSetCallParticipants = useCallback(
-        debounce(() => {
-            setCallParticipants(new Map(conferenceClient.conference.participants));
-        }, 500),
-        []
-    );
-
+    
     const updateCallParticipants = useCallback(() => {
         console.error(`updateCallParticipants`);
-        //setCallParticipants(prev => new Map(conferenceClient.conference.participants));        
-
         setCallParticipants(prev => {
 
             const next = new Map(prev)
@@ -245,7 +236,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             // Add or update
             for (const [id, participant] of latest.entries()) {
-                next.set(id, participant);
+                next.set(id, {...participant});
             }
 
             // Remove
@@ -258,6 +249,44 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return next;
         });
 
+    }, []);
+
+    const updateTracksInfo = useCallback((participantId: string) => {
+        console.error(`updateTracksInfo`);
+
+        setCallParticipants(prev => {
+            const next = new Map(prev);
+            const prevPart = prev.get(participantId);
+            
+            const latest = conferenceClient.conference.participants;
+            const latestPart = latest.get(participantId);
+            
+
+            if (latestPart && prevPart) {
+                const latestTracks = latestPart.tracksInfo;
+                const currTracks = prevPart.tracksInfo;
+
+                // Compare tracksInfo properties
+                if (
+                    latestTracks.isAudioEnabled === currTracks.isAudioEnabled &&
+                    latestTracks.isVideoEnabled === currTracks.isVideoEnabled
+                ) {
+                    // No changes, return the existing Map
+                    console.warn(`latestTracks no changes`);
+                    return prev;
+                }
+
+                // Create updated participant with new tracksInfo
+                const updatedPart = {
+                    ...prevPart,
+                    tracksInfo: { ...latestTracks },
+                };
+                next.set(participantId, updatedPart);
+                console.warn(`latestTracks changed`);
+            }
+
+            return next;
+        });
     }, []);
 
     const getParticipantsOnline = useCallback(() => {
@@ -327,57 +356,36 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     break;
                 }
                 case EventTypes.participantNewTrack: {
-                    let msg = msgIn as EventParticpantNewTrackMsg;
+                    console.warn('CallContext: onParticipantTrack', msgIn);
 
-                    console.log('CallContext: onParticipantTrack', msgIn);
+                    let msg = msgIn as EventParticpantNewTrackMsg;
+                    let participantId = msg.data.participant.participantId;
 
                     if (!msg.data.track) {
                         console.error("CallContext: no track");
                         return;
                     }
 
+                    updateTracksInfo(participantId);
+
                     break;
                 }
                 case EventTypes.participantTrackInfoUpdated: {
+                    console.log(`CallContext: onParticipantTrackInfoUpdated`, msgIn);
+
                     let participantId = msgIn.data.participantId;
-
-                    console.log(`CallContext: onParticipantTrackInfoUpdated ${participantId}`);
-                    console.log(`CallContext: call participants: `, callParticipants);
-
                     if (!participantId) {
                         console.error("CallContext: no participantId");
                         return;
                     }
 
-                    // setCallParticipants(prev => {
-                    //     const next = new Map(prev)
-                    //     const latest = conferenceClient.conference.participants;
-                    //     let latestPart = latest.get(participantId);
-                    //     let currPart = next.get(participantId);
-                    //     if (latestPart && currPart) {
-                    //         currPart.tracksInfo = { ...latestPart.tracksInfo };
-                    //     }
-                    //     return next;
-                    // });
 
-                    setCallParticipants(prev => {
-                        const next = new Map(prev);
-
-                        const latest = conferenceClient.conference.participants;
-                        const latestPart = latest.get(participantId);
-                        const currPart = next.get(participantId);
-
-                        if (latestPart && currPart) {
-                            const updatedPart = {
-                                ...currPart,
-                                tracksInfo: { ...latestPart.tracksInfo },
-                            };
-
-                            next.set(participantId, updatedPart);
-                        }
-
-                        return next;
-                    });
+                    let part = conferenceClient.conference.participants.get(participantId);
+                    if (part) {
+                        console.warn(callParticipants, part.tracksInfo);
+                        updateTracksInfo(participantId);
+                        //updateCallParticipants();
+                    }
 
                     break;
                 }
@@ -675,7 +683,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const startPresentingCamera = useCallback(async () => {
         console.log(`startPresentingCamera`);
 
-
         if (conferenceClient.isScreenSharing) {
             await stopScreenShare();
         }
@@ -684,26 +691,33 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         conferenceClient.sendPresenting(true);
         setPresenter(conferenceClient.localParticipant);
 
-        // localParticipant.current.prevTracksInfo = { ...localParticipant.current.tracksInfo, screenShareTrackId: "" };
+        //determine if we are broadcasting audio or video
 
-        // localParticipant.current.tracksInfo.isVideoEnabled = true;
-        // localParticipant.current.tracksInfo.isAudioEnabled = true;
-        // let constraints = getMediaConstraints(true, true);
+        let isBroadcastingVideo = conferenceClient.isBroadcastingVideo();
+        let isBroadcastingAudio = conferenceClient.isBroadcastingAudio();
 
-        // conferenceClient.getNewTracksForLocalParticipant({
-        //     constraints: constraints,
-        //     isAudioEnabled: true,
-        //     isVideoEnabled: true
-        // })
+        console.warn(`current tracks:`, conferenceClient.localParticipant.stream.getTracks());
 
-        // if (await conferenceClient.publishTracks(conferenceClient.localParticipant.stream.getTracks())) {
-        //     //trigger a refresh of the local stream
-        //     conferenceClient.conference.setPresenter(conferenceClient.localParticipant);
-        //     conferenceClient.sendPresenting(true);
-        //     setPresenter(conferenceClient.localParticipant);
-        // } else {
-        //     ui.showPopUp("unable to publish tracks.", "error");
-        // }
+        if (!isBroadcastingAudio || !isBroadcastingVideo) {
+            //we need to broadcast
+            conferenceClient.localParticipant.prevTracksInfo = { ...conferenceClient.localParticipant.tracksInfo, screenShareTrackId: "" };
+
+            conferenceClient.localParticipant.tracksInfo = {
+                ...conferenceClient.localParticipant.tracksInfo,
+                isVideoEnabled: true,
+                isAudioEnabled: true,
+            };
+
+            let constraints = getMediaConstraints(!isBroadcastingAudio, !isBroadcastingVideo);
+
+            let newStream = await getBrowserUserMedia(constraints);
+            console.warn(`newStream tracks:`, newStream.getTracks());
+            conferenceClient.publishTracks(newStream.getTracks());
+            console.warn(`new current tracks:`, conferenceClient.localParticipant.stream.getTracks());
+            conferenceClient.broadCastTrackInfo();
+            localParticipant.current = conferenceClient.localParticipant;
+            updateTracksInfo(conferenceClient.localParticipant.participantId);
+        }
 
     }, [conference.current.presenter, ui]);
 
@@ -712,7 +726,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (conferenceClient.isScreenSharing) {
             await stopScreenShare();
-        }
+        } 
 
         conferenceClient.sendPresenting(false);
         conferenceClient.conference.setPresenter(null);
@@ -740,6 +754,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error("Error stopping screen share:", error);
         }
 
+        conferenceClient.broadCastTrackInfo();
+        
         conferenceClient.conference.setPresenter(null);
         conferenceClient.sendPresenting(false);
 
@@ -756,6 +772,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             conferenceClient.conference.setPresenter(conferenceClient.localParticipant);
             setPresenter(conferenceClient.conference.presenter);
             setIsScreenSharing(true);
+            updateCallParticipants();
         } else {
             ui.showPopUp("unable to start screen share.", "error");
         }

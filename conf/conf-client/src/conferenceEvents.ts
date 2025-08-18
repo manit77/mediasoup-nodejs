@@ -40,6 +40,7 @@ export enum EventTypes {
 export class EventParticpantNewTrackMsg implements IMsg {
     type = EventTypes.particpantNewTrack;
     data: {
+        participantId?: string,
         participant?: Participant,        
         track?: MediaStreamTrack
     } = {}

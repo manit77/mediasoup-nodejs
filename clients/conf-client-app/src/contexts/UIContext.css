@@ -4,6 +4,8 @@
   right: 20px;
   z-index: 1000;
   max-width: 300px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .alert.toast {
@@ -78,6 +80,8 @@
     right: 10px;
     left: 10px;
     max-width: none;
+    left: 50%;
+    transform: translateX(-50%);
   }
 
   .alert.toast {
