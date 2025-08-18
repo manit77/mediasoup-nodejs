@@ -17,9 +17,9 @@ const MainVideo: React.FC = () => {
         }
     }, [presenter]);
 
-    const toggleFullscreen = () => {
+    const toggleFullscreen = (ele: HTMLElement | any ) => {
         if (!document.fullscreenElement) {
-            videoRef.current?.requestFullscreen();
+            ele.requestFullscreen();
         } else {
             document.exitFullscreen();
         }
@@ -29,7 +29,7 @@ const MainVideo: React.FC = () => {
         <div style={{ width: '100%', height: '100%' }}>
             {presenter?.stream ? (
                 <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-                    <video onClick={toggleFullscreen}
+                    <video onClick={(event) => { toggleFullscreen(event.target["parentElement"]) }}
                         ref={videoRef}
                         autoPlay
                         playsInline

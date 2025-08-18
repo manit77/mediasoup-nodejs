@@ -88,7 +88,7 @@ export class ConferenceClient {
     }
 
     connect(participantGroup: string, username: string, authToken: string, clientData: any, options?: { socket_ws_uri?: string }) {
-        console.log(`connect to socket server.`, this.config);
+        console.log(`connect to socket server. participantGroup:${participantGroup} username:${username}`, this.config);
 
         if (this.socket && this.socket.state != "disconnected") {
             console.log(`socket already exists and in connecting state, disconnect.`);
@@ -99,6 +99,19 @@ export class ConferenceClient {
             console.error(`config is not initialized.`);
             return;
         }
+
+        if (!participantGroup) {
+            console.error("participantGroup is required.");
+        }
+
+        if (!username) {
+            console.error("username is required.");
+        }
+
+        if (!authToken) {
+            console.error("authToken is required.");
+        }
+
         if (options && options.socket_ws_uri) {
             this.config.conf_ws_url = options.socket_ws_uri;
         }
@@ -672,9 +685,7 @@ export class ConferenceClient {
                 //broadCastTrackInfo
                 this.broadCastTrackInfo();
 
-                let msg = new PresenterInfoMsg();
-                msg.data.status = "on";
-                this.sendToServer(msg);
+                this.sendPresenting(true);
 
                 return true;
             }
@@ -722,10 +733,7 @@ export class ConferenceClient {
 
                 if (cameraTrack) {
                     await this.publishTracks(newTracks);
-                    let msg = new PresenterInfoMsg();
-                    msg.data.status = "off";
-                    this.sendToServer(msg);
-
+                    this.sendPresenting(false);
                     return true;
                 }
             } else {
@@ -742,6 +750,14 @@ export class ConferenceClient {
         }
 
         return false;
+    }
+
+    sendPresenting(isPresenting: boolean) {
+        console.log(`sendPresenting`);
+
+        let msg = new PresenterInfoMsg();
+        msg.data.status = isPresenting ? "on" : "off";
+        this.sendToServer(msg);
     }
 
     isInConference() {
@@ -1694,7 +1710,7 @@ export class ConferenceClient {
                 displayName: this.localParticipant.displayName,
                 timeoutSecs: 30
             });
-            
+
             if (!registerResult.data.error) {
                 console.log(`-- room socket registered. new peerId ${this.roomsClient.getPeerId()}`);
                 this.localParticipant.peerId = this.roomsClient.getPeerId();

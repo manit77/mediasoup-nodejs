@@ -271,11 +271,6 @@ export class RoomsClient {
           }
         };
         this.ws.addEventHandler("onmessage", _onmessage);
-
-        if (args.authToken) {
-          this.localPeer.authToken = args.authToken;
-        }
-
         let timerid = setTimeout(() => {
           if (_onmessage) {
             this.ws.removeEventHandler("onmessage", _onmessage);
@@ -283,7 +278,7 @@ export class RoomsClient {
           reject("failed to register");
         }, (args.timeoutSecs ?? 30) * 1000);
 
-        let registerSent = this.register({ username: this.localPeer.username, authToken: this.localPeer.authToken, trackingId: args.trackingId, displayName: args.displayName });
+        let registerSent = this.register({ username: args.username, authToken: args.authToken, trackingId: args.trackingId, displayName: args.displayName });
 
         if (!registerSent) {
           this.ws.removeEventHandler("onmessage", _onmessage);
@@ -484,21 +479,33 @@ export class RoomsClient {
     console.log(`-- register username: ${args.username}, trackingId: ${args.trackingId}, displayName: ${args.displayName}`);
 
     if (this.localPeer.peerId) {
-      console.log(`-- register, already registered. ${this.localPeer.peerId}`);
+      console.error(`-- register, already registered. ${this.localPeer.peerId}`);
       return true;
     }
 
-    if (!args.authToken) {
-      console.log("** register, authtoken is required.");
+    if (!args.username) {
+      console.error("** username, is required.");
       return false;
     }
 
+    if (!args.authToken) {
+      console.error("** register, authtoken is required.");
+      return false;
+    }
+
+    if (!args.trackingId) {
+      console.error("** trackingId, is required.");
+      return false;
+    }
+
+    this.localPeer.authToken = args.authToken;
+    this.localPeer.username = args.username;
     this.localPeer.trackingId = args.trackingId;
     this.localPeer.displayName = args.displayName;
-    this.localPeer.username = args.username;
 
     let msg = new RegisterPeerMsg();
     msg.data = {
+      username: args.username,
       authToken: args.authToken,
       displayName: this.localPeer.displayName,
       peerTrackingId: args.trackingId

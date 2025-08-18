@@ -19,8 +19,9 @@ interface CallContextType {
     setIsLoggedOff: React.Dispatch<React.SetStateAction<boolean>>;
     isAuthenticated: boolean;
     localParticipant: Participant;
-    isLocalStreamUpdated: boolean;
+    //isLocalStreamUpdated: boolean;
     presenter: Participant;
+
 
     isWaiting: boolean;
     isCallActive: boolean;
@@ -39,6 +40,7 @@ interface CallContextType {
     availableDevices: { video: Device[]; audioIn: Device[]; audioOut: Device[] };
     selectedDevices: SelectedDevices;
     setSelectedDevices: React.Dispatch<React.SetStateAction<SelectedDevices>>;
+
 
     getLocalMedia: (options: GetUserMediaConfig) => Promise<MediaStreamTrack[]>;
     getMediaConstraints: (getAudio: boolean, getVideo: boolean) => MediaStreamConstraints;
@@ -60,6 +62,8 @@ interface CallContextType {
     broadCastTrackInfo: () => void;
     muteParticipantTrack: (participantId: string, audioEnabled: boolean, videoEnabled: boolean) => void;
 
+    startPresentingCamera: () => Promise<void>;
+    stopPresentingCamera: () => Promise<void>;
     startScreenShare: () => Promise<void>;
     stopScreenShare: () => void;
 
@@ -98,7 +102,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [inviteInfoSend, setInviteInfoSend] = useState<InviteMsg | null>(conferenceClient.inviteSendMsg);
     const [inviteInfoReceived, setInviteInfoReceived] = useState<InviteMsg | null>(conferenceClient.inviteReceivedMsg);
 
-    const [isLocalStreamUpdated, setIsLocalStreamUpdated] = useState<boolean>(false);
+    //const [isLocalStreamUpdated, setIsLocalStreamUpdated] = useState<boolean>(false);
     const [availableDevices, setAvailableDevices] = useState<{ video: Device[]; audioIn: Device[]; audioOut: Device[] }>({ video: [], audioIn: [], audioOut: [] });
     const [onConferencePing, setOnConferencePing] = useState({});
 
@@ -208,7 +212,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log(`videoTrack:`, videoTrack.enabled);
         }
 
-        setIsLocalStreamUpdated(true);
+        //setIsLocalStreamUpdated(true);
         console.log("setIsLocalStreamUpdated");
 
         return tracks;
@@ -477,7 +481,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 console.error(`inviteInfoSend is not null`);
                 ui.showPopUp("error: there is a pending invite.", "error");
                 return;
-            }          
+            }
 
             let joinArgs: JoinConferenceParams = {
                 joinMediaConfig: joinMediaConfig,
@@ -668,6 +672,82 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         conferenceClient.broadCastTrackInfo();
     }, []);
 
+    const startPresentingCamera = useCallback(async () => {
+        console.log(`startPresentingCamera`);
+
+
+        if (conferenceClient.isScreenSharing) {
+            await stopScreenShare();
+        }
+
+        conferenceClient.conference.setPresenter(conferenceClient.localParticipant);
+        conferenceClient.sendPresenting(true);
+        setPresenter(conferenceClient.localParticipant);
+
+        // localParticipant.current.prevTracksInfo = { ...localParticipant.current.tracksInfo, screenShareTrackId: "" };
+
+        // localParticipant.current.tracksInfo.isVideoEnabled = true;
+        // localParticipant.current.tracksInfo.isAudioEnabled = true;
+        // let constraints = getMediaConstraints(true, true);
+
+        // conferenceClient.getNewTracksForLocalParticipant({
+        //     constraints: constraints,
+        //     isAudioEnabled: true,
+        //     isVideoEnabled: true
+        // })
+
+        // if (await conferenceClient.publishTracks(conferenceClient.localParticipant.stream.getTracks())) {
+        //     //trigger a refresh of the local stream
+        //     conferenceClient.conference.setPresenter(conferenceClient.localParticipant);
+        //     conferenceClient.sendPresenting(true);
+        //     setPresenter(conferenceClient.localParticipant);
+        // } else {
+        //     ui.showPopUp("unable to publish tracks.", "error");
+        // }
+
+    }, [conference.current.presenter, ui]);
+
+    const stopPresentingCamera = useCallback(async () => {
+        console.log("stopPresentingCamera");
+
+        if (conferenceClient.isScreenSharing) {
+            await stopScreenShare();
+        }
+
+        conferenceClient.sendPresenting(false);
+        conferenceClient.conference.setPresenter(null);
+        conferenceClient.sendPresenting(false);
+
+        setPresenter(null);
+
+        try {
+            let tracksInfo = localParticipant.current.prevTracksInfo ?? localParticipant.current.tracksInfo;
+
+            localParticipant.current.tracksInfo.isVideoEnabled = tracksInfo.isVideoEnabled;
+            localParticipant.current.tracksInfo.isAudioEnabled = tracksInfo.isAudioEnabled;
+
+            let videoTrack = localParticipant.current.stream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = tracksInfo.isVideoEnabled;
+            }
+
+            let audioTrack = localParticipant.current.stream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = tracksInfo.isAudioEnabled;
+            }
+
+        } catch (error) {
+            console.error("Error stopping screen share:", error);
+        }
+
+        conferenceClient.conference.setPresenter(null);
+        conferenceClient.sendPresenting(false);
+
+        setPresenter(null);
+        console.log(`setIsScreenSharing to false`, localParticipant.current.stream.getTracks());
+
+    }, [getMediaConstraints]);
+
     const startScreenShare = useCallback(async () => {
         console.log(`startScreenShare`);
 
@@ -676,8 +756,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             conferenceClient.conference.setPresenter(conferenceClient.localParticipant);
             setPresenter(conferenceClient.conference.presenter);
             setIsScreenSharing(true);
-            setIsLocalStreamUpdated(true);
-            updateCallParticipants();
         } else {
             ui.showPopUp("unable to start screen share.", "error");
         }
@@ -688,7 +766,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log("stopScreenShare");
 
         try {
-            let constraints = getMediaConstraints(false, true); //get only video
+            let tracksInfo = localParticipant.current.prevTracksInfo ?? localParticipant.current.tracksInfo;
+            let constraints = getMediaConstraints(false, tracksInfo.isVideoEnabled);
             await conferenceClient.stopScreenShare(constraints);
 
         } catch (error) {
@@ -698,8 +777,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         conferenceClient.conference.setPresenter(null);
         setPresenter(null);
         setIsScreenSharing(false);
-        setIsLocalStreamUpdated(true);
-        updateCallParticipants();
         console.log(`setIsScreenSharing to false`, localParticipant.current.stream.getTracks());
 
     }, [getMediaConstraints]);
@@ -758,8 +835,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (audioTrack) {
             audioTrack.enabled = localParticipant.current.tracksInfo.isAudioEnabled;
         }
-
-        setIsLocalStreamUpdated(true);
 
     }, [getMediaConstraints, selectedDevices]);
 
@@ -821,7 +896,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isAuthenticated,
             isLoggedOff, setIsLoggedOff,
             localParticipant: localParticipant.current,
-            isLocalStreamUpdated,
             presenter,
             onConferencePing,
             conferencePong,
@@ -862,6 +936,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             broadCastTrackInfo,
             muteParticipantTrack,
 
+            startPresentingCamera,
+            stopPresentingCamera,
             startScreenShare,
             stopScreenShare,
 

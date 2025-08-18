@@ -46,7 +46,7 @@ export function validateRoomToken(secretKey: string, token: string): RoomTokenPa
     return null;
 }
 
-export function validateAuthUserToken(secretKey: string, token: string): AuthUserTokenPayload {
+export function decodeAuthUserToken(secretKey: string, token: string): AuthUserTokenPayload {
     try {
 
         if (!secretKey) {

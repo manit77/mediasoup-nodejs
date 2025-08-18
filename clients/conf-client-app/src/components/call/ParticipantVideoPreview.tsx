@@ -253,8 +253,8 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 
     return (
         <Card
-            //onClick={toggleFullscreen}
-            onClick={() => { onClick(participant); }}
+            onClick={() => { toggleFullscreen(videoContainerRef.current); }}
+            //onClick={() => { onClick(participant); }}
             className={`participant-preview`}
             style={{
                 display: 'flex',

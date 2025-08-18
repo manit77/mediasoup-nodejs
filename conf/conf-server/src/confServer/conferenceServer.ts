@@ -209,12 +209,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             if (!conference.leader) {
                 conference.leader = args.leader;
             }
-            
-            //if presenter layout the partc that creaets the conf is the leader
-            if (!conference.presenter && conference.config.layout == "presenter") {
-                conference.presenter = args.leader;
-            }
-
+          
             return conference;
         }
 
@@ -234,10 +229,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         if (args.config) {
             fill(args.config, conference.config);
         }
-
-        if (conference.config.layout == "presenter") {
-            conference.presenter = args.leader;
-        }
+     
 
         conference.timeoutSecs = conference.config.roomTimeoutSecs ?? conference.timeoutSecs;
         conference.noUserTimeoutSec = args.noUserTimeoutSec ?? conference.noUserTimeoutSec;
@@ -981,7 +973,6 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.displayName = participant.displayName;
 
         msg.data.conferenceConfig = conference.config;
-
 
         msg.data.roomId = conference.roomId;
         msg.data.roomToken = conference.roomToken;

@@ -22,7 +22,7 @@ export class ConferenceAPI {
         this.app = args.app;
         this.config = args.config;
         this.confServer = args.confServer;
-        this.thirdPartyAPI = new ThirdPartyAPI(args.config);
+        this.thirdPartyAPI = new ThirdPartyAPI(args.config);        
     }
 
     tokenCheck = (req: Request, res: Response, next: NextFunction) => {

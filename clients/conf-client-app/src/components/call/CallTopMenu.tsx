@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Navbar, Nav, Button, Container } from 'react-bootstrap';
-import { BoxArrowRight, GearFill, ShareFill, PersonPlusFill, DisplayFill, XSquareFill } from 'react-bootstrap-icons';
+import { Navbar, Nav, Button, Container, Dropdown } from 'react-bootstrap';
+import { BoxArrowRight, GearFill, ShareFill, PersonPlusFill, DisplayFill, XSquareFill, CameraVideoOffFill, CameraVideoFill, ProjectorFill, Easel } from 'react-bootstrap-icons';
 import { useCall } from '../../hooks/useCall';
 import { useNavigate } from 'react-router-dom';
 import { useAPI } from '../../hooks/useAPI';
@@ -11,9 +11,10 @@ interface CallTopMenuProps {
 }
 
 const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
-    const { conference, leaveCurrentConference, terminateCurrentConference, startScreenShare, stopScreenShare, isScreenSharing, localParticipant } = useCall();
+    const { conference, leaveCurrentConference, terminateCurrentConference, startScreenShare, stopScreenShare, isScreenSharing, localParticipant, startPresentingCamera, stopPresentingCamera } = useCall();
     const { isUser, getCurrentUser } = useAPI();
     const navigate = useNavigate();
+    const [isPresenting, setIsPresenting] = useState(false);
     const [allowScreenShare, setAllowScreenShare] = useState(true);
     const [allowTerminateConf, setAllowTerminateConf] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -38,8 +39,27 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
     const handleToggleScreenShare = () => {
         if (isScreenSharing) {
             stopScreenShare();
+            setIsPresenting(false);
         } else {
             startScreenShare();
+            setIsPresenting(true);
+        }
+    };
+
+    const handleStopPresenting = () => {
+        stopPresentingCamera();
+        setIsPresenting(false);
+    };
+
+
+    const handleCameraPresenting = () => {
+
+        if (isPresenting) {
+            stopPresentingCamera();
+            setIsPresenting(false);
+        } else {
+            startPresentingCamera();
+            setIsPresenting(true);
         }
     };
 
@@ -82,15 +102,26 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                         }}>{conference.conferenceName}</Navbar.Brand>
 
                     <Nav className="ms-auto d-flex flex-row align-items-center" style={{ justifyContent: 'space-between', width: 'auto', gap: '10px' }}>
-                        {/* <Button variant="outline-light" className="me-2" onClick={onShowInvite} title="Invite">
-                        <PersonPlusFill size={20} /> <span className="d-none d-md-inline">Invite</span>
-                    </Button> */}
 
-                        {allowScreenShare ? (
-                            <Button variant={isScreenSharing ? "info" : "outline-light"} className="me-2" onClick={handleToggleScreenShare} title={isScreenSharing ? "Stop Sharing" : "Share Screen"}>
-                                <DisplayFill size={20} /> <span className="d-none d-md-inline">{isScreenSharing ? "Stop Sharing" : "Share"}</span>
-                            </Button>
-                        ) : null}
+                        {isPresenting ? <Button variant="danger" className="me-2" onClick={handleStopPresenting} title={isPresenting ? "Presenting" : "Not Presenting"}>
+                            <Easel size={20} /> <span className="d-none d-md-inline">Stop Presenting</span>
+                        </Button>
+                            : <Dropdown>
+                                <Dropdown.Toggle variant="outline-light" id="present-dropdown" className="me-2" title="Present">
+                                    <Easel size={20} /> <span className="d-none d-md-inline">Present</span>
+                                </Dropdown.Toggle>
+                                <Dropdown.Menu>
+                                    <Dropdown.Item onClick={handleCameraPresenting}>
+                                        <CameraVideoFill size={20} /> Present Camera
+                                    </Dropdown.Item>
+                                    {allowScreenShare ? (
+                                        <Dropdown.Item onClick={handleToggleScreenShare}>
+                                            <DisplayFill size={20} /> <span className="d-none d-md-inline">{isScreenSharing ? "Stop Sharing Screen" : "Share Screen"}</span>
+                                        </Dropdown.Item>
+                                    ) : null}
+                                </Dropdown.Menu>
+                            </Dropdown>}
+
 
                         <Button variant="outline-light" className="me-2" onClick={onShowSettings} title="Settings">
                             <GearFill size={20} /> <span className="d-none d-md-inline">Settings</span>

@@ -13,6 +13,7 @@ import { RoomServer } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
 import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
 import { RoomServerConfig } from '../roomServer/models.js';
+import { Peer } from '../roomServer/peer.js';
 
 const LOG = "RoomSocketServer";
 
@@ -53,21 +54,32 @@ export class RoomPeerSocketServer {
     connections = new Map<WebSocket, SocketConnection>();
 
     constructor(private config: RoomServerConfig, private securityMap: RoomPeerSocketSecurityMap, private roomServer: RoomServer) {
-        roomServer.addEventListener((peerId: string, msg: any) => {
+
+        roomServer.addMessageListener((peerId: string, msg: any) => {
             let conn = [...this.connections.values()].find(c => c.peerId == peerId);
             if (conn) {
-                if (msg.type == payloadTypeClient.terminatePeer) {
-                    consoleLog(LOG, "terminatePeer");
-                    conn.ws?.close();
-                    this.connections.delete(conn.ws);
-                    return;
-                }
                 this.send(conn.ws, msg);
-
             } else {
                 consoleLog(LOG, "peer not found for message: " + msg.type);
             }
         });
+
+        roomServer.eventPeerClosed = (peer: Peer) => {
+
+            let conn = [...this.connections.values()].find(c => c.peerId == peer.id);
+            if (conn) {
+                consoleLog(LOG, "eventPeerClosed");
+                if (conn.ws) {
+                    conn.ws.close();
+                    this.connections.delete(conn.ws);
+                }
+            }
+            else {
+                consoleLog(LOG, "peer not found for eventPeerClosed");
+            }
+
+        };
+
     }
 
     async init(socketServer: WebSocketServer) {
@@ -181,7 +193,7 @@ export class RoomPeerSocketServer {
             return errMsg;
         }
 
-        let payload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
+        let payload = roomUtils.decodeAuthUserToken(this.config.room_secretKey, authToken);
         if (!payload) {
             consoleError(LOG, "invalid authToken.");
             let errMsg = new UnauthorizedMsg();

@@ -43,18 +43,20 @@ export class RoomServer {
     private peers = new Map<string, Peer>();
     private rooms = new Map<string, Room>();
 
-    private eventListeners: outMessageEventListener[] = [];
+    private messageListeners: outMessageEventListener[] = [];
     private config: RoomServerConfig;
     private timerIdResourceInterval: any;
     private roomLogAdapter = new RoomLogAdapterInMemory();
     dateCreated = new Date();
 
+    eventPeerClosed = (peer: Peer) => { };
+
     constructor(c: RoomServerConfig) {
         this.config = c;
-        this.printStats1();
+        this.printStatsAll();
     }
 
-    printStats1() {
+    printStatsAll() {
         consoleWarn(`#### Conference Server Stats ####`);
         consoleWarn(`dateCreated: ${this.dateCreated}`);
         consoleWarn(`rooms: `, this.rooms.size);
@@ -62,17 +64,14 @@ export class RoomServer {
             consoleWarn(`roomName: ${r.roomName}, dateCreated: ${r.dateCreated}, id: ${r.id}`);
             //loop through roomPeers
             r.printStats();
-
         });
-
-
 
         consoleWarn(`peers: `, this.peers.size);
         this.peers.forEach(p => consoleWarn(`displayName: ${p.displayName}, dateCreated: ${p.dateCreated}, id: ${p.id}`));
         consoleWarn(`#################################`);
 
         setTimeout(() => {
-            this.printStats();
+            this.printStatsAll();
         }, 30000);
     }
 
@@ -152,14 +151,14 @@ export class RoomServer {
         return worker;
     }
 
-    addEventListener(eventListener: outMessageEventListener) {
-        this.eventListeners.push(eventListener);
+    addMessageListener(eventListener: outMessageEventListener) {
+        this.messageListeners.push(eventListener);
     }
 
-    removeEventListener(eventListener: outMessageEventListener) {
-        let idx = this.eventListeners.findIndex((l) => l === eventListener);
+    removeMessageListener(eventListener: outMessageEventListener) {
+        let idx = this.messageListeners.findIndex((l) => l === eventListener);
         if (idx > -1) {
-            this.eventListeners.splice(idx, 1);
+            this.messageListeners.splice(idx, 1);
         }
     }
 
@@ -260,7 +259,7 @@ export class RoomServer {
     }
 
     closePeer(peer: Peer) {
-        console.log("closePeer()");
+        console.log(`closePeer() ${peer.displayName} ${peer.id}`);
 
         if (!peer) {
             consoleError("peer is required.");
@@ -271,10 +270,8 @@ export class RoomServer {
 
         //delete from peers
         this.removePeerGlobal(peer);
-
-        console.log(`Peer terminate ${peer.id}.`);
-        this.printStats();
-    }
+        this.eventPeerClosed(peer);
+    }       
 
     /**
      * creates a new peer and adds it the peers map
@@ -284,10 +281,14 @@ export class RoomServer {
     private createPeer(authToken: string, username: string, trackingId: string, displayName: string): Peer {
         console.log(`createPeer() - trackingId: ${trackingId}, displayName: ${displayName}`);
 
-        let payload: AuthUserTokenPayload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
+        let payload: AuthUserTokenPayload = roomUtils.decodeAuthUserToken(this.config.room_secretKey, authToken);
 
         if (!payload) {
             consoleError("failed to validate validateAuthUserToken.")
+            return null;
+        }
+        if (payload.username !== username) {
+            consoleError("username does not match.");
             return null;
         }
 
@@ -419,8 +420,6 @@ export class RoomServer {
 
         this.addRoomGlobal(room);
 
-        this.printStats();
-
         return room;
     }
 
@@ -457,15 +456,14 @@ export class RoomServer {
     }
 
     private removeRoomGlobal(room: Room) {
-        console.log(`removeRoomGlobal() ${room.id}`);
-        this.printStats();
+        console.log(`removeRoomGlobal() ${room.id}`);        
         this.rooms.delete(room.id);
     }
 
     private send(peerId: string, msg: IMsg) {
         let peer = this.getPeer(peerId);
         console.log(`send() - to: ${peer.displayName} `, msg.type);
-        for (let eventListener of this.eventListeners) {
+        for (let eventListener of this.messageListeners) {
             eventListener(peerId, msg);
         }
     }
@@ -493,6 +491,15 @@ export class RoomServer {
     async onRegisterPeer(msgIn: RegisterPeerMsg) {
         console.log(`onRegister() - peerTrackingId:${msgIn.data.peerTrackingId},  displayName:${msgIn.data.displayName}`);
 
+        if (!msgIn.data.username) {
+            consoleError("username is required.");
+            let errMsg = new RegisterPeerResultMsg();
+            errMsg.data = {
+                error: "username is required."
+            };
+            return errMsg;
+        }
+
         if (!msgIn.data.peerTrackingId) {
             consoleError("tracking id is required.");
             let errMsg = new RegisterPeerResultMsg();
@@ -511,16 +518,44 @@ export class RoomServer {
             return errMsg;
         }
 
+        if (!msgIn.data.authToken) {
+            consoleError("authToken for peer is required.");
+            let errMsg = new RegisterPeerResultMsg();
+            errMsg.data = {
+                error: "authToken is required."
+            };
+            return errMsg;
+        }
+
         //get peer by trackingId
         let peer = [...this.peers.values()].find(p => p.trackingId === msgIn.data.peerTrackingId);
         if (peer) {
+            //existing peer found
             consoleWarn(`peer already exists by trackingId ${peer.trackingId}, ${peer.displayName}, ${peer.id}`);
-            let msg = new RegisterPeerResultMsg();
-            msg.data = {
-                peerId: peer.id,
-                displayName: msgIn.data.displayName,
-            };
-            return msg;
+
+            //verify the auth token
+            let payload: AuthUserTokenPayload = roomUtils.decodeAuthUserToken(this.config.room_secretKey, msgIn.data.authToken);
+
+            if (!payload) {
+                consoleError("failed to validate validateAuthUserToken.")
+                let errMsg = new RegisterPeerResultMsg();
+                errMsg.data = {
+                    error: "invalid authToken."
+                };
+                return errMsg;
+            }
+
+            if (payload.username !== payload.username) {
+                consoleError("unable to validate credentials.");
+                let errMsg = new RegisterPeerResultMsg();
+                errMsg.data = {
+                    error: "unable to validate credentials."
+                };
+                return errMsg;
+            }
+
+            //close current peer and allow a new one to be created
+            this.closePeer(peer);
         }
 
         peer = this.createPeer(msgIn.data.authToken, msgIn.data.username, msgIn.data.peerTrackingId, msgIn.data.displayName);
@@ -536,9 +571,7 @@ export class RoomServer {
         msg.data = {
             peerId: peer.id,
             displayName: msgIn.data.displayName,
-        };
-
-        this.printStats();
+        };        
 
         return msg;
     }
@@ -596,7 +629,6 @@ export class RoomServer {
         if (!consumerTransport) {
             return new ErrorMsg(payloadTypeServer.createConsumerTransportResult, "could not create consumer transport");
         }
-
 
         let consumerTransportCreated = new ConsumerTransportCreatedMsg();
         consumerTransportCreated.data = {
@@ -834,8 +866,7 @@ export class RoomServer {
         msgBroadCast.data.roomId = room.id;
         this.broadCastAll(room, msgBroadCast);
         this.roomTerminate(room);
-        this.printStats();
-
+        
         let msgResult = new RoomTerminateResultMsg();
         msgResult.data.roomId = room.id;
 
@@ -936,9 +967,7 @@ export class RoomServer {
             msg.data.producers = producersInfo;
             msg.data.trackInfo = peer.tracksInfo;
             this.send(otherPeer.peer.id, msg);
-        }
-
-        this.printStats();
+        }        
 
         //send back the the peer that joined
         return joinRoomResult;
@@ -967,8 +996,7 @@ export class RoomServer {
         //     roomId: room.id
         // }
         // this.broadCastAll(room, msg);
-        this.printStats();
-
+        
         let roomLeaveResult = new RoomLeaveResultMsg();
         roomLeaveResult.data.roomId = room.id;
         return roomLeaveResult;
@@ -1178,7 +1206,6 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeServer.error, "peer not found.");
         }
 
-
         //the peer must be in room
         if (!peer.room) {
             consoleError("peer not in room.");
@@ -1247,29 +1274,28 @@ export class RoomServer {
 
     }
 
+    // async printStats() {
+    //     console.log("### STATS ###");
+    //     console.log(`### rooms: ${this.rooms.size}, peers: ${this.peers.size} ###`);
+    //     for (let [roomid, room] of this.rooms) {
+    //         console.log(`##### roomid: ${roomid}, peers: ${room.getPeerCount()}`);
+    //         room.getPeers().forEach(p => {
+    //             console.log(`##### roomid: ${roomid}, peerid: ${p.id}}, displayName:${p.displayName}`);
+    //         });
 
-    async printStats() {
-        console.log("### STATS ###");
-        console.log(`### rooms: ${this.rooms.size}, peers: ${this.peers.size} ###`);
-        for (let [roomid, room] of this.rooms) {
-            console.log(`##### roomid: ${roomid}, peers: ${room.getPeerCount()}`);
-            room.getPeers().forEach(p => {
-                console.log(`##### roomid: ${roomid}, peerid: ${p.id}}, displayName:${p.displayName}`);
-            });
+    //         if (room.roomLogAdapter) {
+    //             let logs = await room.roomLogAdapter.get(room.id);
+    //             logs.forEach(log => {
+    //                 console.log(`####### RoomLog: RoomId: ${log.RoomId}, PeerId: ${log.PeerId}, Action: ${log.Action}, Date: ${log.Date} `);
+    //             });
+    //         }
+    //     }
 
-            if (room.roomLogAdapter) {
-                let logs = await room.roomLogAdapter.get(room.id);
-                logs.forEach(log => {
-                    console.log(`####### RoomLog: RoomId: ${log.RoomId}, PeerId: ${log.PeerId}, Action: ${log.Action}, Date: ${log.Date} `);
-                });
-            }
-        }
-
-        console.log(`### peers: ${this.peers.size} ###`);
-        for (let [peerid, peer] of this.peers) {
-            console.log(`##### peerid: ${peerid}, displayName: ${peer.displayName}, roomName: ${peer.room?.roomName}, isAudioEnabled: ${peer.tracksInfo.isAudioEnabled}, isVideoEnabled: ${peer.tracksInfo.isVideoEnabled}`);
-        }
-        console.log("### ##### ###");
-    }
+    //     console.log(`### peers: ${this.peers.size} ###`);
+    //     for (let [peerid, peer] of this.peers) {
+    //         console.log(`##### peerid: ${peerid}, displayName: ${peer.displayName}, roomName: ${peer.room?.roomName}, isAudioEnabled: ${peer.tracksInfo.isAudioEnabled}, isVideoEnabled: ${peer.tracksInfo.isVideoEnabled}`);
+    //     }
+    //     console.log("### ##### ###");
+    // }
 
 }
