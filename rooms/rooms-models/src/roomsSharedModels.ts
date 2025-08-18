@@ -111,6 +111,7 @@ export class RegisterPeerMsg implements IMsg {
     type = payloadTypeClient.registerPeer;
     data: {
         authToken?: string,
+        username?: string,
         displayName?: string,
         /**
          * your app's unique to track the room
@@ -240,8 +241,9 @@ export class RoomNewMsg implements IMsg {
 export class AuthUserNewTokenMsg implements IMsg {
     type = payloadTypeClient.authUserNewToken;
     data: {
+        username?: string;
         role?: AuthUserRoles;
-        expiresInMin?: number
+        expiresInMin?: number;
     } = {}
 }
 

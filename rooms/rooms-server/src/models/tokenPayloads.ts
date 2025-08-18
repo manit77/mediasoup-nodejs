@@ -2,7 +2,8 @@ import { AuthUserRoles } from '@rooms/rooms-models';
 
 export interface AuthUserTokenPayload {
     type: string,
-    role: AuthUserRoles
+    role: AuthUserRoles,
+    username: string,
 }
 
 export interface RoomTokenPayload {

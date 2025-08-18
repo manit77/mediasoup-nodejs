@@ -65,6 +65,8 @@ export class LoginMsg implements IMsg {
 export class LoginResultMsg implements IMsg {
     type = CallMessageType.loginResult
     data: {
+        participantGroup?: string,
+        participantGroupName?: string,
         username?: string,
         displayName?: string,
         authToken?: string,
@@ -88,6 +90,7 @@ export class RegisterMsg implements IMsg {
         displayName?: string,
         authToken?: string,
         participantId?: string,
+        participantGroup?:string,
         clientData?: {}
     } = {};
 }

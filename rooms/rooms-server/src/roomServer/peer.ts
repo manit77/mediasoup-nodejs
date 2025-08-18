@@ -9,6 +9,7 @@ export class Peer {
 
     public id: string;
     public trackingId: string;
+    public username: string;
     public displayName: string;
     public authToken: string;
     public role = AuthUserRoles.guest;

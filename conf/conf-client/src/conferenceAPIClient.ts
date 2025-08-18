@@ -21,7 +21,6 @@ export class ConferenceAPIClient {
                 throw new Error('password name cannot be empty.');
             }
 
-
             let postMsg = new LoginMsg();
             postMsg.data.username = username;
             postMsg.data.password = password;

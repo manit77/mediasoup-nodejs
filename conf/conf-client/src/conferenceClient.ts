@@ -26,6 +26,7 @@ export class ConferenceClient {
 
     private socket: WebSocketClient;
     localParticipant = new Participant();
+    participantGroup: string = "";
     username: string = "";
     authToken: string = "";
     clientData = {};
@@ -52,7 +53,7 @@ export class ConferenceClient {
     private config: ConferenceClientConfig;
 
     private tryRegisterTimerId: any;
-    private messageQueue: Array<((event: any) => void)> = [];
+    private messageListener: Array<((event: any) => void)> = [];
 
     constructor() {
         console.log(`*** new instance of ConferenceClient`);
@@ -86,7 +87,7 @@ export class ConferenceClient {
 
     }
 
-    connect(username: string, authToken: string, clientData: any, options?: { socket_ws_uri?: string }) {
+    connect(participantGroup: string, username: string, authToken: string, clientData: any, options?: { socket_ws_uri?: string }) {
         console.log(`connect to socket server.`, this.config);
 
         if (this.socket && this.socket.state != "disconnected") {
@@ -101,6 +102,7 @@ export class ConferenceClient {
         if (options && options.socket_ws_uri) {
             this.config.conf_ws_url = options.socket_ws_uri;
         }
+        this.participantGroup = participantGroup;
         this.username = username;
         this.authToken = authToken;
         this.clientData = clientData;
@@ -180,7 +182,7 @@ export class ConferenceClient {
         this.isScreenSharing = false;
     }
 
-    waitRegisterConnection(username: string, authToken: string, clientData: {}) {
+    waitRegisterConnection(participantGroup: string, username: string, authToken: string, clientData: {}) {
         console.log("waitRegisterConnection");
 
         return new Promise<RegisterResultMsg>((resolve, reject) => {
@@ -217,7 +219,7 @@ export class ConferenceClient {
                 };
 
                 this.socket.addEventHandler("onmessage", _onmessage);
-                this.registerConnection(username, authToken, clientData);
+                this.registerConnection(participantGroup, username, authToken, clientData);
 
             } catch (err: any) {
                 console.log(err);
@@ -235,7 +237,7 @@ export class ConferenceClient {
 
             let _removeEvents = () => {
                 if (_onmessage) {
-                    this.messageQueue = this.messageQueue.filter(cb => cb != _onmessage);
+                    this.messageListener = this.messageListener.filter(cb => cb != _onmessage);
                 }
             }
 
@@ -261,7 +263,7 @@ export class ConferenceClient {
                     }
                 };
 
-                this.messageQueue.push(_onmessage);
+                this.messageListener.push(_onmessage);
 
             } catch (err: any) {
                 console.log(err);
@@ -288,7 +290,7 @@ export class ConferenceClient {
     private async register() {
         console.log("register()");
         try {
-            let registerResult = await this.waitRegisterConnection(this.username, this.authToken, this.clientData);
+            let registerResult = await this.waitRegisterConnection(this.participantGroup, this.username, this.authToken, this.clientData);
             if (!registerResult.data.error) {
                 await this.onEvent(EventTypes.connected, new OkMsg());
                 return true;
@@ -413,7 +415,7 @@ export class ConferenceClient {
             // }
         }
 
-        this.messageQueue.forEach(cb => cb(message));
+        this.messageListener.forEach(cb => cb(message));
     }
 
     private async onNetworkChange() {
@@ -424,7 +426,7 @@ export class ConferenceClient {
             //disconnected from server
             //this.waitRegisterConnection(this.username, this.authToken, this.clientData);
             //this.disconnectRoomsClient("network change", 0);            
-            this.connect(this.username, this.authToken, this.clientData);
+            this.connect(this.participantGroup, this.username, this.authToken, this.clientData);
         }
     }
 
@@ -763,7 +765,7 @@ export class ConferenceClient {
      * @param username 
      * @param authToken 
      */
-    private registerConnection(username: string, authToken: string, clientData: {}) {
+    private registerConnection(participantGroup: string, username: string, authToken: string, clientData: {}) {
         console.log("registerConnection");
 
         if (this.isRegistered()) {
@@ -787,6 +789,7 @@ export class ConferenceClient {
         registerMsg.data.username = username;
         registerMsg.data.displayName = username;
         registerMsg.data.authToken = authToken;
+        registerMsg.data.participantGroup = participantGroup;
         registerMsg.data.clientData = clientData;
 
         this.sendToServer(registerMsg);
@@ -1522,7 +1525,7 @@ export class ConferenceClient {
     private async onUnauthorized(message: UnauthorizedMsg) {
         console.log("onUnauthorized");
 
-        this.connect(this.username, this.authToken, this.clientData);
+        this.connect(this.participantGroup, this.username, this.authToken, this.clientData);
         await this.onEvent(EventTypes.unAuthorized, message);
     }
 
@@ -1684,7 +1687,14 @@ export class ConferenceClient {
                 console.log("-- room socket failed to connect.");
             }
 
-            let registerResult = await this.roomsClient.waitForRegister(this.conference.roomAuthToken, this.localParticipant.participantId, this.localParticipant.displayName);
+            let registerResult = await this.roomsClient.waitForRegister({
+                authToken: this.conference.roomAuthToken,
+                username: this.username,
+                trackingId: this.localParticipant.participantId,
+                displayName: this.localParticipant.displayName,
+                timeoutSecs: 30
+            });
+            
             if (!registerResult.data.error) {
                 console.log(`-- room socket registered. new peerId ${this.roomsClient.getPeerId()}`);
                 this.localParticipant.peerId = this.roomsClient.getPeerId();
@@ -1782,9 +1792,9 @@ export class ConferenceClient {
             clearTimeout(this.roomsClientDisconnectTimerId);
         }
 
-        if (this.roomsClient && this.roomsClient.config.socket_ws_uri == roomURI) {
+        if (this.roomsClient) {
             console.log("room already initialized with URI:", roomURI);
-            return true;
+            return false;
         }
 
         this.roomsClient = new RoomsClient({
@@ -2019,6 +2029,7 @@ export class ConferenceClient {
         };
 
         await this.roomsClient.inititalize({ rtp_capabilities: roomRtpCapabilities });
+
         return true;
     }
 

@@ -281,7 +281,7 @@ export class RoomServer {
      * @param trackingId custom id from a client
      * @returns 
      */
-    private createPeer(authToken: string, trackingId: string, displayName: string): Peer {
+    private createPeer(authToken: string, username: string, trackingId: string, displayName: string): Peer {
         console.log(`createPeer() - trackingId: ${trackingId}, displayName: ${displayName}`);
 
         let payload: AuthUserTokenPayload = roomUtils.validateAuthUserToken(this.config.room_secretKey, authToken);
@@ -295,6 +295,7 @@ export class RoomServer {
         peer.id = roomUtils.GetPeerId();
         peer.authToken = authToken;
         peer.displayName = displayName;
+        peer.username = username;
         peer.trackingId = trackingId;
         peer.role = payload.role;
 
@@ -522,7 +523,7 @@ export class RoomServer {
             return msg;
         }
 
-        peer = this.createPeer(msgIn.data.authToken, msgIn.data.peerTrackingId, msgIn.data.displayName);
+        peer = this.createPeer(msgIn.data.authToken, msgIn.data.username, msgIn.data.peerTrackingId, msgIn.data.displayName);
         if (!peer) {
             let errMsg = new RegisterPeerResultMsg();
             errMsg.data = {
@@ -713,7 +714,7 @@ export class RoomServer {
         }
 
         let msg = new AuthUserNewTokenResultMsg();
-        let authToken = roomUtils.generateAuthUserToken(this.config.room_secretKey, msgIn.data.role, msgIn.data.expiresInMin);
+        let authToken = roomUtils.generateAuthUserToken(this.config.room_secretKey, msgIn.data.username, msgIn.data.role, msgIn.data.expiresInMin);
 
         if (authToken) {
             msg.data.authToken = authToken;

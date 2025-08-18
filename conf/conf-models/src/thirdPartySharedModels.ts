@@ -21,6 +21,8 @@ export class apiLoginPost {
 export class apiLoginResult {
     type = apiMsgTypes.loginResult;
     data: {
+        participantGroup?: string;
+        participantGroupName?: string;
         username?: string;
         displayName?: string;
         role?: string;

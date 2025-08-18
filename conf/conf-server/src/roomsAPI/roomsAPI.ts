@@ -33,8 +33,9 @@ export class RoomsAPI {
         return await this.post(RoomServerAPIRoutes.newRoomToken, msgIn) as RoomNewTokenResultMsg;
     }
 
-    async newAuthUserToken(role: AuthUserRoles) {
+    async newAuthUserToken(username: string, role: AuthUserRoles) {
         let msgIn = new AuthUserNewTokenMsg();
+        msgIn.data.username = username;
         msgIn.data.expiresInMin = 0;
         msgIn.data.role = role;
         return await this.post(RoomServerAPIRoutes.newAuthUserToken, msgIn) as AuthUserNewTokenResultMsg;

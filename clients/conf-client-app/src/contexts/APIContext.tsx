@@ -159,7 +159,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         let user = apiService.getUser();
         if (user) {
-            getConferenceClient().connect(user.username, user.authToken, user.clientData);
+            getConferenceClient().connect(user.participantGroup, user.username, user.authToken, user.clientData);
             fetchConferencesScheduled();
             apiService.startFetchConferencesScheduled();
 

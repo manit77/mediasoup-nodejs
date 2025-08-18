@@ -27,6 +27,7 @@ class LocalPeer implements IPeer {
   roomToken: string = "";
   tracksInfo: PeerTracksInfo = { isAudioEnabled: false, isVideoEnabled: false };
   authToken: string = "";
+  username: string = "";
 }
 
 export class RoomsClient {
@@ -36,6 +37,7 @@ export class RoomsClient {
   private localRoom: LocalRoom = new LocalRoom();
   private device: mediasoupClient.types.Device;
   private iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
+  private messageListener: Array<((msg: IMsg) => void)> = [];
 
   config = {
     socket_ws_uri: "wss://localhost:3000",
@@ -92,6 +94,13 @@ export class RoomsClient {
     this.eventOnRoomSocketClosed = async () => { };
     console.log("dispose() - complete");
   };
+
+  removeMessageListener = (cbFunc: any) => {
+    if (!cbFunc) {
+      return;
+    }
+    this.messageListener = this.messageListener.filter(cb => cb != cbFunc);
+  }
 
   connect = async (wsURI: string = "") => {
     console.log(`connect ${wsURI} autoReconnect: ${this.config.socket_auto_reconnect}`);
@@ -210,7 +219,13 @@ export class RoomsClient {
    * @param displayName 
    * @returns 
    */
-  waitForRegister = (authToken: string, trackingId: string, displayName: string, timeoutSecs: number = 30): Promise<IMsg> => {
+  waitForRegister = (args: {
+    authToken: string,
+    username: string,
+    trackingId: string,
+    displayName: string,
+    timeoutSecs: number
+  }): Promise<IMsg> => {
     console.log("waitForRegister");
 
     return new Promise<IMsg>((resolve, reject) => {
@@ -235,26 +250,30 @@ export class RoomsClient {
       try {
 
         _onmessage = (event: any) => {
-          let msg = JSON.parse(event.data);
+          let msg = JSON.parse(event.data) as IMsg;
           console.log("--waitForRegister() - onmessage", msg);
           if (msg.type == payloadTypeServer.registerPeerResult) {
 
-            let msgIn: RegisterPeerResultMsg = msg;
-            if (msgIn.data) {
-              this.localPeer.peerId = msgIn.data.peerId;
+            if (msg.data.error) {
+              clearTimeout(timerid);
+              this.ws.removeEventHandler("onmessage", _onmessage);
+              console.error(msg.data.error)
+              reject("register error.");
+              return;
             }
 
+            this.localPeer.peerId = msg.data.peerId;
             clearTimeout(timerid);
             this.ws.removeEventHandler("onmessage", _onmessage);
             console.log(`register result received, remove _onmessage`);
-            resolve(msgIn);
+            resolve(msg);
 
           }
         };
         this.ws.addEventHandler("onmessage", _onmessage);
 
-        if (authToken) {
-          this.localPeer.authToken = authToken;
+        if (args.authToken) {
+          this.localPeer.authToken = args.authToken;
         }
 
         let timerid = setTimeout(() => {
@@ -262,9 +281,9 @@ export class RoomsClient {
             this.ws.removeEventHandler("onmessage", _onmessage);
           }
           reject("failed to register");
-        }, timeoutSecs * 1000);
+        }, (args.timeoutSecs ?? 30) * 1000);
 
-        let registerSent = this.register(this.localPeer.authToken, trackingId, displayName);
+        let registerSent = this.register({ username: this.localPeer.username, authToken: this.localPeer.authToken, trackingId: args.trackingId, displayName: args.displayName });
 
         if (!registerSent) {
           this.ws.removeEventHandler("onmessage", _onmessage);
@@ -364,6 +383,57 @@ export class RoomsClient {
     });
   };
 
+  waitForRegister1 = (authToken: string, trackingId: string, displayName: string, timeoutSecs: number = 30): Promise<IMsg> => {
+    console.log("waitTryRegister");
+
+    return new Promise<IMsg>((resolve, reject) => {
+      let _onmessage: (msg: IMsg) => void;
+      let timerid = setTimeout(() => {
+        this.removeMessageListener(_onmessage);
+        reject("failed to register connection, register timed out.");
+      }, (timeoutSecs) * 1000);
+
+      try {
+
+        _onmessage = (msg: IMsg) => {
+          console.log("** onmessage", msg.data);
+
+          if (msg.type == payloadTypeServer.registerPeerResult) {
+
+            clearTimeout(timerid);
+            this.removeMessageListener(_onmessage);
+
+            let msgIn = msg as RegisterPeerResultMsg;
+            if (msgIn.data.error) {
+              console.error(msgIn.data.error);
+              reject(`register error`);
+              return;
+            }
+
+            this.localPeer.peerId = msgIn.data.peerId;
+
+            resolve(msgIn);
+          }
+        };
+
+        this.messageListener.push(_onmessage);
+
+        this.localPeer.authToken = authToken;
+        let sent = this.register({ username: this.localPeer.username, authToken, trackingId, displayName });
+        if (!sent) {
+          reject("failed to send register message.");
+        }
+
+      } catch (err: any) {
+        console.log(err);
+
+        clearTimeout(timerid);
+        this.removeMessageListener(_onmessage);
+        reject("error: failed to register connection");
+      }
+    });
+  }
+
   /**
    * join an existing room and wait for a result
    * @param roomid 
@@ -410,27 +480,28 @@ export class RoomsClient {
     this.localPeer.authToken = authToken;
   }
 
-  register = (authToken: string, trackingId: string, displayName: string) => {
-    console.log(`-- register trackingId: ${trackingId}, displayName: ${displayName}`);
+  register = (args: { authToken: string, username: string, trackingId: string, displayName: string }) => {
+    console.log(`-- register username: ${args.username}, trackingId: ${args.trackingId}, displayName: ${args.displayName}`);
 
     if (this.localPeer.peerId) {
       console.log(`-- register, already registered. ${this.localPeer.peerId}`);
       return true;
     }
 
-    if (!authToken) {
+    if (!args.authToken) {
       console.log("** register, authtoken is required.");
       return false;
     }
 
-    this.localPeer.trackingId = trackingId;
-    this.localPeer.displayName = displayName;
+    this.localPeer.trackingId = args.trackingId;
+    this.localPeer.displayName = args.displayName;
+    this.localPeer.username = args.username;
 
     let msg = new RegisterPeerMsg();
     msg.data = {
-      authToken: authToken,
+      authToken: args.authToken,
       displayName: this.localPeer.displayName,
-      peerTrackingId: trackingId
+      peerTrackingId: args.trackingId
     }
 
     this.send(msg);
@@ -735,6 +806,8 @@ export class RoomsClient {
           this.onRoomPing(msgIn);
           break;
       }
+
+      this.messageListener.forEach(cb => cb(msgIn));
     } catch (err) {
       console.error(err);
     }
@@ -1274,7 +1347,7 @@ export class RoomsClient {
 
     this.localRoom.transportSend.on("icegatheringstatechange", (args) => {
       console.log(`transportSend icegatheringstatechange`, args);
-    });  
+    });
 
 
     if (this.onTransportsReadyEvent) {

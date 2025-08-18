@@ -331,15 +331,14 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             this.terminateParticipant(existingParticipant.participantId);
         }
 
-        let participantGroup = msgIn.data.clientData ? parseString(msgIn.data.clientData["participantGroup"]) : "";
-
-        if (this.config.conf_require_participant_group && participantGroup === "") {
+        
+        if (this.config.conf_require_participant_group && !msgIn.data.participantGroup) {
             let errorMsg = new RegisterResultMsg();
             errorMsg.data.error = "participant group is required.";
             return errorMsg;
         }
 
-        let participant: Participant = this.createParticipant(msgIn.data.username, msgIn.data.username, participantGroup);
+        let participant: Participant = this.createParticipant(msgIn.data.username, msgIn.data.username, msgIn.data.participantGroup);
         participant.clientData = msgIn.data.clientData;
 
         let authTokenObject: IAuthPayload;
@@ -958,7 +957,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         let roomsAPI = new RoomsAPI(conference.roomURI, this.config.room_access_token);
 
         //create an authtoken per user
-        let authUserTokenResult = await roomsAPI.newAuthUserToken(participant.role as any);
+        let authUserTokenResult = await roomsAPI.newAuthUserToken(participant.username, participant.role as any);
         if (!authUserTokenResult || authUserTokenResult?.data?.error) {
             consoleError("failed to create new authUser token in rooms");
             let errorMsg = new InviteResultMsg();

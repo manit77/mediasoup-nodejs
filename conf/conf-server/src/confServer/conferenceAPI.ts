@@ -76,7 +76,9 @@ export class ConferenceAPI {
 
             let msg = req.body as LoginGuestMsg;
             let clientData = msg.data.clientData;
-            let participantGroup = "";
+            let participantGroup = "demo";
+            let participantGroupName = "demo";
+
             if (!msg.data.displayName) {
                 let errorMsg = new LoginResultMsg();
                 errorMsg.data.error = "authentication failed";
@@ -97,7 +99,8 @@ export class ConferenceAPI {
                 }
                 if (result.data.clientData) {
                     clientData = result.data.clientData;
-                    participantGroup = parseString(result.data.clientData["participantGroup"]),
+                    participantGroup = result.data.participantGroup;
+                    participantGroupName = result.data.participantGroupName;
                     console.log(`new clientData received.`, clientData);
                 }
             }
@@ -110,6 +113,9 @@ export class ConferenceAPI {
             let authToken = jwtSign(this.config.conf_secret_key, authTokenPayload);
 
             let resultMsg = new LoginResultMsg();
+            resultMsg.data.participantGroup = participantGroup;
+            resultMsg.data.participantGroupName = participantGroupName;
+
             resultMsg.data.username = msg.data.displayName;
             resultMsg.data.displayName = msg.data.displayName;
             resultMsg.data.authToken = authToken;
@@ -133,7 +139,8 @@ export class ConferenceAPI {
             let displayName = "";
             let returnedClientData: any = msg.data.clientData;
             let role: string = ParticipantRole.user;
-            let participantGroup = "";
+            let participantGroup = "demo";
+            let participantGroupName = "demo";
 
             if (msg.data.username && msg.data.password) {
                 //use a third party service to send a username and password
@@ -149,7 +156,8 @@ export class ConferenceAPI {
                         displayName = result.data.displayName;
                         returnedClientData = result.data.clientData;
                         role = result.data.role;
-                        participantGroup =  parseString(result.data.clientData["participantGroup"]);
+                        participantGroup = result.data.participantGroup;
+                        participantGroupName = result.data.participantGroupName
                     }
 
                 } else {
@@ -187,6 +195,8 @@ export class ConferenceAPI {
                 let authToken = jwtSign(this.config.conf_secret_key, authTokenPayload);
 
                 let resultMsg = new LoginResultMsg();
+                resultMsg.data.participantGroup = participantGroup;
+                resultMsg.data.participantGroupName = participantGroupName;
                 resultMsg.data.username = msg.data.username;
                 resultMsg.data.displayName = displayName;
                 resultMsg.data.authToken = authToken;
@@ -211,12 +221,12 @@ export class ConferenceAPI {
             //console.log(`${WebRoutes.getConferencesScheduled}`);
             let authPayload = req["IAuthPayload"] as IAuthPayload;
 
-            let msg = req.body as apiGetScheduledConferencesPost;            
+            let msg = req.body as apiGetScheduledConferencesPost;
             let participantGroup = parseString(authPayload.participantGroup);
             let cacheKey = WebRoutes.getConferencesScheduled + "_" + participantGroup;
 
             let cachedResults = this.cache.get(cacheKey);
-            let resultMsg = new GetConferencesScheduledResultMsg();            
+            let resultMsg = new GetConferencesScheduledResultMsg();
             if (cachedResults) {
                 resultMsg.data.conferences = cachedResults;
                 console.log(`${WebRoutes.getConferencesScheduled} from cache ${cacheKey}`);

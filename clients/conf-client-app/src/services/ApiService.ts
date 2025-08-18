@@ -42,6 +42,8 @@ class ApiService {
             
             let result: LoginResponse = {
                 user: {
+                    participantGroup: loginResult.data.participantGroup,
+                    participantGroupName: loginResult.data.participantGroupName,
                     username: loginResult.data.username,
                     displayName: loginResult.data.displayName,
                     role: loginResult.data.role as any,
@@ -86,6 +88,8 @@ class ApiService {
 
             let result: LoginResponse = {
                 user: {
+                    participantGroup: loginResult.data.participantGroup,
+                    participantGroupName: loginResult.data.participantGroupName,
                     username: loginResult.data.username,
                     displayName: loginResult.data.displayName,
                     role: loginResult.data.role as any,

@@ -109,12 +109,13 @@ export function generateRoomToken(secretKey: string, expiresInMinutes: number): 
     return [payload, jwt.jwtSign(secretKey, payload, expiresInMinutes)]
 }
 
-export function generateAuthUserToken(secretKey: string, role: AuthUserRoles, expiresInMinutes: number): string {
+export function generateAuthUserToken(secretKey: string, username: string, role: AuthUserRoles, expiresInMinutes: number): string {
     console.log("createRoomToken() ");
 
     let payload: AuthUserTokenPayload = {
         type: "user",
-        role: role
+        role: role,
+        username: username
     };
 
     return jwt.jwtSign(secretKey, payload, expiresInMinutes)
@@ -143,7 +144,7 @@ export async function createTransport(router: mediasoup.types.Router, listeningI
                         max: maxPort
                     }
                 }
-            ],             
+            ],
             enableUdp: true,
             enableTcp: false,
             preferUdp: true,
