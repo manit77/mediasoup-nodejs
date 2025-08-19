@@ -78,3 +78,5 @@ dist/
 
 *.env*.json
 deploy/
+
+config.json
