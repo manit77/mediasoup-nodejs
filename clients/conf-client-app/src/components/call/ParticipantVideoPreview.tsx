@@ -96,14 +96,14 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
             }
         };
 
-    }, []);
+    }, [participant]);
 
 
-    useEffect(() => {
-        console.warn(`attach video triggered, tracksInfo updated`, participant.tracksInfo);
-        setAudioEnabled(participant.tracksInfo.isAudioEnabled);
-        setVideoEnabled(participant.tracksInfo.isVideoEnabled);
-    }, [participant.tracksInfo]);
+    // useEffect(() => {
+    //     console.warn(`attach video triggered, tracksInfo updated`, participant.tracksInfo);
+    //     setAudioEnabled(participant.tracksInfo.isAudioEnabled);
+    //     setVideoEnabled(participant.tracksInfo.isVideoEnabled);
+    // }, [participant.tracksInfo]);
 
 
     const onAudioClick = useCallback(async (event) => {
@@ -144,7 +144,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
             let newStream = await getBrowserUserMedia(getMediaConstraints(true, false));
             audioTrack = newStream.getAudioTracks()[0];
             if (audioTrack) {
-                conferenceClient.publishTracks([audioTrack]);
+                conferenceClient.publishTracks([audioTrack], "onAudioClick");
             } else {
                 console.error(`no audio track to publish`);
             }
@@ -220,7 +220,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
             let newStream = await getBrowserUserMedia(getMediaConstraints(false, true));
             videoTrack = newStream.getVideoTracks()[0];
             if (videoTrack) {
-                conferenceClient.publishTracks([videoTrack]);
+                conferenceClient.publishTracks([videoTrack], "onVideoClick");
             } else {
                 console.error(`no video track to publish`);
             }

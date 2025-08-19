@@ -226,7 +226,37 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             navigator.mediaDevices.removeEventListener('devicechange', getMediaDevices);
         };
     }, [getMediaDevices]);
-    
+
+    function cloneParticipant(participant: Participant): Participant {
+        const cloned = new Participant();
+        cloned.participantId = participant.participantId;
+        cloned.displayName = participant.displayName;
+        cloned.role = participant.role;
+        cloned.peerId = participant.peerId;
+
+        // Clone tracksInfo
+        cloned.tracksInfo = {
+            isAudioEnabled: participant.tracksInfo.isAudioEnabled,
+            isVideoEnabled: participant.tracksInfo.isVideoEnabled
+        };
+
+        // Clone prevTracksInfo if it exists
+        if (participant.prevTracksInfo) {
+            cloned.prevTracksInfo = {
+                isAudioEnabled: participant.prevTracksInfo.isAudioEnabled,
+                isVideoEnabled: participant.prevTracksInfo.isVideoEnabled,
+                screenShareTrackId: participant.prevTracksInfo.screenShareTrackId
+            };
+        }
+
+        // Note: MediaStream and HTMLVideoElement are not deeply cloned as they are managed by the browser
+        // The video element is already created in the Participant constructor
+        cloned.stream = participant.stream; // MediaStream is typically managed externally
+        cloned.videoEle.srcObject = participant.stream; // Reassign stream to video element
+
+        return cloned;
+    }
+
     const updateCallParticipants = useCallback(() => {
         console.error(`updateCallParticipants`);
         setCallParticipants(prev => {
@@ -236,7 +266,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             // Add or update
             for (const [id, participant] of latest.entries()) {
-                next.set(id, {...participant});
+                //next.set(id, participant);
+                next.set(id, cloneParticipant(participant));
             }
 
             // Remove
@@ -257,20 +288,17 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCallParticipants(prev => {
             const next = new Map(prev);
             const prevPart = prev.get(participantId);
-            
+
             const latest = conferenceClient.conference.participants;
             const latestPart = latest.get(participantId);
-            
 
             if (latestPart && prevPart) {
                 const latestTracks = latestPart.tracksInfo;
                 const currTracks = prevPart.tracksInfo;
 
                 // Compare tracksInfo properties
-                if (
-                    latestTracks.isAudioEnabled === currTracks.isAudioEnabled &&
-                    latestTracks.isVideoEnabled === currTracks.isVideoEnabled
-                ) {
+                if (latestTracks.isAudioEnabled === currTracks.isAudioEnabled &&
+                    latestTracks.isVideoEnabled === currTracks.isVideoEnabled) {
                     // No changes, return the existing Map
                     console.warn(`latestTracks no changes`);
                     return prev;
@@ -366,7 +394,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         return;
                     }
 
-                    updateTracksInfo(participantId);
+                    //updateTracksInfo(participantId);
+                    updateCallParticipants();
 
                     break;
                 }
@@ -383,8 +412,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     let part = conferenceClient.conference.participants.get(participantId);
                     if (part) {
                         console.warn(callParticipants, part.tracksInfo);
-                        updateTracksInfo(participantId);
-                        //updateCallParticipants();
+                        //updateTracksInfo(participantId);
+                        updateCallParticipants();
                     }
 
                     break;
@@ -688,7 +717,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         conferenceClient.conference.setPresenter(conferenceClient.localParticipant);
-        conferenceClient.sendPresenting(true);
         setPresenter(conferenceClient.localParticipant);
 
         //determine if we are broadcasting audio or video
@@ -709,15 +737,18 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             };
 
             let constraints = getMediaConstraints(!isBroadcastingAudio, !isBroadcastingVideo);
-
             let newStream = await getBrowserUserMedia(constraints);
+
             console.warn(`newStream tracks:`, newStream.getTracks());
-            conferenceClient.publishTracks(newStream.getTracks());
-            console.warn(`new current tracks:`, conferenceClient.localParticipant.stream.getTracks());
+            conferenceClient.publishTracks(newStream.getTracks(), "startPresentingCamera");
+
+            // console.warn(`new current tracks:`, conferenceClient.localParticipant.stream.getTracks());
             conferenceClient.broadCastTrackInfo();
-            localParticipant.current = conferenceClient.localParticipant;
-            updateTracksInfo(conferenceClient.localParticipant.participantId);
+            // localParticipant.current = conferenceClient.localParticipant;
+            updateTracksInfo(conferenceClient.localParticipant.participantId);           
+
         }
+         conferenceClient.sendPresenting(true);
 
     }, [conference.current.presenter, ui]);
 
@@ -726,12 +757,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (conferenceClient.isScreenSharing) {
             await stopScreenShare();
-        } 
-
-        conferenceClient.sendPresenting(false);
+        }
         conferenceClient.conference.setPresenter(null);
-        conferenceClient.sendPresenting(false);
-
         setPresenter(null);
 
         try {
@@ -755,7 +782,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         conferenceClient.broadCastTrackInfo();
-        
+
         conferenceClient.conference.setPresenter(null);
         conferenceClient.sendPresenting(false);
 
@@ -840,7 +867,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log(`constraints:`, constraints);
 
         let newStream = await getBrowserUserMedia(constraints);
-        await conferenceClient.publishTracks(newStream.getTracks());;
+        await conferenceClient.publishTracks(newStream.getTracks(), "switchDevicesOnCall");;
 
 
         videoTrack = newStream.getVideoTracks()[0];
