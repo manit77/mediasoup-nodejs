@@ -614,8 +614,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsCallActive(false);
         setInviteInfoSend(null);
         setInviteInfoReceived(null);
-        setIsScreenSharing(false);
+        
         setCallParticipants(new Map());
+        setIsScreenSharing(false);
+        setPresenter(null);
+        
 
     }, []);
 
@@ -741,7 +744,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         conferenceClient.localParticipant.prevTracksInfo = { ...conferenceClient.localParticipant.tracksInfo, screenShareTrackId: "" };
-        
+
         let videoTrack = conferenceClient.localParticipant.stream.getVideoTracks()[0];
         if (videoTrack && videoTrack.readyState === "live") {
             videoTrack.enabled = true;

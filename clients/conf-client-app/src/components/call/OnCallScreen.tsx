@@ -125,22 +125,31 @@ const OnCallScreen: React.FC = () => {
                     <Container fluid className="p-0 m-0 h-100">
                         {callParticipants.size === 1 ? (
                             // One participant - waiting screen
-                            <div className="d-flex flex-column justify-content-center align-items-center h-100" style={{ width: "100%", objectFit: 'contain' }}>
 
+                            <div className="d-flex flex-column h-100 align-items-center justify-content-center text-center" style={{ minHeight: "0" }}>
                                 <p className="mt-3 fs-5">Waiting for other participants...</p>
-                                <ParticipantVideoPreview
-                                    key={localParticipant.participantId}
-                                    participant={localParticipant}
-                                    onClick={() => handleSelectParticipantVideo(localParticipant)}
+                                <div
                                     style={{
                                         flex: '1 1 auto',
                                         width: '100%',
-                                        minHeight: '0',              // also important in Safari
+                                        minHeight: '0',
                                         overflow: 'hidden',
                                     }}
-                                />
-
+                                >
+                                    <ParticipantVideoPreview
+                                        onClick={() => handleSelectParticipantVideo(localParticipant)}
+                                        isSelected={selectedParticipant === remoteParticipant}
+                                        key={localParticipant.participantId}
+                                        participant={localParticipant}
+                                        style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            objectFit: 'contain', // Ensure video scales without cropping
+                                        }}
+                                    />
+                                </div>
                             </div>
+
                         ) : (layout == "presenter" || presenter) ? (
                             // Presenter view
                             <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>

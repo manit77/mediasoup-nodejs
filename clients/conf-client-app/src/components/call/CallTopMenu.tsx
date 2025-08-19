@@ -93,7 +93,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
 
     useEffect(() => {
         console.log(`CallTopMenu presenter updated`, presenter);
-        if(presenter && presenter.participantId == localParticipant.participantId){
+        if (presenter && presenter.participantId == localParticipant.participantId) {
             setIsPresenting(true);
             return;
         }
@@ -117,17 +117,22 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                         {isPresenting ? <Button variant="danger" className="me-2" onClick={handleStopPresenting} title={isPresenting ? "Presenting" : "Not Presenting"}>
                             <Easel size={20} /> <span className="d-none d-md-inline">Stop Presenting</span>
                         </Button>
-                            : <Dropdown>
+                            : <Dropdown align="end">
                                 <Dropdown.Toggle variant="outline-light" id="present-dropdown" className="me-2" title="Present">
                                     <Easel size={20} /> <span className="d-none d-md-inline">Present</span>
                                 </Dropdown.Toggle>
-                                <Dropdown.Menu>
+                                <Dropdown.Menu
+                                    style={{
+                                        position: "absolute",
+                                        zIndex: 1050
+                                    }}>
                                     <Dropdown.Item onClick={handleCameraPresenting}>
-                                        <CameraVideoFill size={20} /> Present Camera
+                                        <CameraVideoFill size={20} /> Camera
                                     </Dropdown.Item>
                                     {allowScreenShare ? (
                                         <Dropdown.Item onClick={handleToggleScreenShare}>
-                                            <DisplayFill size={20} /> <span className="d-none d-md-inline">{isScreenSharing ? "Stop Sharing Screen" : "Share Screen"}</span>
+                                            <DisplayFill size={20} />
+                                            <span>{isScreenSharing ? " Stop Screen" : " Screen"}</span>
                                         </Dropdown.Item>
                                     ) : null}
                                 </Dropdown.Menu>

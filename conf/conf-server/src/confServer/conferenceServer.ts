@@ -1067,7 +1067,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`not in conference`);
         }
 
-        if (msgIn.data.status == "on") {
+        if (msgIn.data.status == "on") {            
             participant.conference.presenter = participant;
         } else if (participant == participant.conference.presenter) {
             participant.conference.presenter = null;
