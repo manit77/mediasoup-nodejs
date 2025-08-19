@@ -494,7 +494,8 @@ export class ConferenceClient {
         console.log(`getNewTracksForLocalParticipant constraints:`, options.constraints);
 
         if (!options.constraints) {
-            options.constraints = { video: true, audio: true };
+            console.warn(`no constraints`);
+            return;
         }
 
         let newStream = await getBrowserUserMedia(options.constraints);
@@ -537,9 +538,10 @@ export class ConferenceClient {
      * @param tracks 
      * @returns 
      */
-    async publishTracks(tracks: MediaStreamTrack[]) {
-        console.log(`publishTracks, length: ${tracks?.length}`);
+    async publishTracks(tracks: MediaStreamTrack[], why: string) {
+        console.log(`publishTracks, length: ${tracks?.length}, why ${why}`);
 
+        //filter for live tracks only
         tracks.filter(t => t.readyState == "ended").forEach(t => this.localParticipant.stream.removeTrack(t));
         tracks = tracks.filter(t => t.readyState === "live");
 
@@ -548,6 +550,7 @@ export class ConferenceClient {
             return false;
         }
 
+        //find and remove tracks or add to localParticipant
         for (let track of tracks) {
             //is the track in the localparticipants?
             let partTrack = this.localParticipant.stream.getTracks().find(t => t == track);
@@ -694,7 +697,7 @@ export class ConferenceClient {
 
             this.localParticipant.tracksInfo.isVideoEnabled = true;
 
-            if (await this.publishTracks([screenTrack])) {
+            if (await this.publishTracks([screenTrack], "startScreenShare")) {
                 this.conference.setPresenter(this.localParticipant);
                 this.isScreenSharing = true;
 
@@ -748,7 +751,7 @@ export class ConferenceClient {
                 let cameraTrack = newStream.getTracks().find(t => t.kind === "video");
 
                 if (cameraTrack) {
-                    await this.publishTracks(newTracks);
+                    await this.publishTracks(newTracks, "stopScreenShare");
                     this.sendPresenting(false);
                 }
             } else {
@@ -1888,7 +1891,7 @@ export class ConferenceClient {
             console.log(`eventRoomTransportsCreated`);
             if (this.conference.joinParams.joinMediaConfig) {
                 await this.getNewTracksForLocalParticipant(this.conference.joinParams.joinMediaConfig);
-                this.publishTracks(this.localParticipant.stream.getTracks());
+                this.publishTracks(this.localParticipant.stream.getTracks(), "eventRoomTransportsCreated");
             } else {
                 console.log(`no joinMediaConfig`);
             }
