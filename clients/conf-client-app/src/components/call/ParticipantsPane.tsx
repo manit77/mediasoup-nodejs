@@ -5,13 +5,14 @@ import { Participant } from '@conf/conf-client';
 import { ParticipantVideoPreview } from './ParticipantVideoPreview';
 
 interface ParticipantsPaneProps {
+    localParticipant: Participant,
+    participants : Participant[],
     onSelectVideo: (participant: Participant) => void;
     containerStyle?: React.CSSProperties;
     cardStyle?: React.CSSProperties;
 }
 
-const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, containerStyle, cardStyle }) => {
-    const { localParticipant, callParticipants } = useCall();        
+const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ localParticipant, participants, onSelectVideo, containerStyle, cardStyle }) => {
 
     return (
         <div style={containerStyle}>
@@ -21,13 +22,13 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ onSelectVideo, cont
                     key={localParticipant.participantId}
                     participant={localParticipant}
                     onClick={() => onSelectVideo(localParticipant)}
-                    isSelected={callParticipants.size === 0}
+                    isSelected={participants.length === 0}
                     style={cardStyle}
                 />
             )}
 
             {/* Remote Participants */}
-            {[...callParticipants.values()]
+            {[...participants.values()]
                 .filter(p => p.participantId !== localParticipant.participantId)
                 .map((participant) => (
                     <ParticipantVideoPreview

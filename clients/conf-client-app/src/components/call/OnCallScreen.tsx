@@ -160,6 +160,8 @@ const OnCallScreen: React.FC = () => {
                                     }}
                                 >
                                     <ParticipantsPane
+                                        localParticipant={localParticipant}
+                                        participants={[...callParticipants.values()]}
                                         onSelectVideo={handleSelectParticipantVideo}
                                         containerStyle={{
                                             display: 'flex',
@@ -241,6 +243,8 @@ const OnCallScreen: React.FC = () => {
                                     style={{ background: '#2a2f34', gap: '8px' }}
                                 >
                                     <ParticipantsPane
+                                        localParticipant={localParticipant}
+                                        participants={[...callParticipants.values()]}
                                         onSelectVideo={handleSelectParticipantVideo}
                                         containerStyle={
                                             {

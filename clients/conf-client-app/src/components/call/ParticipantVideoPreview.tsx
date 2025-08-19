@@ -26,7 +26,7 @@ interface ParticipantVideoPreviewProps {
 export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected, style }) => {
     const api = useAPI();
     const ui = useUI();
-    const { callParticipants, localParticipant, broadCastTrackInfo, conference, muteParticipantTrack, getMediaConstraints } = useCall();
+    const {localParticipant, broadCastTrackInfo, conference, muteParticipantTrack, getMediaConstraints } = useCall();
     const [videoEnabled, setVideoEnabled] = useState(false);
     const [audioEnabled, setAudioEnabled] = useState(false);
     const videoContainerRef = React.useRef<HTMLDivElement>(null);
@@ -39,7 +39,6 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
     };
 
     //this loads once, since we always have to stream, and video element for the participant
-    const { participantId, videoEle, stream, displayName, tracksInfo } = participant;
     const localParticipantId = localParticipant.participantId;
 
     useEffect(() => {
@@ -52,33 +51,33 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 
         // This function will now be stable and not redefined on every render
         const attachVideo = () => {
-            if (videoContainerRef.current && videoEle) {
+            if (videoContainerRef.current && participant.videoEle) {
 
                 // Attach the video element to the container if it's not already there
-                if (!videoContainerRef.current.contains(videoEle)) {
+                if (!videoContainerRef.current.contains(participant.videoEle)) {
                     // Clear previous children to be safe, though appendChild moves the element
                     videoContainerRef.current.innerHTML = "";
-                    videoContainerRef.current.appendChild(videoEle);
+                    videoContainerRef.current.appendChild(participant.videoEle);
                 }
 
                 // Mute the video element if it belongs to the local user
-                videoEle.muted = localParticipantId === participantId;
+                participant.videoEle.muted = localParticipantId ===participant. participantId;
 
                 // Assign standard styles
-                Object.assign(videoEle.style, videoStyle);
+                Object.assign(participant.videoEle.style, videoStyle);
 
                 // Ensure the srcObject is correctly set
-                if (videoEle.srcObject !== stream) {
-                    videoEle.srcObject = stream;
+                if (participant.videoEle.srcObject !== participant.stream) {
+                    participant.videoEle.srcObject = participant.stream;
                 }
 
                 // Attempt to play the video, catching any errors
-                videoEle.play().catch(err => {
-                    console.error(`Autoplay failed for ${displayName}:`, err);
+                participant.videoEle.play().catch(err => {
+                    console.error(`Autoplay failed for ${participant.displayName}:`, err);
                 });
 
             } else {
-                console.log(`Video element or container ref is missing for ${displayName}`);
+                console.log(`Video element or container ref is missing for ${participant.displayName}`);
             }
         };
 
@@ -91,19 +90,19 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
         // This removes the video element to prevent it from playing in the background
         return () => {
             console.warn(`dispose video triggered.`);
-            if (videoContainerRef.current && videoEle && videoContainerRef.current.contains(videoEle)) {
-                videoContainerRef.current.removeChild(videoEle);
+            if (videoContainerRef.current && participant.videoEle && videoContainerRef.current.contains(participant.videoEle)) {
+                videoContainerRef.current.removeChild(participant.videoEle);
             }
         };
 
     }, [participant]);
 
 
-    // useEffect(() => {
-    //     console.warn(`attach video triggered, tracksInfo updated`, participant.tracksInfo);
-    //     setAudioEnabled(participant.tracksInfo.isAudioEnabled);
-    //     setVideoEnabled(participant.tracksInfo.isVideoEnabled);
-    // }, [participant.tracksInfo]);
+    useEffect(() => {
+        console.warn(`attach video triggered, tracksInfo updated`, participant.tracksInfo);
+        setAudioEnabled(participant.tracksInfo.isAudioEnabled);
+        setVideoEnabled(participant.tracksInfo.isVideoEnabled);
+    }, [participant.tracksInfo]);
 
 
     const onAudioClick = useCallback(async (event) => {
@@ -181,7 +180,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
             const isVideoEnabled = participant.stream.getVideoTracks()[0]?.enabled ?? false;
             muteParticipantTrack(participant.participantId, newEnabled, isVideoEnabled);
         }
-    }, [api, conference, localParticipant, muteParticipantTrack, participant, ui, broadCastTrackInfo]);
+    }, []);
 
     const onVideoClick = useCallback(async (event) => {
         console.log("onVideoClick ", participant);
@@ -257,7 +256,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
             const isAudioEnabled = participant.stream.getAudioTracks()[0]?.enabled ?? false;
             muteParticipantTrack(participant.participantId, isAudioEnabled, newEnabled);
         }
-    }, [api, conference, localParticipant, muteParticipantTrack, participant, ui, broadCastTrackInfo]);
+    }, []);
 
     const toggleFullscreen = (ele: HTMLElement) => {
         if (!document.fullscreenElement) {

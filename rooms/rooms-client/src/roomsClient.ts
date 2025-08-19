@@ -595,7 +595,7 @@ export class RoomsClient {
     }
 
     let videoTrack = this.localRoom.getProducerTracks().find(t => t.kind == "video");
-    if (videoTrack && videoTrack.enabled && videoTrack.readyState == "live") {
+    if (videoTrack && videoTrack.readyState == "live") {
       return true;
     }
     return false;
@@ -607,7 +607,7 @@ export class RoomsClient {
     }
 
     let audioTrack = this.localRoom.getProducerTracks().find(t => t.kind == "audio");
-    if (audioTrack && audioTrack.enabled && audioTrack.readyState == "live") {
+    if (audioTrack && audioTrack.readyState == "live") {
       return true;
     }
 
