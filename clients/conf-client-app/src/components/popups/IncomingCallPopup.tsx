@@ -7,7 +7,7 @@ import { GetUserMediaConfig } from '@conf/conf-models';
 import ThrottledButton from '../layout/ThrottledButton';
 
 const IncomingCallPopup: React.FC = () => {
-    const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite, localParticipant, getLocalMedia } = useCall();
+    const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite, localParticipant, getMediaConstraints } = useCall();
     const navigate = useNavigate();
     const ui = useUI();
 
@@ -34,7 +34,9 @@ const IncomingCallPopup: React.FC = () => {
         joinMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
         joinMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
         console.warn("accepting invite with ", localParticipant.tracksInfo);
-        
+
+        joinMediaConfig.constraints = getMediaConstraints(joinMediaConfig.isAudioEnabled, joinMediaConfig.isVideoEnabled);
+
         await acceptInvite(joinMediaConfig);
     };
 

@@ -15,7 +15,8 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
     const { isUser, getCurrentUser } = useAPI();
     const navigate = useNavigate();
     const [isPresenting, setIsPresenting] = useState(false);
-    const [allowScreenShare, setAllowScreenShare] = useState(true);
+    const [allowScreenShare, setAllowScreenShare] = useState(false);
+    const [allowPresentation, setAllowPresentation] = useState(false);
     const [allowTerminateConf, setAllowTerminateConf] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -66,6 +67,15 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
     useEffect(() => {
         console.log(`CallTopMenu conference updated, `, conference);
 
+        if (isUser()) {
+            setAllowPresentation(true);
+        } else {
+            if (conference.conferenceConfig.guestsAllowScreenShare) {
+                setAllowPresentation(true);
+            } else {
+                setAllowPresentation(false);
+            }
+        }
         //check if screen share is present on the browser
         if (!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia)) {
             console.log(`screen share not available on this device.`);
@@ -114,31 +124,33 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
 
                     <Nav className="ms-auto d-flex flex-row align-items-center" style={{ justifyContent: 'space-between', width: 'auto', gap: '10px' }}>
 
-                        {isPresenting ? <Button variant="danger" className="me-2" onClick={handleStopPresenting} title={isPresenting ? "Presenting" : "Not Presenting"}>
-                            <Easel size={20} /> <span className="d-none d-md-inline">Stop Presenting</span>
-                        </Button>
-                            : <Dropdown align="end">
-                                <Dropdown.Toggle variant="outline-light" id="present-dropdown" className="me-2" title="Present">
-                                    <Easel size={20} /> <span className="d-none d-md-inline">Present</span>
-                                </Dropdown.Toggle>
-                                <Dropdown.Menu
-                                    style={{
-                                        position: "absolute",
-                                        zIndex: 1050
-                                    }}>
-                                    <Dropdown.Item onClick={handleCameraPresenting}>
-                                        <CameraVideoFill size={20} /> Camera
-                                    </Dropdown.Item>
-                                    {allowScreenShare ? (
-                                        <Dropdown.Item onClick={handleToggleScreenShare}>
-                                            <DisplayFill size={20} />
-                                            <span>{isScreenSharing ? " Stop Screen" : " Screen"}</span>
+                        {allowPresentation ?
+                            (isPresenting ? <Button variant="danger" className="me-2" onClick={handleStopPresenting} title={isPresenting ? "Presenting" : "Not Presenting"}>
+                                <Easel size={20} /> <span className="d-none d-md-inline">Stop Presenting</span>
+                            </Button>
+                                : <Dropdown align="end">
+                                    <Dropdown.Toggle variant="outline-light" id="present-dropdown" className="me-2" title="Present">
+                                        <Easel size={20} /> <span className="d-none d-md-inline">Present</span>
+                                    </Dropdown.Toggle>
+                                    <Dropdown.Menu
+                                        style={{
+                                            position: "absolute",
+                                            zIndex: 1050
+                                        }}>
+                                        <Dropdown.Item onClick={handleCameraPresenting}>
+                                            <CameraVideoFill size={20} /> Camera
                                         </Dropdown.Item>
-                                    ) : null}
-                                </Dropdown.Menu>
-                            </Dropdown>}
-
-
+                                        {allowScreenShare ? (
+                                            <Dropdown.Item onClick={handleToggleScreenShare}>
+                                                <DisplayFill size={20} />
+                                                <span>{isScreenSharing ? " Stop Screen" : " Screen"}</span>
+                                            </Dropdown.Item>
+                                        ) : null}
+                                    </Dropdown.Menu>
+                                </Dropdown>
+                            )
+                            : null
+                        }
                         <Button variant="outline-light" className="me-2" onClick={onShowSettings} title="Settings">
                             <GearFill size={20} /> <span className="d-none d-md-inline">Settings</span>
                         </Button>

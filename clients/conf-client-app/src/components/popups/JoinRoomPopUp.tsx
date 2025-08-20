@@ -17,7 +17,7 @@ interface JoinRoomPopUpProps {
 const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show, onClose }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, isCallActive, createOrJoinConference, joinConference, getLocalMedia, isWaiting } = useCall();
+    const { localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, isWaiting } = useCall();
     const navigate = useNavigate();
 
     const [conferenceCode, setConferenceCode] = useState<string>("");
@@ -128,7 +128,9 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             joinMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
             joinMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
             console.log('conferenceScheduled', conferenceScheduled);
-            
+
+            joinMediaConfig.constraints = getMediaConstraints(joinMediaConfig.isAudioEnabled, joinMediaConfig.isVideoEnabled);
+                        
             if (api.isUser()) {
                 createOrJoinConference(conferenceScheduled.externalId, conferenceCode, joinMediaConfig);
             } else {

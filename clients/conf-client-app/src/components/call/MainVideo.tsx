@@ -1,25 +1,52 @@
 import React, { useEffect, useRef } from 'react';
 import { useCall } from '../../hooks/useCall';
+import { useUI } from '../../hooks/useUI';
 
 const MainVideo: React.FC = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const { localParticipant, presenter } = useCall();
+    const ui = useUI();
 
     useEffect(() => {
-        if (presenter && videoRef.current && presenter.stream && videoRef.current.srcObject == null) {
+        console.warn("presenter triggered");
+
+        if (presenter && videoRef.current) {
             try {
-                videoRef.current.srcObject = new MediaStream(presenter.stream.getTracks());
-                setTimeout(() => {
-                    if (videoRef.current) {
-                        videoRef.current.muted = localParticipant.participantId === presenter?.participantId;
-                        videoRef.current.play().catch(err => console.error(`unable to play presenter video`, err));
-                    }
-                }, 500);
+
+                // if (videoRef.current.srcObject == null) {
+                //     let tracks = presenter.stream.getTracks().filter(t => t.readyState == "live");
+                //     if (tracks.length == 0) {
+                //         console.warn("no tracks for presenter");
+                //         return;
+                //     }
+
+                //     videoRef.current.srcObject = new MediaStream(presenter.stream.getTracks());
+                //     console.warn("presenter srcObject set, ", videoRef.current.srcObject.getTracks());
+                // }
+
+                if (videoRef.current.srcObject != presenter.stream) {
+                    videoRef.current.srcObject = presenter.stream;
+                    console.warn("presenter srcObject set, ", videoRef.current.srcObject.getTracks());
+                }
+
+                videoRef.current.muted = localParticipant.participantId === presenter?.participantId;
+
+                if (videoRef.current.srcObject != null) {
+                    videoRef.current.play().then(() => {
+                        ui.showToast("playing presenter video", "warning");
+                    }).catch(err => {
+                        console.error(`unable to play presenter video ${err.toString()}`, err);
+                        ui.showToast("unable to play presenter video", "error");
+                    });
+                }
+
             } catch (error) {
                 console.error(error);
+                ui.showToast(error.toString(), "error");
             }
         } else if (videoRef.current) {
             videoRef.current.srcObject = null;
+            console.error(`no stream availaible`, "error");
         }
         return () => {
             console.warn(`dispose video triggered.`);
