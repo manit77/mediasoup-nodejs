@@ -50,8 +50,6 @@ loadConferenceConfig().then(config => {
     }
   });
 
-  // (Optional) also check periodically in case user never switches tabs
-  checkForUpdate();
   setInterval(checkForUpdate, 60 * 60 * 1000);
 
 }).catch(error => {
