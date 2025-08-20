@@ -1303,7 +1303,7 @@ export class ConferenceClient {
      * @returns 
      */
     acceptInvite(message: InviteMsg, joinArgs: JoinConferenceParams) {
-        console.log("acceptInvite()");
+        console.log("acceptInvite()", joinArgs);
 
         if (!this.isRegistered()) {
             console.error(`connection not registered.`);
@@ -1352,7 +1352,7 @@ export class ConferenceClient {
      * @param message 
      */
     async onAcceptResult(message: AcceptResultMsg) {
-        console.log("onAcceptResult()");
+        console.log("onAcceptResult()", message);
 
         if (message.data.error) {
             console.error(`error accepting a call:`, message.data.error);
@@ -1888,12 +1888,12 @@ export class ConferenceClient {
         };
 
         this.roomsClient.eventRoomTransportsCreated = async () => {
-            console.log(`eventRoomTransportsCreated`);
+            console.log(`eventRoomTransportsCreate `, this.conference.joinParams);
             if (this.conference.joinParams.joinMediaConfig) {
                 await this.getNewTracksForLocalParticipant(this.conference.joinParams.joinMediaConfig);
                 this.publishTracks(this.localParticipant.stream.getTracks(), "eventRoomTransportsCreated");
             } else {
-                console.log(`no joinMediaConfig`);
+                console.error(`eventRoomTransportsCreate no joinMediaConfig`);
             }
         };
 

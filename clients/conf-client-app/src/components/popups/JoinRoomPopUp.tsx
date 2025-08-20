@@ -127,14 +127,8 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             let joinMediaConfig = new GetUserMediaConfig();
             joinMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
             joinMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
-
-            let tracks = await getLocalMedia(joinMediaConfig);
-            if (tracks.length === 0) {
-                console.log(`joining with no media`);
-            }
-
             console.log('conferenceScheduled', conferenceScheduled);
-
+            
             if (api.isUser()) {
                 createOrJoinConference(conferenceScheduled.externalId, conferenceCode, joinMediaConfig);
             } else {

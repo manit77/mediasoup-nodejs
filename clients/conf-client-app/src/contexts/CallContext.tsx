@@ -575,7 +575,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [api, getLocalMedia, inviteInfoSend, isCallActive, ui]);
 
     const acceptInvite = useCallback(async (joinMediaConfig: GetUserMediaConfig) => {
+        console.warn(`acceptInvite with `, joinMediaConfig);
+
         try {
+
+            if (!joinMediaConfig.constraints) {
+                joinMediaConfig.constraints = getMediaConstraints(joinMediaConfig.isAudioEnabled, joinMediaConfig.isVideoEnabled);
+            }
 
             let joinArgs: JoinConferenceParams = {
                 joinMediaConfig: joinMediaConfig,
@@ -614,11 +620,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsCallActive(false);
         setInviteInfoSend(null);
         setInviteInfoReceived(null);
-        
+
         setCallParticipants(new Map());
         setIsScreenSharing(false);
         setPresenter(null);
-        
+
 
     }, []);
 
@@ -693,6 +699,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return;
         }
 
+        if (!joinMediaConfig.constraints) {
+            joinMediaConfig.constraints = getMediaConstraints(joinMediaConfig.isAudioEnabled, joinMediaConfig.isVideoEnabled);
+        }
+
         let createArgs: CreateConferenceParams = {
             conferenceCode: conferenceCode,
             conferenceId: "",
@@ -763,7 +773,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         //determine if we are broadcasting audio or video
         let isBroadcastingVideo = conferenceClient.isBroadcastingVideo();
         let isBroadcastingAudio = conferenceClient.isBroadcastingAudio();
-        
+
 
         console.warn(`current tracks:`, conferenceClient.localParticipant.stream.getTracks());
 

@@ -26,8 +26,7 @@ export class Participant {
     tracksInfo: PeerTracksInfo = { isAudioEnabled: false, isVideoEnabled: false };
     prevTracksInfo: { isAudioEnabled: boolean, isVideoEnabled: boolean, screenShareTrackId: string } = null;
     constructor() {
-        this.videoEle = document.createElement("video");        
-        this.videoEle.autoplay = true;
+        this.videoEle = document.createElement("video");
         this.videoEle.playsInline = true;
         this.videoEle.muted = true;
     }
