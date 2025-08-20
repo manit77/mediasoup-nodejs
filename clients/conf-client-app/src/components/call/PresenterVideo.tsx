@@ -19,9 +19,13 @@ const PresenterVideo: React.FC<{ presenter: Participant }> = ({ presenter }) => 
             video.muted = true;
             video.playsInline = true;
             video.srcObject = presenter.stream;
+            video.width = 1;
+            video.height = 1;
+            //document.body.appendChild(video);
+
 
             const draw = () => {
-                if (ctx && video && canvas.width > 0 && video.readyState >= 3) {
+                if (ctx && video && canvas.width > 0 && video.videoWidth > 0 && video.videoHeight > 0) {
                     // Get the canvas's display size (CSS size in the UI)
                     const canvasRect = canvas.getBoundingClientRect();
                     const canvasDisplayWidth = canvasRect.width;
@@ -91,20 +95,21 @@ const PresenterVideo: React.FC<{ presenter: Participant }> = ({ presenter }) => 
 
             video.addEventListener("loadedmetadata", handleMetadataLoaded);
             video.addEventListener("canplay", startDrawing);
+            video.addEventListener("loadeddata", startDrawing);
 
             video.play().catch((e) => console.error("Local video element for canvas failed to play:", e));
 
             // Handle window resize to update canvas size
-            const resizeObserver = new ResizeObserver(() => {
-                draw();
-            });
-            resizeObserver.observe(canvas);
+            // const resizeObserver = new ResizeObserver(() => {
+            //     draw();
+            // });
+            // resizeObserver.observe(canvas);
 
             return () => {
                 cancelAnimationFrame(animationFrameId);
                 video.removeEventListener("loadedmetadata", handleMetadataLoaded);
                 video.removeEventListener("canplay", startDrawing);
-                resizeObserver.disconnect();
+                //resizeObserver.disconnect();
                 video.pause();
                 video.srcObject = null;
             };
