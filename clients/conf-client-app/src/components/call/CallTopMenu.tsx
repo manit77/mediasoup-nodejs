@@ -37,13 +37,16 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
         navigate('/app');
     };
 
-    const handleToggleScreenShare = () => {
+    const handleToggleScreenShare = async () => {
         if (isScreenSharing) {
             stopScreenShare();
             setIsPresenting(false);
         } else {
-            startScreenShare();
-            setIsPresenting(true);
+            if (await startScreenShare()) {
+                setIsPresenting(true);
+            } else {
+                setIsPresenting(false);
+            }
         }
     };
 
@@ -53,14 +56,17 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
     };
 
 
-    const handleCameraPresenting = () => {
+    const handleCameraPresenting = async () => {
 
         if (isPresenting) {
             stopPresentingCamera();
             setIsPresenting(false);
         } else {
-            startPresentingCamera();
-            setIsPresenting(true);
+            if (await startPresentingCamera()) {
+                setIsPresenting(true);
+            } else {
+                setIsPresenting(false);
+            }
         }
     };
 

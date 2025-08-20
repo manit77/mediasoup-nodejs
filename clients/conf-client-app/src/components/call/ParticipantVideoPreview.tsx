@@ -97,13 +97,11 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
 
     }, [participant]);
 
-
     useEffect(() => {
         console.warn(`attach video triggered, tracksInfo updated`, participant.tracksInfo);
         setAudioEnabled(participant.tracksInfo.isAudioEnabled);
         setVideoEnabled(participant.tracksInfo.isVideoEnabled);
     }, [participant.tracksInfo]);
-
 
     const onAudioClick = useCallback(async (event) => {
         console.log(`onAudioClick.`);

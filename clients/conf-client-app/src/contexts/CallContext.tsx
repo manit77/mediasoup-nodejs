@@ -62,9 +62,9 @@ interface CallContextType {
     broadCastTrackInfo: () => void;
     muteParticipantTrack: (participantId: string, audioEnabled: boolean, videoEnabled: boolean) => void;
 
-    startPresentingCamera: () => Promise<void>;
+    startPresentingCamera: () => Promise<boolean>;
     stopPresentingCamera: () => Promise<void>;
-    startScreenShare: () => Promise<void>;
+    startScreenShare: () => Promise<boolean>;
     stopScreenShare: () => void;
 
     getMediaDevices: () => Promise<void>;
@@ -774,12 +774,15 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         let isBroadcastingVideo = conferenceClient.isBroadcastingVideo();
         let isBroadcastingAudio = conferenceClient.isBroadcastingAudio();
 
-
         console.warn(`current tracks:`, conferenceClient.localParticipant.stream.getTracks());
 
         if (!isBroadcastingAudio || !isBroadcastingVideo) {
-            let constraints = getMediaConstraints(!isBroadcastingAudio, !isBroadcastingVideo);
+            let constraints = getMediaConstraints(!isBroadcastingAudio, !isBroadcastingVideo);            
             let newStream = await getBrowserUserMedia(constraints);
+            if(!newStream) {
+                console.warn(`could not get new stream.`);
+                return false;                
+            }
 
             console.warn(`newStream tracks:`, newStream.getTracks());
             conferenceClient.publishTracks(newStream.getTracks(), "startPresentingCamera");
@@ -791,6 +794,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         conferenceClient.conference.setPresenter(conferenceClient.localParticipant);
         setPresenter(conferenceClient.localParticipant);
         updateCallParticipants();
+        return true;
 
 
     }, [conference.current.presenter, ui]);
@@ -843,8 +847,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setPresenter(conferenceClient.conference.presenter);
             setIsScreenSharing(true);
             updateCallParticipants();
+            return true;
         } else {
             ui.showPopUp("unable to start screen share.", "error");
+            setIsScreenSharing(false);
+            return false;
         }
 
     }, [conference.current.presenter, ui]);

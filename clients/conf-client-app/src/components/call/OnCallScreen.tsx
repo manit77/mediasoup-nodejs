@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Container, Row, Col } from 'react-bootstrap';
 import CallTopMenu from './CallTopMenu';
 import ParticipantsPane from './ParticipantsPane';
-import MainVideo from './MainVideo';
+import PresenterVideo from './PresenterVideo';
 import SettingsPopup from '../popups/SettingsPopup';
 import { useCall } from '../../hooks/useCall';
 import { Navigate } from 'react-router-dom';
@@ -156,7 +156,7 @@ const OnCallScreen: React.FC = () => {
 
                                 {/* presenter video */}
                                 <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
-                                    <MainVideo presenter={presenter} />
+                                    <PresenterVideo presenter={presenter} />
                                 </div>
 
                                 {/* participants list */}
