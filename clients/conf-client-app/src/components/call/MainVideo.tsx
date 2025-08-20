@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { useCall } from '../../hooks/useCall';
 import { useUI } from '../../hooks/useUI';
+import { Participant } from '@conf/conf-client';
 
-const MainVideo: React.FC = () => {
+const MainVideo: React.FC<{ presenter: Participant }> = ({ presenter }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
-    const { localParticipant, presenter } = useCall();
+    const { localParticipant } = useCall();
     const ui = useUI();
 
     useEffect(() => {

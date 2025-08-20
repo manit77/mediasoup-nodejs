@@ -156,7 +156,7 @@ const OnCallScreen: React.FC = () => {
 
                                 {/* presenter video */}
                                 <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
-                                    <MainVideo />
+                                    <MainVideo presenter={presenter} />
                                 </div>
 
                                 {/* participants list */}

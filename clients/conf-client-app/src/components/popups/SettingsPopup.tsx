@@ -181,7 +181,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                         playsInline
                                         muted
                                         className="w-100 h-auto rounded shadow-sm"
-                                        style={{ background: "#c0c0c0c" }}
+                                        style={{ background: "#000000" }}
                                     />
 
                                     {/* <Form.Check label="Camera enabled" checked={isVideoEnabled} onChange={(e) => setIsVideoEnabled(e.target.checked)}></Form.Check> */}

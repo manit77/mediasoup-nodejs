@@ -194,6 +194,10 @@ export class Conference {
             if(this.leader == part){
                 this.leader = null;
             }
+
+            if(this.presenter == part){
+                this.presenter = null;
+            }
         }
 
         if (this.participants.size == 0) {
