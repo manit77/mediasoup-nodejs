@@ -7,7 +7,8 @@ import { getQueryParams } from '../../utils/utils';
 
 const LoginGuestPage: React.FC = () => {
 
-    const [username, setUsername] = useState("");    
+    const [allowEntry, setAllowEntry] = useState(true);
+    const [displayName, setDisplayName] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const api = useAPI();
@@ -15,8 +16,9 @@ const LoginGuestPage: React.FC = () => {
     const navigate = useNavigate();
     const [participantGroupName, setParticipantGroupName] = useState("");
 
+
     useEffect(() => {
-        console.log("getQueryParams:", getQueryParams());
+        console.log("getQueryParams", getQueryParams());
         let query = getQueryParams();
 
         let clientData: any = api.getClientData();
@@ -25,24 +27,33 @@ const LoginGuestPage: React.FC = () => {
             setParticipantGroupName(query.participantGroupName);
         }
 
-         if (clientData?.participantGroupName) {
+        if (query.displayName) {
+            setDisplayName(query.displayName);
+            setAllowEntry(false);
+        }
+
+        if (clientData?.participantGroupName) {
             setParticipantGroupName(clientData.participantGroupName);
         }
 
+        if (clientData?.displayName) {
+            setDisplayName(clientData.displayName);
+            setAllowEntry(false);
+        }
 
     }, []);
 
     const handleSubmitGuest = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
-        if (!username.trim()) {
+        if (!displayName.trim()) {
             setError('Display name is required.');
             return;
         }
         setLoading(true);
         try {
             let clientData = getQueryParams();
-            let response = await api.loginGuest(username, clientData);
+            let response = await api.loginGuest(displayName, clientData);
             if (response.error) {
                 setError(response.error);
                 ui.showToast(`Login failed. ${response.error}`, "error");
@@ -69,11 +80,12 @@ const LoginGuestPage: React.FC = () => {
                             <Form.Label>Guest Display Name</Form.Label>
                             <Form.Control
                                 type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                value={displayName}
+                                onChange={(e) => setDisplayName(e.target.value)}
                                 placeholder="Enter your display name"
                                 required
-                                disabled={loading}
+                                disabled={loading || !allowEntry}
+                                style={{ background: !allowEntry ? "#c0c0c0" : "" }}
                             />
                         </Form.Group>
                         <Button variant="primary" type="submit" className="w-100" disabled={loading}>

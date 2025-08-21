@@ -9,5 +9,5 @@
     "socket_reconnect_secs": 5,
     "version": "1.0",
     "commit": "{commit}",
-    "debug_auto_answer" : false
+    "debug_auto_answer" : false    
 }
