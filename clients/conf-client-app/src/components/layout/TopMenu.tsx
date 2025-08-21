@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navbar, Nav, NavDropdown, Container } from 'react-bootstrap';
 import { useAPI } from '../../hooks/useAPI';
 import { useNavigate } from 'react-router-dom';
@@ -6,6 +6,8 @@ import { BoxArrowRight, CircleFill, Gear, Person, PersonGear } from 'react-boots
 import { objectToQueryString } from '../../utils/utils';
 import { flushSync } from 'react-dom';
 import { useCall } from '../../hooks/useCall';
+import { getConferenceConfig } from '../../services/ConferenceConfig';
+import { ConferenceClientConfig } from '@conf/conf-client';
 
 interface TopMenuProps {
     onShowSettings: () => void;
@@ -15,20 +17,25 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
     const { getCurrentUser, logout, getClientData } = useAPI();
     const { disconnect, isConnected, isAuthenticated, isConnecting } = useCall();
     const navigate = useNavigate();
+    const [config, setConfig] = useState<ConferenceClientConfig>(null);
+
+    useEffect(() => {
+        setConfig(getConferenceConfig());
+    }, []);
 
     const handleLogout = async () => {
         try {
 
             let role = getCurrentUser()?.role;
             let path = "/login";
-            
+
             if (role === "guest") {
                 path = "/loginGuest";
             }
 
             let clientData = getClientData();
             console.log(`logout clientData:`, clientData);
-            
+
             flushSync(() => {
                 logout();
                 disconnect();
@@ -52,7 +59,7 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
         <Navbar expand="lg" className="nav-bar border-bottom">
             <Container fluid>
                 <Navbar.Brand href="#" className="d-flex align-items-center">
-                    Video Conferencing Server
+                    {config?.title}
                     <CircleFill
                         className={`ms-2 ${isConnecting ? "text-warn" : isConnected && isAuthenticated ? 'text-success' : 'text-danger'}`}
                         size={12}

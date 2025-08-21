@@ -25,16 +25,12 @@ const AppRoutes: React.FC = () => {
     };
   }, []);
 
-
-
-
   useEffect(() => {
 
     const updateVh = () => {
       const vh = window.innerHeight;
       document.documentElement.style.setProperty('--vh', `${vh}px`);
     };
-
 
     updateVh(); // set initially
     window.addEventListener('resize', updateVh);

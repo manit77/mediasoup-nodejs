@@ -2,6 +2,8 @@ import { ConferenceConfig, conferenceType, JoinConferenceParams, ParticipantRole
 import { IMsg, PeerTracksInfo } from "@rooms/rooms-models";
 
 export class ConferenceClientConfig {
+    title = "Video Conferencing Server";
+    debug_auto_answer : true;
     conf_ws_url = 'wss://localhost:3001';
     socket_enable_logs = false;
     socket_autoReconnect = true;
