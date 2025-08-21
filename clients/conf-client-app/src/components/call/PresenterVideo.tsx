@@ -60,10 +60,16 @@ const PresenterVideo: React.FC<{ presenter: Participant }> = ({ presenter }) => 
                     ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
                 }
 
+                if(timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+
                 // Schedule next frame at 15 FPS (1000ms / 15 ≈ 66.67ms)
                 timeoutId = setTimeout(() => {
                     requestAnimationFrame(draw);
-                }, 1000 / 15);
+                }, 66);
+
             };
 
             const handleMetadataLoaded = () => {
