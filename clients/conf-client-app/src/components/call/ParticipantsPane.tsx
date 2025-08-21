@@ -1,6 +1,4 @@
 import React, {  } from 'react';
-import { useCall } from '../../hooks/useCall';
-import { useAPI } from '../../hooks/useAPI';
 import { Participant } from '@conf/conf-client';
 import { ParticipantVideoPreview } from './ParticipantVideoPreview';
 
