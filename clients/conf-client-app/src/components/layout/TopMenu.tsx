@@ -56,7 +56,7 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
     };
 
     return (
-        <Navbar expand="lg" className="nav-bar border-bottom">
+        <Navbar expand="lg" className="nav-bar border-bottom navbar-dark">
             <Container fluid>
                 <Navbar.Brand href="#" className="d-flex align-items-center">
                     {config?.title}

@@ -122,54 +122,86 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
         <>
             <Navbar bg="dark" variant="dark" expand="lg" className="border-bottom border-secondary call-top-menu">
                 <Container fluid>
-                    <Navbar.Brand href="#" className="d-flex align-items-center text-truncate"
+                    <Navbar.Brand
+                        href="#"
+                        className="d-flex align-items-center text-truncate"
                         style={{
                             overflow: 'hidden',
                             whiteSpace: 'nowrap',
-                        }}>{conference.conferenceName}</Navbar.Brand>
-
-                    <Nav className="ms-auto d-flex flex-row align-items-center" style={{ justifyContent: 'space-between', width: 'auto', gap: '10px' }}>
-
-                        {allowPresentation ?
-                            (isPresenting ? <Button variant="danger" className="me-2" onClick={handleStopPresenting} title={isPresenting ? "Presenting" : "Not Presenting"}>
-                                <Easel size={20} /> <span className="d-none d-md-inline">Stop Presenting</span>
-                            </Button>
-                                : <Dropdown align="end">
-                                    <Dropdown.Toggle variant="outline-light" id="present-dropdown" className="me-2" title="Present">
-                                        <Easel size={20} /> <span className="d-none d-md-inline">Present</span>
-                                    </Dropdown.Toggle>
-                                    <Dropdown.Menu
-                                        style={{
-                                            position: "absolute",
-                                            zIndex: 1050
-                                        }}>
-                                        <Dropdown.Item onClick={handleCameraPresenting}>
-                                            <CameraVideoFill size={20} /> Camera
-                                        </Dropdown.Item>
-                                        {allowScreenShare ? (
-                                            <Dropdown.Item onClick={handleToggleScreenShare}>
-                                                <DisplayFill size={20} />
-                                                <span>{isScreenSharing ? " Stop Screen" : " Screen"}</span>
+                        }}
+                    >
+                        {conference.conferenceName}
+                    </Navbar.Brand>
+                    <Navbar.Toggle aria-controls="basic-navbar-nav" />
+                    <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end">
+                        <Nav className="ms-auto d-flex align-items-center flex-lg-row flex-column bg-dark p-2" style={{ gap: '10px', marginTop: "5px"}}>
+                            {allowPresentation ? (
+                                isPresenting ? (
+                                    <Button
+                                        variant="danger"
+                                        className="me-lg-2 mb-2 mb-lg-0 w-100 w-lg-auto text-lg-start text-center"
+                                        onClick={handleStopPresenting}
+                                        title={isPresenting ? "Presenting" : "Not Presenting"}
+                                    >
+                                        <Easel size={20} /> <span>Stop Presenting</span>
+                                    </Button>
+                                ) : (
+                                    <Dropdown align="end" className="w-100 w-lg-auto">
+                                        <Dropdown.Toggle
+                                            variant="outline-light"
+                                            id="present-dropdown"
+                                            className="me-lg-2 mb-2 mb-lg-0 w-100 text-lg-start text-center"
+                                            title="Present"
+                                        >
+                                            <Easel size={20} /> <span>Present</span>
+                                        </Dropdown.Toggle>
+                                        <Dropdown.Menu
+                                            style={{
+                                                position: "absolute",
+                                                zIndex: 1050
+                                            }}
+                                        >
+                                            <Dropdown.Item onClick={handleCameraPresenting}>
+                                                <CameraVideoFill size={20} /> Camera
                                             </Dropdown.Item>
-                                        ) : null}
-                                    </Dropdown.Menu>
-                                </Dropdown>
-                            )
-                            : null
-                        }
-                        <Button variant="outline-light" className="me-2" onClick={onShowSettings} title="Settings">
-                            <GearFill size={20} /> <span className="d-none d-md-inline">Settings</span>
-                        </Button>
-
-                        {allowTerminateConf ? (<Button variant="danger" onClick={handleOpenModal} title="Terminate">
-                            <XSquareFill size={20} /> <span className="d-none d-md-inline">End for All</span>
-                        </Button>) : null}
-
-                        <Button variant="danger" onClick={handleExitCall} title="Exit Call">
-                            <BoxArrowRight size={20} /> <span className="d-none d-md-inline">Leave</span>
-                        </Button>
-
-                    </Nav>
+                                            {allowScreenShare ? (
+                                                <Dropdown.Item onClick={handleToggleScreenShare}>
+                                                    <DisplayFill size={20} />
+                                                    <span>{isScreenSharing ? " Stop Screen" : " Screen"}</span>
+                                                </Dropdown.Item>
+                                            ) : null}
+                                        </Dropdown.Menu>
+                                    </Dropdown>
+                                )
+                            ) : null}
+                            <Button
+                                variant="outline-light"
+                                className="me-lg-2 mb-2 mb-lg-0 w-100 w-lg-auto text-lg-start text-center"
+                                onClick={onShowSettings}
+                                title="Settings"
+                            >
+                                <GearFill size={20} /> <span>Settings</span>
+                            </Button>
+                            {allowTerminateConf ? (
+                                <Button
+                                    variant="danger"
+                                    className="me-lg-2 mb-2 mb-lg-0 w-100 w-lg-auto text-lg-start text-center"
+                                    onClick={handleOpenModal}
+                                    title="Terminate"
+                                >
+                                    <XSquareFill size={20} /> <span>End for All</span>
+                                </Button>
+                            ) : null}
+                            <Button
+                                variant="danger"
+                                className="w-100 w-lg-auto text-lg-start text-center"
+                                onClick={handleExitCall}
+                                title="Exit Call"
+                            >
+                                <BoxArrowRight size={20} /> <span>Leave</span>
+                            </Button>
+                        </Nav>
+                    </Navbar.Collapse>
                 </Container>
             </Navbar>
             <ConfirmPopUp
