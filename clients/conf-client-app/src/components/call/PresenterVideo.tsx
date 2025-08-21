@@ -19,8 +19,7 @@ const PresenterVideo: React.FC<{ presenter: Participant }> = ({ presenter }) => 
             video.muted = true;
             video.playsInline = true;
             video.srcObject = presenter.stream;
-            video.width = 1;
-            video.height = 1;
+            
 
             const draw = () => {
                 if (ctx && video && canvas.width > 0 && video.videoWidth > 0 && video.videoHeight > 0) {

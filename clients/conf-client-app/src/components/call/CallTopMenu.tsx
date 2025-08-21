@@ -139,7 +139,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                                 isPresenting ? (
                                     <Button
                                         variant="danger"
-                                        className="me-lg-2 mb-2 mb-lg-0 w-100 w-lg-auto text-lg-start text-center"
+                                        className="me-lg-2 mb-2 mb-lg-0 w-100 w-lg-auto text-lg-start text-center text-nowrap"
                                         onClick={handleStopPresenting}
                                         title={isPresenting ? "Presenting" : "Not Presenting"}
                                     >
@@ -150,7 +150,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                                         <Dropdown.Toggle
                                             variant="outline-light"
                                             id="present-dropdown"
-                                            className="me-lg-2 mb-2 mb-lg-0 w-100 text-lg-start text-center"
+                                            className="me-lg-2 mb-2 mb-lg-0 w-100 text-lg-start text-center text-nowrap"
                                             title="Present"
                                         >
                                             <Easel size={20} /> <span>Present</span>
