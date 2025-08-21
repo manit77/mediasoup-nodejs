@@ -121,12 +121,14 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
     return (
         <>
             <Navbar bg="dark" variant="dark" expand="lg" className="border-bottom border-secondary call-top-menu">
-                <Container fluid>
+                <Container fluid className="d-flex align-items-center">
                     <Navbar.Brand
                         href="#"
                         className="d-flex align-items-center text-truncate"
                         style={{
+                            maxWidth: '75%',
                             overflow: 'hidden',
+                            textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
                         }}
                     >

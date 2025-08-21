@@ -121,7 +121,7 @@ const OnCallScreen: React.FC = () => {
 
                                 {/* participants list */}
                                 <div
-                                    className="d-flex flex-row overflow-auto p-2"
+                                    className="d-flex flex-row overflow-auto"
                                     style={{
                                         background: '#2a2f34',
                                         borderTop: '1px solid #444',
@@ -136,8 +136,8 @@ const OnCallScreen: React.FC = () => {
                                             display: 'flex',
                                             flexDirection: 'row',
                                             flexWrap: 'wrap', // Enable wrapping based on available width
-                                            gap: '8px',
-                                            padding: '8px',
+                                            gap: '5px',
+                                            padding: '5px',
                                             background: '#2a2f34',
                                             width: '100%',
                                             boxSizing: 'border-box',
@@ -153,17 +153,11 @@ const OnCallScreen: React.FC = () => {
                             </div>
                         ) :
                             (layout == "auto") && callParticipants.size === 2 && remoteParticipant ? (
-                                // Two participants - PiP layout
+                                // two participant call
                                 <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
-                                    {/* Remote */}
-                                    <div
-                                        style={{
-                                            flex: '1 1 auto',
-                                            width: '100%',
-                                            minHeight: '0',              // also important in Safari
-                                            overflow: 'hidden',
-                                        }}
-                                    >
+
+                                    {/* remote party */}
+                                    <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
                                         <ParticipantVideoPreview
                                             onClick={() => handleSelectParticipantVideo(remoteParticipant)}
                                             isSelected={selectedParticipant === remoteParticipant}
@@ -177,19 +171,15 @@ const OnCallScreen: React.FC = () => {
                                         />
                                     </div>
 
-                                    {/* Local in bottom right */}
-                                    <div ref={localVideoPreview}
+                                    {/* local participant */}
+                                    <div
+                                        className="d-flex flex-row overflow-auto"
                                         style={{
-                                            position: 'absolute',
-                                            bottom: '60px',
-                                            right: '10px',
-                                            width: '320px',
-                                            height: '240px', // 4:3 aspect ratio for PiP
-                                            // border: '2px solid #000',
-                                            borderRadius: '8px',
-                                            overflow: 'hidden',
-                                            background: "transparent",
-                                            boxShadow: '0 0 10px rgba(0,0,0,0.5)',
+                                            background: '#2a2f34',
+                                            borderTop: '1px solid #444',
+                                            maxHeight: "25%",
+                                            justifyContent: 'center',
+                                            
                                         }}
                                     >
                                         <ParticipantVideoPreview
@@ -198,9 +188,8 @@ const OnCallScreen: React.FC = () => {
                                             key={localParticipant.participantId}
                                             participant={localParticipant}
                                             style={{
-                                                width: '100%',
-                                                height: '100%',
-                                                objectFit: 'contain', // Ensure local video scales properly
+                                                height: "100%",
+                                                justifyContent: 'center'
                                             }}
                                         />
                                     </div>
@@ -208,8 +197,8 @@ const OnCallScreen: React.FC = () => {
                             ) : (
                                 // No presenter → participants left to right
                                 <div
-                                    className="d-flex flex-row flex-wrap h-100 p-2"
-                                    style={{ background: '#2a2f34', gap: '8px' }}
+                                    className="d-flex flex-row flex-wrap h-100"
+                                    style={{ background: '#2a2f34', gap: '5px' }}
                                 >
                                     <ParticipantsPane
                                         localParticipant={localParticipant}
