@@ -134,7 +134,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                     </Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end">
-                        <Nav className="ms-auto d-flex align-items-center flex-lg-row flex-column bg-dark p-2" style={{ gap: '10px', marginTop: "5px"}}>
+                        <Nav className="ms-auto d-flex align-items-center flex-lg-row flex-column bg-dark" style={{ gap: '10px', marginTop: "5px"}}>
                             {allowPresentation ? (
                                 isPresenting ? (
                                     <Button
@@ -176,7 +176,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                             ) : null}
                             <Button
                                 variant="outline-light"
-                                className="me-lg-2 mb-2 mb-lg-0 w-100 w-lg-auto text-lg-start text-center"
+                                className="me-lg-2 mb-2 mb-lg-0 w-100 w-lg-auto text-lg-start text-center text-nowrap"
                                 onClick={onShowSettings}
                                 title="Settings"
                             >
@@ -185,7 +185,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                             {allowTerminateConf ? (
                                 <Button
                                     variant="danger"
-                                    className="me-lg-2 mb-2 mb-lg-0 w-100 w-lg-auto text-lg-start text-center"
+                                    className="me-lg-2 mb-2 mb-lg-0 w-100 w-lg-auto text-lg-start text-center text-nowrap"
                                     onClick={handleOpenModal}
                                     title="Terminate"
                                 >
@@ -194,7 +194,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                             ) : null}
                             <Button
                                 variant="danger"
-                                className="w-100 w-lg-auto text-lg-start text-center"
+                                className="me-lg-2 mb-2 mb-lg-0 w-100 w-lg-auto text-lg-start text-center text-nowrap"
                                 onClick={handleExitCall}
                                 title="Exit Call"
                             >
