@@ -22,7 +22,7 @@ const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ localParticipant, p
                         participant={participant}
                         onClick={() => onSelectVideo(participant)}
                         isSelected={false}
-                        style={localParticipant.participantId == participant.participantId ? localParticipantStyle : cardStyle}
+                        style={ localParticipant.participantId == participant.participantId ? localParticipantStyle ?? cardStyle : cardStyle}
                     />
                 ))}
         </div>

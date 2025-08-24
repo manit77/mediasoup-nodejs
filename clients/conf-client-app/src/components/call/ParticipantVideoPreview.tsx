@@ -273,6 +273,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                 display: 'flex',
                 flexDirection: 'column',
                 background: '#333',
+                minHeight:"160px",
                 ...style,
             }}
         >

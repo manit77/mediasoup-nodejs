@@ -94,7 +94,6 @@ const OnCallScreen: React.FC = () => {
                             <div
                                 className="d-flex flex-row"
                                 style={
-
                                     presenter ? {
                                         background: "#2a2f34",
                                         borderTop: "1px solid #444",
@@ -121,7 +120,7 @@ const OnCallScreen: React.FC = () => {
                                         boxSizing: 'border-box',
                                         justifyContent: 'center', // Align left to reduce space between elements
                                         overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it
-                                        minHeight: 0,
+                                        minHeight: 0,                                        
                                     }}
                                     cardStyle={
                                         presenter
@@ -141,10 +140,9 @@ const OnCallScreen: React.FC = () => {
                                                     justifyContent: "center",
                                                 }
                                                     : {
-                                                        flex: "1 1 auto",
-                                                        aspectRatio: "4/3",
+                                                        flex: "1 1 auto",                                                                                                               
                                                         justifyContent: "center",
-                                                        minHeight: 0,
+                                                        minHeight: "480px",
                                                         alignSelf: 'flex-start',
                                                     }
                                     }
@@ -166,7 +164,7 @@ const OnCallScreen: React.FC = () => {
                                                     boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
                                                     borderRadius: "12px",
                                                     overflow: "hidden",
-                                                } : {}
+                                                } : undefined
                                     }
                                 />
                             </div>
