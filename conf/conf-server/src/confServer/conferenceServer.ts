@@ -357,7 +357,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         const allPartsInfo = [...this.participants.values()].filter(p => p.participantGroup === exceptParticipant.participantGroup).map(p => ({
             participantId: p.participantId,
             displayName: p.displayName,
-            status: "online"
+            status: p.conference ? "busy": "online"
         }) as ParticipantInfo);
 
         console.log('allPartsInfo[]', allPartsInfo);
@@ -373,19 +373,19 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     }
 
-    async broadCastParticipants(partcipantGroup: string) {
+    async broadCastParticipants(participantGroup: string) {
 
-        console.log("broadCastParticipants ", partcipantGroup);
+        console.log("broadCastParticipants ", participantGroup);
         //broadcast to all participants of contacts        
-        const allPartsInfo = [...this.participants.values()].filter(p => p.participantGroup === partcipantGroup).map(p => ({
+        const allPartsInfo = [...this.participants.values()].filter(p => p.participantGroup === participantGroup).map(p => ({
             participantId: p.participantId,
             displayName: p.displayName,
-            status: "online"
+            status: p.conference ? "busy": "online"
         }) as ParticipantInfo);
 
         console.log('allPartsInfo[]', allPartsInfo);
 
-        const allPartsExceptArr = [...this.participants.values()].filter(p => p.participantGroup === partcipantGroup);
+        const allPartsExceptArr = [...this.participants.values()].filter(p => p.participantGroup === participantGroup);
         for (const p of allPartsExceptArr) {
             //do not send the participant info back to self
             const contactsMsg = new GetParticipantsResultMsg();

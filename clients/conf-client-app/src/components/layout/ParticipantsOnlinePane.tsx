@@ -103,17 +103,31 @@ const ParticipantsOnlinePane: React.FC = () => {
                                     <CameraVideoFill />
                                 </ThrottledButton>
 
-                                <Badge pill bg={participantInfo.participantId ? 'success' : 'secondary'} className="ms-2">
-                                    {participantInfo.participantId ? (
+                                <Badge
+                                    pill
+                                    bg={
+                                        participantInfo.status === "busy"
+                                            ? "warning" // Orange for busy
+                                            : participantInfo.status === "offline"
+                                                ? "secondary" // Gray for offline
+                                                : "success" // Green for online
+                                    }
+                                    className="ms-2"
+                                    style={{ minWidth: "120px" }}
+                                >
+                                    {participantInfo.status === "online" ? (
                                         <>
                                             <CircleFill /> Online
                                         </>
-                                    )
-                                        : (
-                                            <>
-                                                <Circle /> Offline
-                                            </>
-                                        )}
+                                    ) : participantInfo.status === "busy" ? (
+                                        <>
+                                            <CircleFill /> Busy
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Circle /> Offline
+                                        </>
+                                    )}
                                 </Badge>
                             </div>
                         </ListGroup.Item>
