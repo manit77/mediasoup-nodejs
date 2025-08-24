@@ -14,8 +14,7 @@ interface ParticipantsPaneProps {
 const ParticipantsPane: React.FC<ParticipantsPaneProps> = ({ localParticipant, participants, onSelectVideo, containerStyle, cardStyle, localParticipantStyle }) => {
 
     return (
-        <div style={containerStyle}>
-            {localParticipantStyle?.width }
+        <div style={containerStyle}>           
             {[...participants.values()]
                 .map((participant) => (
                     <ParticipantVideoPreview

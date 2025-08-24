@@ -92,13 +92,16 @@ const OnCallScreen: React.FC = () => {
 
                             {/* participants list */}
                             <div
-                                className="d-flex flex-row overflow-auto"
+                                className="d-flex flex-row"
                                 style={
 
                                     presenter ? {
-                                        background: '#2a2f34',
-                                        borderTop: '1px solid #444',
-                                        minHeight: "170px"
+                                        background: "#2a2f34",
+                                        borderTop: "1px solid #444",
+                                        height: "160px",
+                                        overflowY: "auto",
+                                        flexShrink: 0,
+                                        minHeight: 0,
                                     } : {
 
                                     }}
@@ -117,13 +120,13 @@ const OnCallScreen: React.FC = () => {
                                         width: '100%',
                                         boxSizing: 'border-box',
                                         justifyContent: 'center', // Align left to reduce space between elements
-                                        overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it                                                     
+                                        overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it
+                                        minHeight: 0,
                                     }}
                                     cardStyle={
                                         presenter
                                             ? {
-                                                flex: "0 0 160px",
-                                                aspectRatio: "4/3",
+                                                minHeight: "160px"
                                             }
                                             : callParticipants.size == 1
                                                 ? {
@@ -135,25 +138,29 @@ const OnCallScreen: React.FC = () => {
                                                 : {
                                                     flex: "1 1 auto",
                                                     aspectRatio: "4/3",
-                                                    maxHeight: "100%",
+                                                    height: 'calc(100dvh - 56px)',
                                                     justifyContent: "center",
                                                 }
                                     }
                                     localParticipantStyle={
-                                        presenter? {} :
-                                        callParticipants.size == 1 ? {
-                                            flex: "1 1 auto",
-                                            aspectRatio: "4/3",
-                                            maxHeight: "100%",
-                                            justifyContent: "center",
-                                        }
-                                            : callParticipants.size == 2 ? {
-                                                position: "absolute",
-                                                zIndex: 9999,
-                                                height: "240px",
-                                                bottom: "70px",
-                                                right: "10px",
-                                            } : {}
+                                        presenter ? {} :
+                                            callParticipants.size == 1 ? {
+                                                flex: "1 1 auto",
+                                                aspectRatio: "4/3",
+                                                height: 'calc(100dvh - 56px)',
+                                                justifyContent: "center",
+                                            }
+                                                : callParticipants.size == 2 ? {
+                                                    position: "absolute",
+                                                    zIndex: 9999,
+                                                    width: "240px",
+                                                    aspectRatio: "4/3",
+                                                    bottom: "70px",
+                                                    right: "10px",
+                                                    boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+                                                    borderRadius: "12px",
+                                                    overflow: "hidden",
+                                                } : {}
                                     }
                                 />
                             </div>
