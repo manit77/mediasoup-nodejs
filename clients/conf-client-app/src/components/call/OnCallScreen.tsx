@@ -82,155 +82,83 @@ const OnCallScreen: React.FC = () => {
                     height: 'calc(100dvh - 56px)',
                     overflow: 'auto',
                 }}>
-                    <Container fluid className="p-0 m-0 h-100">
-                        {callParticipants.size === 1 ? (
-                            // One participant - waiting screen
+                    <div className="p-0 m-0 h-100 w-full">
+                        <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
 
-                            <div className="d-flex flex-column h-100 align-items-center justify-content-center text-center" style={{ minHeight: "0" }}>
-                                <p className="mt-3 fs-5">Waiting for other participants...</p>
-                                <div
-                                    style={{
-                                        flex: '1 1 auto',
-                                        width: '100%',
-                                        minHeight: '0',
-                                        overflow: 'hidden',
-                                    }}
-                                >
-                                    <ParticipantVideoPreview
-                                        onClick={() => handleSelectParticipantVideo(localParticipant)}
-                                        isSelected={selectedParticipant === remoteParticipant}
-                                        key={localParticipant.participantId}
-                                        participant={localParticipant}
-                                        style={{
-                                            width: '100%',
-                                            height: '100%',
-                                            objectFit: 'contain', // Ensure video scales without cropping
-                                        }}
-                                    />
-                                </div>
+                            {/* presenter video */}
+                            <div style={presenter ? { flex: '1 1 auto', overflow: 'hidden' } : { display: "none" }}>
+                                <PresenterVideo presenter={presenter} />
                             </div>
 
-                        ) : (layout == "presenter" || presenter) ? (
-                            // Presenter view
-                            <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
+                            {/* participants list */}
+                            <div
+                                className="d-flex flex-row overflow-auto"
+                                style={
 
-                                {/* presenter video */}
-                                <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
-                                    <PresenterVideo presenter={presenter} />
-                                </div>
-
-                                {/* participants list */}
-                                <div
-                                    className="d-flex flex-row overflow-auto"
-                                    style={{
+                                    presenter ? {
                                         background: '#2a2f34',
                                         borderTop: '1px solid #444',
                                         minHeight: "170px"
+                                    } : {
+
                                     }}
-                                >
-                                    <ParticipantsPane
-                                        localParticipant={localParticipant}
-                                        participants={[...callParticipants.values()]}
-                                        onSelectVideo={handleSelectParticipantVideo}
-                                        containerStyle={{
-                                            display: 'flex',
-                                            flexDirection: 'row',
-                                            flexWrap: 'wrap', // Enable wrapping based on available width
-                                            gap: '5px',
-                                            padding: '5px',
-                                            background: '#2a2f34',
-                                            width: '100%',
-                                            boxSizing: 'border-box',
-                                            justifyContent: 'flex-start', // Align left to reduce space between elements
-                                            overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it             
-                                        }}
-                                        cardStyle={{
-                                            flex: '0 0 160px', // Fixed basis for consistent width
-                                            aspectRatio: "4/3",
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                        ) :
-                            (layout == "auto") && callParticipants.size === 2 && remoteParticipant ? (
-                                // two participant call
-                                <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
-
-                                    {/* remote party */}
-                                    <div style={{ flex: '1 1 auto', overflow: 'hidden' }}>
-                                        <ParticipantVideoPreview
-                                            onClick={() => handleSelectParticipantVideo(remoteParticipant)}
-                                            isSelected={selectedParticipant === remoteParticipant}
-                                            key={remoteParticipant.participantId}
-                                            participant={remoteParticipant}
-                                            style={{
-                                                width: '100%',
-                                                height: '100%',
-                                                objectFit: 'contain', // Ensure video scales without cropping
-                                            }}
-                                        />
-                                    </div>
-
-                                    {/* local participant */}
-                                    <div
-                                        className="d-flex flex-row overflow-auto"
-                                        style={{
-                                            background: '#2a2f34',
-                                            borderTop: '1px solid #444',
-                                            maxHeight: "25%",
-                                            justifyContent: 'center',
-                                            
-                                        }}
-                                    >
-                                        <ParticipantVideoPreview
-                                            onClick={() => handleSelectParticipantVideo(localParticipant)}
-                                            isSelected={selectedParticipant === localParticipant}
-                                            key={localParticipant.participantId}
-                                            participant={localParticipant}
-                                            style={{
-                                                height: "100%",
-                                                justifyContent: 'center'
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            ) : (
-                                // No presenter → participants left to right
-                                <div
-                                    className="d-flex flex-row flex-wrap h-100"
-                                    style={{ background: '#2a2f34', gap: '5px' }}
-                                >
-                                    <ParticipantsPane
-                                        localParticipant={localParticipant}
-                                        participants={[...callParticipants.values()]}
-                                        onSelectVideo={handleSelectParticipantVideo}
-                                        containerStyle={
-                                            {
-                                                display: 'flex',
-                                                flexDirection: 'row',
-                                                flexWrap: 'wrap', // Enable wrapping based on available width
-                                                gap: '8px',
-                                                padding: '8px',
-                                                background: '#2a2f34',
-                                                width: '100%',
-                                                boxSizing: 'border-box',
-                                                justifyContent: 'center', // Align items to the start; change to 'center' if preferred
-                                                overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it
-                                            }
-                                        }
-                                        cardStyle={
-                                            {
-                                                //flex: '0 0 160px', // Fixed basis for consistent width
-                                                maxHeight: "480px",
+                            >
+                                <ParticipantsPane
+                                    localParticipant={localParticipant}
+                                    participants={[...callParticipants.values()]}
+                                    onSelectVideo={handleSelectParticipantVideo}
+                                    containerStyle={{
+                                        display: 'flex',
+                                        flexDirection: 'row',
+                                        flexWrap: 'wrap', // Enable wrapping based on available width
+                                        gap: '5px',
+                                        padding: '5px',
+                                        background: '#2a2f34',
+                                        width: '100%',
+                                        boxSizing: 'border-box',
+                                        justifyContent: 'center', // Align left to reduce space between elements
+                                        overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it                                                     
+                                    }}
+                                    cardStyle={
+                                        presenter
+                                            ? {
+                                                flex: "0 0 160px",
                                                 aspectRatio: "4/3",
-                                                justifyContent: 'center'
                                             }
+                                            : callParticipants.size == 1
+                                                ? {
+                                                    flex: "1 1 auto",
+                                                    aspectRatio: "4/3",
+                                                    maxHeight: "100%",
+                                                    justifyContent: "center",
+                                                }
+                                                : {
+                                                    flex: "1 1 auto",
+                                                    aspectRatio: "4/3",
+                                                    maxHeight: "100%",
+                                                    justifyContent: "center",
+                                                }
+                                    }
+                                    localParticipantStyle={
+                                        presenter? {} :
+                                        callParticipants.size == 1 ? {
+                                            flex: "1 1 auto",
+                                            aspectRatio: "4/3",
+                                            maxHeight: "100%",
+                                            justifyContent: "center",
                                         }
-                                    />
-                                </div>
-                            )
-                        }
-                    </Container>
+                                            : callParticipants.size == 2 ? {
+                                                position: "absolute",
+                                                zIndex: 9999,
+                                                height: "240px",
+                                                bottom: "70px",
+                                                right: "10px",
+                                            } : {}
+                                    }
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div >
 

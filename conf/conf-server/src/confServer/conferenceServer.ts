@@ -209,7 +209,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             if (!conference.leader) {
                 conference.leader = args.leader;
             }
-          
+
             return conference;
         }
 
@@ -223,13 +223,13 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         conference.participantGroup = args.participantGroup ?? "";
         conference.confType = args.confType;
 
-        conference.leader = args.leader;        
+        conference.leader = args.leader;
 
         //copy the configs from the args to the conference
         if (args.config) {
             fill(args.config, conference.config);
         }
-     
+
 
         conference.timeoutSecs = conference.config.roomTimeoutSecs ?? conference.timeoutSecs;
         conference.noUserTimeoutSec = args.noUserTimeoutSec ?? conference.noUserTimeoutSec;
@@ -323,7 +323,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             this.terminateParticipant(existingParticipant.participantId);
         }
 
-        
+
         if (this.config.conf_require_participant_group && !msgIn.data.participantGroup) {
             let errorMsg = new RegisterResultMsg();
             errorMsg.data.error = "participant group is required.";
@@ -438,7 +438,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             msg.data.participants.push({
                 displayName: p.displayName,
                 participantId: p.participantId,
-                status: "online"
+                status: p.conference ? "busy" : "online"
             });
         });
 
@@ -1067,7 +1067,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`not in conference`);
         }
 
-        if (msgIn.data.status == "on") {            
+        if (msgIn.data.status == "on") {
             participant.conference.presenter = participant;
         } else if (participant == participant.conference.presenter) {
             participant.conference.presenter = null;

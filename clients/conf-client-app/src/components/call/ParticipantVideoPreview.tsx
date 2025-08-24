@@ -26,7 +26,7 @@ interface ParticipantVideoPreviewProps {
 export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected, style }) => {
     const api = useAPI();
     const ui = useUI();
-    const {localParticipant, broadCastTrackInfo, conference, muteParticipantTrack, getMediaConstraints } = useCall();
+    const { localParticipant, broadCastTrackInfo, conference, muteParticipantTrack, getMediaConstraints } = useCall();
     const [videoEnabled, setVideoEnabled] = useState(false);
     const [audioEnabled, setAudioEnabled] = useState(false);
     const videoContainerRef = React.useRef<HTMLDivElement>(null);
@@ -61,7 +61,7 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                 }
 
                 // Mute the video element if it belongs to the local user
-                participant.videoEle.muted = localParticipantId ===participant. participantId;
+                participant.videoEle.muted = localParticipantId === participant.participantId;
 
                 // Assign standard styles
                 Object.assign(participant.videoEle.style, videoStyle);
@@ -273,7 +273,6 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                 display: 'flex',
                 flexDirection: 'column',
                 background: '#333',
-                aspectRatio: '16/9',
                 ...style,
             }}
         >
@@ -283,13 +282,21 @@ export const ParticipantVideoPreview: React.FC<ParticipantVideoPreviewProps> = (
                     flex: 1,
                     position: 'relative',
                     width: '100%',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    justifyContent: "center",
                 }}
             >
                 <div
                     ref={videoContainerRef}
                     style={{
-                        ...style,
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                     }}
                 />
 

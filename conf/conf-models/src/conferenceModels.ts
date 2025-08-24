@@ -22,7 +22,7 @@ export enum ParticipantRole {
 export interface ParticipantInfo {
     participantId: string,
     displayName: string,
-    status: "online" | "offline" | "reconnecting",
+    status: "online" | "offline" | "reconnecting" | "busy",
 }
 
 export interface CreateConferenceParams {

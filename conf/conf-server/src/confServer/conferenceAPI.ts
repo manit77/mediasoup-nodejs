@@ -22,7 +22,7 @@ export class ConferenceAPI {
         this.app = args.app;
         this.config = args.config;
         this.confServer = args.confServer;
-        this.thirdPartyAPI = new ThirdPartyAPI(args.config);        
+        this.thirdPartyAPI = new ThirdPartyAPI(args.config);
     }
 
     tokenCheck = (req: Request, res: Response, next: NextFunction) => {
@@ -106,7 +106,7 @@ export class ConferenceAPI {
             }
 
             let authTokenPayload: IAuthPayload = {
-                externalId : result.data.externalId,
+                externalId: result.data.externalId,
                 username: msg.data.displayName,
                 participantGroup: participantGroup,
                 role: ParticipantRole.guest
@@ -279,8 +279,10 @@ export class ConferenceAPI {
                         return clone;
                     });
 
-                    this.cache.set(cacheKey, resultMsg.data.conferences, this.config.conf_data_cache_timeout_secs);
-
+                    if (resultMsg.data.conferences.length > 0) {
+                        this.cache.set(cacheKey, resultMsg.data.conferences, this.config.conf_data_cache_timeout_secs);
+                    }
+                    
                 } else {
                     //get from demo data
                     //console.log(`${WebRoutes.getConferencesScheduled}`);
