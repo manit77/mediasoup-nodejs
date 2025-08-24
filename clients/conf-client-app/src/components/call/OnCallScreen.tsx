@@ -135,12 +135,18 @@ const OnCallScreen: React.FC = () => {
                                                     maxHeight: "100%",
                                                     justifyContent: "center",
                                                 }
-                                                : {
+                                                : callParticipants.size == 2 ? {
                                                     flex: "1 1 auto",
-                                                    aspectRatio: "4/3",
                                                     height: 'calc(100dvh - 56px)',
                                                     justifyContent: "center",
                                                 }
+                                                    : {
+                                                        flex: "1 1 auto",
+                                                        aspectRatio: "4/3",
+                                                        justifyContent: "center",
+                                                        minHeight: 0,
+                                                        alignSelf: 'flex-start',
+                                                    }
                                     }
                                     localParticipantStyle={
                                         presenter ? {} :
