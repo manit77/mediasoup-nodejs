@@ -23,7 +23,7 @@ export enum payloadTypeClient {
 
     roomProduceStream = "roomProduceStream",
     roomCloseProducer = "roomCloseProducer",
-    roomConsumeStream = "roomConsumeStream",
+    roomConsumeProducer = "roomConsumeProducer",
 
     peerTracksInfo = "peerTracksInfo",
     peerMuteTracks = "peerMuteTracks",
@@ -38,17 +38,20 @@ export enum payloadTypeServer {
     authUserNewTokenResult = "authUserNewTokenResult",
     registerPeerResult = "registerPeerResult",
 
-    createProducerTransport = "createProducerTransport",
-    consumerTransportCreated = "consumerTransportCreated",
-    producerTransportConnected = "producerTransportConnected",
-    consumerTransportConnected = "consumerTransportConnected",
+    //createProducerTransport = "createProducerTransport",
     createProducerTransportResult = "createProducerTransportResult",
-    createConsumerTransportResult = "createConsumerTransportResult",
-    connectProducerTransportResult = "connectProducerTransportResult",
+    connectProducerTransportResult = "connectProducerTransportResult",           
+    producerTransportConnected = "producerTransportConnected",
+
+    
+    
+    //consumerTransportCreated = "consumerTransportCreated",
+    createConsumerTransportResult = "createConsumerTransportResult",    
     connectConsumerTransportResult = "connectConsumerTransportResult",
+    consumerTransportConnected = "consumerTransportConnected",
 
     roomProduceStreamResult = "roomProduceStreamResult",
-    roomConsumeStreamResult = "roomConsumeStreamResult",
+    roomConsumeProducerResult = "roomConsumeProducerResult",
     roomConsumerClosed = "roomConsumerClosed",
 
     roomNewResult = "roomNewResult",
@@ -193,8 +196,8 @@ export class CreateConsumerTransportMsg implements IMsg {
     } = {}
 }
 
-export class ConsumerTransportCreatedMsg implements IMsg {
-    type = payloadTypeServer.consumerTransportCreated;
+export class CreateConsumerTransportResultMsg implements IMsg {
+    type = payloadTypeServer.createConsumerTransportResult;
     data: {
         roomId?: string,
         transportId?: string,
@@ -418,8 +421,8 @@ export class RoomProduceStreamResultMsg implements IMsg {
     } = {};
 }
 
-export class RoomConsumeStreamMsg implements IMsg {
-    type = payloadTypeClient.roomConsumeStream;
+export class RoomConsumeProducerMsg implements IMsg {
+    type = payloadTypeClient.roomConsumeProducer;
     data: {
         roomId?: string,
         remotePeerId?: string,
@@ -429,8 +432,8 @@ export class RoomConsumeStreamMsg implements IMsg {
     } = {};
 }
 
-export class RoomConsumeStreamResultMsg implements IMsg {
-    type = payloadTypeServer.roomConsumeStreamResult;
+export class roomConsumeProducerResultMsg implements IMsg {
+    type = payloadTypeServer.roomConsumeProducerResult;
     data: {
         roomId?: string,
         peerId?: string

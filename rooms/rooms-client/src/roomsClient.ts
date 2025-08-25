@@ -2,9 +2,9 @@ import * as mediasoupClient from 'mediasoup-client';
 import {
   AuthUserNewTokenResultMsg,
   ConnectConsumerTransportMsg, ConnectProducerTransportMsg,
-  ConsumerTransportCreatedMsg, CreateConsumerTransportMsg, CreateProducerTransportMsg,
+  CreateConsumerTransportMsg, CreateProducerTransportMsg,
   ErrorMsg, IMsg, OkMsg, payloadTypeClient, payloadTypeServer, ProducerTransportConnectedMsg, createProducerTransportResultMsg,
-  RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeStreamMsg, RoomConsumeStreamResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
+  RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeProducerMsg, roomConsumeProducerResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
   RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
   PeerMuteTracksMsg,
   PeerTracksInfoMsg,
@@ -14,6 +14,7 @@ import {
   RoomCloseProducerMsg,
   RoomPingMsg,
   RoomPongMsg,
+  CreateConsumerTransportResultMsg,
 } from "@rooms/rooms-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { MediaKind, Transport } from 'mediasoup-client/types';
@@ -795,8 +796,8 @@ export class RoomsClient {
         case payloadTypeServer.producerTransportConnected:
           this.onProducerTransportConnected(msgIn);
           break;
-        case payloadTypeServer.consumerTransportCreated:
-          this.onConsumerTransportCreated(msgIn);
+        case payloadTypeServer.createConsumerTransportResult:
+          this.onCreateConsumerTransportResult(msgIn);
           break;
         case payloadTypeServer.consumerTransportConnected:
           this.onConsumerTransportConnected(msgIn);
@@ -828,7 +829,7 @@ export class RoomsClient {
         case payloadTypeServer.roomProduceStreamResult:
           this.onProduced(msgIn);
           break;
-        case payloadTypeServer.roomConsumeStreamResult:
+        case payloadTypeServer.roomConsumeProducerResult:
           this.onConsumed(msgIn);
           break;
         case payloadTypeServer.roomClosed:
@@ -1256,8 +1257,8 @@ export class RoomsClient {
     }
   }
 
-  private onConsumerTransportCreated = async (msgIn: ConsumerTransportCreatedMsg) => {
-    console.log("** onConsumerTransportCreated", msgIn);
+  private onCreateConsumerTransportResult = async (msgIn: CreateConsumerTransportResultMsg) => {
+    console.log("** onCreateConsumerTransportResult", msgIn);
 
     //the server has created a consumer transport for the peer 
     //roomid should match the local roomid
@@ -1438,7 +1439,7 @@ export class RoomsClient {
       return false;
     }
 
-    let msg = new RoomConsumeStreamMsg();
+    let msg = new RoomConsumeProducerMsg();
     msg.data = {
       roomId: this.localRoom.roomId,
       remotePeerId: remotePeerId,
@@ -1449,7 +1450,7 @@ export class RoomsClient {
 
   };
 
-  private onConsumed = async (msgIn: RoomConsumeStreamResultMsg) => {
+  private onConsumed = async (msgIn: roomConsumeProducerResultMsg) => {
     console.log("onConsumed() " + msgIn.data?.kind);
 
     let peer = this.localRoom.peers.get(msgIn.data.peerId);

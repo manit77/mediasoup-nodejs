@@ -5,7 +5,7 @@ import {
     AuthUserNewTokenMsg,
     AuthUserNewTokenResultMsg,
     ConnectConsumerTransportMsg, ConnectProducerTransportMsg,
-    ConsumerTransportConnectedMsg, ConsumerTransportCreatedMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient,
+    ConsumerTransportConnectedMsg, CreateConsumerTransportResultMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient,
     PeerTerminatedMsg, ProducerTransportConnectedMsg, createProducerTransportResultMsg,
     RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomGetLogsMsg, RoomJoinMsg,
     RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg,
@@ -16,8 +16,8 @@ import {
     payloadTypeServer,
     RoomProduceStreamMsg,
     RoomProduceStreamResultMsg,
-    RoomConsumeStreamMsg,
-    RoomConsumeStreamResultMsg,
+    RoomConsumeProducerMsg,
+    roomConsumeProducerResultMsg,
     PeerTracksInfoMsg,
     PeerMuteTracksMsg,
     RoomCloseProducerMsg,
@@ -213,8 +213,8 @@ export class RoomServer {
             case payloadTypeClient.roomCloseProducer: {
                 return this.onRoomCloseProducer(peerId, msgIn);
             }
-            case payloadTypeClient.roomConsumeStream: {
-                return this.onRoomConsumeStream(peerId, msgIn);
+            case payloadTypeClient.roomConsumeProducer: {
+                return this.onroomConsumeProducer(peerId, msgIn);
             }
             case payloadTypeClient.peerTracksInfo: {
                 return this.onPeerTracksInfo(peerId, msgIn);
@@ -633,7 +633,7 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeServer.createConsumerTransportResult, "could not create consumer transport");
         }
 
-        let consumerTransportCreated = new ConsumerTransportCreatedMsg();
+        let consumerTransportCreated = new CreateConsumerTransportResultMsg();
         consumerTransportCreated.data = {
             roomId: peer.room.id,
             iceServers: this.config.room_iceServers,
@@ -1016,34 +1016,34 @@ export class RoomServer {
         let peer = this.peers.get(peerId);
         if (!peer) {
             consoleError("error peer not found.");
-            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "error peer not found.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "error peer not found.");
         }
 
         if (!peer.room) {
             consoleError('peer is not in a room', peer.id);
-            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "peer is not in a room.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "peer is not in a room.");
         }
 
         if (peer.room.id !== msgIn.data.roomId) {
             consoleError('invalid roomid', msgIn.data.roomId);
-            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "invalid roomid.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "invalid roomid.");
         }
 
         //check if peer is authorized to send the stream
         if (peer.role === AuthUserRoles.guest) {
             if (msgIn.data.kind === "video" && peer.room.config.guestsAllowCamera === false) {
                 consoleError(`video not allowed for ${peer.id} ${peer.displayName}`);
-                return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, `${msgIn.data.kind} not allowed.`);
+                return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, `${msgIn.data.kind} not allowed.`);
             } else if (msgIn.data.kind === "audio" && peer.room.config.guestsAllowMic === false) {
                 consoleError(`audio not allowed for ${peer.id} ${peer.displayName}`);
-                return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, `${msgIn.data.kind} not allowed.`);
+                return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, `${msgIn.data.kind} not allowed.`);
             }
         }
 
         let producer = await peer.room.createProducer(peer, msgIn.data.kind, msgIn.data.rtpParameters);
         if (!producer) {
             consoleError(`producer not created.`);
-            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, `could not created producer for kind ${msgIn.data.kind}`);
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, `could not created producer for kind ${msgIn.data.kind}`);
         }
 
         //alert all peers in the room of new producer
@@ -1091,25 +1091,25 @@ export class RoomServer {
         return new OkMsg(payloadTypeServer.ok, "producers closed");
     }
 
-    private async onRoomConsumeStream(peerId: string, msgIn: RoomConsumeStreamMsg): Promise<IMsg> {
+    private async onroomConsumeProducer(peerId: string, msgIn: RoomConsumeProducerMsg): Promise<IMsg> {
         console.log("onConsume");
         //client is requesting to consume a producer
 
         let peer = this.peers.get(peerId);
         if (!peer) {
             consoleError("peer not found: " + peerId);
-            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "peer not found.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "peer not found.");
         }
 
         //the peer must be in room to consume streams
         if (!peer.room) {
             consoleError("peer not in room.");
-            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "peer not in room.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "peer not in room.");
         }
 
         if (peer.room.id !== msgIn.data.roomId) {
             consoleError("invalid roomid");
-            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "invalid room id");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "invalid room id");
         }
 
         let room = peer.room;
@@ -1117,17 +1117,17 @@ export class RoomServer {
 
         if (!consumeMsg.data?.producerId) {
             consoleError("producerId is required.");
-            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "producerId is required.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "producerId is required.");
         }
 
         if (!consumeMsg.data?.remotePeerId) {
             consoleError("remotePeerId is required.");
-            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "remotePeerId is required.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "remotePeerId is required.");
         }
 
         if (!consumeMsg.data?.rtpCapabilities) {
             consoleError("rtpCapabilities is required.");
-            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "rtpCapabilities is required.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "rtpCapabilities is required.");
         }
 
         //peer wants to consume a remote producer
@@ -1136,24 +1136,24 @@ export class RoomServer {
         let remotePeer = peer.room.getPeer(consumeMsg.data!.remotePeerId);
         if (!remotePeer) {
             consoleError("remote peer not found.");
-            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "remote peer not found.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "remote peer not found.");
         }
 
         if (peer.room !== remotePeer.room) {
             consoleError("remote peer not in the same room.");
-            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "remote peer not in the same room.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "remote peer not in the same room.");
         }
 
         //consume the producer
         const consumer = await peer.room.createConsumer(peer, remotePeer, msgIn.data.producerId, msgIn.data.rtpCapabilities);
         if (!consumer) {
             consoleError(`could not create consumer.`);
-            return new ErrorMsg(payloadTypeServer.roomConsumeStreamResult, "could not create consumer.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "could not create consumer.");
             return;
         }
 
         //send the consumer data back to the client
-        let resultMsg = new RoomConsumeStreamResultMsg();
+        let resultMsg = new roomConsumeProducerResultMsg();
         resultMsg.data = {
             roomId: room.id,
             peerId: remotePeer.id,
