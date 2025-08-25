@@ -38,7 +38,7 @@ export enum payloadTypeServer {
     authUserNewTokenResult = "authUserNewTokenResult",
     registerPeerResult = "registerPeerResult",
 
-    producerTransportCreated = "producerTransportCreated",
+    createProducerTransport = "createProducerTransport",
     consumerTransportCreated = "consumerTransportCreated",
     producerTransportConnected = "producerTransportConnected",
     consumerTransportConnected = "consumerTransportConnected",
@@ -154,8 +154,8 @@ export class CreateProducerTransportMsg implements IMsg {
     } = {}
 }
 
-export class ProducerTransportCreatedMsg implements IMsg {
-    type = payloadTypeServer.producerTransportCreated;
+export class createProducerTransportResultMsg implements IMsg {
+    type = payloadTypeServer.createProducerTransportResult;
     data: {
         roomId?: string,
         transportId?: string,
@@ -178,6 +178,7 @@ export class ProducerTransportConnectedMsg implements IMsg {
 export class ConnectProducerTransportMsg implements IMsg {
     type = payloadTypeClient.connectProducerTransport;
     data: {
+        transportId?: string,
         authToken?: string,
         roomId?: string,
         dtlsParameters?: any
@@ -216,6 +217,7 @@ export class ConsumerTransportConnectedMsg implements IMsg {
 export class ConnectConsumerTransportMsg implements IMsg {
     type = payloadTypeClient.connectConsumerTransport;
     data: {
+        transportId?: string,
         authToken?: string,
         roomId?: string,
         dtlsParameters?: any
@@ -330,12 +332,13 @@ export class RoomJoinResultMsg implements IMsg {
     data: {
         roomId?: string,
         roomToken?: string,
+        roomRtpCapabilities?: any,
         peers?: {
             peerId: string,
             peerTrackingId: string,
             displayName: string,
             producers?: { producerId: string, kind: "audio" | "video" }[],
-            trackInfo: PeerTracksInfo,
+            trackInfo: PeerTracksInfo,            
         }[],
         error?: string,
     } = { peers: [] };

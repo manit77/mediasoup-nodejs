@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Mediasoup Raw WS Example</title>
+</head>
+
+<body>
+    <h2>Mediasoup WebRTC Test</h2>
+    userName: <input type="text" id="ctlUserName" />
+    RoomId: <input type="text" id="ctlRoomId" /> RoomToken: <input type="text" id="ctlRoomToken" /> <br>
+    <button type="button" id="ctlNewRoom">New Room</button> <br>
+    <button type="button" id="ctlJoinRoom">Join Room</button> <br>
+    <hr>
+
+    <video id="localVideo" autoplay playsinline muted></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+
+    <script>
+
+        const wsUrl = "wss://192.168.40.24:8001";
+        const ws = new WebSocket(wsUrl);
+
+        let serviceAuthToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwidHlwZSI6InNlcnZpY2UiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3NTYwODM4NTh9.Kqnh5zEi--_--JNMUkqf7X6WQQYJ57v3ssW5ks5bBbs";
+
+        let authToken = "";
+        let username = "";
+        let peerId = "";
+        let roomId = "";
+        let roomName = "test room 1";
+        let roomToken = "";
+        let roomRtpCapabilities;
+        let pcSend;
+        let pcReceive;
+        let localStream;
+
+        let ctlUserName = document.getElementById("ctlUserName");
+        let ctlRoomToken = document.getElementById("ctlRoomToken");
+        let ctlRoomId = document.getElementById("ctlRoomId");
+        let ctlJoinRoom = document.getElementById("ctlJoinRoom");
+        let ctlNewRoom = document.getElementById("ctlNewRoom");
+
+        console.log("ctlNewRoom", ctlNewRoom);
+
+        let peers = [];
+
+
+        ctlNewRoom.addEventListener("click", (event) => {
+            console.log("-- ctlNewRoom click()");
+            event.preventDefault();
+            event.stopPropagation();
+
+            createRoomToken();
+        });
+
+        ctlJoinRoom.addEventListener("click", (event) => {
+            console.log("-- ctlJoinRoom click()");
+            event.preventDefault();
+            event.stopPropagation();
+
+            roomId = ctlRoomId.value;
+            roomToken = ctlRoomToken.value;
+
+            joinRoom();
+        });
+
+
+        ws.onopen = async () => {
+            console.log("-- Connected to signaling server");
+            username = randomString();
+
+            ctlUserName.value = username;
+
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById("localVideo").srcObject = localStream;
+                
+                newAuthToken();
+
+            } catch (err) {
+                console.error("Failed to get user media:", err);
+            }
+        };
+
+        ws.onclose = () => {
+            console.error("socket closed");
+        }
+
+        ws.onerror = () => {
+            console.error("socket onerror");
+        }
+
+
+        ws.onmessage = async (event) => {
+            const msg = JSON.parse(event.data);
+            console.log("-- onmessage", msg);
+
+            if (msg.data?.error) {
+                console.error("Server error:", msg.data.error);
+                return;
+            }
+
+            switch (msg.type) {
+                case "authUserNewTokenResult": {
+                    authToken = msg.data.authToken;
+                    register();
+                    break;
+                }
+                case "registerPeerResult": {
+                    peerId = msg.data.peerId;
+                    console.log("-- Registered peer, peerId:", peerId);
+                    break;
+                }
+                case "roomNewTokenResult": {
+                    roomId = msg.data.roomId;
+                    roomToken = msg.data.roomToken;
+                    console.log("-- Room token created, roomId:", roomId);
+                    ctlRoomId.value = roomId;
+                    ctlRoomToken.value = roomToken;
+
+                    createRoom();
+                    break;
+                }
+                case "roomNewResult": {
+                    console.log("-- Room created:", msg);
+                    roomRtpCapabilities = msg.data.roomRtpCapabilities;
+                    joinRoom();
+                    break;
+                }
+                case "roomJoinResult": {
+                    console.log("-- Joined room:", msg);
+                    roomRtpCapabilities = msg.data.roomRtpCapabilities;
+
+                    createTransports();
+
+                    break;
+                }
+                case "createProducerTransportResult": {
+                    console.log("-- Producer transport created:", msg);
+                    const { roomId, transportId, iceParameters, iceServers, iceCandidates, dtlsParameters, iceTransportPolicy } = msg.data;
+
+                    // Validate dtlsParameters
+                    if (!dtlsParameters?.fingerprints?.length) {
+                        console.error("No DTLS fingerprints received from server:", dtlsParameters);
+                        return;
+                    }
+
+                    // Create PeerConnection
+                    const config = { iceServers: iceServers || [] };
+                    if (iceTransportPolicy) config.iceTransportPolicy = iceTransportPolicy;
+                    pcSend = new RTCPeerConnection(config);
+
+                    // Add local tracks
+                    localStream.getTracks().forEach(track => pcSend.addTrack(track, localStream));
+
+                    // Create offer and set local description
+                    const offer = await pcSend.createOffer();
+                    await pcSend.setLocalDescription(offer);
+
+                    // Generate remote SDP
+                    const remoteSdp = generateRemoteSdp(offer.sdp, iceParameters, iceCandidates, dtlsParameters, true);
+                    console.log("-- Generated remote SDP for producer:", remoteSdp);
+
+                    try {
+                        await pcSend.setRemoteDescription({ type: 'answer', sdp: remoteSdp });
+                    } catch (err) {
+                        console.error("Failed to set remote description for producer:", err);
+                        return;
+                    }
+
+                    // Extract DTLS fingerprint from local offer
+                    const localSdpLines = offer.sdp.split('\n');
+                    let fingerprint = '';
+                    for (const line of localSdpLines) {
+                        if (line.startsWith('a=fingerprint:sha-256 ')) {
+                            fingerprint = line.substring('a=fingerprint:sha-256 '.length).trim();
+                            break;
+                        }
+                    }
+
+                    const clientDtlsParameters = {
+                        fingerprints: [{ algorithm: 'sha-256', value: fingerprint }],
+                        role: 'client'
+                    };
+
+                    console.log("-- Sending connectProducerTransport");
+                    send({
+                        type: "connectProducerTransport",
+                        data: {
+                            transportId,
+                            roomId,
+                            dtlsParameters: clientDtlsParameters
+                        }
+                    });
+                    break;
+                }
+                case "producerTransportConnected": {
+                    console.log("-- Producer transport connected");
+                    publishTrack("audio");
+                    publishTrack("video");
+                    break;
+                }
+                case "roomPing": {
+                    console.log("-- Received roomPing");
+                    send({
+                        type: "roomPong",
+                        data: { roomId }
+                    });
+                    break;
+                }
+                case "roomNewPeer": {                    
+                    console.warn("new peer joined: ", msg.data.peerId);
+                    peers.push({
+                        peerId: msg.data.peerId,
+                        displayName: msg.data.displayName,
+                        producers: msg.data.producers,
+                        trackInfo: msg.data.trackInfo,
+                        pc: null //peer connection for the peer
+                    });
+
+                    //if there are any producers consume them
+
+                    break;
+                }
+                case "roomNewProducer": {
+                    console.warn("new mediatream: ", msg.data.kind);
+                    let { kind, producerId } = msg.data;
+                    //consume the  producer
+                    
+                    break;
+                }
+            }
+        };
+
+        function generateRemoteSdp(offerSdp, iceParameters, iceCandidates, dtlsParameters, isProducer) {
+            const sdp = [];
+            const mids = [];
+
+            // Session-level headers
+            sdp.push(
+                'v=0',
+                'o=- 0 0 IN IP4 0.0.0.0',
+                's=-',
+                't=0 0',
+                'a=ice-lite'
+            );
+
+            // Split offer SDP into sections, preserving order
+            const offerLines = offerSdp.split('\r\n');
+            const mediaSections = [];
+            let currentSection = null;
+
+            // Parse offer SDP to extract media sections in order
+            for (const line of offerLines) {
+                if (line.startsWith('m=')) {
+                    if (currentSection) mediaSections.push(currentSection);
+                    currentSection = [line];
+                } else if (currentSection) {
+                    currentSection.push(line);
+                }
+            }
+            if (currentSection) mediaSections.push(currentSection);
+
+            // Process each media section in the order of the offer
+            for (const section of mediaSections) {
+                const mLine = section[0];
+                const kind = mLine.startsWith('m=audio') ? 'audio' : mLine.startsWith('m=video') ? 'video' : null;
+                if (!kind) continue;
+
+                // Extract mid from the offer section
+                let mid = '';
+                for (const line of section) {
+                    if (line.startsWith('a=mid:')) {
+                        mid = line.substring(6);
+                        mids.push(mid);
+                        break;
+                    }
+                }
+
+                // Find matching codec from roomRtpCapabilities
+                const codec = roomRtpCapabilities?.codecs?.find(
+                    c => c.kind === kind || c.mimeType.toLowerCase().includes(kind)
+                );
+                if (!codec) {
+                    console.warn(`No codec found for ${kind} in roomRtpCapabilities`);
+                    continue;
+                }
+
+                // Build media section
+                sdp.push(`m=${kind} 9 UDP/TLS/RTP/SAVPF ${codec.preferredPayloadType}`);
+                sdp.push('c=IN IP4 0.0.0.0');
+                sdp.push(`a=mid:${mid}`);
+                sdp.push(isProducer ? 'a=recvonly' : 'a=sendonly');
+
+                // Codec info
+                const mimeSubtype = codec.mimeType.split('/')[1];
+                const channels = codec.channels && codec.channels > 1 ? `/${codec.channels}` : '';
+                sdp.push(`a=rtpmap:${codec.preferredPayloadType} ${mimeSubtype}/${codec.clockRate}${channels}`);
+
+                if (codec.parameters && Object.keys(codec.parameters).length) {
+                    const fmtp = Object.entries(codec.parameters)
+                        .map(([k, v]) => `${k}=${v}`)
+                        .join(';');
+                    if (fmtp) sdp.push(`a=fmtp:${codec.preferredPayloadType} ${fmtp}`);
+                }
+
+                if (Array.isArray(codec.rtcpFeedback)) {
+                    for (const fb of codec.rtcpFeedback) {
+                        sdp.push(`a=rtcp-fb:${codec.preferredPayloadType} ${fb.type}${fb.parameter ? ' ' + fb.parameter : ''}`);
+                    }
+                }
+
+                // Transport attributes
+                sdp.push('a=rtcp-mux');
+                sdp.push('a=rtcp-rsize');
+                sdp.push(`a=ice-ufrag:${iceParameters.usernameFragment}`);
+                sdp.push(`a=ice-pwd:${iceParameters.password}`);
+
+                if (dtlsParameters?.fingerprints?.length) {
+                    for (const fp of dtlsParameters.fingerprints) {
+                        sdp.push(`a=fingerprint:${fp.algorithm} ${fp.value}`);
+                    }
+                }
+                sdp.push('a=setup:passive');
+
+                for (const c of iceCandidates || []) {
+                    let cand = `a=candidate:${c.foundation} 1 ${c.protocol.toLowerCase()} ${c.priority} ${c.ip} ${c.port} typ ${c.type}`;
+                    if (c.relatedAddress) cand += ` raddr ${c.relatedAddress} rport ${c.relatedPort}`;
+                    if (c.tcpType) cand += ` tcptype ${c.tcpType}`;
+                    sdp.push(cand);
+                }
+                sdp.push('a=end-of-candidates');
+            }
+
+            // Add BUNDLE group with mids in the correct order
+            sdp.splice(5, 0, `a=group:BUNDLE ${mids.join(' ')}`);
+
+            return sdp.join('\r\n') + '\r\n';
+        }
+
+        function publishTrack(kind) {
+            console.log(`-- Publishing ${kind} track`);
+            const senders = pcSend.getSenders();
+            const sender = senders.find(s => s.track?.kind === kind);
+
+            if (!sender) {
+                console.error(`No sender found for ${kind} track`);
+                return;
+            }
+
+            const params = sender.getParameters();
+            console.log(`-- Sender parameters for ${kind}:`, params);
+
+            // Find matching codec from roomRtpCapabilities
+            const codec = roomRtpCapabilities.codecs.find(c => c.mimeType === params.codecs[0].mimeType);
+            if (!codec) {
+                console.error(`No matching codec found for ${kind} in roomRtpCapabilities`);
+                return;
+            }
+
+            // Extract mid from the offer SDP for this track
+            const offerSdp = pcSend.localDescription.sdp;
+            const offerLines = offerSdp.split('\r\n');
+            let mid = null;
+            let inMediaSection = false;
+            for (const line of offerLines) {
+                if (line.startsWith(`m=${kind}`)) {
+                    inMediaSection = true;
+                } else if (inMediaSection && line.startsWith('a=mid:')) {
+                    mid = line.substring(6);
+                    break;
+                } else if (inMediaSection && line.startsWith('m=')) {
+                    inMediaSection = false; // Start of next media section
+                }
+            }
+
+            if (!mid) {
+                console.error(`No mid found for ${kind} track in offer SDP`);
+                return;
+            }
+
+            // Build rtpParameters
+            const rtpParameters = {
+                codecs: [{
+                    mimeType: codec.mimeType,
+                    payloadType: codec.preferredPayloadType,
+                    clockRate: codec.clockRate,
+                    channels: codec.channels || 1,
+                    parameters: codec.parameters || {}
+                }],
+                encodings: params.encodings.map(enc => {
+                    const encoding = {
+                        ssrc: enc.ssrc, // Include ssrc if available
+                    };
+                    if (enc.rid) encoding.rid = enc.rid; // Include rid if available
+                    if (mid) encoding.mid = mid; // Include mid for BUNDLE
+                    // Add additional encoding parameters if needed (e.g., maxBitrate)
+                    if (enc.maxBitrate) encoding.maxBitrate = enc.maxBitrate;
+                    return encoding;
+                }),
+                headerExtensions: params.headerExtensions
+                    .filter(ext => roomRtpCapabilities.headerExtensions.some(he => he.uri === ext.uri))
+                    .map(ext => ({
+                        uri: ext.uri,
+                        id: ext.id
+                    })),
+                mid: mid // Include mid at the top level for mediasoup
+            };
+
+            console.log(`-- rtpParameters for ${kind}:`, JSON.stringify(rtpParameters, null, 2));
+
+            send({
+                type: "roomProduceStream",
+                data: {
+                    roomId,
+                    kind,
+                    rtpParameters
+                }
+            });
+        }
+
+        function send(msg) {
+            console.log("-- Sending message:", msg);
+            ws.send(JSON.stringify(msg));
+        }
+
+        function newAuthToken() {
+            console.log("-- newAuthToken");
+
+            send({
+                type: "authUserNewToken",
+                data: {
+                    authToken: serviceAuthToken,
+                    username: username,
+                    role: "user",
+                    expiresInMin: 30
+                }
+            });
+        }
+
+        function register() {
+            console.log("-- register");
+            send({
+                type: "registerPeer",
+                data: {
+                    authToken,
+                    username,
+                    displayName: username,
+                    peerTrackingId: username, // since we don't have one, use the username
+                }
+            });
+        }
+
+        function createRoomToken() {
+            console.log("-- createRoomToken");
+            send({
+                type: "roomNewToken",
+                data: { authToken }
+            });
+        }
+
+        function createRoom() {
+            console.log("-- createRoom");
+            send({
+                type: "roomNew",
+                data: {
+                    authToken,
+                    peerId,
+                    roomId,
+                    roomToken,
+                    roomName,
+                    roomTrackingId: "0"
+                }
+            });
+        }
+
+        function createTransports() {
+            console.log("-- createTransports");
+            send({
+                type: "createProducerTransport",
+                data: {
+                    authToken,
+                    roomId
+                }
+            });
+        }
+
+        function joinRoom() {
+            console.log("-- joinRoom", roomId, roomToken);
+            send({
+                type: "roomJoin",
+                data: {
+                    authToken,
+                    peerId,
+                    roomId,
+                    roomToken
+                }
+            });
+        }
+
+        function randomString(length = 10) {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+    </script>
+</body>
+
+</html>

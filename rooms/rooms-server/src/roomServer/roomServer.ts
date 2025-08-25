@@ -6,7 +6,7 @@ import {
     AuthUserNewTokenResultMsg,
     ConnectConsumerTransportMsg, ConnectProducerTransportMsg,
     ConsumerTransportConnectedMsg, ConsumerTransportCreatedMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient,
-    PeerTerminatedMsg, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg,
+    PeerTerminatedMsg, ProducerTransportConnectedMsg, createProducerTransportResultMsg,
     RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomGetLogsMsg, RoomJoinMsg,
     RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg,
     RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
@@ -271,7 +271,7 @@ export class RoomServer {
         //delete from peers
         this.removePeerGlobal(peer);
         this.eventPeerClosed(peer);
-    }       
+    }
 
     /**
      * creates a new peer and adds it the peers map
@@ -340,14 +340,17 @@ export class RoomServer {
             return null;
         }
 
-        console.log("router created");
+        let roomConfig: RoomConfig;
+        if (!args.config) {
+            roomConfig = new RoomConfig();
+        }
 
         let room = new Room(this.config);
         room.roomLogAdapter = this.roomLogAdapter;
         room.id = args.roomId;
         room.roomToken = args.roomToken;
         room.trackingId = args.trackingId;
-        room.config = args.config;
+        room.config = roomConfig;
         room.adminTrackingId = args.adminTrackingId;
         room.roomName = args.roomName;
 
@@ -456,7 +459,7 @@ export class RoomServer {
     }
 
     private removeRoomGlobal(room: Room) {
-        console.log(`removeRoomGlobal() ${room.id}`);        
+        console.log(`removeRoomGlobal() ${room.id}`);
         this.rooms.delete(room.id);
     }
 
@@ -571,7 +574,7 @@ export class RoomServer {
         msg.data = {
             peerId: peer.id,
             displayName: msgIn.data.displayName,
-        };        
+        };
 
         return msg;
     }
@@ -594,8 +597,8 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeServer.createProducerTransportResult, "could not create producer transport");
         }
 
-        let producerTransportCreated = new ProducerTransportCreatedMsg();
-        producerTransportCreated.data = {
+        let createProducerTransportResult = new createProducerTransportResultMsg();
+        createProducerTransportResult.data = {
             roomId: peer.room.id,
             iceServers: this.config.room_iceServers,
             iceTransportPolicy: this.config.room_iceTransportPolicy,
@@ -605,7 +608,7 @@ export class RoomServer {
             dtlsParameters: producerTransport.dtlsParameters,
         }
 
-        return producerTransportCreated;
+        return createProducerTransportResult;
     }
 
     async onCreateConsumerTransport(peerId: string, msgIn: CreateProducerTransportMsg): Promise<IMsg> {
@@ -866,7 +869,7 @@ export class RoomServer {
         msgBroadCast.data.roomId = room.id;
         this.broadCastAll(room, msgBroadCast);
         this.roomTerminate(room);
-        
+
         let msgResult = new RoomTerminateResultMsg();
         msgResult.data.roomId = room.id;
 
@@ -936,6 +939,7 @@ export class RoomServer {
 
         let joinRoomResult = new RoomJoinResultMsg();
         joinRoomResult.data.roomId = room.id;
+        joinRoomResult.data.roomRtpCapabilities = room.roomRtpCapabilities;
 
         let otherRoomPeers = room.otherRoomPeers(peer.id);
         for (let otherPeer of otherRoomPeers) {
@@ -947,7 +951,7 @@ export class RoomServer {
                     producerId: producer.id,
                     kind: producer.kind
                 })),
-                trackInfo: otherPeer.peer.tracksInfo
+                trackInfo: otherPeer.peer.tracksInfo                
             });
         }
 
@@ -967,7 +971,7 @@ export class RoomServer {
             msg.data.producers = producersInfo;
             msg.data.trackInfo = peer.tracksInfo;
             this.send(otherPeer.peer.id, msg);
-        }        
+        }
 
         //send back the the peer that joined
         return joinRoomResult;
@@ -996,7 +1000,7 @@ export class RoomServer {
         //     roomId: room.id
         // }
         // this.broadCastAll(room, msg);
-        
+
         let roomLeaveResult = new RoomLeaveResultMsg();
         roomLeaveResult.data.roomId = room.id;
         return roomLeaveResult;

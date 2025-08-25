@@ -100,7 +100,7 @@ export class RoomPeerSocketServer {
                     consoleLog(LOG, "msgIn, ", message.toString());
                     const msgIn = JSON.parse(message.toString());
                     if (msgIn.type === payloadTypeClient.authUserNewToken) {
-                        let resultMsg = this.roomServer.onAuthUserNewTokenMsg(msgIn);
+                        let resultMsg = await this.roomServer.onAuthUserNewTokenMsg(msgIn);
                         this.send(ws, resultMsg);
                         return;
                     } else if (msgIn.type == payloadTypeClient.registerPeer) {

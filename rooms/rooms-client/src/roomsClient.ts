@@ -3,7 +3,7 @@ import {
   AuthUserNewTokenResultMsg,
   ConnectConsumerTransportMsg, ConnectProducerTransportMsg,
   ConsumerTransportCreatedMsg, CreateConsumerTransportMsg, CreateProducerTransportMsg,
-  ErrorMsg, IMsg, OkMsg, payloadTypeClient, payloadTypeServer, ProducerTransportConnectedMsg, ProducerTransportCreatedMsg,
+  ErrorMsg, IMsg, OkMsg, payloadTypeClient, payloadTypeServer, ProducerTransportConnectedMsg, createProducerTransportResultMsg,
   RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeStreamMsg, RoomConsumeStreamResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
   RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
   PeerMuteTracksMsg,
@@ -789,8 +789,8 @@ export class RoomsClient {
         case payloadTypeServer.registerPeerResult:
           this.onRegisterResult(msgIn);
           break;
-        case payloadTypeServer.producerTransportCreated:
-          this.onProducerTransportCreated(msgIn);
+        case payloadTypeServer.createProducerTransportResult:
+          this.oncreateProducerTransportResult(msgIn);
           break;
         case payloadTypeServer.producerTransportConnected:
           this.onProducerTransportConnected(msgIn);
@@ -1279,6 +1279,7 @@ export class RoomsClient {
     this.localRoom.transportReceive.on('connect', ({ dtlsParameters }, callback) => {
       let msg = new ConnectConsumerTransportMsg();
       msg.data = {
+        transportId: msgIn.data.transportId,
         roomId: this.localRoom.roomId,
         dtlsParameters: dtlsParameters
       }
@@ -1316,13 +1317,13 @@ export class RoomsClient {
     console.log("** onConsumerTransportConnected");
   }
 
-  private onProducerTransportCreated = async (msgIn: ProducerTransportCreatedMsg) => {
-    console.log("** onProducerTransportCreated:", msgIn);
+  private oncreateProducerTransportResult = async (msgIn: createProducerTransportResultMsg) => {
+    console.log("** oncreateProducerTransportResult:", msgIn);
 
     //the server has created a producer transport for the peer
     //roomid should match the local roomid
     if (msgIn.data.roomId != this.localRoom.roomId) {
-      console.error(`onProducerTransportCreated: invalid message for roomid`);
+      console.error(`oncreateProducerTransportResult: invalid message for roomid`);
       return;
     }
 
@@ -1343,6 +1344,7 @@ export class RoomsClient {
 
       let msg = new ConnectProducerTransportMsg();
       msg.data = {
+        transportId: msgIn.data.transportId,
         roomId: this.localRoom.roomId,
         dtlsParameters: dtlsParameters
       };
