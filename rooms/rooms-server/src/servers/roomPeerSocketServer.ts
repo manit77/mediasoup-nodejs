@@ -27,6 +27,7 @@ defaultPeerSocketServerSecurityMap[payloadTypeClient.registerPeer] = []; //any o
 defaultPeerSocketServerSecurityMap[payloadTypeClient.connectConsumerTransport] = [];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.connectProducerTransport] = [];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomConsumeProducer] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeClient.roomConsumeProducerAnswerForWebRTC] = [];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.createConsumerTransport] = [];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.createProducerTransport] = [];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomProduceStream] = [];
@@ -40,6 +41,8 @@ defaultPeerSocketServerSecurityMap[payloadTypeClient.roomNewToken] = [AuthUserRo
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomTerminate] = [AuthUserRoles.admin, AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.terminatePeer] = [AuthUserRoles.admin, AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomPong] = [];
+
+
 
 export class SocketConnection {
     peerId: string;

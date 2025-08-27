@@ -15,7 +15,7 @@
     <hr>
 
     <video id="localVideo" autoplay playsinline muted></video>
-    <div id="remoteVideos"></div>
+    <div id="remoteVideos" style="width: 500px; height: 500px; background-color: aquamarine"></div>
 
     <script>
 
@@ -241,9 +241,34 @@
                 case "createConsumerTransportResult": {
                     console.log("-- Consumer transport created:", msg);
 
+                     pcReceive = new RTCPeerConnection({
+                        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+                    });
+
+                    console.log("pcSend created, initial ICE state:", pcSend.iceGatheringState);
+                    console.log("Browser:", navigator.userAgent);
+
+                    // Add event listeners for debugging
+                    pcReceive.onicecandidate = (event) => {
+                        console.log("ICE candidate:", event.candidate);
+                    };
+                    pcReceive.onicegatheringstatechange = () => {
+                        console.log("ICE gathering state:", pcReceive.iceGatheringState);
+                    };
+                    pcReceive.onconnectionstatechange = () => {
+                        console.log("Connection state:", pcReceive.connectionState);
+                    };
+                    pcReceive.oniceconnectionstatechange = () => {
+                        console.log("ICE connection state:", pcReceive.iceConnectionState);
+                    };
+
+
                     for (let peer of peers) {
                         for (let producer of peer.producers) {
-                            consumeProducer(peer.peerId, producer.producerId);
+                            if (producer.kind == "video") {
+                                consumeProducer(peer.peerId, producer.producerId);
+                                break;
+                            }
                         }
                     }
 
@@ -304,16 +329,67 @@
                         return;
                     }
 
-                    pcSend.ontrack = (event) => {
-                        console.log("ontrack", event);
+                    pcReceive.ontrack = (event) => {
+                        console.log("ontrack", {
+                            kind: event.track.kind,
+                            id: event.track.id,
+                            streamId: event.streams[0]?.id,
+                            enabled: event.track.enabled,
+                            readyState: event.track.readyState,
+                            muted: event.track.muted
+                        });
+
+                        // Skip probator track
+                        if (event.streams[0]?.id.includes("probator") || event.track.id.includes("probator")) {
+                            console.log("Skipping probator track:", event.track.id);
+                            return;
+                        }
+
+                        // Only handle video tracks
+                        if (event.track.kind !== "video") {
+                            console.log("Skipping non-video track:", event.track.kind);
+                            return;
+                        }
+
+                        // Verify remoteVideos container
+                        let remoteVideos = document.getElementById("remoteVideos");
+                        if (!remoteVideos) {
+                            console.error("remoteVideos element not found");
+                            return;
+                        }
+
+                        // Create video element
+                        let video = document.createElement("video");
+                        video.id = `video-${event.track.id}`; // Unique ID for debugging
+                        video.autoplay = true;
+                        video.muted = true; // Required for autoplay
+                        video.style.width = "320px"; // Ensure visibility
+                        video.style.height = "240px";
+                        video.style.backgroundColor = "black";
+
+                        const stream = new MediaStream([event.track]);
+                        console.log("MediaStream tracks:", stream.getTracks());
+                        video.srcObject = stream;
+
+                        // Attempt to play
+                        video.play().catch(error => console.error("Video play failed:", error));
+
+                        // Append to container
+                        remoteVideos.appendChild(video);
+                        console.log("Video element appended:", video);
+
                     };
 
-                    pcSend.setRemoteDescription(new RTCSessionDescription({
+                    pcReceive.setRemoteDescription(new RTCSessionDescription({
                         type: "offer",
                         sdp: offer
                     }));
 
-                    let answer = await pcSend.createAnswer();
+                    //await waitForIceGatheringComplete(pcSend);
+
+                    let answer = await pcReceive.createAnswer();
+                    await pcReceive.setLocalDescription(answer);
+
 
                     send({
                         type: "roomConsumeProducerAnswerForWebRTC",

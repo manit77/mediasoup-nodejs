@@ -4,7 +4,7 @@ import {
   ConnectConsumerTransportMsg, ConnectProducerTransportMsg,
   CreateConsumerTransportMsg, CreateProducerTransportMsg,
   ErrorMsg, IMsg, OkMsg, payloadTypeClient, payloadTypeServer, ProducerTransportConnectedMsg, createProducerTransportResultMsg,
-  RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeProducerMsg, roomConsumeProducerResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
+  RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeProducerMsg, RoomConsumeProducerResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
   RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
   PeerMuteTracksMsg,
   PeerTracksInfoMsg,
@@ -497,6 +497,11 @@ export class RoomsClient {
 
     if (!args.trackingId) {
       console.error("** trackingId, is required.");
+      return false;
+    }
+
+    if (!args.clientType) {
+      console.error("** clientType, is required.");
       return false;
     }
 
@@ -1452,7 +1457,7 @@ export class RoomsClient {
 
   };
 
-  private onConsumed = async (msgIn: roomConsumeProducerResultMsg) => {
+  private onConsumed = async (msgIn: RoomConsumeProducerResultMsg) => {
     console.log("onConsumed() " + msgIn.data?.kind);
 
     let peer = this.localRoom.peers.get(msgIn.data.peerId);

@@ -282,7 +282,7 @@ export class RoomServer {
      * @returns 
      */
     private createPeer(authToken: string, username: string, trackingId: string, displayName: string, clientType: "webrtc" | "mediasoup"): Peer {
-        console.log(`createPeer() - trackingId: ${trackingId}, displayName: ${displayName}`);
+        console.log(`createPeer() - trackingId: ${trackingId}, displayName: ${displayName}, clientType: ${clientType}`);
 
         let payload: AuthUserTokenPayload = roomUtils.decodeAuthUserToken(this.config.room_secretKey, authToken);
 
@@ -530,6 +530,15 @@ export class RoomServer {
             let errMsg = new RegisterPeerResultMsg();
             errMsg.data = {
                 error: "authToken is required."
+            };
+            return errMsg;
+        }
+
+        if(!msgIn.data.clientType) {
+             consoleError("clientType for peer is required.");
+            let errMsg = new RegisterPeerResultMsg();
+            errMsg.data = {
+                error: "clientType is required."
             };
             return errMsg;
         }
