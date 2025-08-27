@@ -15,7 +15,7 @@
     <hr>
 
     <video id="localVideo" autoplay playsinline muted></video>
-    <video id="remoteVideo" autoplay playsinline></video>
+    <div id="remoteVideos"></div>
 
     <script>
 
@@ -44,6 +44,12 @@
         console.log("ctlNewRoom", ctlNewRoom);
 
         let peers = [];
+
+        roomId = localStorage.getItem("roomId") ?? "";
+        roomToken = localStorage.getItem("roomToken") ?? "";
+
+        ctlRoomId.value = roomId;
+        ctlRoomToken.value = roomToken;
 
 
         ctlNewRoom.addEventListener("click", (event) => {
@@ -75,7 +81,7 @@
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 document.getElementById("localVideo").srcObject = localStream;
-                
+
                 newAuthToken();
 
             } catch (err) {
@@ -119,6 +125,10 @@
                     ctlRoomId.value = roomId;
                     ctlRoomToken.value = roomToken;
 
+                    localStorage.setItem("roomId", roomId);
+                    localStorage.setItem("roomToken", roomToken);
+
+
                     createRoom();
                     break;
                 }
@@ -129,8 +139,9 @@
                     break;
                 }
                 case "roomJoinResult": {
-                    console.log("-- Joined room:", msg);
+                    console.log("-- roomJoinResult:", msg);
                     roomRtpCapabilities = msg.data.roomRtpCapabilities;
+                    peers = msg.data.peers;
 
                     createTransports();
 
@@ -140,65 +151,107 @@
                     console.log("-- Producer transport created:", msg);
                     const { roomId, transportId, iceParameters, iceServers, iceCandidates, dtlsParameters, iceTransportPolicy } = msg.data;
 
-                    // Validate dtlsParameters
-                    if (!dtlsParameters?.fingerprints?.length) {
-                        console.error("No DTLS fingerprints received from server:", dtlsParameters);
-                        return;
+                    // Verify localStream tracks
+                    if (!localStream || !localStream.getTracks().length) {
+                        console.error("No tracks in localStream");
+                        throw new Error("Invalid localStream");
                     }
+                    console.log("Local stream tracks:", localStream.getTracks().map(track => ({
+                        kind: track.kind,
+                        id: track.id,
+                        enabled: track.enabled
+                    })));
 
-                    // Create PeerConnection
-                    const config = { iceServers: iceServers || [] };
-                    if (iceTransportPolicy) config.iceTransportPolicy = iceTransportPolicy;
-                    pcSend = new RTCPeerConnection(config);
+                    // Create RTCPeerConnection
+                    pcSend = new RTCPeerConnection({
+                        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+                    });
 
-                    // Add local tracks
-                    localStream.getTracks().forEach(track => pcSend.addTrack(track, localStream));
+                    console.log("pcSend created, initial ICE state:", pcSend.iceGatheringState);
+                    console.log("Browser:", navigator.userAgent);
 
-                    // Create offer and set local description
-                    const offer = await pcSend.createOffer();
-                    await pcSend.setLocalDescription(offer);
-
-                    // Generate remote SDP
-                    const remoteSdp = generateRemoteSdp(offer.sdp, iceParameters, iceCandidates, dtlsParameters, true);
-                    console.log("-- Generated remote SDP for producer:", remoteSdp);
-
-                    try {
-                        await pcSend.setRemoteDescription({ type: 'answer', sdp: remoteSdp });
-                    } catch (err) {
-                        console.error("Failed to set remote description for producer:", err);
-                        return;
-                    }
-
-                    // Extract DTLS fingerprint from local offer
-                    const localSdpLines = offer.sdp.split('\n');
-                    let fingerprint = '';
-                    for (const line of localSdpLines) {
-                        if (line.startsWith('a=fingerprint:sha-256 ')) {
-                            fingerprint = line.substring('a=fingerprint:sha-256 '.length).trim();
-                            break;
-                        }
-                    }
-
-                    const clientDtlsParameters = {
-                        fingerprints: [{ algorithm: 'sha-256', value: fingerprint }],
-                        role: 'client'
+                    // Add event listeners for debugging
+                    pcSend.onicecandidate = (event) => {
+                        console.log("ICE candidate:", event.candidate);
+                    };
+                    pcSend.onicegatheringstatechange = () => {
+                        console.log("ICE gathering state:", pcSend.iceGatheringState);
+                    };
+                    pcSend.onconnectionstatechange = () => {
+                        console.log("Connection state:", pcSend.connectionState);
+                    };
+                    pcSend.oniceconnectionstatechange = () => {
+                        console.log("ICE connection state:", pcSend.iceConnectionState);
                     };
 
-                    console.log("-- Sending connectProducerTransport");
+                    // Add tracks
+                    localStream.getTracks().forEach(track => {
+                        pcSend.addTrack(track, localStream);
+                        console.log(`Track added: ${track.kind} (id: ${track.id})`);
+                    });
+
+                    // Create and set offer
+                    let offer;
+                    try {
+                        offer = await pcSend.createOffer({ iceRestart: false });
+                        console.log("SDP Offer:", offer.sdp);
+                        await pcSend.setLocalDescription(offer);
+                        console.log("Local description set");
+                    } catch (error) {
+                        console.error("Error creating/setting offer:", error);
+                        throw error;
+                    }
+
+                    // Wait for ICE gathering with timeout
+                    try {
+                        await waitForIceGatheringComplete(pcSend);
+                        console.log("ICE gathering completed");
+                    } catch (error) {
+                        console.error("ICE gathering failed:", error);
+                    }
+
                     send({
-                        type: "connectProducerTransport",
+                        type: "roomProduceStream",
                         data: {
-                            transportId,
                             roomId,
-                            dtlsParameters: clientDtlsParameters
+                            offer: offer.sdp
                         }
                     });
+
                     break;
                 }
                 case "producerTransportConnected": {
-                    console.log("-- Producer transport connected");
-                    publishTrack("audio");
-                    publishTrack("video");
+                    console.log("-- Producer transport connected", msg.data.answer);
+
+                    await pcSend.setRemoteDescription(new RTCSessionDescription({
+                        type: 'answer',
+                        sdp: msg.data.answer
+                    }));
+
+                    console.log(`answer set`);
+
+                    //we received an answer
+                    //let msgIN
+
+                    //we get an answer back
+                    //publishTrack("audio");
+
+                    break;
+                }
+                case "createConsumerTransportResult": {
+                    console.log("-- Consumer transport created:", msg);
+
+                    for (let peer of peers) {
+                        for (let producer of peer.producers) {
+                            consumeProducer(peer.peerId, producer.producerId);
+                        }
+                    }
+
+                    break;
+                }
+                case "consumerTransportConnected": {
+                    console.log(`-- consumerTransportConnected`);
+
                     break;
                 }
                 case "roomPing": {
@@ -209,14 +262,14 @@
                     });
                     break;
                 }
-                case "roomNewPeer": {                    
+                case "roomNewPeer": {
                     console.warn("new peer joined: ", msg.data.peerId);
                     peers.push({
                         peerId: msg.data.peerId,
                         displayName: msg.data.displayName,
                         producers: msg.data.producers,
                         trackInfo: msg.data.trackInfo,
-                        pc: null //peer connection for the peer
+                        tracks: []
                     });
 
                     //if there are any producers consume them
@@ -227,195 +280,105 @@
                     console.warn("new mediatream: ", msg.data.kind);
                     let { kind, producerId } = msg.data;
                     //consume the  producer
-                    
+
+                    break;
+                }
+                case "roomProduceStreamResult": {
+                    console.log("-- roomProduceStreamResult stream:", msg);
+
+                    await pcSend.setRemoteDescription(new RTCSessionDescription({
+                        type: 'answer',
+                        sdp: msg.data.answer
+                    }));
+
+                    break;
+                }
+                case "roomConsumeProducerResult": {
+                    console.log("-- roomConsumeProducerResult stream:", msg);
+
+                    const { peerId, producerId, kind, rtpParameters, offer } = msg.data;
+
+                    const peer = peers.find(p => p.peerId === peerId);
+                    if (!peer) {
+                        console.error(`Peer ${peerId} not found`);
+                        return;
+                    }
+
+                    pcSend.ontrack = (event) => {
+                        console.log("ontrack", event);
+                    };
+
+                    pcSend.setRemoteDescription(new RTCSessionDescription({
+                        type: "offer",
+                        sdp: offer
+                    }));
+
+                    let answer = await pcSend.createAnswer();
+
+                    send({
+                        type: "roomConsumeProducerAnswerForWebRTC",
+                        data: {
+                            roomId: roomId,
+                            answer: answer.sdp,
+                            remotePeerId: peerId,
+                            producerId: producerId
+                        }
+                    });
+
                     break;
                 }
             }
         };
 
-        function generateRemoteSdp(offerSdp, iceParameters, iceCandidates, dtlsParameters, isProducer) {
-            const sdp = [];
-            const mids = [];
+        async function waitForIceGatheringComplete(pc) {
+            console.log(`-- waitForIceGatheringComplete`);
 
-            // Session-level headers
-            sdp.push(
-                'v=0',
-                'o=- 0 0 IN IP4 0.0.0.0',
-                's=-',
-                't=0 0',
-                'a=ice-lite'
-            );
+            return new Promise((resolve) => {
+                console.log(`--  start ice gathering`);
 
-            // Split offer SDP into sections, preserving order
-            const offerLines = offerSdp.split('\r\n');
-            const mediaSections = [];
-            let currentSection = null;
+                if (pc.iceGatheringState === 'complete') {
+                    console.log(`--  gathering complete`);
+                    resolve();
+                } else {
+                    console.log(`--  gathering`);
 
-            // Parse offer SDP to extract media sections in order
-            for (const line of offerLines) {
-                if (line.startsWith('m=')) {
-                    if (currentSection) mediaSections.push(currentSection);
-                    currentSection = [line];
-                } else if (currentSection) {
-                    currentSection.push(line);
+                    const onIceGatheringStateChange = () => {
+                        console.log(`pc.iceGatheringState`, pc.iceGatheringState);
+                        if (pc.iceGatheringState === 'complete') {
+                            pc.removeEventListener('icegatheringstatechange', onIceGatheringStateChange);
+                            resolve();
+                        }
+                    };
+                    pc.addEventListener('icegatheringstatechange', onIceGatheringStateChange);
                 }
-            }
-            if (currentSection) mediaSections.push(currentSection);
-
-            // Process each media section in the order of the offer
-            for (const section of mediaSections) {
-                const mLine = section[0];
-                const kind = mLine.startsWith('m=audio') ? 'audio' : mLine.startsWith('m=video') ? 'video' : null;
-                if (!kind) continue;
-
-                // Extract mid from the offer section
-                let mid = '';
-                for (const line of section) {
-                    if (line.startsWith('a=mid:')) {
-                        mid = line.substring(6);
-                        mids.push(mid);
-                        break;
-                    }
-                }
-
-                // Find matching codec from roomRtpCapabilities
-                const codec = roomRtpCapabilities?.codecs?.find(
-                    c => c.kind === kind || c.mimeType.toLowerCase().includes(kind)
-                );
-                if (!codec) {
-                    console.warn(`No codec found for ${kind} in roomRtpCapabilities`);
-                    continue;
-                }
-
-                // Build media section
-                sdp.push(`m=${kind} 9 UDP/TLS/RTP/SAVPF ${codec.preferredPayloadType}`);
-                sdp.push('c=IN IP4 0.0.0.0');
-                sdp.push(`a=mid:${mid}`);
-                sdp.push(isProducer ? 'a=recvonly' : 'a=sendonly');
-
-                // Codec info
-                const mimeSubtype = codec.mimeType.split('/')[1];
-                const channels = codec.channels && codec.channels > 1 ? `/${codec.channels}` : '';
-                sdp.push(`a=rtpmap:${codec.preferredPayloadType} ${mimeSubtype}/${codec.clockRate}${channels}`);
-
-                if (codec.parameters && Object.keys(codec.parameters).length) {
-                    const fmtp = Object.entries(codec.parameters)
-                        .map(([k, v]) => `${k}=${v}`)
-                        .join(';');
-                    if (fmtp) sdp.push(`a=fmtp:${codec.preferredPayloadType} ${fmtp}`);
-                }
-
-                if (Array.isArray(codec.rtcpFeedback)) {
-                    for (const fb of codec.rtcpFeedback) {
-                        sdp.push(`a=rtcp-fb:${codec.preferredPayloadType} ${fb.type}${fb.parameter ? ' ' + fb.parameter : ''}`);
-                    }
-                }
-
-                // Transport attributes
-                sdp.push('a=rtcp-mux');
-                sdp.push('a=rtcp-rsize');
-                sdp.push(`a=ice-ufrag:${iceParameters.usernameFragment}`);
-                sdp.push(`a=ice-pwd:${iceParameters.password}`);
-
-                if (dtlsParameters?.fingerprints?.length) {
-                    for (const fp of dtlsParameters.fingerprints) {
-                        sdp.push(`a=fingerprint:${fp.algorithm} ${fp.value}`);
-                    }
-                }
-                sdp.push('a=setup:passive');
-
-                for (const c of iceCandidates || []) {
-                    let cand = `a=candidate:${c.foundation} 1 ${c.protocol.toLowerCase()} ${c.priority} ${c.ip} ${c.port} typ ${c.type}`;
-                    if (c.relatedAddress) cand += ` raddr ${c.relatedAddress} rport ${c.relatedPort}`;
-                    if (c.tcpType) cand += ` tcptype ${c.tcpType}`;
-                    sdp.push(cand);
-                }
-                sdp.push('a=end-of-candidates');
-            }
-
-            // Add BUNDLE group with mids in the correct order
-            sdp.splice(5, 0, `a=group:BUNDLE ${mids.join(' ')}`);
-
-            return sdp.join('\r\n') + '\r\n';
+            });
         }
 
-        function publishTrack(kind) {
-            console.log(`-- Publishing ${kind} track`);
-            const senders = pcSend.getSenders();
-            const sender = senders.find(s => s.track?.kind === kind);
+        async function consumeProducer(remotePeerId, producerId) {
+            console.log(`-- consumeProducer producerId ${producerId}`);
 
-            if (!sender) {
-                console.error(`No sender found for ${kind} track`);
+            if (!remotePeerId) {
+                console.error("remotePeerId is required.");
                 return;
             }
 
-            const params = sender.getParameters();
-            console.log(`-- Sender parameters for ${kind}:`, params);
-
-            // Find matching codec from roomRtpCapabilities
-            const codec = roomRtpCapabilities.codecs.find(c => c.mimeType === params.codecs[0].mimeType);
-            if (!codec) {
-                console.error(`No matching codec found for ${kind} in roomRtpCapabilities`);
+            if (!producerId) {
+                console.error("producerId is required.");
                 return;
             }
 
-            // Extract mid from the offer SDP for this track
-            const offerSdp = pcSend.localDescription.sdp;
-            const offerLines = offerSdp.split('\r\n');
-            let mid = null;
-            let inMediaSection = false;
-            for (const line of offerLines) {
-                if (line.startsWith(`m=${kind}`)) {
-                    inMediaSection = true;
-                } else if (inMediaSection && line.startsWith('a=mid:')) {
-                    mid = line.substring(6);
-                    break;
-                } else if (inMediaSection && line.startsWith('m=')) {
-                    inMediaSection = false; // Start of next media section
-                }
-            }
-
-            if (!mid) {
-                console.error(`No mid found for ${kind} track in offer SDP`);
+            const peer = peers.find(p => p.peerId === remotePeerId);
+            if (!peer) {
+                console.error(`Peer ${remotePeerId} not found`);
                 return;
             }
-
-            // Build rtpParameters
-            const rtpParameters = {
-                codecs: [{
-                    mimeType: codec.mimeType,
-                    payloadType: codec.preferredPayloadType,
-                    clockRate: codec.clockRate,
-                    channels: codec.channels || 1,
-                    parameters: codec.parameters || {}
-                }],
-                encodings: params.encodings.map(enc => {
-                    const encoding = {
-                        ssrc: enc.ssrc, // Include ssrc if available
-                    };
-                    if (enc.rid) encoding.rid = enc.rid; // Include rid if available
-                    if (mid) encoding.mid = mid; // Include mid for BUNDLE
-                    // Add additional encoding parameters if needed (e.g., maxBitrate)
-                    if (enc.maxBitrate) encoding.maxBitrate = enc.maxBitrate;
-                    return encoding;
-                }),
-                headerExtensions: params.headerExtensions
-                    .filter(ext => roomRtpCapabilities.headerExtensions.some(he => he.uri === ext.uri))
-                    .map(ext => ({
-                        uri: ext.uri,
-                        id: ext.id
-                    })),
-                mid: mid // Include mid at the top level for mediasoup
-            };
-
-            console.log(`-- rtpParameters for ${kind}:`, JSON.stringify(rtpParameters, null, 2));
 
             send({
-                type: "roomProduceStream",
+                type: "roomConsumeProducer",
                 data: {
                     roomId,
-                    kind,
-                    rtpParameters
+                    remotePeerId,
+                    producerId
                 }
             });
         }
@@ -448,6 +411,7 @@
                     username,
                     displayName: username,
                     peerTrackingId: username, // since we don't have one, use the username
+                    clientType: "webrtc"
                 }
             });
         }
@@ -480,7 +444,13 @@
             send({
                 type: "createProducerTransport",
                 data: {
-                    authToken,
+                    roomId
+                }
+            });
+
+            send({
+                type: "createConsumerTransport",
+                data: {
                     roomId
                 }
             });
@@ -491,7 +461,6 @@
             send({
                 type: "roomJoin",
                 data: {
-                    authToken,
                     peerId,
                     roomId,
                     roomToken

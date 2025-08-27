@@ -1729,7 +1729,8 @@ export class ConferenceClient {
                 username: this.username,
                 trackingId: this.localParticipant.participantId,
                 displayName: this.localParticipant.displayName,
-                timeoutSecs: 30
+                timeoutSecs: 30,
+                clientType: "mediasoup"
             });
 
             if (!registerResult.data.error) {

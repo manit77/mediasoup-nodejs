@@ -24,9 +24,15 @@ export enum payloadTypeClient {
     roomProduceStream = "roomProduceStream",
     roomCloseProducer = "roomCloseProducer",
     roomConsumeProducer = "roomConsumeProducer",
+    roomConsumeProducerAnswerForWebRTC = "roomConsumeProducerAnswerForWebRTC",
 
     peerTracksInfo = "peerTracksInfo",
     peerMuteTracks = "peerMuteTracks",
+
+    sdpOffer = 'sdpOffer',
+    sdpAnswer = 'sdpAnswer',
+    iceCandidate = 'iceCandidate'
+
 }
 
 
@@ -40,13 +46,13 @@ export enum payloadTypeServer {
 
     //createProducerTransport = "createProducerTransport",
     createProducerTransportResult = "createProducerTransportResult",
-    connectProducerTransportResult = "connectProducerTransportResult",           
+    connectProducerTransportResult = "connectProducerTransportResult",
     producerTransportConnected = "producerTransportConnected",
 
-    
-    
+
+
     //consumerTransportCreated = "consumerTransportCreated",
-    createConsumerTransportResult = "createConsumerTransportResult",    
+    createConsumerTransportResult = "createConsumerTransportResult",
     connectConsumerTransportResult = "connectConsumerTransportResult",
     consumerTransportConnected = "consumerTransportConnected",
 
@@ -71,6 +77,15 @@ export enum payloadTypeServer {
     ok = "ok",
     unauthorized = "unauthorized",
     //notRegistered = "notRegistered",
+
+    sdpOffer = 'sdpOffer',
+    sdpAnswer = 'sdpAnswer',
+    iceCandidate = 'iceCandidate',
+
+    sdpOfferResult = "sdpOfferResult",
+    sdpAnswerResult = 'sdpAnswerResult',
+
+
 }
 
 export interface IMsg {
@@ -120,7 +135,10 @@ export class RegisterPeerMsg implements IMsg {
          * your app's unique to track the room
          */
         peerTrackingId?: string,
-    } = {}
+        clientType: "webrtc" | "mediasoup"
+    } = {
+            clientType: "mediasoup"
+        }
 }
 
 export class RegisterPeerResultMsg implements IMsg {
@@ -174,6 +192,7 @@ export class ProducerTransportConnectedMsg implements IMsg {
     type = payloadTypeServer.producerTransportConnected;
     data: {
         roomId?: string,
+        answer?: string,
         error?: any,
     } = {};
 }
@@ -184,7 +203,8 @@ export class ConnectProducerTransportMsg implements IMsg {
         transportId?: string,
         authToken?: string,
         roomId?: string,
-        dtlsParameters?: any
+        dtlsParameters?: any,
+        offer?:any,
     } = {}
 }
 
@@ -341,7 +361,7 @@ export class RoomJoinResultMsg implements IMsg {
             peerTrackingId: string,
             displayName: string,
             producers?: { producerId: string, kind: "audio" | "video" }[],
-            trackInfo: PeerTracksInfo,            
+            trackInfo: PeerTracksInfo,
         }[],
         error?: string,
     } = { peers: [] };
@@ -409,7 +429,8 @@ export class RoomProduceStreamMsg implements IMsg {
     data: {
         roomId?: string,
         kind?: "audio" | "video",
-        rtpParameters?: any
+        rtpParameters?: any,
+        offer?: any
     } = {};
 }
 
@@ -417,7 +438,8 @@ export class RoomProduceStreamResultMsg implements IMsg {
     type = payloadTypeServer.roomProduceStreamResult;
     data: {
         roomId?: string,
-        kind?: "audio" | "video"
+        kind?: "audio" | "video",
+        answer?: any,
     } = {};
 }
 
@@ -427,12 +449,12 @@ export class RoomConsumeProducerMsg implements IMsg {
         roomId?: string,
         remotePeerId?: string,
         producerId?: string,
-        rtpCapabilities?: any
+        rtpCapabilities?: any,
         error?: string
     } = {};
 }
 
-export class roomConsumeProducerResultMsg implements IMsg {
+export class RoomConsumeProducerResultMsg implements IMsg {
     type = payloadTypeServer.roomConsumeProducerResult;
     data: {
         roomId?: string,
@@ -441,8 +463,19 @@ export class roomConsumeProducerResultMsg implements IMsg {
         producerId?: string,
         kind?: "audio" | "video",
         rtpParameters?: any,
+        offer?: any,
         error?: string,
     } = {};
+}
+
+export class RoomConsumeProducerAnswerForWebRTCMsg implements IMsg {
+    type = payloadTypeClient.roomConsumeProducerAnswerForWebRTC;
+    data: {
+        roomId?: string,
+        answer?: string,
+        remotePeerId?: string,
+        producerId?: string
+    } = {}
 }
 
 export class RoomConsumerClosedMsg implements IMsg {
@@ -571,6 +604,32 @@ export class RoomPongMsg implements IMsg {
     data: {
         roomId?: string
     } = {};
+}
+
+export class SdpOfferMsg implements IMsg {
+    type = payloadTypeClient.sdpOffer;
+    data: { roomId: string; sdp: string; };
+}
+
+export class SdpAnswerMsg implements IMsg {
+    type = payloadTypeClient.sdpAnswer;
+    data: { roomId: string; sdp: string; };
+}
+
+export class IceCandidateMsg implements IMsg {
+    type = payloadTypeClient.iceCandidate;
+    data: { roomId: string; candidate: RTCIceCandidate; };
+}
+
+// Server responses
+export class SdpAnswerResultMsg implements IMsg {
+    type = payloadTypeServer.sdpAnswerResult;
+    data: { roomId: string; sdp: string; error?: string; };
+}
+
+export class SdpOfferResultMsg implements IMsg {
+    type = payloadTypeServer.sdpOfferResult;
+    data: { roomId: string; sdp: string; error?: string; };
 }
 
 export class UniqueMap<K, T> {

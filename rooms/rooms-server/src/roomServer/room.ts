@@ -83,8 +83,7 @@ export class Room {
 
                 if (timeSincePong >= room_socket_pong_timeout_secs * 1000) {
                     consoleError(`No pong received, removing peer. ${roomPeer.peer.displayName}`);
-                    this.removePeer(roomPeer.peer);
-                    return;
+                    this.removePeer(roomPeer.peer);                    
                 }
 
                 this.onNeedPing(roomPeer.peer);
@@ -298,7 +297,16 @@ export class Room {
         return roomPeer.createProducer(kind, rtpParameters);
     }
 
-    createConsumer(peer: Peer, remotePeer: Peer, producerId: string, rtpParameters: mediasoup.types.RtpCapabilities) {
+    createProducersForWebRTC(peer: Peer, offer: string) {
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return;
+        }
+        return roomPeer.createProducersForWebRTC(offer);
+    }
+
+    createConsumer(peer: Peer, remotePeer: Peer, producerId: string, rtpCapabilities: mediasoup.types.RtpCapabilities) {
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -310,21 +318,50 @@ export class Room {
 
         let producer = remoteRoomPeer.producers.values().find(p => p.id === producerId);
         if (!producer) {
-            consoleError(`producer not found ${producer.id}`);
+            consoleError(`producer not found ${producer?.id}`);
         }
 
-        return roomPeer.createConsumer(peer, producer, rtpParameters);
+        return roomPeer.createConsumer(remotePeer, producer, rtpCapabilities);
 
     }
 
-    // getProducer(peer: Peer, kind: MediaKind) {
-    //     let roomPeer = this.roomPeers.get(peer);
-    //     if (!roomPeer) {
-    //         consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
-    //         return;
-    //     }
-    //     return roomPeer.producers.get(kind);
-    // }
+    createConsumerForWebRTC(peer: Peer, remotePeer: Peer, producerId: string, rtpCapabilities: mediasoup.types.RtpCapabilities) {
+
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return;
+        }
+
+        let remoteRoomPeer = this.roomPeers.get(remotePeer);
+
+        let producer = remoteRoomPeer.producers.values().find(p => p.id === producerId);
+        if (!producer) {
+            consoleError(`producer not found ${producer?.id}`);
+        }
+
+        return roomPeer.createConsumerForWebrtC(remotePeer, producer, rtpCapabilities);
+
+    } 
+
+     consumerProcessAnswerForWebRTC(peer: Peer, remotePeer: Peer, producerId: string, answer: string) {
+
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return;
+        }
+
+        let remoteRoomPeer = this.roomPeers.get(remotePeer);
+
+        let producer = remoteRoomPeer.producers.values().find(p => p.id === producerId);
+        if (!producer) {
+            consoleError(`producer not found ${producer?.id}`);
+        }
+
+        return roomPeer.consumerProcessAnswerForWebRTC(answer);
+    } 
+
 
     closeProducer(peer: Peer, kind: MediaKind) {
         let roomPeer = this.roomPeers.get(peer);

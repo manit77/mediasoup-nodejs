@@ -17,14 +17,15 @@ import {
     RoomProduceStreamMsg,
     RoomProduceStreamResultMsg,
     RoomConsumeProducerMsg,
-    roomConsumeProducerResultMsg,
+    RoomConsumeProducerResultMsg,
     PeerTracksInfoMsg,
     PeerMuteTracksMsg,
     RoomCloseProducerMsg,
     RoomConsumerClosedMsg,
     AuthUserRoles,
     RoomPingMsg,
-    RoomPongMsg
+    RoomPongMsg,
+    RoomConsumeProducerAnswerForWebRTCMsg
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
@@ -33,7 +34,7 @@ import { setTimeout } from 'node:timers';
 import { RoomLogAdapterInMemory } from './roomLogsAdapter.js';
 import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
 import { outMessageEventListener, RoomServerConfig, WorkerData } from './models.js';
-
+import { Consumer } from 'mediasoup/types';
 
 export class RoomServer {
 
@@ -214,7 +215,7 @@ export class RoomServer {
                 return this.onRoomCloseProducer(peerId, msgIn);
             }
             case payloadTypeClient.roomConsumeProducer: {
-                return this.onroomConsumeProducer(peerId, msgIn);
+                return this.onRoomConsumeProducer(peerId, msgIn);
             }
             case payloadTypeClient.peerTracksInfo: {
                 return this.onPeerTracksInfo(peerId, msgIn);
@@ -225,7 +226,9 @@ export class RoomServer {
             case payloadTypeClient.roomPong: {
                 return this.onRoomPong(peerId, msgIn);
             }
-
+            case payloadTypeClient.roomConsumeProducerAnswerForWebRTC: {
+                return this.onRoomConsumeProducerAnswerForWebRTC(peerId, msgIn);
+            }
         }
         return null;
     }
@@ -278,7 +281,7 @@ export class RoomServer {
      * @param trackingId custom id from a client
      * @returns 
      */
-    private createPeer(authToken: string, username: string, trackingId: string, displayName: string): Peer {
+    private createPeer(authToken: string, username: string, trackingId: string, displayName: string, clientType: "webrtc" | "mediasoup"): Peer {
         console.log(`createPeer() - trackingId: ${trackingId}, displayName: ${displayName}`);
 
         let payload: AuthUserTokenPayload = roomUtils.decodeAuthUserToken(this.config.room_secretKey, authToken);
@@ -299,6 +302,7 @@ export class RoomServer {
         peer.username = username;
         peer.trackingId = trackingId;
         peer.role = payload.role;
+        peer.clientType = clientType;
 
         this.addPeerGlobal(peer);
 
@@ -340,8 +344,8 @@ export class RoomServer {
             return null;
         }
 
-        let roomConfig: RoomConfig;
-        if (!args.config) {
+        let roomConfig: RoomConfig = args.config;
+        if (!roomConfig) {
             roomConfig = new RoomConfig();
         }
 
@@ -561,7 +565,7 @@ export class RoomServer {
             this.closePeer(peer);
         }
 
-        peer = this.createPeer(msgIn.data.authToken, msgIn.data.username, msgIn.data.peerTrackingId, msgIn.data.displayName);
+        peer = this.createPeer(msgIn.data.authToken, msgIn.data.username, msgIn.data.peerTrackingId, msgIn.data.displayName, msgIn.data.clientType);
         if (!peer) {
             let errMsg = new RegisterPeerResultMsg();
             errMsg.data = {
@@ -592,7 +596,9 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeServer.createProducerTransportResult, "peer is not in a room");
         }
 
-        let producerTransport = await peer.room.createProducerTransport(peer);
+        let producerTransport: mediasoup.types.WebRtcTransport;
+        producerTransport = await peer.room.createProducerTransport(peer);
+
         if (!producerTransport) {
             return new ErrorMsg(payloadTypeServer.createProducerTransportResult, "could not create producer transport");
         }
@@ -663,20 +669,39 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeServer.connectProducerTransportResult, "not in a room.");
         }
 
-        let producerTransport = peer.room.getProducerTransport(peer);
+        if (peer.clientType == "mediasoup") {
 
-        if (!producerTransport) {
-            consoleError(`producerTransport not found for ${peer.id} ${peer.displayName}`);
-            return new ErrorMsg(payloadTypeServer.connectProducerTransportResult, "peer transport not found.");
+            let producerTransport = peer.room.getProducerTransport(peer);
+
+            if (!producerTransport) {
+                consoleError(`producerTransport not found for ${peer.id} ${peer.displayName}`);
+                return new ErrorMsg(payloadTypeServer.connectProducerTransportResult, "peer transport not found.");
+            }
+
+            //producerTransport needs dtls params from the client, contains, ports, codecs, etc.
+            await producerTransport!.connect({ dtlsParameters: msgIn.data.dtlsParameters });
+            console.log("producerTransport connected.");
+
+            let resultMsg = new ProducerTransportConnectedMsg();
+            resultMsg.data.roomId = peer.room.id;
+            return resultMsg;
+
+        } else {
+
+            consoleWarn(msgIn.data.offer);
+
+            let peerRoom = peer.room.getRoomPeer(peer);
+            await peerRoom.producerSDPEndPoint.processOffer(msgIn.data.offer, "");
+
+            let answer = peerRoom.producerSDPEndPoint.createAnswer();
+
+            // Return the answer back to the client
+            const resultMsg = new ProducerTransportConnectedMsg();
+            resultMsg.data.roomId = peer.room.id;
+            resultMsg.data.answer = answer;
+            return resultMsg;
         }
 
-        //producerTransport needs dtls params from the client, contains, ports, codecs, etc.
-        await producerTransport!.connect({ dtlsParameters: msgIn.data.dtlsParameters });
-        console.log("producerTransport connected.");
-
-        let resultMsg = new ProducerTransportConnectedMsg();
-        resultMsg.data.roomId = peer.room.id;
-        return resultMsg;
     }
 
     async onConnectConsumerTransport(peerId: string, msgIn: ConnectConsumerTransportMsg): Promise<IMsg> {
@@ -951,7 +976,7 @@ export class RoomServer {
                     producerId: producer.id,
                     kind: producer.kind
                 })),
-                trackInfo: otherPeer.peer.tracksInfo                
+                trackInfo: otherPeer.peer.tracksInfo
             });
         }
 
@@ -1016,54 +1041,77 @@ export class RoomServer {
         let peer = this.peers.get(peerId);
         if (!peer) {
             consoleError("error peer not found.");
-            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "error peer not found.");
+            return new ErrorMsg(payloadTypeServer.roomProduceStreamResult, "error peer not found.");
         }
 
         if (!peer.room) {
             consoleError('peer is not in a room', peer.id);
-            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "peer is not in a room.");
+            return new ErrorMsg(payloadTypeServer.roomProduceStreamResult, "peer is not in a room.");
         }
 
         if (peer.room.id !== msgIn.data.roomId) {
             consoleError('invalid roomid', msgIn.data.roomId);
-            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "invalid roomid.");
+            return new ErrorMsg(payloadTypeServer.roomProduceStreamResult, "invalid roomid.");
         }
 
         //check if peer is authorized to send the stream
         if (peer.role === AuthUserRoles.guest) {
             if (msgIn.data.kind === "video" && peer.room.config.guestsAllowCamera === false) {
                 consoleError(`video not allowed for ${peer.id} ${peer.displayName}`);
-                return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, `${msgIn.data.kind} not allowed.`);
+                return new ErrorMsg(payloadTypeServer.roomProduceStreamResult, `${msgIn.data.kind} not allowed.`);
             } else if (msgIn.data.kind === "audio" && peer.room.config.guestsAllowMic === false) {
                 consoleError(`audio not allowed for ${peer.id} ${peer.displayName}`);
-                return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, `${msgIn.data.kind} not allowed.`);
+                return new ErrorMsg(payloadTypeServer.roomProduceStreamResult, `${msgIn.data.kind} not allowed.`);
             }
         }
 
-        let producer = await peer.room.createProducer(peer, msgIn.data.kind, msgIn.data.rtpParameters);
-        if (!producer) {
+        let allProducers = [];
+        let answer: any;
+
+        if (peer.clientType == "mediasoup") {
+            let producer: mediasoup.types.Producer = await peer.room.createProducer(peer, msgIn.data.kind, msgIn.data.rtpParameters);
+            allProducers.push(producer);
+        } else {
+            let result = await peer.room.createProducersForWebRTC(peer, msgIn.data.offer);
+            allProducers.push(...result.producers);
+            answer = result.answer;
+        }
+
+        if (allProducers.length == 0) {
             consoleError(`producer not created.`);
-            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, `could not created producer for kind ${msgIn.data.kind}`);
+            return new ErrorMsg(payloadTypeServer.roomProduceStreamResult, `could not created producer for kind ${msgIn.data.kind}`);
         }
 
-        //alert all peers in the room of new producer
-        if (peer.room) {
-            let newProducerMsg = new RoomNewProducerMsg();
-            newProducerMsg.data = {
-                roomId: peer.room.id,
-                peerId: peer.id,
-                producerId: producer.id,
-                kind: producer.kind
+        for (let producer of allProducers) {
+            //alert all peers in the room of new producer
+            if (peer.room) {
+                let newProducerMsg = new RoomNewProducerMsg();
+                newProducerMsg.data = {
+                    roomId: peer.room.id,
+                    peerId: peer.id,
+                    producerId: producer.id,
+                    kind: producer.kind
+                }
+                this.broadCastExcept(peer.room, [peer], newProducerMsg)
             }
-            this.broadCastExcept(peer.room, [peer], newProducerMsg)
         }
 
-        let producedMsg = new RoomProduceStreamResultMsg();
-        producedMsg.data = {
-            roomId: peer.room.id,
-            kind: msgIn.data.kind
-        };
-        return producedMsg;
+        if (peer.clientType == "mediasoup") {
+            let producedMsg = new RoomProduceStreamResultMsg();
+            producedMsg.data = {
+                roomId: peer.room.id,
+                kind: msgIn.data.kind
+            };
+            return producedMsg;
+        } else {
+
+            let producedMsg = new RoomProduceStreamResultMsg();
+            producedMsg.data = {
+                roomId: peer.room.id,
+                answer: answer
+            };
+            return producedMsg;
+        }
     }
 
     private async onRoomCloseProducer(peerId: string, msgIn: RoomCloseProducerMsg): Promise<IMsg> {
@@ -1091,8 +1139,8 @@ export class RoomServer {
         return new OkMsg(payloadTypeServer.ok, "producers closed");
     }
 
-    private async onroomConsumeProducer(peerId: string, msgIn: RoomConsumeProducerMsg): Promise<IMsg> {
-        console.log("onConsume");
+    private async onRoomConsumeProducer(peerId: string, msgIn: RoomConsumeProducerMsg): Promise<IMsg> {
+        console.log("onRoomConsumeProducer");
         //client is requesting to consume a producer
 
         let peer = this.peers.get(peerId);
@@ -1125,7 +1173,7 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "remotePeerId is required.");
         }
 
-        if (!consumeMsg.data?.rtpCapabilities) {
+        if (peer.clientType == "mediasoup" && !consumeMsg.data?.rtpCapabilities) {
             consoleError("rtpCapabilities is required.");
             return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "rtpCapabilities is required.");
         }
@@ -1145,15 +1193,23 @@ export class RoomServer {
         }
 
         //consume the producer
-        const consumer = await peer.room.createConsumer(peer, remotePeer, msgIn.data.producerId, msgIn.data.rtpCapabilities);
+        let consumer: Consumer;
+        let offer: any;
+
+        if (peer.clientType == "mediasoup") {
+            consumer = await peer.room.createConsumer(peer, remotePeer, msgIn.data.producerId, msgIn.data.rtpCapabilities);
+        } else {
+            let result = await peer.room.createConsumerForWebRTC(peer, remotePeer, msgIn.data.producerId, msgIn.data.rtpCapabilities);
+            consumer = result.consumer;
+            offer = result.offer;
+        }
         if (!consumer) {
             consoleError(`could not create consumer.`);
             return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "could not create consumer.");
-            return;
         }
 
         //send the consumer data back to the client
-        let resultMsg = new roomConsumeProducerResultMsg();
+        let resultMsg = new RoomConsumeProducerResultMsg();
         resultMsg.data = {
             roomId: room.id,
             peerId: remotePeer.id,
@@ -1161,9 +1217,41 @@ export class RoomServer {
             producerId: msgIn.data.producerId,
             kind: consumer.kind,
             rtpParameters: consumer.rtpParameters,
+            offer: offer
         };
 
         return resultMsg;
+    }
+
+    private async onRoomConsumeProducerAnswerForWebRTC(peerId: string, msgIn: RoomConsumeProducerAnswerForWebRTCMsg) {
+        console.log("onRoomConsumeProducerAnswerForWebRTC");
+        //client is requesting to consume a producer
+
+        let peer = this.peers.get(peerId);
+        if (!peer) {
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "peer not found.");
+        }
+
+        //the peer must be in room to consume streams
+        if (!peer.room) {
+            consoleError("peer not in room.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "peer not in room.");
+        }
+
+        if (peer.room.id !== msgIn.data.roomId) {
+            consoleError("invalid roomid");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "invalid room id");
+        }
+
+        let remotePeer = peer.room.getPeer(msgIn.data.remotePeerId);
+        if (!remotePeer) {
+            consoleError("remote peer not found.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "remote peer not found.");
+        }
+
+        await peer.room.consumerProcessAnswerForWebRTC(peer, remotePeer, msgIn.data.producerId, msgIn.data.answer);
+
     }
 
     /**

@@ -7,6 +7,7 @@ import { consoleError, consoleWarn } from '../utils/utils.js';
 import { MediaKind, Producer } from 'mediasoup/types';
 import { RoomConfig, UniqueMap } from '@rooms/rooms-models';
 import { RoomServerConfig, WorkerData } from './models.js';
+import * as sdpBridge from '@epicgames-ps/mediasoup-sdp-bridge';
 
 export class RoomPeer {
 
@@ -16,16 +17,19 @@ export class RoomPeer {
     lastPong: number = Date.now();
     dateCreated = new Date();
 
+    producerTransport?: mediasoup.types.WebRtcTransport;
+    consumerTransport?: mediasoup.types.WebRtcTransport;
+    producers: UniqueMap<MediaKind, mediasoup.types.Producer> = new UniqueMap();
+    consumers: UniqueMap<string, mediasoup.types.Consumer> = new UniqueMap();
+
+    producerSDPEndPoint: sdpBridge.SdpEndpoint;
+    consumerSDPEndPoint: sdpBridge.SdpEndpoint;
+
     constructor(config: RoomServerConfig, room: Room, peer: Peer) {
         this.room = room;
         this.peer = peer;
         this.config = config;
     }
-
-    producerTransport?: mediasoup.types.WebRtcTransport;
-    consumerTransport?: mediasoup.types.WebRtcTransport;
-    producers: UniqueMap<MediaKind, mediasoup.types.Producer> = new UniqueMap();
-    consumers: UniqueMap<string, mediasoup.types.Consumer> = new UniqueMap();
 
     async createProducerTransport() {
         console.log(`createProducerTransport() ${this.peer.displayName}`);
@@ -57,6 +61,10 @@ export class RoomPeer {
                 console.log(`Producer transport DTLS state: ${dtlsState} for peer ${this.peer.id} ${this.peer.displayName}`);
             }
         });
+
+        if (this.peer.clientType == "webrtc") {
+            this.producerSDPEndPoint = sdpBridge.createSdpEndpoint(this.producerTransport, this.room.roomRtpCapabilities);
+        }
 
         return this.producerTransport;
     }
@@ -94,6 +102,10 @@ export class RoomPeer {
             }
         });
 
+        if (this.peer.clientType == "webrtc") {
+            this.consumerSDPEndPoint = sdpBridge.createSdpEndpoint(this.consumerTransport, this.room.roomRtpCapabilities);
+        }
+
         return this.consumerTransport;
 
     }
@@ -104,7 +116,7 @@ export class RoomPeer {
      * @param rtpCapabilities 
      * @returns 
      */
-    async createConsumer(remotePeer: Peer, producer: Producer, rtpCapabilities: mediasoup.types.RtpCapabilities) {
+    async createConsumer(remotePeer: Peer, producer: Producer, rtpCapabilitiesClient: mediasoup.types.RtpCapabilities) {
         console.log(`createConsumer: ${this.peer.displayName} consuming ${remotePeer.displayName} ${producer.kind}`);
 
         if (!this.consumerTransport) {
@@ -121,7 +133,7 @@ export class RoomPeer {
         //consume the producer
         const consumer = await this.consumerTransport.consume({
             producerId: producer.id,
-            rtpCapabilities: rtpCapabilities,
+            rtpCapabilities: rtpCapabilitiesClient,
             paused: false,
         });
 
@@ -130,7 +142,7 @@ export class RoomPeer {
         //the remote peer's producer closed, close this consumer and remove it
         consumer.on("producerclose", () => {
             consoleWarn(`producerclose ${remotePeer.displayName} ${producer.kind}, removing from peer ${this.peer.id} ${this.peer.displayName}. producerid: ${consumer.producerId}`);
-            consumer.close();            
+            consumer.close();
             this.consumers.delete(consumer.id);
 
             //TODO: need to send, alert all consumers
@@ -195,8 +207,50 @@ export class RoomPeer {
         return producer;
     }
 
+    async createProducersForWebRTC(sdpOffer: string): Promise<{ producers: Producer[], answer: string }> {
+
+        let { producers } = await this.producerSDPEndPoint.processOffer(sdpOffer, "");
+
+        for (let producer of producers) {
+            this.producers.set(producer.kind, producer);
+        }
+
+        let answer = this.producerSDPEndPoint.createAnswer();
+        return { producers, answer };
+    }
+
+    async createConsumerForWebrtC(remotePeer: Peer, producer: Producer, rtpCapabilitiesClient: mediasoup.types.RtpCapabilities) {
+        console.log(`createConsumer: ${this.peer.displayName} consuming ${remotePeer.displayName} ${producer.kind}`);
+
+        //use chrome as the default
+        if (!rtpCapabilitiesClient) {
+            rtpCapabilitiesClient = sdpBridge.generateRtpCapabilities0();
+        }
+
+        //consume the producer
+        const consumer = await this.consumerTransport.consume({
+            producerId: producer.id,
+            rtpCapabilities: rtpCapabilitiesClient,
+            paused: false,
+        });
+
+        // Add consumer to SDP
+        this.consumerSDPEndPoint.addConsumer(consumer);
+
+        this.consumers.set(consumer.id, consumer);
+
+        const offer = this.consumerSDPEndPoint.createOffer();
+
+        return { consumer, offer };
+    }
+
+    async consumerProcessAnswerForWebRTC(answerSdp: string) {
+        await this.consumerSDPEndPoint.processAnswer(answerSdp);
+    }
+
     async closeProducer(kind: MediaKind) {
         console.log(`closeProducuer ${kind} - ${this.peer.id} ${this.peer.displayName}`);
+
         let producer = this.producers.get(kind);
         if (producer) {
             producer.close();
@@ -206,7 +260,7 @@ export class RoomPeer {
     close() {
         consoleWarn(`peerRoom close() - ${this.peer.id} ${this.peer.displayName}`);
 
-         this.producers.values().forEach(p => {
+        this.producers.values().forEach(p => {
             if (!p.closed) {
                 p.close();
             }
@@ -224,7 +278,7 @@ export class RoomPeer {
         this.producerTransport?.close();
         this.consumerTransport?.close();
         this.producerTransport = null;
-        this.consumerTransport = null;       
+        this.consumerTransport = null;
 
         this.room = null;
         this.peer.room = null;

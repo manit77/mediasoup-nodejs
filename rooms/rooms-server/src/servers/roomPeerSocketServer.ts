@@ -96,9 +96,13 @@ export class RoomPeerSocketServer {
             consoleLog(LOG, "socket connected connections: " + this.connections.size);
 
             ws.on('message', async (message) => {
+                let msgType;
+
                 try {
                     consoleLog(LOG, "msgIn, ", message.toString());
                     const msgIn = JSON.parse(message.toString());
+                    msgType = msgIn.type;
+
                     if (msgIn.type === payloadTypeClient.authUserNewToken) {
                         let resultMsg = await this.roomServer.onAuthUserNewTokenMsg(msgIn);
                         this.send(ws, resultMsg);
@@ -149,7 +153,7 @@ export class RoomPeerSocketServer {
                     }
 
                 } catch (err) {
-                    consoleError(LOG, "ERROR PROCESSING MSG");
+                    consoleError(LOG, `ERROR PROCESSING MSG ${msgType}`);
                     consoleError(LOG, err);
                 }
             });

@@ -16,7 +16,8 @@ export class Peer {
     room?: Room;
     tracksInfo: PeerTracksInfo = { isAudioEnabled: false, isVideoEnabled: false };
     dateCreated = new Date();
-
+    clientType : "webrtc" | "mediasoup";
+    
     constructor() {
 
     }

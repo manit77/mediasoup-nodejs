@@ -225,7 +225,8 @@ export class RoomsClient {
     username: string,
     trackingId: string,
     displayName: string,
-    timeoutSecs: number
+    timeoutSecs: number,
+    clientType : "webrtc" | "mediasoup"
   }): Promise<IMsg> => {
     console.log("waitForRegister");
 
@@ -279,7 +280,7 @@ export class RoomsClient {
           reject("failed to register");
         }, (args.timeoutSecs ?? 30) * 1000);
 
-        let registerSent = this.register({ username: args.username, authToken: args.authToken, trackingId: args.trackingId, displayName: args.displayName });
+        let registerSent = this.register({ username: args.username, authToken: args.authToken, trackingId: args.trackingId, displayName: args.displayName, clientType: args.clientType });
 
         if (!registerSent) {
           this.ws.removeEventHandler("onmessage", _onmessage);
@@ -379,7 +380,7 @@ export class RoomsClient {
     });
   };
 
-  waitForRegister1 = (authToken: string, trackingId: string, displayName: string, timeoutSecs: number = 30): Promise<IMsg> => {
+  waitForRegister1 = (authToken: string, trackingId: string, displayName: string, timeoutSecs: number = 30, clientType : "webrtc" | "mediasoup" = "mediasoup"): Promise<IMsg> => {
     console.log("waitTryRegister");
 
     return new Promise<IMsg>((resolve, reject) => {
@@ -415,7 +416,7 @@ export class RoomsClient {
         this.messageListener.push(_onmessage);
 
         this.localPeer.authToken = authToken;
-        let sent = this.register({ username: this.localPeer.username, authToken, trackingId, displayName });
+        let sent = this.register({ username: this.localPeer.username, authToken, trackingId, displayName, clientType });
         if (!sent) {
           reject("failed to send register message.");
         }
@@ -476,7 +477,7 @@ export class RoomsClient {
     this.localPeer.authToken = authToken;
   }
 
-  register = (args: { authToken: string, username: string, trackingId: string, displayName: string }) => {
+  register = (args: { authToken: string, username: string, trackingId: string, displayName: string, clientType : "webrtc" | "mediasoup" }) => {
     console.log(`-- register username: ${args.username}, trackingId: ${args.trackingId}, displayName: ${args.displayName}`);
 
     if (this.localPeer.peerId) {
@@ -509,7 +510,8 @@ export class RoomsClient {
       username: args.username,
       authToken: args.authToken,
       displayName: this.localPeer.displayName,
-      peerTrackingId: args.trackingId
+      peerTrackingId: args.trackingId,
+      clientType : args.clientType
     }
 
     this.send(msg);
