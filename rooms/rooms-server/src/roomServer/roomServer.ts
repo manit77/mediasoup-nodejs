@@ -340,8 +340,8 @@ export class RoomServer {
             return null;
         }
 
-        let roomConfig: RoomConfig;
-        if (!args.config) {
+        let roomConfig: RoomConfig = args.config;
+        if (!roomConfig) {
             roomConfig = new RoomConfig();
         }
 
@@ -375,6 +375,7 @@ export class RoomServer {
 
         room.roomRouter = router;
         room.roomRtpCapabilities = router.rtpCapabilities;
+        
 
         room.onClosedEvent = (r, peers) => {
             consoleLog(`room.onClosedEvent ${r.id} ${r.roomName}`);
@@ -951,7 +952,7 @@ export class RoomServer {
                     producerId: producer.id,
                     kind: producer.kind
                 })),
-                trackInfo: otherPeer.peer.tracksInfo                
+                trackInfo: otherPeer.peer.tracksInfo
             });
         }
 
