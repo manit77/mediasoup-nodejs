@@ -130,7 +130,7 @@ export class RoomPeer {
         //the remote peer's producer closed, close this consumer and remove it
         consumer.on("producerclose", () => {
             consoleWarn(`producerclose ${remotePeer.displayName} ${producer.kind}, removing from peer ${this.peer.id} ${this.peer.displayName}. producerid: ${consumer.producerId}`);
-            consumer.close();            
+            consumer.close();
             this.consumers.delete(consumer.id);
 
             //TODO: need to send, alert all consumers
@@ -192,6 +192,47 @@ export class RoomPeer {
             console.log(args);
         });
 
+        let rtpPort = 5000;
+        let rtcpPort = 5001;
+
+        if (producer.kind == "audio") {
+            rtpPort = 5002;
+            rtcpPort = 5003;
+        }
+
+        let recordingTransport: mediasoup.types.PlainTransport;
+        recordingTransport = await this.room.roomRouter.createPlainTransport({
+            listenIp: { ip: '127.0.0.1' }, // or your server's public IP
+            rtcpMux: false, // GStreamer does not support rtcp-mux, Use RTCP-mux (RTP and RTCP in the same port).
+            comedia: false, // Set to true if you want GStreamer to initiate the connection
+        });
+
+        //create recording consumer
+        const consumerRecorder = await recordingTransport.consume({
+            producerId: producer.id,
+            rtpCapabilities: this.room.roomRouter.rtpCapabilities,
+            paused: true,
+        });
+
+        let recordingParams = {
+            kine: producer.kind,
+            consumerId: consumerRecorder.id,
+            producer: producer.id,
+            rtpPort: rtpPort,
+            rtcpPort: rtcpPort,
+            consumerRtpParameters: consumerRecorder.rtpParameters
+        }
+
+        await recordingTransport.connect({
+            ip: recordingTransport.tuple.localIp,
+            port: recordingParams.rtpPort,
+            rtcpPort: recordingParams.rtcpPort,
+        });
+
+        await consumerRecorder.resume();
+
+        consoleWarn("recordingParams", JSON.stringify(recordingParams));
+
         return producer;
     }
 
@@ -206,7 +247,7 @@ export class RoomPeer {
     close() {
         consoleWarn(`peerRoom close() - ${this.peer.id} ${this.peer.displayName}`);
 
-         this.producers.values().forEach(p => {
+        this.producers.values().forEach(p => {
             if (!p.closed) {
                 p.close();
             }
@@ -224,7 +265,7 @@ export class RoomPeer {
         this.producerTransport?.close();
         this.consumerTransport?.close();
         this.producerTransport = null;
-        this.consumerTransport = null;       
+        this.consumerTransport = null;
 
         this.room = null;
         this.peer.room = null;

@@ -33,6 +33,8 @@ export class Room {
     roomRouter?: mediasoup.types.Router;
     roomLogAdapter: RoomLogAdapter;
     roomRtpCapabilities: mediasoup.types.RtpCapabilities;
+    
+
     onClosedEvent: (room: Room, peers: Peer[], reason: string) => void;
     onPeerRemovedEvent: (room: Room, peers: Peer) => void;
     onConsumerClosed: (peer: Peer, consumer: Consumer) => void;
@@ -40,7 +42,6 @@ export class Room {
 
     constructor(serverConfig: RoomServerConfig) {
         this.serverConfig = serverConfig;
-
     }
 
     printStats() {
