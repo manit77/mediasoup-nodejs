@@ -73,19 +73,16 @@ build_pipeline() {
     pipeline="$pipeline -v"
   fi
 
-  # Build pipeline based on stream type
   if [ "$STREAM_TYPE" = "video" ]; then
-    pipeline="$pipeline input-selector name=selector ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! webmmux name=mux ! filesink location=$OUTPUT_FILE "
-    pipeline="$pipeline udpsrc port=$RTP_PORT timeout=$UDP_TIMEOUT ! application/x-rtp,media=video,encoding-name=VP8,payload=$VIDEO_PAYLOAD,clock-rate=90000 ! rtpjitterbuffer latency=$JITTER_LATENCY drop-on-latency=true do-lost=true ! rtpvp8depay ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! selector. "
-    pipeline="$pipeline videotestsrc is-live=true pattern=black ! video/x-raw,format=I420,width=1280,height=720,framerate=30/1 ! vp8enc target-bitrate=1000000 ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! selector."
+    pipeline="$pipeline udpsrc port=$RTP_PORT timeout=$UDP_TIMEOUT ! application/x-rtp,media=video,encoding-name=VP8,payload=$VIDEO_PAYLOAD,clock-rate=90000 ! rtpjitterbuffer latency=$JITTER_LATENCY drop-on-latency=true do-lost=true ! rtpvp8depay ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! webmmux name=mux ! filesink location=$OUTPUT_FILE"
   elif [ "$STREAM_TYPE" = "audio" ]; then
-    pipeline="$pipeline input-selector name=selector ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! webmmux name=mux ! filesink location=$OUTPUT_FILE "
-    pipeline="$pipeline udpsrc port=$RTP_PORT timeout=$UDP_TIMEOUT ! application/x-rtp,media=audio,encoding-name=OPUS,payload=$AUDIO_PAYLOAD,clock-rate=48000 ! rtpjitterbuffer latency=$JITTER_LATENCY drop-on-latency=true do-lost=true ! rtpopusdepay ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! selector. "
-    pipeline="$pipeline audiotestsrc is-live=true wave=silence ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! opusenc ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! selector."
+    pipeline="$pipeline input-selector name=selector ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! webmmux name=mux ! filesink location=$OUTPUT_FILE udpsrc port=$RTP_PORT timeout=$UDP_TIMEOUT ! application/x-rtp,media=audio,encoding-name=OPUS,payload=$AUDIO_PAYLOAD,clock-rate=48000 ! rtpjitterbuffer latency=$JITTER_LATENCY drop-on-latency=true do-lost=true ! rtpopusdepay ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! selector. audiotestsrc is-live=true wave=silence ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! opusenc ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! selector."
   fi
 
   echo "$pipeline"
 }
+
+
 
 # Main script
 echo "Starting GStreamer recording ($STREAM_TYPE) to $OUTPUT_FILE..."
