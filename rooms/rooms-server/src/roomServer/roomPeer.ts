@@ -192,13 +192,13 @@ export class RoomPeer {
             console.log(args);
         });
 
-        let rtpPort = 5000;
-        let rtcpPort = 5001;
+        // let rtpPort = 5000;
+        // let rtcpPort = 5001;
 
-        if (producer.kind == "audio") {
-            rtpPort = 5002;
-            rtcpPort = 5003;
-        }
+        // if (producer.kind == "audio") {
+        //     rtpPort = 5002;
+        //     rtcpPort = 5003;
+        // }
 
         let recordingTransport: mediasoup.types.PlainTransport;
         recordingTransport = await this.room.roomRouter.createPlainTransport({
@@ -214,6 +214,11 @@ export class RoomPeer {
             paused: true,
         });
 
+        const ip = recordingTransport.tuple.localIp;
+        const rtpPort = recordingTransport.tuple.localPort;
+        const rtcpPort = recordingTransport.rtcpTuple.localPort; // Also useful to include
+        const codec = consumerRecorder.rtpParameters.codecs[0];
+
         let recordingParams = {
             kine: producer.kind,
             consumerId: consumerRecorder.id,
@@ -222,6 +227,44 @@ export class RoomPeer {
             rtcpPort: rtcpPort,
             consumerRtpParameters: consumerRecorder.rtpParameters
         }
+
+        //           const sdpContent = `v=0
+        // o=- 0 0 IN IP4 127.0.0.1
+        // s=MediaSoup Video Recording
+        // c=IN IP4 127.0.0.1
+        // t=0 0
+        // m=video ${videoPort} RTP/AVP ${videoPt}
+        // a=rtpmap:${videoPt} VP8/90000
+        // a=rtcp:${videoRtcpPort}
+        // a=recvonly
+        // `.trim();
+        let codecName = codec.mimeType.split("/")[1];
+
+        //open this in vlc or gstreamer
+        let sdpContent = `v=0
+o=- 0 0 IN IP4 ${ip}
+s=PlainTransport Stream
+c=IN IP4 ${ip}
+t=0 0
+m=${producer.kind} ${rtpPort} RTP/AVP ${codec.payloadType}
+a=rtpmap:${codec.payloadType} ${codecName}/${codec.clockRate}
+a=rtcp:${rtcpPort}
+a=recvonly`;
+
+        /**
+         gst-launch-1.0 sdpsrc sdp="v=0
+        o=- 0 0 IN IP4 127.0.0.1
+        s=PlainTransport Stream
+        c=IN IP4 127.0.0.1
+        t=0 0
+        m=video 5000 RTP/AVP 96
+        a=rtpmap:96 VP8/90000
+        a=rtcp:5001
+        a=recvonly" ! sdpdemux ! rtpvp8depay ! decodebin ! autovideosink
+         */
+
+        consoleWarn(sdpContent);
+
 
         await recordingTransport.connect({
             ip: recordingTransport.tuple.localIp,
