@@ -12,7 +12,7 @@ import { RoomServer } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
 import { RoomServerConfig } from '../roomServer/models.js';
 
-const DSTR = "RoomHTTPServer";
+const DSTR = "RoomAPIServer";
 
 declare module 'express-serve-static-core' {
     interface Request {
@@ -20,11 +20,11 @@ declare module 'express-serve-static-core' {
     }
 }
 
-export type RoomHTTPServerSecurityMap = {
+export type RoomAPIServerSecurityMap = {
     [key in RoomServerAPIRoutes]: AuthUserRoles[];
 };
 
-export let defaultHTTPServerSecurityMap: RoomHTTPServerSecurityMap = {} as any;
+export let defaultHTTPServerSecurityMap: RoomAPIServerSecurityMap = {} as any;
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newAuthUserToken] = [AuthUserRoles.admin];
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoomToken] = [AuthUserRoles.admin];
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoom] = [AuthUserRoles.admin];
@@ -33,13 +33,13 @@ defaultHTTPServerSecurityMap[RoomServerAPIRoutes.terminateRoom] = [AuthUserRoles
 /**
  * these are admin functions of the room server
  */
-export class RoomHTTPServer {
+export class RoomAPIServer {
 
     //application server <----> room server
     webSocketServer: WebSocketServer;
     peers = new Map<string, WebSocket>();
 
-    constructor(private config: RoomServerConfig, private securityMap: RoomHTTPServerSecurityMap, private roomServer: RoomServer) {
+    constructor(private config: RoomServerConfig, private securityMap: RoomAPIServerSecurityMap, private roomServer: RoomServer) {
 
     }
 
@@ -82,8 +82,10 @@ export class RoomHTTPServer {
     };
 
     init(app: express.Express) {
+        console.log(`RoomAPIServer initialized.`);
+
         app.get("/hello", (req, res) => {
-            res.send("RoomHTTPServer");
+            res.send("RoomAPIServer");
         });
 
         app.post(RoomServerAPIRoutes.newAuthUserToken, this.tokenCheck as any, async (req, res) => {

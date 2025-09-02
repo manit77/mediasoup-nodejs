@@ -214,6 +214,7 @@ export class RoomPeer {
             paused: true,
         });
 
+        
         const ip = recordingTransport.tuple.localIp;
         const rtpPort = recordingTransport.tuple.localPort;
         const rtcpPort = recordingTransport.rtcpTuple.localPort; // Also useful to include
@@ -265,12 +266,12 @@ a=recvonly`;
 
         consoleWarn(sdpContent);
 
-
-        await recordingTransport.connect({
-            ip: recordingTransport.tuple.localIp,
-            port: recordingParams.rtpPort,
-            rtcpPort: recordingParams.rtcpPort,
-        });
+        
+        // await recordingTransport.connect({
+        //     ip: recordingTransport.tuple.localIp,
+        //     port: recordingParams.rtpPort,
+        //     rtcpPort: recordingParams.rtcpPort,
+        // });
 
         await consumerRecorder.resume();
 

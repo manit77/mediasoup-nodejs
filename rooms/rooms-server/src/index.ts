@@ -1,13 +1,14 @@
 import express from 'express';
 import https from 'https';
+import http from 'http';
 import fs from 'fs';
 import cors from 'cors';
 import { RoomServer } from './roomServer/roomServer.js';
-import { defaultPeerSocketServerSecurityMap, RoomPeerSocketServer } from './servers/roomPeerSocketServer.js';
-import { defaultHTTPServerSecurityMap, RoomHTTPServer } from './servers/roomHttpServer.js';
+import { defaultPeerSocketServerSecurityMap, RoomPeerSocketServer, RoomPeerSocketStore } from './servers/roomPeerSocketServer.js';
+import { defaultHTTPServerSecurityMap, RoomAPIServer, } from './servers/RoomAPIServer.js';
 import { getENV } from './utils/env.js';
 import { WebSocketServer } from 'ws';
-import { consoleInfo, consoleWarn } from './utils/utils.js';
+import { consoleInfo } from './utils/utils.js';
 import { TestObject } from "@rooms/rooms-models";
 import { RoomServerConfig } from './roomServer/models.js';
 
@@ -23,37 +24,52 @@ import { RoomServerConfig } from './roomServer/models.js';
   }
   const app = express()
   app.use(cors());
+  app.use(express.static('client-room'));
+  app.use(express.json({ limit: '1mb' }));
+
 
   const certInfo = {
     key: fs.readFileSync(config.cert_key_path),
     cert: fs.readFileSync(config.cert_file_path),
   };
 
-  const server = https.createServer(certInfo, app);
-  app.use(cors());
-  app.use(express.static('client-room'));
-  app.use(express.json({ limit: '1mb' }));
+  //manager for media soup room server
+  let roomServer = new RoomServer(config);
+  roomServer.init().then(() => {
 
-  server.listen(config.room_server_port, config.room_server_ip, async () => {
+    let socketStore = new RoomPeerSocketStore();
+    let httpServerSecurityMap = defaultHTTPServerSecurityMap; //override with your security map
+    let socketServerSecurityMap = defaultPeerSocketServerSecurityMap; //override with your security map
 
-    consoleInfo(`Server running at https://${config.room_server_ip}:${config.room_server_port}`);
-    consoleInfo(`Public IP ${config.room_public_ip}, udp ports:${config.room_rtc_start_port}-${config.room_rtc_end_port}`);
+    if (config.room_server_https_port) {
+      const httpsServer = https.createServer(certInfo, app);
+      httpsServer.listen(config.room_server_https_port, config.room_server_ip, async () => {
+        consoleInfo(`HTTPS: https://${config.room_server_ip}:${config.room_server_https_port}`);
+        consoleInfo(`Public IP ${config.room_public_ip ? config.room_public_ip : "not configured"}`);
+        consoleInfo(`udp ports:${config.room_rtc_start_port}-${config.room_rtc_end_port}`);
 
-    //manager for media soup room server
-    let roomServer = new RoomServer(config);
-    roomServer.init().then(() => {
+        let socketServerHttps = new RoomPeerSocketServer(config, socketServerSecurityMap, roomServer, socketStore);
+        socketServerHttps.init(new WebSocketServer({ server: httpsServer }));
 
-      let socketServerSecurityMap = defaultPeerSocketServerSecurityMap; //override with your security map
-      let socketServer = new RoomPeerSocketServer(config, socketServerSecurityMap, roomServer);
-      socketServer.init(new WebSocketServer({ server: server }));
+      });
+    }
 
-      let httpServerSecurityMap = defaultHTTPServerSecurityMap; //override with your security map
-      let httpServer = new RoomHTTPServer(config, httpServerSecurityMap, roomServer);
-      httpServer.init(app);
+    if (config.room_server_http_port) {
+      let httpServer = http.createServer(app);
+      httpServer.listen(config.room_server_http_port, config.room_server_ip, () => {
+        consoleInfo(`HTTP: http://${config.room_server_ip}:${config.room_server_http_port}`);
 
-    });
+        let socketServerHttp = new RoomPeerSocketServer(config, socketServerSecurityMap, roomServer, socketStore);
+        socketServerHttp.init(new WebSocketServer({ server: httpServer }));
 
+      });
+    }
+    
+    let roomAPIServer = new RoomAPIServer(config, httpServerSecurityMap, roomServer);
+    roomAPIServer.init(app);
+    
   });
+
 
 })();
 

@@ -6,13 +6,14 @@ import {
 import { getENV } from "../utils/env.js";
 import { Peer } from "../roomServer/peer.js";
 import { Room } from "../roomServer/room.js";
-import { RoomServer, RoomServerConfig } from "../roomServer/roomServer.js";
+import { RoomServer } from "../roomServer/roomServer.js";
 import { generateRoomToken } from "../roomServer/utils.js";
-import { defaultHTTPServerSecurityMap, RoomHTTPServer } from "./roomHttpServer.js";
+import { defaultHTTPServerSecurityMap, RoomAPIServer } from "./RoomAPIServer.js";
 import express, { NextFunction, Request, Response } from 'express';
 import supertest from "supertest";
 import * as roomUtils from "../roomServer/utils.js";
 import { describe, it, test, expect, beforeAll, afterAll } from 'vitest';
+import { RoomServerConfig } from "../roomServer/models.js";
 
 let timeout = 90000;
 
@@ -33,7 +34,7 @@ describe("roomServerTests", () => {
         app = express();
         app.use(express.json()); // Enable JSON parsing
 
-        let roomHttp = new RoomHTTPServer(config, defaultHTTPServerSecurityMap, roomServer);
+        let roomHttp = new RoomAPIServer(config, defaultHTTPServerSecurityMap, roomServer);
         roomHttp.init(app);
 
     }, timeout);
@@ -50,7 +51,7 @@ describe("roomServerTests", () => {
     test('hello', async () => {
         const response = await supertest(app).get('/hello');
         expect(response.status).toBe(200);
-        expect(response.text).toBe('RoomHTTPServer');
+        expect(response.text).toBe('RoomAPIServer');
         console.log(response.body);
     });
 
@@ -123,7 +124,7 @@ describe("roomServerTests", () => {
         expect(resultMsg.data.roomId).toBeTruthy();
         expect(resultMsg.data.roomToken).toBeTruthy();
 
-        let room = roomServer.getRoom(resultMsg.data.roomId);
+        let room = roomServer.getRoom(resultMsg.data.roomId as string);
         expect(room).toBeTruthy();
         room.close("test");
 
@@ -136,7 +137,7 @@ describe("roomServerTests", () => {
         let [payload, roomToken] = roomUtils.generateRoomToken(config.room_secretKey, 1);
 
         let roomConfig = new RoomConfig();
-        let room = await roomServer.createRoom(payload.roomId, roomToken, "", roomConfig);
+        let room = await roomServer.createRoom({ roomId: payload.roomId as string, roomToken, trackingId: "", adminTrackingId: "", roomName: "",  config: roomConfig });
 
         let msgOut = new RoomTerminateMsg();
         msgOut.data.roomId = room.id;

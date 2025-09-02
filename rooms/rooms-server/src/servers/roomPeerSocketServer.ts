@@ -48,15 +48,19 @@ export class SocketConnection {
     room_authtoken: string;
 }
 
+export class RoomPeerSocketStore {    
+    connections = new Map<WebSocket, SocketConnection>();
+}
+
+
 export class RoomPeerSocketServer {
 
     webSocketServer: WebSocketServer;
-    connections = new Map<WebSocket, SocketConnection>();
 
-    constructor(private config: RoomServerConfig, private securityMap: RoomPeerSocketSecurityMap, private roomServer: RoomServer) {
+    constructor(private config: RoomServerConfig, private securityMap: RoomPeerSocketSecurityMap, private roomServer: RoomServer, private store: RoomPeerSocketStore) {
 
         roomServer.addMessageListener((peerId: string, msg: any) => {
-            let conn = [...this.connections.values()].find(c => c.peerId == peerId);
+            let conn = [...this.store.connections.values()].find(c => c.peerId == peerId);
             if (conn) {
                 this.send(conn.ws, msg);
             } else {
@@ -66,12 +70,12 @@ export class RoomPeerSocketServer {
 
         roomServer.eventPeerClosed = (peer: Peer) => {
 
-            let conn = [...this.connections.values()].find(c => c.peerId == peer.id);
+            let conn = [...this.store.connections.values()].find(c => c.peerId == peer.id);
             if (conn) {
                 consoleLog(LOG, "eventPeerClosed");
                 if (conn.ws) {
                     conn.ws.close();
-                    this.connections.delete(conn.ws);
+                    this.store.connections.delete(conn.ws);
                 }
             }
             else {
@@ -84,16 +88,16 @@ export class RoomPeerSocketServer {
 
     async init(socketServer: WebSocketServer) {
 
-        consoleLog(LOG, "initWebSocket");
+        consoleLog(LOG, "RoomPeerSocketServer initialized.");
         this.webSocketServer = socketServer;
 
         this.webSocketServer.on('connection', (ws) => {
 
             let newConnection = new SocketConnection();
             newConnection.ws = ws;
-            this.connections.set(ws, newConnection);
+            this.store.connections.set(ws, newConnection);
 
-            consoleLog(LOG, "socket connected connections: " + this.connections.size);
+            consoleLog(LOG, "socket connected connections: " + this.store.connections.size);
 
             ws.on('message', async (message) => {
                 try {
@@ -125,7 +129,7 @@ export class RoomPeerSocketServer {
                             consoleError(LOG, "register failed, no peerid for socket.");
                         }
                     } else {
-                        let conn = this.connections.get(ws);
+                        let conn = this.store.connections.get(ws);
                         if (conn.peerId) {
                             //inject the authtoken from the socket
                             let authToken = conn.room_authtoken;
@@ -163,8 +167,8 @@ export class RoomPeerSocketServer {
     async onWebSocketClosed(ws: WebSocket) {
         //when the socket closes terminate the peers transports 
         consoleLog(LOG, "onWebSocketClosed");
-        let conn = this.connections.get(ws);
-        this.connections.delete(ws);
+        let conn = this.store.connections.get(ws);
+        this.store.connections.delete(ws);
         if (conn) {
             let msg = new TerminatePeerMsg();
             msg.data.peerId = conn.peerId;
