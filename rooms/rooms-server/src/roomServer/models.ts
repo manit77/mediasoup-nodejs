@@ -16,6 +16,9 @@ export interface RoomServerConfig {
     room_peer_timeOutInactivitySecs: number,
 
     room_iceServers :[];
+    room_rec_enabled: boolean;
+    room_rec_callback_uri : string;    
+    rec_servers_uris: [];
     room_iceTransportPolicy: "all" | "relay"
     
     cert_file_path: string,

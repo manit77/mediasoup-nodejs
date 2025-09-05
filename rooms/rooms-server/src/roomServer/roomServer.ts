@@ -33,6 +33,8 @@ import { setTimeout } from 'node:timers';
 import { RoomLogAdapterInMemory } from './roomLogsAdapter.js';
 import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
 import { outMessageEventListener, RoomServerConfig, WorkerData } from './models.js';
+import { RecMsgTypes, RecRoomNewMsg, RecRoomProduceStreamMsg, RecRoomTerminateMsg } from '../recording/recModels.js';
+import { recRoomNew, recRoomProduceStream, recRoomTerminate } from '../recording/recAPI.js';
 
 
 export class RoomServer {
@@ -44,7 +46,7 @@ export class RoomServer {
     private rooms = new Map<string, Room>();
 
     private messageListeners: outMessageEventListener[] = [];
-    private config: RoomServerConfig;
+    config: RoomServerConfig;
     private timerIdResourceInterval: any;
     private roomLogAdapter = new RoomLogAdapterInMemory();
     dateCreated = new Date();
@@ -162,6 +164,12 @@ export class RoomServer {
         }
     }
 
+    /**
+     * handle messages that required a peerId
+     * @param peerId 
+     * @param msgIn 
+     * @returns 
+     */
     async inMessage(peerId: string, msgIn: any): Promise<IMsg> {
 
         console.log(`inMessage - type: ${msgIn.type}, peerId: ${peerId}`);
@@ -176,58 +184,97 @@ export class RoomServer {
             return null;
         }
 
+        let resultMsg: IMsg;
+
         switch (msgIn.type) {
             case payloadTypeClient.terminatePeer: {
-                return this.onTerminatePeer(peerId, msgIn);
+                resultMsg = await this.onTerminatePeer(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.roomNewToken: {
-                return this.onRoomNewToken(peerId, msgIn);
+                resultMsg = await this.onRoomNewToken(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.roomNew: {
-                return this.onRoomNew(peerId, msgIn);
+                resultMsg = await this.onRoomNew(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.roomJoin: {
-                return this.onRoomJoin(peerId, msgIn);
+                resultMsg = await this.onRoomJoin(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.roomLeave: {
-                return this.onRoomLeave(peerId, msgIn);
+                resultMsg = await this.onRoomLeave(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.roomTerminate: {
-                return this.onRoomTerminate(peerId, msgIn);
+                resultMsg = await this.onRoomTerminate(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.createProducerTransport: {
-                return this.onCreateProducerTransport(peerId, msgIn);
+                resultMsg = await this.onCreateProducerTransport(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.createConsumerTransport: {
-                return this.onCreateConsumerTransport(peerId, msgIn);
+                resultMsg = await this.onCreateConsumerTransport(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.connectProducerTransport: {
-                return this.onConnectProducerTransport(peerId, msgIn);
+                resultMsg = await this.onConnectProducerTransport(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.connectConsumerTransport: {
-                return this.onConnectConsumerTransport(peerId, msgIn);
+                resultMsg = await this.onConnectConsumerTransport(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.roomProduceStream: {
-                return this.onRoomProduceStream(peerId, msgIn);
+                resultMsg = await this.onRoomProduceStream(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.roomCloseProducer: {
-                return this.onRoomCloseProducer(peerId, msgIn);
+                resultMsg = await this.onRoomCloseProducer(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.roomConsumeProducer: {
-                return this.onroomConsumeProducer(peerId, msgIn);
+                resultMsg = await this.onroomConsumeProducer(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.peerTracksInfo: {
-                return this.onPeerTracksInfo(peerId, msgIn);
+                resultMsg = await this.onPeerTracksInfo(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.peerMuteTracks: {
-                return this.onPeerMuteTracks(peerId, msgIn);
+                resultMsg = await this.onPeerMuteTracks(peerId, msgIn);
+                break;
             }
             case payloadTypeClient.roomPong: {
-                return this.onRoomPong(peerId, msgIn);
+                resultMsg = await this.onRoomPong(peerId, msgIn);
+                break;
             }
-
         }
-        return null;
+
+        return resultMsg;
+    }
+
+    /**
+     * handle messages that require no peerId
+     * @param msgIn 
+     */
+    async inMessageNoPeer(msgIn: IMsg) {
+        console.log(`inMessageNoPeer`, msgIn.type);
+
+        let resultMsg: IMsg;
+        if (msgIn.type == payloadTypeClient.authUserNewToken) {
+            resultMsg = await this.onAuthUserNewTokenMsg(msgIn as RoomNewTokenMsg);
+        } else if (msgIn.type == payloadTypeClient.roomNewToken) {
+            resultMsg = await this.onRoomNewTokenMsg(msgIn as RoomNewTokenMsg);
+        } else if (msgIn.type == payloadTypeClient.roomNew) {
+            resultMsg = await this.onRoomNewMsg(msgIn as RoomNewMsg);
+        } else if (msgIn.type == payloadTypeClient.roomTerminate) {
+            resultMsg = await this.terminateRoomMsg(msgIn as RoomTerminateMsg);
+        }
+
+        return resultMsg;
     }
 
     async onTerminatePeer(peerId: string, msg: TerminatePeerMsg): Promise<IMsg> {
@@ -375,10 +422,19 @@ export class RoomServer {
 
         room.roomRouter = router;
         room.roomRtpCapabilities = router.rtpCapabilities;
-        
 
-        room.onClosedEvent = (r, peers) => {
+        //for testing
+        room.config.isRecorded = true;
+        if (room.config.isRecorded) {
+            room.recServerURI = roomUtils.getNextRecURI(this.config);
+        }
+
+        room.onClosedEvent = async (r, peers) => {
             consoleLog(`room.onClosedEvent ${r.id} ${r.roomName}`);
+
+            let recMsg: RecRoomTerminateMsg = { type: RecMsgTypes.recRoomTerminmate, data: { roomId: r.id } };
+            await recRoomTerminate(r.recServerURI, recMsg);
+
             this.removeRoomGlobal(r);
 
             //alert all peers that the room is closed
@@ -422,7 +478,35 @@ export class RoomServer {
             this.send(peer.id, msg);
         };
 
+        room.onProducerCreated = async (peer, producer) => {
+            let roomPeer = room.getRoomPeer(peer);
+
+            let msg: RecRoomProduceStreamMsg = {
+                type: RecMsgTypes.recRoomProduceStream,
+                data: {
+                    roomId: room.id,
+                    roomTrackingId: room.trackingId,
+                    joinInstanceId: roomPeer.joinInstance,
+                    kind: producer.kind,
+                    peerId: peer.id,
+                    peerTrackingId: peer.trackingId,
+                    producerId: producer.id,
+                }
+            }
+            let result = await recRoomProduceStream(room.recServerURI, msg);
+        };
+
         this.addRoomGlobal(room);
+
+        let msg: RecRoomNewMsg = {
+            type: RecMsgTypes.recRoomNew,
+            data: {
+                roomCallBackURI: this.config.room_rec_callback_uri,
+                roomId: room.id,
+                roomTrackingId: room.trackingId
+            }
+        }
+        let result = await recRoomNew(room.recServerURI, msg); 
 
         return room;
     }
@@ -726,7 +810,7 @@ export class RoomServer {
     }
 
     async onRoomNewTokenMsg(msgIn: RoomNewTokenMsg): Promise<RoomNewTokenResultMsg> {
-        console.log("roomNewToken");
+        console.log("onRoomNewTokenMsg");
 
         let msg = new RoomNewTokenResultMsg();
         let [payloadRoom, roomToken] = roomUtils.generateRoomToken(this.config.room_secretKey, msgIn.data.expiresInMin);
@@ -831,7 +915,7 @@ export class RoomServer {
         room.close("roomTerminate");
     }
 
-    onRoomTerminate(peerId: string, msg: RoomTerminateMsg): RoomTerminateResultMsg {
+    async onRoomTerminate(peerId: string, msg: RoomTerminateMsg): Promise<RoomTerminateResultMsg> {
         console.log(`onRoomTerminate() - ${msg.data.roomId}`);
         let peer: Peer;
 
@@ -851,14 +935,15 @@ export class RoomServer {
             return msgError;
         }
 
-        return this.terminateRoom(msg);
+        return await this.terminateRoomMsg(msg);
     }
 
-    terminateRoom(msg: RoomTerminateMsg): RoomTerminateResultMsg {
-        console.log(`terminateRoom() - ${msg.data.roomId}`);
+    async terminateRoomMsg(msg: RoomTerminateMsg): Promise<RoomTerminateResultMsg> {
+        console.log(`terminateRoomMsg() - ${msg.data.roomId}`);
 
         const room = this.rooms.get(msg.data.roomId);
         if (!room) {
+            consoleLog("terminateRoomMsg - room not found.");
             let msgError = new RoomTerminateResultMsg();
             msgError.data.roomId = msg.data.roomId;
             msgError.data.error = "unable to terminate room.";

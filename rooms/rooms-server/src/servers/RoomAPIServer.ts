@@ -89,12 +89,10 @@ export class RoomAPIServer {
         });
 
         app.post(RoomServerAPIRoutes.newAuthUserToken, this.tokenCheck as any, async (req, res) => {
-
-            console.log(RoomServerAPIRoutes.newAuthUserToken);
             console.log(RoomServerAPIRoutes.newAuthUserToken);
             let msgIn = req.body as AuthUserNewTokenMsg;
 
-            let resultMsg = await this.roomServer.onAuthUserNewTokenMsg(msgIn)
+            let resultMsg = await this.roomServer.inMessageNoPeer(msgIn)
             
             res.send(resultMsg);
 
@@ -105,7 +103,7 @@ export class RoomAPIServer {
             let msgIn = req.body as RoomNewTokenMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
-            let resultMsg = await this.roomServer.onRoomNewTokenMsg(msgIn);
+            let resultMsg = await this.roomServer.inMessageNoPeer(msgIn);
             res.send(resultMsg);
         });
 
@@ -115,17 +113,28 @@ export class RoomAPIServer {
             msgIn.data.authToken = req.rooms_authtoken;
 
             //creates a room without a peerId
-            let resultMsg = await this.roomServer.onRoomNewMsg(msgIn);
+            let resultMsg = await this.roomServer.inMessageNoPeer(msgIn);
             res.send(resultMsg);
         });
+        
 
         app.post(RoomServerAPIRoutes.terminateRoom, this.tokenCheck as any, async (req, res) => {
             console.log(RoomServerAPIRoutes.terminateRoom);
             let msgIn = req.body as RoomTerminateMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
-            let resultMsg = this.roomServer.terminateRoom(msgIn);
+            let resultMsg = this.roomServer.inMessageNoPeer(msgIn);
             res.send(resultMsg);
+        });
+
+        app.post(RoomServerAPIRoutes.recCallBack, async (req, res) => {
+            console.log(RoomServerAPIRoutes.recCallBack);
+
+            // let msgIn = req.body as RoomTerminateMsg;
+            // msgIn.data.authToken = req.rooms_authtoken;
+
+            // let resultMsg = this.roomServer.terminateRoom(msgIn);
+            // res.send(resultMsg);
         });
 
         // app.post(RoomServerAPIRoutes.getRoomLogs, this.tokenCheck as any, async (req, res) => {

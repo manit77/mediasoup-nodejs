@@ -8,6 +8,7 @@
     "esModuleInterop": true,
     "declaration": true,
     "strict": false,
+    "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",    
     // "paths": {
     //   "@conf-client/*": [

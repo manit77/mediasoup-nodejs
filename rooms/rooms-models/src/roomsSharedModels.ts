@@ -488,7 +488,8 @@ export enum RoomServerAPIRoutes {
     newAuthUserToken = "/newAuthUserToken",
     newRoomToken = "/newRoomToken",
     newRoom = "/newRoom",
-    terminateRoom = "/terminateRoom"
+    terminateRoom = "/terminateRoom",
+    recCallBack = "/recCallBack"
 }
 
 export class RoomConfig {

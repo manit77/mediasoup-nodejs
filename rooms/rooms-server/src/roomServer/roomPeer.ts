@@ -7,9 +7,13 @@ import { consoleError, consoleWarn } from '../utils/utils.js';
 import { MediaKind, Producer } from 'mediasoup/types';
 import { RoomConfig, UniqueMap } from '@rooms/rooms-models';
 import { RoomServerConfig, WorkerData } from './models.js';
+import ffmpeg from 'fluent-ffmpeg';
+import fs from 'fs';
+import { randomUUID } from 'crypto';
 
 export class RoomPeer {
 
+    joinInstance: string;
     peer: Peer;
     room: Room;
     config: RoomServerConfig;
@@ -20,6 +24,7 @@ export class RoomPeer {
         this.room = room;
         this.peer = peer;
         this.config = config;
+        this.joinInstance = randomUUID().toString();
     }
 
     producerTransport?: mediasoup.types.WebRtcTransport;
@@ -192,93 +197,82 @@ export class RoomPeer {
             console.log(args);
         });
 
-        // let rtpPort = 5000;
-        // let rtcpPort = 5001;
-
-        // if (producer.kind == "audio") {
-        //     rtpPort = 5002;
-        //     rtcpPort = 5003;
-        // }
-
-        let recordingTransport: mediasoup.types.PlainTransport;
-        recordingTransport = await this.room.roomRouter.createPlainTransport({
-            listenIp: { ip: '127.0.0.1' }, // or your server's public IP
-            rtcpMux: false, // GStreamer does not support rtcp-mux, Use RTCP-mux (RTP and RTCP in the same port).
-            comedia: false, // Set to true if you want GStreamer to initiate the connection
-        });
-
-        //create recording consumer
-        const consumerRecorder = await recordingTransport.consume({
-            producerId: producer.id,
-            rtpCapabilities: this.room.roomRouter.rtpCapabilities,
-            paused: true,
-        });
-
-        
-        const ip = recordingTransport.tuple.localIp;
-        const rtpPort = recordingTransport.tuple.localPort;
-        const rtcpPort = recordingTransport.rtcpTuple.localPort; // Also useful to include
-        const codec = consumerRecorder.rtpParameters.codecs[0];
-
-        let recordingParams = {
-            kine: producer.kind,
-            consumerId: consumerRecorder.id,
-            producer: producer.id,
-            rtpPort: rtpPort,
-            rtcpPort: rtcpPort,
-            consumerRtpParameters: consumerRecorder.rtpParameters
+        if (producer.kind === "video") {
+            await this.startRecordingVideo(producer, this.room.roomRouter);
+        } else {
+            await this.startRecordingAudio(producer, this.room.roomRouter);
         }
-
-        //           const sdpContent = `v=0
-        // o=- 0 0 IN IP4 127.0.0.1
-        // s=MediaSoup Video Recording
-        // c=IN IP4 127.0.0.1
-        // t=0 0
-        // m=video ${videoPort} RTP/AVP ${videoPt}
-        // a=rtpmap:${videoPt} VP8/90000
-        // a=rtcp:${videoRtcpPort}
-        // a=recvonly
-        // `.trim();
-        let codecName = codec.mimeType.split("/")[1];
-
-        //open this in vlc or gstreamer
-        let sdpContent = `v=0
-o=- 0 0 IN IP4 ${ip}
-s=PlainTransport Stream
-c=IN IP4 ${ip}
-t=0 0
-m=${producer.kind} ${rtpPort} RTP/AVP ${codec.payloadType}
-a=rtpmap:${codec.payloadType} ${codecName}/${codec.clockRate}
-a=rtcp:${rtcpPort}
-a=recvonly`;
-
-        /**
-         gst-launch-1.0 sdpsrc sdp="v=0
-        o=- 0 0 IN IP4 127.0.0.1
-        s=PlainTransport Stream
-        c=IN IP4 127.0.0.1
-        t=0 0
-        m=video 5000 RTP/AVP 96
-        a=rtpmap:96 VP8/90000
-        a=rtcp:5001
-        a=recvonly" ! sdpdemux ! rtpvp8depay ! decodebin ! autovideosink
-         */
-
-        consoleWarn(sdpContent);
-
-        
-        // await recordingTransport.connect({
-        //     ip: recordingTransport.tuple.localIp,
-        //     port: recordingParams.rtpPort,
-        //     rtcpPort: recordingParams.rtcpPort,
-        // });
-
-        await consumerRecorder.resume();
-
-        consoleWarn("recordingParams", JSON.stringify(recordingParams));
 
         return producer;
     }
+
+    async startRecordingVideo(videoProducer: Producer, router: mediasoup.types.Router) {
+        consoleWarn(`startRecordingVideo`);
+
+        const videoPort = 5000;
+        const videoRtcpPort = 5001;
+
+        const videoTransport = await router.createPlainTransport({
+            listenIp: { ip: '127.0.0.1' },
+            rtcpMux: false,
+            comedia: false,
+        });
+
+        await videoTransport.connect({ ip: '127.0.0.1', port: videoPort, rtcpPort: videoRtcpPort });
+
+        const videoConsumer = await videoTransport.consume({
+            producerId: videoProducer.id,
+            rtpCapabilities: router.rtpCapabilities,
+            paused: true
+        });
+
+        await videoConsumer.enableTraceEvent(['rtp', "keyframe"]);
+
+        videoConsumer.on("trace", packet => {
+            //console.log("trace:", packet.type);
+            if (packet.type == "keyframe") {
+                console.log("*** keyframe received");
+            }
+        });
+
+        await videoConsumer.resume();
+        setTimeout(() => {
+            videoConsumer.requestKeyFrame();
+        }, 2000);
+
+    }
+
+    async startRecordingAudio(producer: Producer, router: mediasoup.types.Router) {
+        consoleWarn(`startRecordingAudio`);
+
+        const rtpPort = 5002;
+        const rtcpPort = 5003;
+
+        const transport = await router.createPlainTransport({
+            listenIp: { ip: '127.0.0.1' },
+            rtcpMux: false,
+            comedia: false,
+        });
+
+        await transport.connect({ ip: '127.0.0.1', port: rtpPort, rtcpPort: rtcpPort });
+
+        const consumer = await transport.consume({
+            producerId: producer.id,
+            rtpCapabilities: router.rtpCapabilities,
+            paused: true
+        });
+
+        await consumer.resume();
+
+        // --- Output codec info ---
+        const codec = consumer.rtpParameters.codecs[0];
+        console.log(`Audio codec info:`);
+        console.log(`  mimeType: ${codec.mimeType}`);         // e.g., "audio/opus"
+        console.log(`  payloadType: ${codec.payloadType}`);   // e.g., 111
+        console.log(`  clockRate: ${codec.clockRate}`);       // e.g., 48000
+        console.log(`  channels: ${codec.channels}`);        // e.g., 2
+    }
+
 
     async closeProducer(kind: MediaKind) {
         console.log(`closeProducuer ${kind} - ${this.peer.id} ${this.peer.displayName}`);

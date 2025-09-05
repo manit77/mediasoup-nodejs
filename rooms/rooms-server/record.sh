@@ -74,13 +74,36 @@ build_pipeline() {
   fi
 
   if [ "$STREAM_TYPE" = "video" ]; then
-    pipeline="$pipeline udpsrc port=$RTP_PORT timeout=$UDP_TIMEOUT ! application/x-rtp,media=video,encoding-name=VP8,payload=$VIDEO_PAYLOAD,clock-rate=90000 ! rtpjitterbuffer latency=$JITTER_LATENCY drop-on-latency=true do-lost=true ! rtpvp8depay ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! webmmux name=mux ! filesink location=$OUTPUT_FILE"
+    # Video-only (VP8 RTP -> WebM), fallback to black if RTP missing is trickier,
+    # so keep it simple unless you want me to wire in a videotestsrc as backup.
+    pipeline="$pipeline \
+      udpsrc port=$RTP_PORT caps=\"application/x-rtp,media=video,encoding-name=VP8,payload=$VIDEO_PAYLOAD,clock-rate=90000\" \
+      ! rtpjitterbuffer latency=$JITTER_LATENCY drop-on-latency=true do-lost=true \
+      ! rtpvp8depay \
+      ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream \
+      ! webmmux name=mux \
+      ! filesink location=$OUTPUT_FILE"
+
   elif [ "$STREAM_TYPE" = "audio" ]; then
-    pipeline="$pipeline input-selector name=selector ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! webmmux name=mux ! filesink location=$OUTPUT_FILE udpsrc port=$RTP_PORT timeout=$UDP_TIMEOUT ! application/x-rtp,media=audio,encoding-name=OPUS,payload=$AUDIO_PAYLOAD,clock-rate=48000 ! rtpjitterbuffer latency=$JITTER_LATENCY drop-on-latency=true do-lost=true ! rtpopusdepay ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! selector. audiotestsrc is-live=true wave=silence ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! opusenc ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream ! selector."
+    # Audio-only (Opus RTP -> WebM) with silence fallback
+    pipeline="$pipeline \
+      input-selector name=selector \
+        selector. ! queue max-size-time=$QUEUE_MAX_TIME max-size-bytes=0 max-size-buffers=0 leaky=downstream \
+        ! webmmux name=mux \
+        ! filesink location=$OUTPUT_FILE \
+      udpsrc port=$RTP_PORT caps=\"application/x-rtp,media=audio,encoding-name=OPUS,payload=$AUDIO_PAYLOAD,clock-rate=48000\" \
+      ! rtpjitterbuffer latency=$JITTER_LATENCY drop-on-latency=true do-lost=true \
+      ! rtpopusdepay \
+      ! selector. \
+      audiotestsrc is-live=true wave=silence \
+      ! audio/x-raw,format=S16LE,rate=48000,channels=2 \
+      ! opusenc \
+      ! selector."
   fi
 
   echo "$pipeline"
 }
+
 
 
 
