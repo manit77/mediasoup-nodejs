@@ -23,7 +23,7 @@ export class Room {
     roomToken: string;
 
     config = new RoomConfig();
-    private serverConfig: RoomServerConfig;
+    serverConfig: RoomServerConfig;
     dateCreated = new Date();
 
     timerIdInterval?: NodeJS.Timeout = null;
@@ -33,7 +33,7 @@ export class Room {
     roomRouter?: mediasoup.types.Router;
     roomLogAdapter: RoomLogAdapter;
     roomRtpCapabilities: mediasoup.types.RtpCapabilities;
-    recServerURI = "";    
+    recServerURI = "";
 
     onClosedEvent: (room: Room, peers: Peer[], reason: string) => void;
     onPeerRemovedEvent: (room: Room, peers: Peer) => void;
@@ -294,15 +294,33 @@ export class Room {
     async createProducer(peer: Peer, kind: MediaKind, rtpParameters: mediasoup.types.RtpParameters) {
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
-            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);         
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
             return;
         }
         let producer = await roomPeer.createProducer(kind, rtpParameters);
-        if(this.onProducerCreated) {
+        if (this.onProducerCreated) {
             this.onProducerCreated(peer, producer);
         }
 
         return producer;
+    }
+
+    async recordProducer(peer: Peer, producerId: string, recIP: string, recPort: number) {
+        consoleWarn(`recordProducer`);
+        
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return;
+        }
+
+        let producer = roomPeer.getProducer(producerId);
+        if (!producer) {
+            consoleError(`producer not found. ${producerId}`);
+            return;
+        }
+
+        await roomPeer.startRecording(producer, recIP, recPort);
     }
 
     async createConsumer(peer: Peer, remotePeer: Peer, producerId: string, rtpParameters: mediasoup.types.RtpCapabilities) {

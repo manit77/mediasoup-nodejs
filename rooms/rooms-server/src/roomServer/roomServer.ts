@@ -33,7 +33,7 @@ import { setTimeout } from 'node:timers';
 import { RoomLogAdapterInMemory } from './roomLogsAdapter.js';
 import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
 import { outMessageEventListener, RoomServerConfig, WorkerData } from './models.js';
-import { RecMsgTypes, RecRoomNewMsg, RecRoomProduceStreamMsg, RecRoomTerminateMsg } from '../recording/recModels.js';
+import { RecMsgTypes, RecReadyMsg, RecRoomNewMsg, RecRoomProduceStreamMsg, RecRoomTerminateMsg } from '../recording/recModels.js';
 import { recRoomNew, recRoomProduceStream, recRoomTerminate } from '../recording/recAPI.js';
 
 
@@ -263,18 +263,38 @@ export class RoomServer {
     async inMessageNoPeer(msgIn: IMsg) {
         console.log(`inMessageNoPeer`, msgIn.type);
 
-        let resultMsg: IMsg;
-        if (msgIn.type == payloadTypeClient.authUserNewToken) {
-            resultMsg = await this.onAuthUserNewTokenMsg(msgIn as RoomNewTokenMsg);
-        } else if (msgIn.type == payloadTypeClient.roomNewToken) {
-            resultMsg = await this.onRoomNewTokenMsg(msgIn as RoomNewTokenMsg);
-        } else if (msgIn.type == payloadTypeClient.roomNew) {
-            resultMsg = await this.onRoomNewMsg(msgIn as RoomNewMsg);
-        } else if (msgIn.type == payloadTypeClient.roomTerminate) {
-            resultMsg = await this.terminateRoomMsg(msgIn as RoomTerminateMsg);
-        }
+        try {
+            let resultMsg: IMsg;
+            if (msgIn.type == payloadTypeClient.authUserNewToken) {
+                resultMsg = await this.onAuthUserNewTokenMsg(msgIn as RoomNewTokenMsg);
+            } else if (msgIn.type == payloadTypeClient.roomNewToken) {
+                resultMsg = await this.onRoomNewTokenMsg(msgIn as RoomNewTokenMsg);
+            } else if (msgIn.type == payloadTypeClient.roomNew) {
+                resultMsg = await this.onRoomNewMsg(msgIn as RoomNewMsg);
+            } else if (msgIn.type == payloadTypeClient.roomTerminate) {
+                resultMsg = await this.terminateRoomMsg(msgIn as RoomTerminateMsg);
+            } else if (msgIn.type == RecMsgTypes.recReady) {
 
-        return resultMsg;
+                let { roomId, peerId, producerId, recPort, recIP } = (msgIn as RecReadyMsg).data;
+                let room = this.getRoom(roomId);
+                if (!room) {
+                    consoleError("room not found.");
+                    return new ErrorMsg(payloadTypeServer.error, "room not found.");
+                }
+                let peer = room.getPeer(peerId);
+                if (!peer) {
+                    consoleError("peer not found.");
+                    return new ErrorMsg(payloadTypeServer.error, "roopeerm not found.");
+                }
+
+                await room.recordProducer(peer, producerId, recIP, recPort);
+            }
+
+            return resultMsg;
+        } catch (err) {
+            consoleError(err);
+        }
+        return null;
     }
 
     async onTerminatePeer(peerId: string, msg: TerminatePeerMsg): Promise<IMsg> {
@@ -480,7 +500,7 @@ export class RoomServer {
 
         room.onProducerCreated = async (peer, producer) => {
             let roomPeer = room.getRoomPeer(peer);
-
+            
             let msg: RecRoomProduceStreamMsg = {
                 type: RecMsgTypes.recRoomProduceStream,
                 data: {
@@ -491,6 +511,7 @@ export class RoomServer {
                     peerId: peer.id,
                     peerTrackingId: peer.trackingId,
                     producerId: producer.id,
+                    codec : producer.consumableRtpParameters.codecs[0]
                 }
             }
             let result = await recRoomProduceStream(room.recServerURI, msg);
@@ -506,7 +527,7 @@ export class RoomServer {
                 roomTrackingId: room.trackingId
             }
         }
-        let result = await recRoomNew(room.recServerURI, msg); 
+        let result = await recRoomNew(room.recServerURI, msg);
 
         return room;
     }

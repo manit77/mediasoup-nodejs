@@ -3,7 +3,7 @@ import { Room } from './room.js';
 import * as roomUtils from "./utils.js";
 import chalk, { Chalk } from 'chalk';
 import { Peer } from './peer.js';
-import { consoleError, consoleWarn } from '../utils/utils.js';
+import { consoleError, consoleWarn, generateShortUID } from '../utils/utils.js';
 import { MediaKind, Producer } from 'mediasoup/types';
 import { RoomConfig, UniqueMap } from '@rooms/rooms-models';
 import { RoomServerConfig, WorkerData } from './models.js';
@@ -24,7 +24,7 @@ export class RoomPeer {
         this.room = room;
         this.peer = peer;
         this.config = config;
-        this.joinInstance = randomUUID().toString();
+        this.joinInstance = "join-" + generateShortUID();
     }
 
     producerTransport?: mediasoup.types.WebRtcTransport;
@@ -197,82 +197,52 @@ export class RoomPeer {
             console.log(args);
         });
 
-        if (producer.kind === "video") {
-            await this.startRecordingVideo(producer, this.room.roomRouter);
-        } else {
-            await this.startRecordingAudio(producer, this.room.roomRouter);
-        }
+        // if (producer.kind === "video") {
+        //     await this.startRecordingVideo(producer, this.room.roomRouter);
+        // } else {
+        //     await this.startRecordingAudio(producer, this.room.roomRouter);
+        // }
 
         return producer;
     }
 
-    async startRecordingVideo(videoProducer: Producer, router: mediasoup.types.Router) {
-        consoleWarn(`startRecordingVideo`);
+    async startRecording(producer: Producer, recIP: string, recPort: number) {
+        consoleWarn(`startRecording ${producer.kind} ${recIP} ${recPort}`);
 
-        const videoPort = 5000;
-        const videoRtcpPort = 5001;
+        //the recording sever has a port ready
 
-        const videoTransport = await router.createPlainTransport({
-            listenIp: { ip: '127.0.0.1' },
+        const recTransport = await this.room.roomRouter.createPlainTransport({
+            listenIp: { ip: this.room.serverConfig.room_server_ip },
             rtcpMux: false,
             comedia: false,
         });
 
-        await videoTransport.connect({ ip: '127.0.0.1', port: videoPort, rtcpPort: videoRtcpPort });
+        consoleWarn(`recTransport created`);
 
-        const videoConsumer = await videoTransport.consume({
-            producerId: videoProducer.id,
-            rtpCapabilities: router.rtpCapabilities,
-            paused: true
-        });
+        await recTransport.connect({ ip: recIP, port: recPort, rtcpPort: recPort + 1 });
 
-        await videoConsumer.enableTraceEvent(['rtp', "keyframe"]);
+        consoleWarn(`recTransport connect ${recIP} ${recPort}`);
 
-        videoConsumer.on("trace", packet => {
-            //console.log("trace:", packet.type);
-            if (packet.type == "keyframe") {
-                console.log("*** keyframe received");
-            }
-        });
-
-        await videoConsumer.resume();
-        setTimeout(() => {
-            videoConsumer.requestKeyFrame();
-        }, 2000);
-
-    }
-
-    async startRecordingAudio(producer: Producer, router: mediasoup.types.Router) {
-        consoleWarn(`startRecordingAudio`);
-
-        const rtpPort = 5002;
-        const rtcpPort = 5003;
-
-        const transport = await router.createPlainTransport({
-            listenIp: { ip: '127.0.0.1' },
-            rtcpMux: false,
-            comedia: false,
-        });
-
-        await transport.connect({ ip: '127.0.0.1', port: rtpPort, rtcpPort: rtcpPort });
-
-        const consumer = await transport.consume({
+        const recConsumer = await recTransport.consume({
             producerId: producer.id,
-            rtpCapabilities: router.rtpCapabilities,
+            rtpCapabilities: this.room.roomRouter.rtpCapabilities,
             paused: true
         });
 
-        await consumer.resume();
+        await recConsumer.resume();
 
-        // --- Output codec info ---
-        const codec = consumer.rtpParameters.codecs[0];
-        console.log(`Audio codec info:`);
-        console.log(`  mimeType: ${codec.mimeType}`);         // e.g., "audio/opus"
-        console.log(`  payloadType: ${codec.payloadType}`);   // e.g., 111
-        console.log(`  clockRate: ${codec.clockRate}`);       // e.g., 48000
-        console.log(`  channels: ${codec.channels}`);        // e.g., 2
+        if (producer.kind == "video") {
+            await recConsumer.enableTraceEvent(['rtp', "keyframe"]);
+            recConsumer.on("trace", packet => {
+                //console.log("trace:", packet.type);
+                if (packet.type == "keyframe") {
+                    console.log("*** keyframe received");
+                }
+            });
+            recConsumer.requestKeyFrame();
+        }
+        
     }
-
 
     async closeProducer(kind: MediaKind) {
         console.log(`closeProducuer ${kind} - ${this.peer.id} ${this.peer.displayName}`);
@@ -315,6 +285,15 @@ export class RoomPeer {
     getProducerByKind(kind: mediasoup.types.MediaKind): mediasoup.types.Producer | undefined {
         for (const producer of this.producers.values()) {
             if (producer.kind === kind) {
+                return producer;
+            }
+        }
+        return undefined;
+    }
+
+    getProducer(id: string): mediasoup.types.Producer | undefined {
+        for (const producer of this.producers.values()) {
+            if (producer.id === id) {
                 return producer;
             }
         }

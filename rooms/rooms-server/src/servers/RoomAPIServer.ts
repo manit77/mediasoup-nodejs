@@ -7,10 +7,12 @@ import {
     RoomServerAPIRoutes,
     RoomTerminateMsg,
     AuthUserRoles,
+    IMsg,
 } from "@rooms/rooms-models";
 import { RoomServer } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
 import { RoomServerConfig } from '../roomServer/models.js';
+import { RecMsgTypes } from '../recording/recModels.js';
 
 const DSTR = "RoomAPIServer";
 
@@ -130,7 +132,23 @@ export class RoomAPIServer {
         app.post(RoomServerAPIRoutes.recCallBack, async (req, res) => {
             console.log(RoomServerAPIRoutes.recCallBack);
 
-            // let msgIn = req.body as RoomTerminateMsg;
+            let msgIn = req.body as IMsg;
+            switch(msgIn.type){
+                case RecMsgTypes.recReady: {
+                    //recording port is open send recording
+                    this.roomServer.inMessageNoPeer(msgIn);
+                    res.sendStatus(200).end();
+                    return;
+                } 
+                case RecMsgTypes.recDone: {
+                    //recording is done
+                    res.sendStatus(200).end();
+                    return;                    
+                }
+            }
+
+            res.sendStatus(200).end();
+
             // msgIn.data.authToken = req.rooms_authtoken;
 
             // let resultMsg = this.roomServer.terminateRoom(msgIn);

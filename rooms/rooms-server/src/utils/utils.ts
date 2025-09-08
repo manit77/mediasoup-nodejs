@@ -2,6 +2,7 @@ import dgram from 'dgram';
 import * as fsync from 'fs';
 import fs from 'fs/promises';
 import chalk from 'chalk';
+import * as crypto from 'crypto';
 
 export function consoleError(...args: any) {
   console.error(chalk.red('[ERROR]', ...args));
@@ -86,4 +87,8 @@ export function stringIsNullOrEmpty(val: string): boolean {
 
 export function checkKeysExist(obj: any, keys: string[]) {
   return keys.every(key => Object.prototype.hasOwnProperty.call(obj, key));
+}
+
+export function generateShortUID(length = 8) {
+  return crypto.randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
 }
