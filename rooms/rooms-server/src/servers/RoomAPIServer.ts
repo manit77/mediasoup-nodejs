@@ -8,6 +8,7 @@ import {
     RoomTerminateMsg,
     AuthUserRoles,
     IMsg,
+    RoomGetStatusMsg,
 } from "@rooms/rooms-models";
 import { RoomServer } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
@@ -95,7 +96,7 @@ export class RoomAPIServer {
             let msgIn = req.body as AuthUserNewTokenMsg;
 
             let resultMsg = await this.roomServer.inMessageNoPeer(msgIn)
-            
+
             res.send(resultMsg);
 
         });
@@ -118,7 +119,16 @@ export class RoomAPIServer {
             let resultMsg = await this.roomServer.inMessageNoPeer(msgIn);
             res.send(resultMsg);
         });
-        
+
+        app.post(RoomServerAPIRoutes.getRoomStatus, this.tokenCheck as any, async (req, res) => {
+            console.log(RoomServerAPIRoutes.getRoomStatus);
+
+            let msgIn = req.body as RoomGetStatusMsg;
+            msgIn.data.authToken = req.rooms_authtoken;
+
+            let resultMsg = this.roomServer.inMessageNoPeer(msgIn);
+            res.send(resultMsg);
+        });
 
         app.post(RoomServerAPIRoutes.terminateRoom, this.tokenCheck as any, async (req, res) => {
             console.log(RoomServerAPIRoutes.terminateRoom);
@@ -133,21 +143,27 @@ export class RoomAPIServer {
             console.log(RoomServerAPIRoutes.recCallBack);
 
             let msgIn = req.body as IMsg;
-            switch(msgIn.type){
+            switch (msgIn.type) {
                 case RecMsgTypes.recReady: {
                     //recording port is open send recording
                     this.roomServer.inMessageNoPeer(msgIn);
                     res.sendStatus(200).end();
                     return;
-                } 
+                }
+                case RecMsgTypes.recRoomStatus: {
+                    //recording port is open send recording
+                    var result = await this.roomServer.inMessageNoPeer(msgIn);
+                    res.status(200).send(result).end();
+                    return;
+                }
                 case RecMsgTypes.recDone: {
                     //recording is done
                     res.sendStatus(200).end();
-                    return;                    
+                    return;
                 }
             }
 
-            res.sendStatus(200).end();
+            res.status(400).send({ type: "error", data: { error: "invalid message." } }).end();
 
             // msgIn.data.authToken = req.rooms_authtoken;
 

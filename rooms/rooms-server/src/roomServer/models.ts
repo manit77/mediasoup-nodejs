@@ -6,6 +6,12 @@ export interface RoomServerConfig {
     room_server_https_port: number,
     room_server_http_port: number,
     
+    room_audio_codec : string,
+    room_audio_clock_rate : number,
+    room_audio_channels : number,
+    room_video_codec : string,
+    room_video_clock_rate : number,
+
     room_rtc_start_port: number,
     room_rtc_end_port: number,
     room_recordingsDir: string,

@@ -33,6 +33,7 @@ export class Room {
     roomRouter?: mediasoup.types.Router;
     roomLogAdapter: RoomLogAdapter;
     roomRtpCapabilities: mediasoup.types.RtpCapabilities;
+    isRecorded = true;
     recServerURI = "";
 
     onClosedEvent: (room: Room, peers: Peer[], reason: string) => void;

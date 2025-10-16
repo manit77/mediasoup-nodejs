@@ -1,12 +1,10 @@
 
 export enum RecordingAPIRoutes {
-    recReady = "/recReady",
-    recDone = "/recDone",
+    recAgentStatus = "/recAgentStatus",    
     recRoomNew = "/recRoomNew",
     recRoomTerminate = "/recRoomTerminate",
     recRoomProduceStream = "/recRoomProduceStream"
 }
-
 
 export enum RecMsgTypes {
     recRoomNew = "recRoomNew",
@@ -14,6 +12,8 @@ export enum RecMsgTypes {
     recRoomProduceStream = "recRoomProduceStream",
     recReady = "recReady",
     recDone = "recDone",
+    recFailed = "recFailed",
+    recRoomStatus = "recRoomStatus",
 }
 
 export interface RecRoomNewMsg {
@@ -70,13 +70,12 @@ export interface RecRoomProduceStreamMsg {
              */
             rtcpFeedback?: any[];
         }
-
     }
 }
 
 
-export interface RecReadyMsg {
-    type: RecMsgTypes.recReady,
+export interface RecCallBackMsg {
+    type: RecMsgTypes,
     data: {
 
         instanceId: string;

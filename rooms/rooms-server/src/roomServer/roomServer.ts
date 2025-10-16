@@ -24,7 +24,9 @@ import {
     RoomConsumerClosedMsg,
     AuthUserRoles,
     RoomPingMsg,
-    RoomPongMsg
+    RoomPongMsg,
+    RoomGetStatusMsg,
+    RoomStatusMsg
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
@@ -33,7 +35,7 @@ import { setTimeout } from 'node:timers';
 import { RoomLogAdapterInMemory } from './roomLogsAdapter.js';
 import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
 import { outMessageEventListener, RoomServerConfig, WorkerData } from './models.js';
-import { RecMsgTypes, RecReadyMsg, RecRoomNewMsg, RecRoomProduceStreamMsg, RecRoomTerminateMsg } from '../recording/recModels.js';
+import { RecCallBackMsg, RecMsgTypes, RecRoomNewMsg, RecRoomProduceStreamMsg, RecRoomTerminateMsg } from '../recording/recModels.js';
 import { recRoomNew, recRoomProduceStream, recRoomTerminate } from '../recording/recAPI.js';
 
 
@@ -257,7 +259,7 @@ export class RoomServer {
     }
 
     /**
-     * handle messages that require no peerId
+     * handle messages that require no peerId from services
      * @param msgIn 
      */
     async inMessageNoPeer(msgIn: IMsg) {
@@ -273,9 +275,11 @@ export class RoomServer {
                 resultMsg = await this.onRoomNewMsg(msgIn as RoomNewMsg);
             } else if (msgIn.type == payloadTypeClient.roomTerminate) {
                 resultMsg = await this.terminateRoomMsg(msgIn as RoomTerminateMsg);
+            } else if (msgIn.type == payloadTypeClient.roomGetStatus || msgIn.type == RecMsgTypes.recRoomStatus) {
+                resultMsg = await this.getRoomStatus(msgIn as RoomGetStatusMsg);
             } else if (msgIn.type == RecMsgTypes.recReady) {
 
-                let { roomId, peerId, producerId, recPort, recIP } = (msgIn as RecReadyMsg).data;
+                let { roomId, peerId, producerId, recPort, recIP } = (msgIn as RecCallBackMsg).data;
                 let room = this.getRoom(roomId);
                 if (!room) {
                     consoleError("room not found.");
@@ -284,7 +288,7 @@ export class RoomServer {
                 let peer = room.getPeer(peerId);
                 if (!peer) {
                     consoleError("peer not found.");
-                    return new ErrorMsg(payloadTypeServer.error, "roopeerm not found.");
+                    return new ErrorMsg(payloadTypeServer.error, "room peer not found.");
                 }
 
                 await room.recordProducer(peer, producerId, recIP, recPort);
@@ -428,14 +432,14 @@ export class RoomServer {
             mediaCodecs: [
                 {
                     kind: 'audio',
-                    mimeType: 'audio/opus',
-                    clockRate: 48000,
-                    channels: 2,
+                    mimeType: `audio/${this.config.room_audio_codec}`,
+                    clockRate: this.config.room_audio_clock_rate,
+                    channels: this.config.room_audio_channels,
                 },
                 {
                     kind: 'video',
-                    mimeType: 'video/VP8',
-                    clockRate: 90000,
+                    mimeType: `video/${this.config.room_video_codec}`,
+                    clockRate: this.config.room_video_clock_rate,
                 },
             ],
         });
@@ -452,8 +456,10 @@ export class RoomServer {
         room.onClosedEvent = async (r, peers) => {
             consoleLog(`room.onClosedEvent ${r.id} ${r.roomName}`);
 
-            let recMsg: RecRoomTerminateMsg = { type: RecMsgTypes.recRoomTerminmate, data: { roomId: r.id } };
-            await recRoomTerminate(r.recServerURI, recMsg);
+            if (room.isRecorded) {
+                let recMsg: RecRoomTerminateMsg = { type: RecMsgTypes.recRoomTerminmate, data: { roomId: r.id } };
+                await recRoomTerminate(r.recServerURI, recMsg);
+            }
 
             this.removeRoomGlobal(r);
 
@@ -499,35 +505,49 @@ export class RoomServer {
         };
 
         room.onProducerCreated = async (peer, producer) => {
-            let roomPeer = room.getRoomPeer(peer);
-            
-            let msg: RecRoomProduceStreamMsg = {
-                type: RecMsgTypes.recRoomProduceStream,
-                data: {
-                    roomId: room.id,
-                    roomTrackingId: room.trackingId,
-                    joinInstanceId: roomPeer.joinInstance,
-                    kind: producer.kind,
-                    peerId: peer.id,
-                    peerTrackingId: peer.trackingId,
-                    producerId: producer.id,
-                    codec : producer.consumableRtpParameters.codecs[0]
+            if (room.isRecorded) {
+                let roomPeer = room.getRoomPeer(peer);
+
+                let msg: RecRoomProduceStreamMsg = {
+                    type: RecMsgTypes.recRoomProduceStream,
+                    data: {
+                        roomId: room.id,
+                        roomTrackingId: room.trackingId,
+                        joinInstanceId: roomPeer.joinInstance,
+                        kind: producer.kind,
+                        peerId: peer.id,
+                        peerTrackingId: peer.trackingId,
+                        producerId: producer.id,
+                        codec: producer.consumableRtpParameters.codecs[0]
+                    }
+                }
+                let result = await recRoomProduceStream(room.recServerURI, msg);
+                if (!result) {
+                    consoleError("recRoomProduceStream call failed.");
+                } else if (result.error) {
+                    consoleError("recRoomProduceStream call failed, error: ", result.error);
                 }
             }
-            let result = await recRoomProduceStream(room.recServerURI, msg);
         };
 
         this.addRoomGlobal(room);
 
-        let msg: RecRoomNewMsg = {
-            type: RecMsgTypes.recRoomNew,
-            data: {
-                roomCallBackURI: this.config.room_rec_callback_uri,
-                roomId: room.id,
-                roomTrackingId: room.trackingId
+        if (room.isRecorded) {
+            let msg: RecRoomNewMsg = {
+                type: RecMsgTypes.recRoomNew,
+                data: {
+                    roomCallBackURI: this.config.room_rec_callback_uri,
+                    roomId: room.id,
+                    roomTrackingId: room.trackingId
+                }
+            }
+            let result = await recRoomNew(room.recServerURI, msg);
+            if (!result) {
+                consoleError("recRoomNew call failed.");
+            } else if (result.error) {
+                consoleError("recRoomNew call failed, error: ", result.error);
             }
         }
-        let result = await recRoomNew(room.recServerURI, msg);
 
         return room;
     }
@@ -957,6 +977,26 @@ export class RoomServer {
         }
 
         return await this.terminateRoomMsg(msg);
+    }
+
+    async getRoomStatus(msg: RoomGetStatusMsg): Promise<RoomStatusMsg> {
+        console.log(`terminateRoomMsg() - ${msg.data.roomId}`);
+
+        const room = this.rooms.get(msg.data.roomId);
+        if (!room) {
+            consoleLog("terminateRoomMsg - room not found.");
+            let msgError = new RoomStatusMsg();
+            msgError.data.roomId = msg.data.roomId;
+            msgError.data.error = "unable to find room.";
+
+            return msgError;
+        }
+       
+        let msgResult = new RoomStatusMsg();
+        msgResult.data.roomId = room.id;
+        msgResult.data.numPeers = room.getPeers().length;
+
+        return msgResult;
     }
 
     async terminateRoomMsg(msg: RoomTerminateMsg): Promise<RoomTerminateResultMsg> {

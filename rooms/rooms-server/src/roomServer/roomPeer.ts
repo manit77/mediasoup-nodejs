@@ -195,13 +195,7 @@ export class RoomPeer {
         producer.on("listenererror", (args) => {
             console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} listenererror for ${this.peer.id} ${this.peer.displayName}`));
             console.log(args);
-        });
-
-        // if (producer.kind === "video") {
-        //     await this.startRecordingVideo(producer, this.room.roomRouter);
-        // } else {
-        //     await this.startRecordingAudio(producer, this.room.roomRouter);
-        // }
+        });       
 
         return producer;
     }
@@ -209,17 +203,21 @@ export class RoomPeer {
     async startRecording(producer: Producer, recIP: string, recPort: number) {
         consoleWarn(`startRecording ${producer.kind} ${recIP} ${recPort}`);
 
+        let rtcpMux = true; //mix rtp and rtcp on the same port
         //the recording sever has a port ready
-
         const recTransport = await this.room.roomRouter.createPlainTransport({
             listenIp: { ip: this.room.serverConfig.room_server_ip },
-            rtcpMux: false,
+            rtcpMux,
             comedia: false,
         });
 
         consoleWarn(`recTransport created`);
-
-        await recTransport.connect({ ip: recIP, port: recPort, rtcpPort: recPort + 1 });
+        if (rtcpMux) {
+            await recTransport.connect({ ip: recIP, port: recPort });
+        }
+        else {
+            await recTransport.connect({ ip: recIP, port: recPort, rtcpPort: recPort + 1 });
+        }
 
         consoleWarn(`recTransport connect ${recIP} ${recPort}`);
 
@@ -241,7 +239,7 @@ export class RoomPeer {
             });
             recConsumer.requestKeyFrame();
         }
-        
+
     }
 
     async closeProducer(kind: MediaKind) {

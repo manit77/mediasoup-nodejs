@@ -15,8 +15,8 @@
     "@rooms/rooms-models": "1.0.0",
     "@rooms/webrtc-client": "1.0.0",
     "@rooms/websocket-client": "1.0.0",
-    "mediasoup-client": "^3.11.0"    
-  }, 
+    "mediasoup-client": "^3.16.7"
+  },
   "devDependencies": {
     "tsconfig-paths": "^4.2.0"
   }
