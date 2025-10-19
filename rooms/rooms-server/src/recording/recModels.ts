@@ -1,6 +1,6 @@
 
 export enum RecordingAPIRoutes {
-    recAgentStatus = "/recAgentStatus",    
+    recAgentStatus = "/recAgentStatus",
     recRoomNew = "/recRoomNew",
     recRoomTerminate = "/recRoomTerminate",
     recRoomProduceStream = "/recRoomProduceStream"
@@ -13,7 +13,10 @@ export enum RecMsgTypes {
     recReady = "recReady",
     recDone = "recDone",
     recFailed = "recFailed",
+    recMixFailed = "recMixFailed",
+    recMixDone = "recMixDone",
     recRoomStatus = "recRoomStatus",
+    recPacketRecorded = "recPacketRecorded",
 }
 
 export interface RecRoomNewMsg {
@@ -24,6 +27,7 @@ export interface RecRoomNewMsg {
         roomCallBackURI: string,
     }
 }
+
 export interface RecRoomTerminateMsg {
     type: RecMsgTypes.recRoomTerminmate,
     data: {
@@ -78,14 +82,24 @@ export interface RecCallBackMsg {
     type: RecMsgTypes,
     data: {
 
-        instanceId: string;
-        kind: string;
-        recIP: string;
-        recPort: number;
-
         roomId: string;
-        peerId: string;
-        producerId: string;
-        joinInstanceId: string;
+
+        instanceId?: string;
+        kind?: string;
+        recIP?: string;
+        recPort?: number;
+
+        peerId?: string;
+        producerId?: string;
+        joinInstanceId?: string;
+    }
+}
+
+export interface RecPacketRecordedMsg {
+    type: RecMsgTypes.recPacketRecorded,
+    data: {
+        roomId: string,
+        peerId: string,
+        kind: string,
     }
 }

@@ -95,7 +95,7 @@ export class RoomAPIServer {
             console.log(RoomServerAPIRoutes.newAuthUserToken);
             let msgIn = req.body as AuthUserNewTokenMsg;
 
-            let resultMsg = await this.roomServer.inMessageNoPeer(msgIn)
+            let resultMsg = await this.roomServer.inServiceMsg(msgIn)
 
             res.send(resultMsg);
 
@@ -106,7 +106,7 @@ export class RoomAPIServer {
             let msgIn = req.body as RoomNewTokenMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
-            let resultMsg = await this.roomServer.inMessageNoPeer(msgIn);
+            let resultMsg = await this.roomServer.inServiceMsg(msgIn);
             res.send(resultMsg);
         });
 
@@ -116,7 +116,7 @@ export class RoomAPIServer {
             msgIn.data.authToken = req.rooms_authtoken;
 
             //creates a room without a peerId
-            let resultMsg = await this.roomServer.inMessageNoPeer(msgIn);
+            let resultMsg = await this.roomServer.inServiceMsg(msgIn);
             res.send(resultMsg);
         });
 
@@ -126,7 +126,7 @@ export class RoomAPIServer {
             let msgIn = req.body as RoomGetStatusMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
-            let resultMsg = this.roomServer.inMessageNoPeer(msgIn);
+            let resultMsg = this.roomServer.inServiceMsg(msgIn);
             res.send(resultMsg);
         });
 
@@ -135,7 +135,7 @@ export class RoomAPIServer {
             let msgIn = req.body as RoomTerminateMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
-            let resultMsg = this.roomServer.inMessageNoPeer(msgIn);
+            let resultMsg = this.roomServer.inServiceMsg(msgIn);
             res.send(resultMsg);
         });
 
@@ -144,21 +144,14 @@ export class RoomAPIServer {
 
             let msgIn = req.body as IMsg;
             switch (msgIn.type) {
-                case RecMsgTypes.recReady: {
-                    //recording port is open send recording
-                    this.roomServer.inMessageNoPeer(msgIn);
-                    res.sendStatus(200).end();
-                    return;
-                }
+                case RecMsgTypes.recReady:
+                case RecMsgTypes.recPacketRecorded:
+                case RecMsgTypes.recFailed:
+                case RecMsgTypes.recDone:
                 case RecMsgTypes.recRoomStatus: {
                     //recording port is open send recording
-                    var result = await this.roomServer.inMessageNoPeer(msgIn);
+                    var result = await this.roomServer.inServiceMsg(msgIn);
                     res.status(200).send(result).end();
-                    return;
-                }
-                case RecMsgTypes.recDone: {
-                    //recording is done
-                    res.sendStatus(200).end();
                     return;
                 }
             }

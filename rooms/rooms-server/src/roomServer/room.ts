@@ -32,8 +32,8 @@ export class Room {
 
     roomRouter?: mediasoup.types.Router;
     roomLogAdapter: RoomLogAdapter;
-    roomRtpCapabilities: mediasoup.types.RtpCapabilities;
-    isRecorded = true;
+    roomRtpCapabilities: mediasoup.types.RtpCapabilities;    
+
     recServerURI = "";
 
     onClosedEvent: (room: Room, peers: Peer[], reason: string) => void;
@@ -64,7 +64,7 @@ export class Room {
 
     startTimers() {
 
-        console.log(`room startTimer() maxRoomDurationMinutes:${this.config.maxRoomDurationMinutes}`);
+        console.log(`room - startTimer() maxRoomDurationMinutes:${this.config.maxRoomDurationMinutes}`);
 
         if (this.config.maxRoomDurationMinutes > 0) {
             this.timerIdMaxRoomDuration = setTimeout(async () => {
@@ -77,7 +77,7 @@ export class Room {
 
         this.startTimerNoParticipants();
 
-        //every 30 seconds check of the peer has responded
+        //every 10 seconds check of the peer has responded
         let room_socket_pong_timeout_secs = 30;
         this.timerIdInterval = setInterval(() => {
 
@@ -114,7 +114,7 @@ export class Room {
     }
 
     private startTimerNoParticipants() {
-        console.log(`startTimerNoParticipants() ${this.config.timeOutNoParticipantsSecs}`);
+        console.log(`room - startTimerNoParticipants() ${this.config.timeOutNoParticipantsSecs}`);
 
         if (this.roomPeers.size == 0 && this.config.timeOutNoParticipantsSecs > 0) {
 
@@ -249,7 +249,7 @@ export class Room {
     }
 
     getProducerTransport(peer: Peer) {
-        console.log(`getProducerTransport ${peer.id} ${peer.displayName}`);
+        console.log(`room - getProducerTransport ${peer.id} ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -260,7 +260,7 @@ export class Room {
     }
 
     getConsumerTransport(peer: Peer) {
-        console.log(`getConsumerTransport ${peer.id} ${peer.displayName}`);
+        console.log(`room - getConsumerTransport ${peer.id} ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -271,7 +271,7 @@ export class Room {
     }
 
     createProducerTransport(peer: Peer) {
-        console.log(`createProducerTransport ${peer.id} ${peer.displayName}`);
+        console.log(`room - createProducerTransport ${peer.id} ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -282,7 +282,7 @@ export class Room {
     }
 
     createConsumerTransport(peer: Peer) {
-        console.log(`createConsumerTransport ${peer.id} ${peer.displayName}`);
+        console.log(`room - createConsumerTransport ${peer.id} ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -293,6 +293,8 @@ export class Room {
     }
 
     async createProducer(peer: Peer, kind: MediaKind, rtpParameters: mediasoup.types.RtpParameters) {
+        console.log(`room - createProducer ${peer.id} ${peer.displayName}`);
+
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
             consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
@@ -307,7 +309,7 @@ export class Room {
     }
 
     async recordProducer(peer: Peer, producerId: string, recIP: string, recPort: number) {
-        consoleWarn(`recordProducer`);
+        console.log(`room - recordProducer ${peer.id} ${peer.displayName}`);
         
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -325,6 +327,7 @@ export class Room {
     }
 
     async createConsumer(peer: Peer, remotePeer: Peer, producerId: string, rtpParameters: mediasoup.types.RtpCapabilities) {
+        console.log(`room - createConsumer ${peer.id} ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -353,6 +356,8 @@ export class Room {
     // }
 
     async closeProducer(peer: Peer, kind: MediaKind) {
+        console.log(`room - closeProducer ${peer.id} ${peer.displayName}`);
+
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
             consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
@@ -362,7 +367,7 @@ export class Room {
     }
 
     async muteProducer(peer: Peer) {
-        consoleWarn(`muteProducer ${peer.displayName}`);
+        consoleWarn(`room - muteProducer ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -378,6 +383,7 @@ export class Room {
      */
     close(reason: string) {
         console.log(`room - close(), reason: ${reason}`);
+
         let peersCopy = this.roomPeers.values().map(p => p.peer);
 
         this.roomPeers.values().forEach(roomPeer => {
@@ -418,8 +424,6 @@ export class Room {
             roomCallBackData.data.roomId = this.id;
             roomCallBackData.data.status = "closed";
             roomCallBackData.data.roomTrackingId = this.trackingId;
-
-
             axios.post(this.config.callBackURL_OnRoomClosed, roomCallBackData);
         }
     }

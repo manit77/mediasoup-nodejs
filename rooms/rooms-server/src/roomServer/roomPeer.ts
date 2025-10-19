@@ -1,15 +1,12 @@
 import * as mediasoup from 'mediasoup';
 import { Room } from './room.js';
 import * as roomUtils from "./utils.js";
-import chalk, { Chalk } from 'chalk';
+import chalk from 'chalk';
 import { Peer } from './peer.js';
 import { consoleError, consoleWarn, generateShortUID } from '../utils/utils.js';
 import { MediaKind, Producer } from 'mediasoup/types';
-import { RoomConfig, UniqueMap } from '@rooms/rooms-models';
+import { UniqueMap } from '@rooms/rooms-models';
 import { RoomServerConfig, WorkerData } from './models.js';
-import ffmpeg from 'fluent-ffmpeg';
-import fs from 'fs';
-import { randomUUID } from 'crypto';
 
 export class RoomPeer {
 
@@ -19,6 +16,7 @@ export class RoomPeer {
     config: RoomServerConfig;
     lastPong: number = Date.now();
     dateCreated = new Date();
+    recordingTimeouts = new Map<string, any>();
 
     constructor(config: RoomServerConfig, room: Room, peer: Peer) {
         this.room = room;
@@ -31,6 +29,8 @@ export class RoomPeer {
     consumerTransport?: mediasoup.types.WebRtcTransport;
     producers: UniqueMap<MediaKind, mediasoup.types.Producer> = new UniqueMap();
     consumers: UniqueMap<string, mediasoup.types.Consumer> = new UniqueMap();
+
+    recTransports: UniqueMap<MediaKind, mediasoup.types.PlainTransport> = new UniqueMap();
 
     async createProducerTransport() {
         console.log(`createProducerTransport() ${this.peer.displayName}`);
@@ -171,6 +171,11 @@ export class RoomPeer {
             rtpParameters: rtpParameters,
         });
 
+        if (this.producers.get(kind)) {
+            consoleError(`producer with ${kind} already exists`);
+            return;
+        }
+
         this.producers.set(kind, producer);
 
         consoleWarn(`producer ceated for ${this.peer.displayName}, paused: ${producer.paused}`);
@@ -195,7 +200,14 @@ export class RoomPeer {
         producer.on("listenererror", (args) => {
             console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} listenererror for ${this.peer.id} ${this.peer.displayName}`));
             console.log(args);
-        });       
+        });
+
+        if (this.room.config.isRecorded && this.room.config.closeOnRecordingFailed && this.room.config.closeOnRecordingTimeoutSecs) {
+            let timeoutid = setTimeout(() => {
+                consoleError(`recording timed out. ${this.peer.trackingId} ${this.peer.displayName}`);
+            }, this.room.config.closeOnRecordingTimeoutSecs * 1000)
+            this.recordingTimeouts.set(producer.kind, timeoutid);
+        }
 
         return producer;
     }
@@ -205,13 +217,87 @@ export class RoomPeer {
 
         let rtcpMux = true; //mix rtp and rtcp on the same port
         //the recording sever has a port ready
-        const recTransport = await this.room.roomRouter.createPlainTransport({
+        let recTransport = await this.room.roomRouter.createPlainTransport({
             listenIp: { ip: this.room.serverConfig.room_server_ip },
             rtcpMux,
             comedia: false,
         });
 
-        consoleWarn(`recTransport created`);
+        // let getStats = async () => {
+        //     if (!recTransport.closed) {
+        //         const stats = await recTransport.getStats();
+        //         console.log(stats);
+        //         setTimeout(() => {
+        //             getStats();
+        //         }, 1000);
+        //     }
+        // };
+
+        // getStats();
+
+
+        await recTransport.enableTraceEvent(['bwe', 'probation']);
+
+        if (this.recTransports.get(producer.kind)) {
+            consoleError(`recording transport already exists for ${producer.kind}`);
+            return;
+        }
+
+        this.recTransports.set(producer.kind, recTransport);
+
+        recTransport.on("@close", () => {
+            consoleWarn(`recTransport close ${producer.kind}`);
+        });
+
+        recTransport.on("@dataproducerclose", () => {
+            consoleWarn(`recTransport dataproducerclose ${producer.kind}`);
+        });
+
+        recTransport.on("@listenserverclose", () => {
+            consoleWarn(`recTransport listenserverclose ${producer.kind}`);
+        });
+
+        recTransport.on("@newdataproducer", () => {
+            consoleWarn(`recTransport newdataproducer ${producer.kind}`);
+        });
+
+        recTransport.on("@newproducer", () => {
+            consoleWarn(`recTransport newproducer ${producer.kind}`);
+        });
+
+        recTransport.on("@producerclose", () => {
+            consoleWarn(`recTransport producerclose ${producer.kind}`);
+        });
+
+        recTransport.on("listenererror", () => {
+            consoleWarn(`recTransport listenererror ${producer.kind}`);
+        });
+
+        recTransport.on("listenserverclose", () => {
+            consoleWarn(`recTransport listenserverclose ${producer.kind}`);
+        });
+
+        recTransport.on("routerclose", () => {
+            consoleWarn(`recTransport routerclose ${producer.kind}`);
+        });
+
+        recTransport.on("rtcptuple", () => {
+            consoleWarn(`recTransport rtcptuple ${producer.kind}`);
+        });
+
+        recTransport.on("sctpstatechange", () => {
+            consoleWarn(`recTransport sctpstatechange ${producer.kind}`);
+        });
+
+        recTransport.on("trace", () => {
+            consoleWarn(`recTransport trace ${producer.kind}`);
+        });
+
+        recTransport.on("tuple", () => {
+            consoleWarn(`recTransport tuple ${producer.kind}`);
+        });
+
+        consoleWarn(`recTransport created ${producer.kind}`);
         if (rtcpMux) {
             await recTransport.connect({ ip: recIP, port: recPort });
         }
@@ -219,7 +305,7 @@ export class RoomPeer {
             await recTransport.connect({ ip: recIP, port: recPort, rtcpPort: recPort + 1 });
         }
 
-        consoleWarn(`recTransport connect ${recIP} ${recPort}`);
+        consoleWarn(`recTransport  ${producer.kind}, connect ${recIP} ${recPort}`);
 
         const recConsumer = await recTransport.consume({
             producerId: producer.id,
@@ -227,23 +313,79 @@ export class RoomPeer {
             paused: true
         });
 
+        recConsumer.on("@close", () => {
+            consoleWarn(`recConsumer created ${producer.kind}`);
+        });
+
+        recConsumer.on("@producerclose", () => {
+            consoleWarn(`recConsumer producerclose ${producer.kind}`);
+        });
+
+        recConsumer.on("layerschange", () => {
+            consoleWarn(`recConsumer layerschange ${producer.kind}`);
+        });
+
+        recConsumer.on("listenererror", () => {
+            consoleWarn(`recConsumer listenererror ${producer.kind}`);
+        });
+
+        recConsumer.on("producerclose", () => {
+            consoleWarn(`recConsumer producerclose ${producer.kind}`);
+        });
+
+        recConsumer.on("producerpause", () => {
+            consoleWarn(`recConsumer producerpause ${producer.kind}`);
+        });
+
+        recConsumer.on("producerresume", () => {
+            consoleWarn(`recConsumer producerresume ${producer.kind}`);
+        });
+
+        recConsumer.on("rtp", () => {
+            consoleWarn(`recConsumer rtp ${producer.kind}`);
+        });
+
+        recConsumer.on("score", () => {
+            consoleWarn(`recConsumer score ${producer.kind}`);
+        });
+
+        // recConsumer.on("trace", () => {
+        //     consoleWarn(`recConsumer trace`);
+        // });
+
+        recConsumer.on("transportclose", () => {
+            consoleWarn(`recConsumer transportclose ${producer.kind}`);
+        });
+
         await recConsumer.resume();
 
+        await recConsumer.enableTraceEvent(['rtp', "keyframe"]);
+
+        recConsumer.on("trace", packet => {
+            //console.log("trace:", packet.type);
+            if (packet.type == "keyframe") {
+                console.log(`***  ${producer.kind} keyframe received`);
+            }
+
+        });
+
         if (producer.kind == "video") {
-            await recConsumer.enableTraceEvent(['rtp', "keyframe"]);
-            recConsumer.on("trace", packet => {
-                //console.log("trace:", packet.type);
-                if (packet.type == "keyframe") {
-                    console.log("*** keyframe received");
-                }
-            });
             recConsumer.requestKeyFrame();
         }
+    }
 
+    onPacketRecorded(kind: string) {
+        console.log(`onPacketRecorded ${kind} - ${this.peer.id} ${this.peer.displayName}`);
+
+        if (this.recordingTimeouts.has(kind)) {
+            clearTimeout(this.recordingTimeouts.get(kind));
+            this.recordingTimeouts.delete(kind);
+        }
     }
 
     async closeProducer(kind: MediaKind) {
         console.log(`closeProducuer ${kind} - ${this.peer.id} ${this.peer.displayName}`);
+
         let producer = this.producers.get(kind);
         if (producer) {
             producer.close();
@@ -267,6 +409,14 @@ export class RoomPeer {
 
         this.producers.clear();
         this.consumers.clear();
+
+        this.recTransports.values().forEach(t => {
+            if (!t.closed) {
+                t.close();
+            }
+        });
+
+        this.recTransports.clear();
 
         this.producerTransport?.close();
         this.consumerTransport?.close();

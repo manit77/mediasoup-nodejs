@@ -141,7 +141,7 @@ export class RoomPeerSocketServer {
                             }
 
                             msgIn.data.authToken = authToken;
-                            let resultMsg = await this.roomServer.inMessage(conn.peerId, msgIn);
+                            let resultMsg = await this.roomServer.inPeerMsg(conn.peerId, msgIn);
                             //send back all messages that are not generic results
                             if (resultMsg && resultMsg.type != payloadTypeServer.ok && resultMsg.type != payloadTypeServer.error) {
                                 this.send(ws, resultMsg);

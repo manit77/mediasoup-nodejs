@@ -524,7 +524,10 @@ export class RoomConfig {
     callBackURL_OnPeerLeft: string;
     callBackURL_OnPeerJoined: string;
 
-    isRecorded = false;
+    isRecorded = true;
+    closeOnRecordingFailed = true;
+    closeOnRecordingTimeoutSecs = 30; //if not recorded for 30 seconds, terminate room 
+
 }
 
 export enum payloadTypeCallBacks {
