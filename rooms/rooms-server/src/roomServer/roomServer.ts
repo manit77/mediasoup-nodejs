@@ -308,13 +308,12 @@ export class RoomServer {
                     return new ErrorMsg(payloadTypeServer.error, "peer not found.");
                 }
 
-                let roomPeer = room.getRoomPeer(peer);
-                if(!roomPeer) {
-                    consoleError("roomPeer not found.");
-                    return new ErrorMsg(payloadTypeServer.error, "roomPeer not found.");
+                let recPeer = room.getRecPeer(peer);
+                if(!recPeer) {
+                    consoleError("recPeer not found.");
+                    return new ErrorMsg(payloadTypeServer.error, "recPeer not found.");
                 }
-
-                roomPeer.onPacketRecorded(kind);
+                recPeer.clearTimeout(kind as any);
              
             }
             else if (msgIn.type == RecMsgTypes.recFailed) {
@@ -564,14 +563,15 @@ export class RoomServer {
                 let result = await recRoomProduceStream(room.recServerURI, msg);
                 if (!result) {
                     consoleError("recRoomProduceStream call failed.");
+                    //close room if our query failed
+                    room.close("failed to communicate with recordings server.");
                 } else if (result.error) {
                     consoleError("recRoomProduceStream call failed, error: ", result.error);
+                    room.close("error received from recording server.");
                 }
             }
         };
-
-        this.addRoomGlobal(room);
-
+        
         if (room.config.isRecorded) {
             let msg: RecRoomNewMsg = {
                 type: RecMsgTypes.recRoomNew,
@@ -583,11 +583,17 @@ export class RoomServer {
             }
             let result = await recRoomNew(room.recServerURI, msg);
             if (!result) {
-                consoleError("recRoomNew call failed.");
+                consoleError(`failed to contact recording instance ${room.recServerURI} `);
+                room.close("failed to contact recording instance");
+                return null;
             } else if (result.error) {
-                consoleError("recRoomNew call failed, error: ", result.error);
+                room.close("failed to init recording instance");
+                consoleError("failed to init recording instance, error: ", result.error);
+                return null;
             }
         }
+
+        this.addRoomGlobal(room);
 
         return room;
     }
