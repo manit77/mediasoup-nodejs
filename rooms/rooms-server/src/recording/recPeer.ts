@@ -1,5 +1,5 @@
 import { MediaKind, PlainTransport, Producer } from "mediasoup/types";
-import { consoleError, consoleWarn } from "../utils/utils.js";
+import { consoleError, consoleInfo, consoleWarn } from "../utils/utils.js";
 import { Room } from "../roomServer/room.js";
 import { UniqueMap } from "@rooms/rooms-models";
 import { Peer } from "../roomServer/peer.js";
@@ -7,12 +7,12 @@ import { Peer } from "../roomServer/peer.js";
 export class RecPeer {
 
     recTransports: UniqueMap<MediaKind, PlainTransport> = new UniqueMap();
-    recordingTimeouts = new Map<MediaKind, any>();
+    recordingTimeouts = new UniqueMap<MediaKind, any>();
 
     eventRecordingTimeout = (peer: Peer, kind: MediaKind) => { }
 
     constructor(private room: Room, private peer: Peer) {
-
+        consoleInfo(`RecPeer created ${peer.displayName}`);
     }
 
     close() {
@@ -53,17 +53,17 @@ export class RecPeer {
             comedia: false,
         });
 
-        let getStats = async () => {
-            if (!recTransport.closed) {
-                const stats = await recTransport.getStats();
-                console.log(stats);
-                setTimeout(() => {
-                    getStats();
-                }, 1000);
-            }
-        };
+        // let getStats = async () => {
+        //     if (!recTransport.closed) {
+        //         const stats = await recTransport.getStats();
+        //         console.log(stats);
+        //         setTimeout(() => {
+        //             getStats();
+        //         }, 1000);
+        //     }
+        // };
 
-        getStats();
+        // getStats();
 
 
         await recTransport.enableTraceEvent(['bwe', 'probation']);
@@ -208,8 +208,11 @@ export class RecPeer {
         console.log(`onPacketRecorded ${kind} - ${this.peer.id} ${this.peer.displayName}`);
 
         if (this.recordingTimeouts.has(kind)) {
+            console.log(`timeout cleared ${kind}`);
             clearTimeout(this.recordingTimeouts.get(kind));
             this.recordingTimeouts.delete(kind);
+        } else {
+            console.log(`timeout not found ${kind}`);
         }
     }
 

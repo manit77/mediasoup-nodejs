@@ -196,7 +196,7 @@ export class Room {
 
         let recPeer = this.recPeers.get(peer);
         if (recPeer) {
-            console.error(`recPeer not found room.`);          
+            console.error(`recPeer not found room.`);
             recPeer.close();
             this.recPeers.delete(peer);
             consoleWarn(`recPeer removed from room ${peer.id} ${peer.displayName}`);
@@ -327,16 +327,18 @@ export class Room {
             // }, this.config.closeOnRecordingTimeoutSecs * 1000)
 
             //init the recording peer and set the timeout
-            let recPeer = new RecPeer(this, peer);
+            let recPeer = this.recPeers.get(peer);
+            if (!recPeer) {
+                recPeer = new RecPeer(this, peer);
+                this.recPeers.set(peer, recPeer);
+            }
+            
             recPeer.eventRecordingTimeout = (peer: Peer, kind: MediaKind) => {
-                consoleError(`recording failed for ${peer.displayName} ${producer.kind}`);
+                consoleError(`recording failed for ${peer.displayName} ${kind}`);
                 this.close(`recording failed.`);
             };
 
             recPeer.startTimeout(producer.kind, this.config.closeOnRecordingTimeoutSecs);
-
-            this.recPeers.set(peer, recPeer);
-
         }
 
         return producer;
