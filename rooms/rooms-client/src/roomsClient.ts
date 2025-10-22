@@ -1397,7 +1397,7 @@ export class RoomsClient {
   }
 
   private onRoomNewProducer = async (msgIn: RoomNewProducerMsg) => {
-    console.log("onRoomNewProducer: " + msgIn.data.kind);
+    console.log("onRoomNewProducer: " + msgIn.data.kind, msgIn.data.peerId);
 
     let peer = this.localRoom.peers.get(msgIn.data.peerId);
     if (!peer) {
@@ -1414,7 +1414,7 @@ export class RoomsClient {
   }
 
   private consumeProducer = async (remotePeerId: string, producerId: string, kind: string) => {
-    console.log("consumeProducer() :" + remotePeerId, producerId);
+    console.log("consumeProducer() :" + remotePeerId, producerId, kind);
 
     if (remotePeerId === this.localPeer.peerId) {
       console.error("consumeProducer() - you can't consume yourself.");

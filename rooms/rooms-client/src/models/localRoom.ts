@@ -158,7 +158,7 @@ export class LocalRoom {
     }
 
     private addConsumer(peer: IPeer, consumer: Consumer) {
-        console.log(`addConsumer ${consumer.kind}`);
+        console.warn(`addConsumer ${peer.displayName} ${consumer.kind}`);
 
         let consumers = this.peerConsumers.get(peer);
         if (!consumers) {

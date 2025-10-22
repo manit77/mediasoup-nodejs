@@ -8,7 +8,7 @@ import { defaultPeerSocketServerSecurityMap, RoomPeerSocketServer, RoomPeerSocke
 import { defaultHTTPServerSecurityMap, RoomAPIServer, } from './servers/RoomAPIServer.js';
 import { getENV } from './utils/env.js';
 import { WebSocketServer } from 'ws';
-import { consoleInfo } from './utils/utils.js';
+import { consoleError, consoleInfo } from './utils/utils.js';
 import { TestObject } from "@rooms/rooms-models";
 import { RoomServerConfig } from './roomServer/models.js';
 
@@ -52,17 +52,16 @@ import { RoomServerConfig } from './roomServer/models.js';
         socketServerHttps.init(new WebSocketServer({ server: httpsServer }));
 
       });
-    }
-
-    if (config.room_server_http_port) {
+    } else if (config.room_server_http_port) {
       let httpServer = http.createServer(app);
       httpServer.listen(config.room_server_http_port, config.room_server_ip, () => {
         consoleInfo(`HTTP: http://${config.room_server_ip}:${config.room_server_http_port}`);
 
         let socketServerHttp = new RoomPeerSocketServer(config, socketServerSecurityMap, roomServer, socketStore);
         socketServerHttp.init(new WebSocketServer({ server: httpServer }));
-
       });
+    } else {
+      consoleError("no HTTP ports configured");
     }
     
     let roomAPIServer = new RoomAPIServer(config, httpServerSecurityMap, roomServer);

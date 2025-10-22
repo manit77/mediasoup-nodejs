@@ -58,6 +58,7 @@ export class RoomPeerSocketServer {
     webSocketServer: WebSocketServer;
 
     constructor(private config: RoomServerConfig, private securityMap: RoomPeerSocketSecurityMap, private roomServer: RoomServer, private store: RoomPeerSocketStore) {
+        consoleLog("RoomPeerSocketServer created");
 
         roomServer.addMessageListener((peerId: string, msg: any) => {
             let conn = [...this.store.connections.values()].find(c => c.peerId == peerId);
