@@ -191,7 +191,7 @@ export class RoomPeer {
         });
 
         producer.on("videoorientationchange", (args) => {
-            console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} videoorientationchange for ${this.peer.id} ${this.peer.displayName}`));
+            console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} videoorientationchange for ${this.peer.id} ${this.peer.displayName}`));            
             console.log(args);
         });
 

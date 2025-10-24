@@ -119,9 +119,9 @@ export class RecPeer {
             consoleWarn(`recTransport sctpstatechange ${producer.kind}`);
         });
 
-        recTransport.on("trace", () => {
-            consoleWarn(`recTransport trace ${producer.kind}`);
-        });
+        // recTransport.on("trace", (args) => {
+        //     consoleWarn(`recTransport trace ${producer.kind}`);            
+        // });
 
         recTransport.on("tuple", () => {
             consoleWarn(`recTransport tuple ${producer.kind}`);

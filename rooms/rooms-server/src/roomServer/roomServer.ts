@@ -52,7 +52,7 @@ export class RoomServer {
     private timerIdResourceInterval: any;
     private roomLogAdapter = new RoomLogAdapterInMemory();
     dateCreated = new Date();
-    
+
     eventPeerClosed = (peer: Peer) => { };
 
     constructor(c: RoomServerConfig) {
@@ -484,15 +484,22 @@ export class RoomServer {
                     clockRate: this.config.room_video_clock_rate,
                 },
             ],
+
         });
 
         room.roomRouter = router;
         room.roomRtpCapabilities = router.rtpCapabilities;
 
         //for testing
-        room.config.isRecorded = false;
+        room.config.isRecorded = true;
         room.config.closeOnRecordingFailed = true;
         room.config.closeOnRecordingTimeoutSecs = 30;
+        //
+
+        if (room.config.isRecorded) {
+            //omit orientation for recording purposes
+            room.roomRtpCapabilities.headerExtensions = router.rtpCapabilities.headerExtensions?.filter(i => i.uri !== "urn:3gpp:video-orientation");
+        }
 
         if (room.config.isRecorded) {
             room.recServerURI = roomUtils.getNextRecURI(this.config);
@@ -519,7 +526,7 @@ export class RoomServer {
         room.onPeerRemovedEvent = (r, peer) => {
             consoleLog(`room.onPeerRemovedEvent ${r.id} ${peer.displayName}`);
 
-            //broad cast to all peers in the room the the peer has left the room
+            //broad cast to all peers in the room the peer has left the room
             let msg = new RoomPeerLeftMsg();
             msg.data.roomId = r.id;
             msg.data.peerId = peer.id;
@@ -1240,6 +1247,7 @@ export class RoomServer {
         }
 
         let producer = await peer.room.createProducer(peer, msgIn.data.kind, msgIn.data.rtpParameters);
+        consoleInfo(msgIn.data.rtpParameters);
         if (!producer) {
             consoleError(`producer not created.`);
             return new ErrorMsg(payloadTypeServer.roomProduceStreamResult, `could not created producer for kind ${msgIn.data.kind}`);
