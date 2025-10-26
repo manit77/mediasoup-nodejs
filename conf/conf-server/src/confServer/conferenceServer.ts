@@ -213,7 +213,6 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return conference;
         }
 
-
         conference = new Conference();
         conference.id = stringIsNullOrEmpty(args.conferenceId) ? this.generateConferenceId() : args.conferenceId;
         conference.externalId = args.externalId ?? "";
@@ -229,7 +228,6 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         if (args.config) {
             fill(args.config, conference.config);
         }
-
 
         conference.timeoutSecs = conference.config.roomTimeoutSecs ?? conference.timeoutSecs;
         conference.noUserTimeoutSec = args.noUserTimeoutSec ?? conference.noUserTimeoutSec;
@@ -717,6 +715,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     private async onCreateConference(participant: Participant, msgIn: CreateConfMsg) {
         consoleLog("onCreateConference");
+
         msgIn = copyWithDataParsing(msgIn, new CreateConfMsg());
 
         //must be admin or a user
@@ -829,6 +828,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
      */
     private async onJoinConference(participant: Participant, msgIn: JoinConfMsg) {
         consoleLog("onJoinConference");
+
         msgIn = copyWithDataParsing(msgIn, new JoinConfMsg());
 
         //conferenceId or externalId is required
@@ -843,11 +843,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         //is user is already in a conference room throw an error
         if (participant.conference) {
             consoleError(`already in a conference room: ${participant.conference.id}`);
-
-            let errorMsg = new JoinConfResultMsg();
-            errorMsg.data.error = "already in a room.";
-
-            return errorMsg;
+            //leave the existing conference
+            participant.conference.removeParticipant(participant.participantId);            
         }
 
         let conference: Conference;
@@ -928,8 +925,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
             return errorMsg;
         }
-
-        //do not send JoinConfResultMsg back, send the ConferenceReadyMsg
+       
         this.sendConferenceReady(conference, participant);
 
         let resultMsg = new JoinConfResultMsg();
@@ -940,8 +936,14 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         return resultMsg;
     }
 
+    /**
+     * generates a new rooms token     
+     * @param conference
+     * @param participant 
+     * @returns 
+     */
     async sendConferenceReady(conference: Conference, participant: Participant) {
-        consoleLog("conferenceReady");
+        consoleLog("sendConferenceReady");
 
         conference.addParticipant(participant);
 

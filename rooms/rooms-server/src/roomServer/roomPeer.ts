@@ -1,25 +1,27 @@
 import * as mediasoup from 'mediasoup';
 import { Room } from './room.js';
 import * as roomUtils from "./utils.js";
-import chalk, { Chalk } from 'chalk';
+import chalk from 'chalk';
 import { Peer } from './peer.js';
-import { consoleError, consoleWarn } from '../utils/utils.js';
+import { consoleError, consoleWarn, generateShortUID } from '../utils/utils.js';
 import { MediaKind, Producer } from 'mediasoup/types';
-import { RoomConfig, UniqueMap } from '@rooms/rooms-models';
+import { UniqueMap } from '@rooms/rooms-models';
 import { RoomServerConfig, WorkerData } from './models.js';
 
 export class RoomPeer {
 
+    joinInstance: string;
     peer: Peer;
     room: Room;
     config: RoomServerConfig;
     lastPong: number = Date.now();
     dateCreated = new Date();
-
+    
     constructor(config: RoomServerConfig, room: Room, peer: Peer) {
         this.room = room;
         this.peer = peer;
         this.config = config;
+        this.joinInstance = "join-" + generateShortUID();
     }
 
     producerTransport?: mediasoup.types.WebRtcTransport;
@@ -27,6 +29,7 @@ export class RoomPeer {
     producers: UniqueMap<MediaKind, mediasoup.types.Producer> = new UniqueMap();
     consumers: UniqueMap<string, mediasoup.types.Consumer> = new UniqueMap();
 
+   
     async createProducerTransport() {
         console.log(`createProducerTransport() ${this.peer.displayName}`);
         if (this.producerTransport) {
@@ -130,7 +133,7 @@ export class RoomPeer {
         //the remote peer's producer closed, close this consumer and remove it
         consumer.on("producerclose", () => {
             consoleWarn(`producerclose ${remotePeer.displayName} ${producer.kind}, removing from peer ${this.peer.id} ${this.peer.displayName}. producerid: ${consumer.producerId}`);
-            consumer.close();            
+            consumer.close();
             this.consumers.delete(consumer.id);
 
             //TODO: need to send, alert all consumers
@@ -166,6 +169,11 @@ export class RoomPeer {
             rtpParameters: rtpParameters,
         });
 
+        if (this.producers.get(kind)) {
+            consoleError(`producer with ${kind} already exists`);
+            return;
+        }
+
         this.producers.set(kind, producer);
 
         consoleWarn(`producer ceated for ${this.peer.displayName}, paused: ${producer.paused}`);
@@ -183,7 +191,7 @@ export class RoomPeer {
         });
 
         producer.on("videoorientationchange", (args) => {
-            console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} videoorientationchange for ${this.peer.id} ${this.peer.displayName}`));
+            console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} videoorientationchange for ${this.peer.id} ${this.peer.displayName}`));            
             console.log(args);
         });
 
@@ -191,12 +199,13 @@ export class RoomPeer {
             console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} listenererror for ${this.peer.id} ${this.peer.displayName}`));
             console.log(args);
         });
-
+       
         return producer;
-    }
+    }   
 
     async closeProducer(kind: MediaKind) {
         console.log(`closeProducuer ${kind} - ${this.peer.id} ${this.peer.displayName}`);
+
         let producer = this.producers.get(kind);
         if (producer) {
             producer.close();
@@ -206,7 +215,7 @@ export class RoomPeer {
     close() {
         consoleWarn(`peerRoom close() - ${this.peer.id} ${this.peer.displayName}`);
 
-         this.producers.values().forEach(p => {
+        this.producers.values().forEach(p => {
             if (!p.closed) {
                 p.close();
             }
@@ -221,10 +230,11 @@ export class RoomPeer {
         this.producers.clear();
         this.consumers.clear();
 
+        
         this.producerTransport?.close();
         this.consumerTransport?.close();
         this.producerTransport = null;
-        this.consumerTransport = null;       
+        this.consumerTransport = null;
 
         this.room = null;
         this.peer.room = null;
@@ -236,6 +246,15 @@ export class RoomPeer {
     getProducerByKind(kind: mediasoup.types.MediaKind): mediasoup.types.Producer | undefined {
         for (const producer of this.producers.values()) {
             if (producer.kind === kind) {
+                return producer;
+            }
+        }
+        return undefined;
+    }
+
+    getProducer(id: string): mediasoup.types.Producer | undefined {
+        for (const producer of this.producers.values()) {
+            if (producer.id === id) {
                 return producer;
             }
         }

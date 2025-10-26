@@ -941,7 +941,6 @@ export class RoomsClient {
   };
 
   private onRoomNewResult = async (msgIn: RoomNewResultMsg) => {
-
     console.log("** onRoomNewResult()");
 
     if (!msgIn.data.roomRtpCapabilities) {
@@ -958,8 +957,8 @@ export class RoomsClient {
   };
 
   private onRoomJoinResult = async (msgIn: RoomJoinResultMsg) => {
-
     console.log("** onRoomJoinResult()", msgIn.data);
+
     if (msgIn.data.error) {
       console.error(msgIn.data.error);
       await this.eventOnRoomJoinFailed(this.localRoom.roomId);
@@ -1002,6 +1001,7 @@ export class RoomsClient {
 
   private createPeer(peerId: string, trackingId: string, displayName: string, tracksInfo: PeerTracksInfo) {
     console.log(`createPeer() - ${displayName}, peerId:${peerId}, trackingId:${trackingId},tracksInfo:`, tracksInfo);
+
     let newpeer: Peer = new Peer();
     newpeer.peerId = peerId;
     newpeer.trackingId = trackingId;
@@ -1397,7 +1397,7 @@ export class RoomsClient {
   }
 
   private onRoomNewProducer = async (msgIn: RoomNewProducerMsg) => {
-    console.log("onRoomNewProducer: " + msgIn.data.kind);
+    console.log("onRoomNewProducer: " + msgIn.data.kind, msgIn.data.peerId);
 
     let peer = this.localRoom.peers.get(msgIn.data.peerId);
     if (!peer) {
@@ -1414,7 +1414,7 @@ export class RoomsClient {
   }
 
   private consumeProducer = async (remotePeerId: string, producerId: string, kind: string) => {
-    console.log("consumeProducer() :" + remotePeerId, producerId);
+    console.log("consumeProducer() :" + remotePeerId, producerId, kind);
 
     if (remotePeerId === this.localPeer.peerId) {
       console.error("consumeProducer() - you can't consume yourself.");

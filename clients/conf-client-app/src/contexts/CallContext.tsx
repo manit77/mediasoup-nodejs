@@ -143,7 +143,12 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const getMediaDevices = useCallback(async () => {
         try {
-            const devices = await navigator.mediaDevices.enumerateDevices();
+            if (!navigator.mediaDevices) {
+                console.error(`cannot access mediaDevices, use https`);
+                return;
+            }
+
+            const devices = await navigator.mediaDevices?.enumerateDevices();
             const video: Device[] = [];
             const audioIn: Device[] = [];
             const audioOut: Device[] = [];
@@ -180,7 +185,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             constraints.audio = selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true;
         }
         if (getVideo) {
-            constraints.video = selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId } } : true;
+            constraints.video = selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId, aspectRatio: 16 / 9, facingMode: "user" } } : true;
         }
         return constraints;
     }, [selectedDevices]);
@@ -222,9 +227,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         getMediaDevices();
-        navigator.mediaDevices.addEventListener('devicechange', getMediaDevices);
+        navigator.mediaDevices?.addEventListener('devicechange', getMediaDevices);
         return () => {
-            navigator.mediaDevices.removeEventListener('devicechange', getMediaDevices);
+            navigator.mediaDevices?.removeEventListener('devicechange', getMediaDevices);
         };
     }, [getMediaDevices]);
 
@@ -777,11 +782,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.warn(`current tracks:`, conferenceClient.localParticipant.stream.getTracks());
 
         if (!isBroadcastingAudio || !isBroadcastingVideo) {
-            let constraints = getMediaConstraints(!isBroadcastingAudio, !isBroadcastingVideo);            
+            let constraints = getMediaConstraints(!isBroadcastingAudio, !isBroadcastingVideo);
             let newStream = await getBrowserUserMedia(constraints);
-            if(!newStream) {
+            if (!newStream) {
                 console.warn(`could not get new stream.`);
-                return false;                
+                return false;
             }
 
             console.warn(`newStream tracks:`, newStream.getTracks());

@@ -7,6 +7,7 @@ import { RoomPeer } from './roomPeer.js';
 import { consoleError, consoleWarn } from '../utils/utils.js';
 import { Consumer, MediaKind, Producer } from 'mediasoup/types';
 import { RoomServerConfig } from './models.js';
+import { RecPeer } from '../recording/recPeer.js';
 
 export interface RoomLogAdapter {
     save: (log: RoomLog) => Promise<void>;
@@ -20,10 +21,12 @@ export class Room {
     adminTrackingId: string;
     admin: Peer;
     private roomPeers: UniqueMap<Peer, RoomPeer> = new UniqueMap();
+    private recPeers: UniqueMap<Peer, RecPeer> = new UniqueMap();
+
     roomToken: string;
 
     config = new RoomConfig();
-    private serverConfig: RoomServerConfig;
+    serverConfig: RoomServerConfig;
     dateCreated = new Date();
 
     timerIdInterval?: NodeJS.Timeout = null;
@@ -33,14 +36,17 @@ export class Room {
     roomRouter?: mediasoup.types.Router;
     roomLogAdapter: RoomLogAdapter;
     roomRtpCapabilities: mediasoup.types.RtpCapabilities;
+
+    recServerURI = "";
+
     onClosedEvent: (room: Room, peers: Peer[], reason: string) => void;
     onPeerRemovedEvent: (room: Room, peers: Peer) => void;
     onConsumerClosed: (peer: Peer, consumer: Consumer) => void;
     onNeedPing: (peer: Peer) => void;
+    onProducerCreated: (peer: Peer, producer: Producer) => void;
 
     constructor(serverConfig: RoomServerConfig) {
         this.serverConfig = serverConfig;
-
     }
 
     printStats() {
@@ -58,9 +64,10 @@ export class Room {
         });
 
     }
+
     startTimers() {
 
-        console.log(`room startTimer() maxRoomDurationMinutes:${this.config.maxRoomDurationMinutes}`);
+        console.log(`room - startTimer() maxRoomDurationMinutes:${this.config.maxRoomDurationMinutes}`);
 
         if (this.config.maxRoomDurationMinutes > 0) {
             this.timerIdMaxRoomDuration = setTimeout(async () => {
@@ -73,7 +80,7 @@ export class Room {
 
         this.startTimerNoParticipants();
 
-        //every 30 seconds check of the peer has responded
+        //every 10 seconds check of the peer has responded
         let room_socket_pong_timeout_secs = 30;
         this.timerIdInterval = setInterval(() => {
 
@@ -110,7 +117,7 @@ export class Room {
     }
 
     private startTimerNoParticipants() {
-        console.log(`startTimerNoParticipants() ${this.config.timeOutNoParticipantsSecs}`);
+        console.log(`room - startTimerNoParticipants() ${this.config.timeOutNoParticipantsSecs}`);
 
         if (this.roomPeers.size == 0 && this.config.timeOutNoParticipantsSecs > 0) {
 
@@ -159,7 +166,6 @@ export class Room {
             RoomId: this.id
         });
 
-
         if (this.config.callBackURL_OnPeerJoined) {
             let cbData = new RoomPeerCallBackMsg();
             cbData.data.peerId = peer.id;
@@ -187,6 +193,14 @@ export class Room {
 
         this.roomPeers.delete(peer);
         consoleWarn(`peer removed from room ${peer.id} ${peer.displayName}`);
+
+        let recPeer = this.recPeers.get(peer);
+        if (recPeer) {
+            console.error(`recPeer not found room.`);
+            recPeer.close();
+            this.recPeers.delete(peer);
+            consoleWarn(`recPeer removed from room ${peer.id} ${peer.displayName}`);
+        }
 
         if (this.roomPeers.size == 0) {
             this.startTimerNoParticipants();
@@ -233,6 +247,10 @@ export class Room {
         return this.roomPeers.get(peer);
     }
 
+    getRecPeer(peer: Peer) {
+        return this.recPeers.get(peer);
+    }
+
     getPeerCount() {
         return this.roomPeers.size;
     }
@@ -246,7 +264,7 @@ export class Room {
     }
 
     getProducerTransport(peer: Peer) {
-        console.log(`getProducerTransport ${peer.id} ${peer.displayName}`);
+        console.log(`room - getProducerTransport ${peer.id} ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -257,7 +275,7 @@ export class Room {
     }
 
     getConsumerTransport(peer: Peer) {
-        console.log(`getConsumerTransport ${peer.id} ${peer.displayName}`);
+        console.log(`room - getConsumerTransport ${peer.id} ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -268,7 +286,7 @@ export class Room {
     }
 
     createProducerTransport(peer: Peer) {
-        console.log(`createProducerTransport ${peer.id} ${peer.displayName}`);
+        console.log(`room - createProducerTransport ${peer.id} ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -279,7 +297,7 @@ export class Room {
     }
 
     createConsumerTransport(peer: Peer) {
-        console.log(`createConsumerTransport ${peer.id} ${peer.displayName}`);
+        console.log(`room - createConsumerTransport ${peer.id} ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -289,16 +307,70 @@ export class Room {
         return roomPeer.createConsumerTransport();
     }
 
-    createProducer(peer: Peer, kind: MediaKind, rtpParameters: mediasoup.types.RtpParameters) {
+    async createProducer(peer: Peer, kind: MediaKind, rtpParameters: mediasoup.types.RtpParameters) {
+        console.log(`room - createProducer ${peer.id} ${peer.displayName}`);
+
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
             consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
             return;
         }
-        return roomPeer.createProducer(kind, rtpParameters);
+        let producer = await roomPeer.createProducer(kind, rtpParameters);
+        if (this.onProducerCreated) {
+            this.onProducerCreated(peer, producer);
+        }
+
+        if (this.config.isRecorded && this.config.closeOnRecordingFailed && this.config.closeOnRecordingTimeoutSecs) {
+            // let timeoutid = setTimeout(() => {
+            //     consoleError(`recording timed out. ${peer.trackingId} ${peer.displayName}`);
+            //     this.close(`recording timed out. ${peer.trackingId} ${peer.displayName}`);
+            // }, this.config.closeOnRecordingTimeoutSecs * 1000)
+
+            //init the recording peer and set the timeout
+            let recPeer = this.recPeers.get(peer);
+            if (!recPeer) {
+                recPeer = new RecPeer(this, peer);
+                this.recPeers.set(peer, recPeer);
+            }
+
+            recPeer.eventRecordingTimeout = (peer: Peer, kind: MediaKind) => {
+                consoleError(`recording failed for ${peer.displayName} ${kind}`);
+                this.close(`recording failed.`);
+            };
+            recPeer.startTimeout(producer.kind, this.config.closeOnRecordingTimeoutSecs);
+        }
+
+        return producer;
     }
 
-    createConsumer(peer: Peer, remotePeer: Peer, producerId: string, rtpParameters: mediasoup.types.RtpCapabilities) {
+    async recordProducer(peer: Peer, producerId: string, recIP: string, recPort: number): Promise<boolean> {
+        console.log(`room - recordProducer ${peer.id} ${peer.displayName}`);
+
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return false;
+        }
+
+        let producer = roomPeer.getProducer(producerId);
+        if (!producer) {
+            consoleError(`producer not found. ${producerId}`);
+            return false;
+        }
+
+        let recPeer = this.recPeers.get(peer);
+        if (!recPeer) {
+            consoleError(`recoding peer not found. ${peer.displayName}`);
+            return false;
+        }
+
+        recPeer.clearTimeout(producer.kind);
+        return await recPeer.startRecording(producer, recIP, recPort);
+
+    }
+
+    async createConsumer(peer: Peer, remotePeer: Peer, producerId: string, rtpParameters: mediasoup.types.RtpCapabilities) {
+        console.log(`room - createConsumer ${peer.id} ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -313,7 +385,7 @@ export class Room {
             consoleError(`producer not found ${producer.id}`);
         }
 
-        return roomPeer.createConsumer(peer, producer, rtpParameters);
+        return await roomPeer.createConsumer(peer, producer, rtpParameters);
 
     }
 
@@ -326,17 +398,19 @@ export class Room {
     //     return roomPeer.producers.get(kind);
     // }
 
-    closeProducer(peer: Peer, kind: MediaKind) {
+    async closeProducer(peer: Peer, kind: MediaKind) {
+        console.log(`room - closeProducer ${peer.id} ${peer.displayName}`);
+
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
             consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
             return;
         }
-        roomPeer.closeProducer(kind);
+        await roomPeer.closeProducer(kind);
     }
 
     async muteProducer(peer: Peer) {
-        consoleWarn(`muteProducer ${peer.displayName}`);
+        consoleWarn(`room - muteProducer ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
@@ -352,13 +426,19 @@ export class Room {
      */
     close(reason: string) {
         console.log(`room - close(), reason: ${reason}`);
+
         let peersCopy = this.roomPeers.values().map(p => p.peer);
 
         this.roomPeers.values().forEach(roomPeer => {
             roomPeer.close();
         });
-
         this.roomPeers.clear();
+
+        this.recPeers.values().forEach(recPeer => {
+            recPeer.close();
+        });
+        this.recPeers.clear();
+
         this.admin = null;
 
         if (this.timerIdNoParticipants) {
@@ -392,8 +472,6 @@ export class Room {
             roomCallBackData.data.roomId = this.id;
             roomCallBackData.data.status = "closed";
             roomCallBackData.data.roomTrackingId = this.trackingId;
-
-
             axios.post(this.config.callBackURL_OnRoomClosed, roomCallBackData);
         }
     }

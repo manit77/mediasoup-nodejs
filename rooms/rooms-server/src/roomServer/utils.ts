@@ -5,6 +5,7 @@ import { Room } from "./room.js";
 import { AuthUserTokenPayload, RoomTokenPayload } from "../models/tokenPayloads.js";
 import { AuthUserRoles } from '@rooms/rooms-models';
 import { consoleWarn } from '../utils/utils.js';
+import { RoomServerConfig } from './models.js';
 
 export function GetRoomId() {
     return "room-" + randomUUID().toString();
@@ -154,4 +155,14 @@ export async function createTransport(router: mediasoup.types.Router, listeningI
         console.error(err);
     }
     return null;
+}
+
+let recURIIndex = 0;
+export function getNextRecURI(config: RoomServerConfig) {
+    let url = config.rec_servers_uris[recURIIndex];
+    recURIIndex++;
+    if(recURIIndex >= config.rec_servers_uris.length){
+        recURIIndex =0;
+    }
+    return url;
 }

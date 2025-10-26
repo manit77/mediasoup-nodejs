@@ -7,12 +7,15 @@ import {
     RoomServerAPIRoutes,
     RoomTerminateMsg,
     AuthUserRoles,
+    IMsg,
+    RoomGetStatusMsg,
 } from "@rooms/rooms-models";
 import { RoomServer } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
 import { RoomServerConfig } from '../roomServer/models.js';
+import { RecMsgTypes } from '../recording/recModels.js';
 
-const DSTR = "RoomHTTPServer";
+const DSTR = "RoomAPIServer";
 
 declare module 'express-serve-static-core' {
     interface Request {
@@ -20,11 +23,11 @@ declare module 'express-serve-static-core' {
     }
 }
 
-export type RoomHTTPServerSecurityMap = {
+export type RoomAPIServerSecurityMap = {
     [key in RoomServerAPIRoutes]: AuthUserRoles[];
 };
 
-export let defaultHTTPServerSecurityMap: RoomHTTPServerSecurityMap = {} as any;
+export let defaultHTTPServerSecurityMap: RoomAPIServerSecurityMap = {} as any;
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newAuthUserToken] = [AuthUserRoles.admin];
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoomToken] = [AuthUserRoles.admin];
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoom] = [AuthUserRoles.admin];
@@ -33,13 +36,13 @@ defaultHTTPServerSecurityMap[RoomServerAPIRoutes.terminateRoom] = [AuthUserRoles
 /**
  * these are admin functions of the room server
  */
-export class RoomHTTPServer {
+export class RoomAPIServer {
 
     //application server <----> room server
     webSocketServer: WebSocketServer;
     peers = new Map<string, WebSocket>();
 
-    constructor(private config: RoomServerConfig, private securityMap: RoomHTTPServerSecurityMap, private roomServer: RoomServer) {
+    constructor(private config: RoomServerConfig, private securityMap: RoomAPIServerSecurityMap, private roomServer: RoomServer) {
 
     }
 
@@ -82,18 +85,18 @@ export class RoomHTTPServer {
     };
 
     init(app: express.Express) {
+        console.log(`RoomAPIServer initialized.`);
+
         app.get("/hello", (req, res) => {
-            res.send("RoomHTTPServer");
+            res.send("RoomAPIServer");
         });
 
         app.post(RoomServerAPIRoutes.newAuthUserToken, this.tokenCheck as any, async (req, res) => {
-
-            console.log(RoomServerAPIRoutes.newAuthUserToken);
             console.log(RoomServerAPIRoutes.newAuthUserToken);
             let msgIn = req.body as AuthUserNewTokenMsg;
 
-            let resultMsg = await this.roomServer.onAuthUserNewTokenMsg(msgIn)
-            
+            let resultMsg = await this.roomServer.inServiceMsg(msgIn)
+
             res.send(resultMsg);
 
         });
@@ -103,7 +106,7 @@ export class RoomHTTPServer {
             let msgIn = req.body as RoomNewTokenMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
-            let resultMsg = await this.roomServer.onRoomNewTokenMsg(msgIn);
+            let resultMsg = await this.roomServer.inServiceMsg(msgIn);
             res.send(resultMsg);
         });
 
@@ -113,7 +116,17 @@ export class RoomHTTPServer {
             msgIn.data.authToken = req.rooms_authtoken;
 
             //creates a room without a peerId
-            let resultMsg = await this.roomServer.onRoomNewMsg(msgIn);
+            let resultMsg = await this.roomServer.inServiceMsg(msgIn);
+            res.send(resultMsg);
+        });
+
+        app.post(RoomServerAPIRoutes.getRoomStatus, this.tokenCheck as any, async (req, res) => {
+            console.log(RoomServerAPIRoutes.getRoomStatus);
+
+            let msgIn = req.body as RoomGetStatusMsg;
+            msgIn.data.authToken = req.rooms_authtoken;
+
+            let resultMsg = this.roomServer.inServiceMsg(msgIn);
             res.send(resultMsg);
         });
 
@@ -122,8 +135,33 @@ export class RoomHTTPServer {
             let msgIn = req.body as RoomTerminateMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
-            let resultMsg = this.roomServer.terminateRoom(msgIn);
+            let resultMsg = this.roomServer.inServiceMsg(msgIn);
             res.send(resultMsg);
+        });
+
+        app.post(RoomServerAPIRoutes.recCallBack, async (req, res) => {
+            console.log(RoomServerAPIRoutes.recCallBack);
+
+            let msgIn = req.body as IMsg;
+            switch (msgIn.type) {
+                case RecMsgTypes.recReady:
+                case RecMsgTypes.recPacketRecorded:
+                case RecMsgTypes.recFailed:
+                case RecMsgTypes.recDone:
+                case RecMsgTypes.recRoomStatus: {
+                    //recording port is open send recording
+                    var result = await this.roomServer.inServiceMsg(msgIn);
+                    res.status(200).send(result).end();
+                    return;
+                }
+            }
+
+            res.status(400).send({ type: "error", data: { error: "invalid message." } }).end();
+
+            // msgIn.data.authToken = req.rooms_authtoken;
+
+            // let resultMsg = this.roomServer.terminateRoom(msgIn);
+            // res.send(resultMsg);
         });
 
         // app.post(RoomServerAPIRoutes.getRoomLogs, this.tokenCheck as any, async (req, res) => {
