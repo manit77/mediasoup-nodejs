@@ -271,17 +271,16 @@ export class RoomServer {
         console.log(`inServiceMsg`, msgIn.type);
 
         try {
-            let resultMsg: IMsg;
             if (msgIn.type == payloadTypeClient.authUserNewToken) {
-                resultMsg = await this.onAuthUserNewTokenMsg(msgIn as RoomNewTokenMsg);
+                return await this.onAuthUserNewTokenMsg(msgIn as RoomNewTokenMsg);
             } else if (msgIn.type == payloadTypeClient.roomNewToken) {
-                resultMsg = await this.onRoomNewTokenMsg(msgIn as RoomNewTokenMsg);
+                return await this.onRoomNewTokenMsg(msgIn as RoomNewTokenMsg);
             } else if (msgIn.type == payloadTypeClient.roomNew) {
-                resultMsg = await this.onRoomNewMsg(msgIn as RoomNewMsg);
+                return await this.onRoomNewMsg(msgIn as RoomNewMsg);
             } else if (msgIn.type == payloadTypeClient.roomTerminate) {
-                resultMsg = await this.terminateRoomMsg(msgIn as RoomTerminateMsg);
+                return await this.terminateRoomMsg(msgIn as RoomTerminateMsg);
             } else if (msgIn.type == payloadTypeClient.roomGetStatus || msgIn.type == RecMsgTypes.recRoomStatus) {
-                resultMsg = await this.getRoomStatus(msgIn as RoomGetStatusMsg);
+                return await this.getRoomStatus(msgIn as RoomGetStatusMsg);
             } else if (msgIn.type == RecMsgTypes.recReady) {
 
                 let { roomId, peerId, producerId, recPort, recIP } = (msgIn as RecCallBackMsg).data;
@@ -296,32 +295,12 @@ export class RoomServer {
                     return new ErrorMsg(payloadTypeServer.error, "room peer not found.");
                 }
 
-                await room.recordProducer(peer, producerId, recIP, recPort);
-            } else if (msgIn.type == RecMsgTypes.recPacketRecorded) {
-                consoleInfo("handle recPacketRecorded.");
-
-                let { roomId, peerId, kind, producerId, recPort, recIP } = (msgIn as RecCallBackMsg).data;
-                let room = this.getRoom(roomId);
-                if (!room) {
-                    consoleError("room not found.");
-                    return new ErrorMsg(payloadTypeServer.error, "room not found.");
+                if (!await room.recordProducer(peer, producerId, recIP, recPort)) {
+                    return new OkMsg(payloadTypeServer.ok, {});
                 }
+                return new ErrorMsg(payloadTypeServer.error, "failed to record producer");
 
-                let peer = room.getPeer(peerId);
-                if (!peer) {
-                    consoleError("peer not found.");
-                    return new ErrorMsg(payloadTypeServer.error, "peer not found.");
-                }
-
-                let recPeer = room.getRecPeer(peer);
-                if (!recPeer) {
-                    consoleError("recPeer not found.");
-                    return new ErrorMsg(payloadTypeServer.error, "recPeer not found.");
-                }
-                recPeer.clearTimeout(kind as any);
-
-            }
-            else if (msgIn.type == RecMsgTypes.recFailed) {
+            } else if (msgIn.type == RecMsgTypes.recFailed) {
                 consoleInfo("handle recording failed.");
 
                 let { roomId, peerId, producerId, recPort, recIP } = (msgIn as RecCallBackMsg).data;
@@ -334,13 +313,12 @@ export class RoomServer {
                 if (room.config.closeOnRecordingFailed) {
                     room.close("recording failed.");
                 }
+                return new OkMsg(payloadTypeServer.ok, {});
             }
-
-            return resultMsg;
         } catch (err) {
             consoleError(err);
         }
-        return null;
+        return new ErrorMsg(payloadTypeServer.error, "error processing message.");
     }
 
     async onTerminatePeer(peerId: string, msg: TerminatePeerMsg): Promise<IMsg> {

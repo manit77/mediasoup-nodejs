@@ -70,7 +70,7 @@ export class RecPeer {
 
         if (this.recTransports.get(producer.kind)) {
             consoleError(`recording transport already exists for ${producer.kind}`);
-            return;
+            return false;
         }
 
         this.recTransports.set(producer.kind, recTransport);
@@ -202,6 +202,8 @@ export class RecPeer {
         if (producer.kind == "video") {
             recConsumer.requestKeyFrame();
         }
+
+        return true;
     }
 
     clearTimeout(kind: MediaKind) {

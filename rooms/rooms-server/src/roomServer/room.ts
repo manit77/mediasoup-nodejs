@@ -332,40 +332,40 @@ export class Room {
                 recPeer = new RecPeer(this, peer);
                 this.recPeers.set(peer, recPeer);
             }
-            
+
             recPeer.eventRecordingTimeout = (peer: Peer, kind: MediaKind) => {
                 consoleError(`recording failed for ${peer.displayName} ${kind}`);
                 this.close(`recording failed.`);
             };
-
             recPeer.startTimeout(producer.kind, this.config.closeOnRecordingTimeoutSecs);
         }
 
         return producer;
     }
 
-    async recordProducer(peer: Peer, producerId: string, recIP: string, recPort: number) {
+    async recordProducer(peer: Peer, producerId: string, recIP: string, recPort: number): Promise<boolean> {
         console.log(`room - recordProducer ${peer.id} ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
             consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
-            return;
+            return false;
         }
 
         let producer = roomPeer.getProducer(producerId);
         if (!producer) {
             consoleError(`producer not found. ${producerId}`);
-            return;
+            return false;
         }
 
         let recPeer = this.recPeers.get(peer);
         if (!recPeer) {
             consoleError(`recoding peer not found. ${peer.displayName}`);
-            return;
+            return false;
         }
 
-        await recPeer.startRecording(producer, recIP, recPort);
+        recPeer.clearTimeout(producer.kind);
+        return await recPeer.startRecording(producer, recIP, recPort);
 
     }
 
