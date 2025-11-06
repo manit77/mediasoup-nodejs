@@ -144,6 +144,10 @@ class ApiService {
         return null;
     }
 
+    clearClientData() {
+        localStorage.removeItem("clientData");
+    }
+
     fetchConferencesScheduled = async (): Promise<ConferenceScheduledInfo[]> => {
         try {
             //console.log("ApiService fetchConferencesScheduled, clientData:", this.getClientData());

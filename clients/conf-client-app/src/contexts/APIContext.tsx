@@ -19,6 +19,7 @@ interface APIContextType {
     conferencesScheduled: ConferenceScheduledInfo[];
     setConferencesScheduled: React.Dispatch<React.SetStateAction<ConferenceScheduledInfo[]>>;
     getClientData: () => {};
+    clearClientData: () => void;
 }
 
 export const APIContext = createContext<APIContextType | undefined>(undefined);
@@ -39,6 +40,10 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const getClientData = useCallback((): {} | null => {
         return apiService.getClientData();
+    }, []);
+
+    const clearClientData = useCallback((): void => {
+        apiService.clearClientData();
     }, []);
 
     const isAdmin = useCallback((): boolean => {
@@ -199,7 +204,8 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         fetchConferencesScheduled,
         startFetchConferencesScheduled,
         setConferencesScheduled,
-        getClientData
+        getClientData,
+        clearClientData,
     }), [conferencesScheduled, getCurrentUser, isAuthenticated, isAdmin, isUser, isLoading, loginGuest, login, logout, fetchConferencesScheduled, getClientData]);
 
 
