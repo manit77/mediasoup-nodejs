@@ -29,6 +29,7 @@ export enum CallMessageType {
     leave = "leave", //participant signals to leave the room
     conferenceReady = "conferenceReady",
     conferenceClosed = "conferenceClosed",
+    conferencePong = "conferencePong",
 
     getParticipants = "getParticipants",
     getParticipantsResult = "getParticipantsResult",
@@ -276,6 +277,13 @@ export class ConferenceClosedMsg implements IMsg {
     data: {
         conferenceId?: string,
         reason?: string
+    } = {};
+}
+
+export class ConferencePongMsg implements IMsg {
+    type = CallMessageType.conferencePong;
+    data: {
+        conferenceId?: string,
     } = {};
 }
 

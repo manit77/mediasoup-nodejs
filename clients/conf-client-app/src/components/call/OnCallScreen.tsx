@@ -65,6 +65,7 @@ const OnCallScreen: React.FC = () => {
     };
 
     useEffect(() => {
+        console.log("OnCallScreen: conferencePong.");
         conferencePong();
     }, [onConferencePing]);
 

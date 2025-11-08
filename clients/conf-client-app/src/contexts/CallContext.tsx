@@ -457,6 +457,17 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                     break;
                 }
+                case EventTypes.inviteCancelled:{
+                    console.log(`CallContext: call was cancelled.`);
+
+                    ui.showToast("call was cancelled.", "warning");
+                    setIsCallActive(false);
+                    setInviteInfoSend(null);
+                    setInviteInfoReceived(null);
+                    setIsScreenSharing(false);
+
+                    break;
+                }
                 case EventTypes.rejectReceived: {
                     console.log(`CallContext: call was rejected.`);
 
@@ -960,8 +971,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const conferencePong = useCallback(async () => {
         console.log(`conferencePong`, conference);
-        conferenceClient.sendPong(conferenceClient.conference.conferenceId);
-    }, [])
+        conferenceClient.sendConferencePong(conferenceClient.conference.conferenceId);
+    }, []);
 
 
     useEffect(() => {

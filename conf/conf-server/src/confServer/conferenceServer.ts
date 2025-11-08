@@ -25,7 +25,8 @@ import {
     PresenterInfoMsg,
     conferenceType,
     LoggedOffMsg,
-    TerminateConfMsg
+    TerminateConfMsg,
+    ConferencePongMsg
 } from '@conf/conf-models';
 import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
@@ -72,7 +73,6 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             this.printStats();
         }, 30000);
     }
-
 
     terminateParticipant(participantId: string) {
         consoleWarn(`terminateParticipant`, participantId);
@@ -145,6 +145,10 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 case CallMessageType.terminateConf:
                     resultMsg = await this.onTerminateConf(participant, msgIn);
                     break;
+                case CallMessageType.conferencePong: {
+                    resultMsg = await this.onConferencePong(participant, msgIn);
+                    break;
+                }
 
             }
             return resultMsg;
@@ -254,6 +258,20 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             this.taskCloseRoom(conf.roomId, conf.roomURI);
         };
 
+        conference.onInterval = async (conf: Conference) => {
+            consoleLog(`onInterval`);
+
+            let api = new RoomsAPI(conf.roomURI, this.config.room_access_token);
+            let resultMsg = await api.getRoomStatus(conf.roomId);
+            if(resultMsg && resultMsg.data?.error) {
+                //room not found or error state
+                conf.close("room not found.");
+                return;
+            }
+
+            console.log(resultMsg);
+        };
+
         consoleLog(`conference created: ${conference.id} ${conference.roomName} `);
 
         //start timers
@@ -355,7 +373,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         const allPartsInfo = [...this.participants.values()].filter(p => p.participantGroup === exceptParticipant.participantGroup).map(p => ({
             participantId: p.participantId,
             displayName: p.displayName,
-            status: p.conference ? "busy": "online"
+            status: p.conference ? "busy" : "online"
         }) as ParticipantInfo);
 
         console.log('allPartsInfo[]', allPartsInfo);
@@ -378,7 +396,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         const allPartsInfo = [...this.participants.values()].filter(p => p.participantGroup === participantGroup).map(p => ({
             participantId: p.participantId,
             displayName: p.displayName,
-            status: p.conference ? "busy": "online"
+            status: p.conference ? "busy" : "online"
         }) as ParticipantInfo);
 
         console.log('allPartsInfo[]', allPartsInfo);
@@ -575,22 +593,21 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         consoleLog("onInviteCancel");
         msgIn = fill(msgIn, new InviteCancelledMsg());
 
-
         let receiver = this.getParticipant(msgIn.data.participantId);
         if (!receiver) {
             consoleError("participant not found.");
-            return;
+            return null;
         }
 
         let conf = this.conferences.get(msgIn.data.conferenceId);
         if (!conf) {
             consoleError("conference not found.");
-            return;
+            return null;
         }
 
         if (participant.conference != conf) {
             consoleError("not the same conference room.");
-            return;
+            return null;
         }
 
         if (conf.participants.size == 1) {
@@ -598,11 +615,14 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             conf.close("invite cancelled");
         }
 
-        let resultMsg = new InviteCancelledMsg();
-        resultMsg.data.conferenceId = conf.id;
-        resultMsg.data.participantId = participant.participantId;
 
-        return resultMsg;
+        let msg = new InviteCancelledMsg();
+        msg.data.conferenceId = conf.id;
+        msg.data.participantId = participant.participantId;
+
+        this.send(receiver, msg);
+
+        return null;
     }
 
     /**
@@ -844,7 +864,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         if (participant.conference) {
             consoleError(`already in a conference room: ${participant.conference.id}`);
             //leave the existing conference
-            participant.conference.removeParticipant(participant.participantId);            
+            participant.conference.removeParticipant(participant.participantId);
         }
 
         let conference: Conference;
@@ -862,7 +882,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return errorMsg;
         }
 
-        //conferece must be in ready status
+        //conf must be in ready status
         if (conference.status !== "ready") {
             consoleError(`conference room not ready ${conference.id}`);
 
@@ -925,7 +945,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
             return errorMsg;
         }
-       
+
         this.sendConferenceReady(conference, participant);
 
         let resultMsg = new JoinConfResultMsg();
@@ -1155,6 +1175,24 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         conf.close("closed by user");
 
         return new OkMsg(payloadTypeServer.ok);
+
+    }
+
+    private async onConferencePong(participant: Participant, msgIn: ConferencePongMsg): Promise<IMsg | null> {
+        consoleLog("onConferencePong");
+
+        let conference = this.conferences.get(msgIn.data.conferenceId);
+
+        if (!conference) {
+            consoleError(`conference not found ${conference.id}`);
+            return;
+        }
+
+        let roomsAPI = new RoomsAPI(conference.roomURI, this.config.room_access_token);
+        let resultMsg: IMsg = await roomsAPI.roomPong(participant.participantId, conference.roomId);
+        if (resultMsg && resultMsg.data.error) {
+            //roomPong returned an error, room not found or not in room
+        }
 
     }
 

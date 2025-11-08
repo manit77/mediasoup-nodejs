@@ -53,6 +53,7 @@ export class ConferenceConfig {
     guestsAllowCamera: boolean = true;
     guestsAllowScreenShare: boolean = true;
     guestsRequireConferenceCode: boolean = false;
+    isRecordable = false;
     isRecorded = false;
     isPrivate = false;
     leaderTrackingId : string = "";

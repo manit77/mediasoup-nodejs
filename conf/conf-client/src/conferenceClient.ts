@@ -1230,7 +1230,8 @@ export class ConferenceClient {
         console.log(`set conferenceId ${message.data.conferenceId}`);
 
         //clear the inviteSendMsg, set the conference variables
-        this.inviteSendMsg = null;
+        //this.inviteSendMsg = null;
+        this.inviteSendMsg.data.conferenceId = message.data.conferenceId;        
         this.conference.conferenceId = message.data.conferenceId;
         this.conference.conferenceName = message.data.conferenceName || `Call with ${message.data.displayName}`;
         this.conference.conferenceExternalId = message.data.conferenceExternalId;
@@ -1505,8 +1506,8 @@ export class ConferenceClient {
         return this.conference.participants.get(participantId);
     }
 
-    sendPong(conferenceId: string) {
-        console.log(`sendPong `, conferenceId);
+    sendConferencePong(conferenceId: string) {
+        console.log(`sendConferencePong `, conferenceId);
 
         if (!this.isInConference()) {
             return;
@@ -1672,6 +1673,9 @@ export class ConferenceClient {
             return;
         }
 
+        this.inviteReceivedMsg = null;
+        this.inviteSendMsg = null;
+        
         //p2p call
         this.conference.conferenceName = message.data.conferenceName || `Call with ${message.data.displayName}`;
 
