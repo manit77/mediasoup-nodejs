@@ -19,6 +19,9 @@ export enum payloadTypeClient {
     roomLeave = "roomLeave",
     roomTerminate = "roomTerminate",
     roomPong = "roomPong",
+    roomRecordingStart = "roomRecordingStart",
+    roomRecordingStop = "roomRecordingStop",
+
     roomGetLogs = "roomGetLogs",
     roomGetStatus = "roomGetStatus",
 
@@ -61,10 +64,11 @@ export enum payloadTypeServer {
     roomNewProducer = "roomNewProducer",
     roomPeerLeft = "roomPeerLeft",
     roomTerminateResult = "roomTerminateResult",
-    roomStatusResult = "roomStatusResult",
+    roomGetStatusResult = "roomGetStatusResult",
     roomClosed = "roomClosed",
     roomPing = "roomPing",
     roomGetLogsResult = "roomGetLogsResult",
+    roomRecordingStartResult = "roomRecordingStartResult",
 
     peerTerminated = "peerTerminated",
     error = "error",
@@ -396,8 +400,8 @@ export class RoomTerminateMsg implements IMsg {
     } = {}
 }
 
-export class RoomStatusMsg implements IMsg {
-    type = payloadTypeServer.roomStatusResult;
+export class RoomGetStatusResultMsg implements IMsg {
+    type = payloadTypeServer.roomGetStatusResult;
     data: {
         roomId?: string,
         numPeers?: number,
@@ -508,6 +512,7 @@ export enum RoomServerAPIRoutes {
     getRoomStatus = "/getRoomStatus",
     terminateRoom = "/terminateRoom",
     recCallBack = "/recCallBack",
+    roomPong = "/roomPong",
 }
 
 export class RoomConfig {
@@ -523,18 +528,17 @@ export class RoomConfig {
     callBackURL_OnRoomClosed: string;
     callBackURL_OnPeerLeft: string;
     callBackURL_OnPeerJoined: string;
-
-    isRecorded = true;
-    closeOnRecordingFailed = true;
-    closeOnRecordingTimeoutSecs = 30; //if not recorded for 30 seconds, terminate room 
-
+    isRecordable = false;
+    isRecorded = false;
+    closeOnRecordingFailed = true; //if recording fails, then close the room
+    closeOnRecordingTimeoutSecs = 30; //if not recorded for 30 seconds, terminate room    
 }
 
 export enum payloadTypeCallBacks {
     roomPeerCallBackMsg = "roomPeerCallBackMsg",
     roomCallBackMsg = "roomCallBackMsg",
-
 }
+
 export class RoomPeerCallBackMsg implements IMsg {
     type = payloadTypeCallBacks.roomPeerCallBackMsg;
     data: {
@@ -590,6 +594,22 @@ export class RoomPingMsg implements IMsg {
 
 export class RoomPongMsg implements IMsg {
     type = payloadTypeClient.roomPong;
+    data: {
+        roomId?: string,
+        peerTrackingId?: string,
+        authToken?: string,
+    } = {};
+}
+
+export class RoomRecordingStart implements IMsg {
+    type = payloadTypeClient.roomRecordingStart;
+    data: {
+        roomId?: string
+    } = {};
+}
+
+export class RoomRecordingStop implements IMsg {
+    type = payloadTypeClient.roomRecordingStop;
     data: {
         roomId?: string
     } = {};
