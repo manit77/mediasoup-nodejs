@@ -161,7 +161,7 @@ export class CreateProducerTransportMsg implements IMsg {
     } = {}
 }
 
-export class createProducerTransportResultMsg implements IMsg {
+export class CreateProducerTransportResultMsg implements IMsg {
     type = payloadTypeServer.createProducerTransportResult;
     data: {
         roomId?: string,

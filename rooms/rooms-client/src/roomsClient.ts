@@ -3,7 +3,7 @@ import {
   AuthUserNewTokenResultMsg,
   ConnectConsumerTransportMsg, ConnectProducerTransportMsg,
   CreateConsumerTransportMsg, CreateProducerTransportMsg,
-  ErrorMsg, IMsg, OkMsg, payloadTypeClient, payloadTypeServer, ProducerTransportConnectedMsg, createProducerTransportResultMsg,
+  ErrorMsg, IMsg, OkMsg, payloadTypeClient, payloadTypeServer, ProducerTransportConnectedMsg, CreateProducerTransportResultMsg,
   RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeProducerMsg, roomConsumeProducerResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
   RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
   PeerMuteTracksMsg,
@@ -1317,7 +1317,7 @@ export class RoomsClient {
     console.log("** onConsumerTransportConnected");
   }
 
-  private oncreateProducerTransportResult = async (msgIn: createProducerTransportResultMsg) => {
+  private oncreateProducerTransportResult = async (msgIn: CreateProducerTransportResultMsg) => {
     console.log("** oncreateProducerTransportResult:", msgIn);
 
     //the server has created a producer transport for the peer

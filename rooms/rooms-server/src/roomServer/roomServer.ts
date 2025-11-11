@@ -6,7 +6,7 @@ import {
     AuthUserNewTokenResultMsg,
     ConnectConsumerTransportMsg, ConnectProducerTransportMsg,
     ConsumerTransportConnectedMsg, CreateConsumerTransportResultMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient,
-    PeerTerminatedMsg, ProducerTransportConnectedMsg, createProducerTransportResultMsg,
+    PeerTerminatedMsg, ProducerTransportConnectedMsg, CreateProducerTransportResultMsg,
     RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomGetLogsMsg, RoomJoinMsg,
     RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg,
     RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
@@ -801,7 +801,7 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeServer.createProducerTransportResult, "could not create producer transport");
         }
 
-        let createProducerTransportResult = new createProducerTransportResultMsg();
+        let createProducerTransportResult = new CreateProducerTransportResultMsg();
         createProducerTransportResult.data = {
             roomId: peer.room.id,
             iceServers: this.config.room_iceServers,
