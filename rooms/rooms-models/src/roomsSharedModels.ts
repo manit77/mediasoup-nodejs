@@ -340,6 +340,7 @@ export class RoomJoinResultMsg implements IMsg {
         roomId?: string,
         roomToken?: string,
         roomRtpCapabilities?: any,
+        //trackInfo?: PeerTracksInfo,
         peers?: {
             peerId: string,
             peerTrackingId: string,
@@ -495,7 +496,9 @@ export class PeerMuteTracksMsg {
 
 export interface PeerTracksInfo {
     isAudioEnabled: boolean,
-    isVideoEnabled: boolean
+    isVideoEnabled: boolean,
+    isAudioMuted?: boolean,
+    isVideoMuted?: boolean
 }
 
 export class UnauthorizedMsg implements IMsg {

@@ -179,7 +179,7 @@ export class JoinConfResultMsg implements IMsg {
     data: {
         conferenceId?: string,
         leaderId?: string,
-        presenterId?: string,
+        presenterId?: string,        
         error?: string
     } = {};
 }

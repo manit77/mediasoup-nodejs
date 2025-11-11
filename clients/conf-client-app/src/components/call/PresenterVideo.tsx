@@ -19,7 +19,7 @@ const PresenterVideo: React.FC<{ presenter: Participant }> = ({ presenter }) => 
             video.muted = true;
             video.playsInline = true;
             video.srcObject = presenter.stream;
-            
+
 
             const draw = () => {
                 if (ctx && video && canvas.width > 0 && video.videoWidth > 0 && video.videoHeight > 0) {
@@ -60,7 +60,7 @@ const PresenterVideo: React.FC<{ presenter: Participant }> = ({ presenter }) => 
                     ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
                 }
 
-                if(timeoutId) {
+                if (timeoutId) {
                     clearTimeout(timeoutId);
                     timeoutId = null;
                 }
@@ -121,6 +121,10 @@ const PresenterVideo: React.FC<{ presenter: Participant }> = ({ presenter }) => 
                         onClick={(event) => {
                             event.preventDefault();
                             event.stopPropagation();                            
+                        }}
+                        onDoubleClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
                             toggleFullscreen(canvasRef.current);
                         }}
                         style={{

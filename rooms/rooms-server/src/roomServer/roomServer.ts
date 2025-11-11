@@ -1164,6 +1164,7 @@ export class RoomServer {
         let joinRoomResult = new RoomJoinResultMsg();
         joinRoomResult.data.roomId = room.id;
         joinRoomResult.data.roomRtpCapabilities = room.roomRtpCapabilities;
+        //joinRoomResult.data.trackInfo = peer.tracksInfo;
 
         let otherRoomPeers = room.otherRoomPeers(peer.id);
         for (let otherPeer of otherRoomPeers) {
@@ -1178,7 +1179,6 @@ export class RoomServer {
                 trackInfo: otherPeer.peer.tracksInfo
             });
         }
-
 
         //alert the other participants in the room of the peer joining
         let producersInfo = [...roomPeer.producers.values()].map(producer => ({
@@ -1405,13 +1405,25 @@ export class RoomServer {
         if (!msgIn.data.tracksInfo) {
             consoleError(`no tracksInfo sent`);
             return new ErrorMsg(payloadTypeServer.error, "`no tracksInfo sent.");
+        }        
+
+        let changed = false;
+        //process toggle only if not muted
+        if (!peer.tracksInfo.isAudioMuted) {
+            consoleWarn(`onPeerTracksInfo ${peer.displayName} isAudioEnabled:${peer.tracksInfo.isAudioEnabled}, isVideoEnabled:${peer.tracksInfo.isVideoEnabled}`);
+            peer.tracksInfo.isAudioEnabled = !!(msgIn.data.tracksInfo.isAudioEnabled);
+            changed = true;
         }
 
-        consoleWarn(`onPeerTracksInfo ${peer.displayName} isAudioEnabled:${peer.tracksInfo.isAudioEnabled}, isVideoEnabled:${peer.tracksInfo.isVideoEnabled}`);
-        peer.tracksInfo.isAudioEnabled = !!(msgIn.data.tracksInfo.isAudioEnabled);
-        peer.tracksInfo.isVideoEnabled = !!(msgIn.data.tracksInfo.isVideoEnabled);
+        if (!peer.tracksInfo.isVideoMuted) {
+            peer.tracksInfo.isVideoEnabled = !!(msgIn.data.tracksInfo.isVideoEnabled);
+            changed = true;
+        }
 
-        //we don't need to pause/resume the producer on the server side, the client will enable/disable the track
+        if(!changed) {
+            //change made
+            return;
+        }
 
         //send to all peers in the room
         if (peer.room) {
@@ -1456,13 +1468,18 @@ export class RoomServer {
             return;
         }
 
+        let isVideoMuted = msgIn.data.tracksInfo.isVideoMuted;
+        let isAudioMuted = msgIn.data.tracksInfo.isAudioMuted;
+
         consoleLog(`current tracksInfo${remotePeer.displayName} isAudioEnabled: ${remotePeer.tracksInfo.isAudioEnabled} isVideoEnabled: ${remotePeer.tracksInfo.isVideoEnabled}`);
-        remotePeer.tracksInfo.isAudioEnabled = !!msgIn.data.tracksInfo.isAudioEnabled;
-        remotePeer.tracksInfo.isVideoEnabled = !!msgIn.data.tracksInfo.isVideoEnabled;
+        remotePeer.tracksInfo.isAudioEnabled = !isAudioMuted;
+        remotePeer.tracksInfo.isVideoEnabled = !isVideoMuted;
+        remotePeer.tracksInfo.isAudioMuted = isAudioMuted;
+        remotePeer.tracksInfo.isVideoMuted = isVideoMuted;
         consoleLog(`after tracksInfo${remotePeer.displayName} isAudioEnabled: ${remotePeer.tracksInfo.isAudioEnabled} isVideoEnabled: ${remotePeer.tracksInfo.isVideoEnabled}`);
 
-
-        await peer.room.muteProducer(remotePeer);
+        await peer.room.toggleProducer(remotePeer, "video", !isVideoMuted);
+        await peer.room.toggleProducer(remotePeer, "audio", !isAudioMuted);
 
         //send the track state to all peers so they can update their UI
         let msg = new PeerTracksInfoMsg();

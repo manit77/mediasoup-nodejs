@@ -113,7 +113,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
     }, [api, conferenceScheduled, localParticipant, toggleCamera, toggleMic]);
 
 
-    const handleJoinRoom = async (event: React.FormEvent) => {
+    const handleJoinConf = async (event: React.FormEvent) => {
         event.preventDefault();
 
         try {
@@ -225,8 +225,8 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                     } */}
 
                     <div className="d-grid gap-2 mt-4"> {/* Added margin-top for spacing */}
-                        <ThrottledButton onClick={handleJoinRoom} variant="primary" disabled={isWaiting}>
-                            {isWaiting ? 'Joining...' : 'Join Room'}
+                        <ThrottledButton onClick={handleJoinConf} variant="primary" disabled={isWaiting}>
+                            {isWaiting ? 'Joining...' : 'Join Conference'}
                         </ThrottledButton>
                     </div>
                 </Form>

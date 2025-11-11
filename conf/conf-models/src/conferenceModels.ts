@@ -73,18 +73,9 @@ export class ConferenceRoomJoinConfig {
     cameraEnabled: boolean;
 }
 
-export class GetUserMediaConfig {
-    /**
-     * muted or unumuted
-     */
-    isAudioEnabled: boolean = false;
-    /**
-     * muted or unumuted
-     */
+export class GetUserMediaConfig {  
+    isAudioEnabled: boolean = false;   
     isVideoEnabled: boolean = false;
-
-    // getVideo: boolean = false;
-    // getAudio: boolean = false;
     constraints: MediaStreamConstraints;
 }
 

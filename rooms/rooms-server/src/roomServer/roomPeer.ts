@@ -16,7 +16,7 @@ export class RoomPeer {
     config: RoomServerConfig;
     lastPong: number = Date.now();
     dateCreated = new Date();
-    
+
     constructor(config: RoomServerConfig, room: Room, peer: Peer) {
         this.room = room;
         this.peer = peer;
@@ -29,7 +29,7 @@ export class RoomPeer {
     producers: UniqueMap<MediaKind, mediasoup.types.Producer> = new UniqueMap();
     consumers: UniqueMap<string, mediasoup.types.Consumer> = new UniqueMap();
 
-   
+
     async createProducerTransport() {
         console.log(`createProducerTransport() ${this.peer.displayName}`);
         if (this.producerTransport) {
@@ -191,7 +191,7 @@ export class RoomPeer {
         });
 
         producer.on("videoorientationchange", (args) => {
-            console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} videoorientationchange for ${this.peer.id} ${this.peer.displayName}`));            
+            console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} videoorientationchange for ${this.peer.id} ${this.peer.displayName}`));
             console.log(args);
         });
 
@@ -199,9 +199,9 @@ export class RoomPeer {
             console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} listenererror for ${this.peer.id} ${this.peer.displayName}`));
             console.log(args);
         });
-       
+
         return producer;
-    }   
+    }
 
     async closeProducer(kind: MediaKind) {
         console.log(`closeProducuer ${kind} - ${this.peer.id} ${this.peer.displayName}`);
@@ -230,7 +230,7 @@ export class RoomPeer {
         this.producers.clear();
         this.consumers.clear();
 
-        
+
         this.producerTransport?.close();
         this.consumerTransport?.close();
         this.producerTransport = null;
@@ -238,6 +238,12 @@ export class RoomPeer {
 
         this.room = null;
         this.peer.room = null;
+        this.peer.tracksInfo = {
+            isAudioEnabled: false,
+            isVideoEnabled: false,
+            isAudioMuted: false,
+            isVideoMuted: false
+        };
 
         console.log(`peer closed`);
 
@@ -268,23 +274,23 @@ export class RoomPeer {
         );
     }
 
-    async muteProducer() {
-        consoleError(`muteProducer ${this.peer.displayName}`);
+    async toggleProducer(kind: string, isEnabled: boolean) {
+        consoleWarn(`toggleProducer ${this.peer.displayName} to ${isEnabled}`);
 
         //the peer has mute/unmute a remotePeer
         for (let producer of this.producers.values()) {
-
-            let trackEnabled = producer.kind == "audio" ? this.peer.tracksInfo.isAudioEnabled : this.peer.tracksInfo.isVideoEnabled;
-
-            consoleError(`producer ${producer.kind} is paused: ${producer.paused}`);
-
-            //toggle the producer track
-            if (trackEnabled && producer.paused) {
-                await producer.resume();
-                consoleError(`${this.peer.displayName}:Producer ${producer.id} ${producer.kind} resumed.`);
-            } else if (!trackEnabled && !producer.paused) {
-                await producer.pause();
-                consoleError(`${this.peer.displayName}:Producer ${producer.id} ${producer.kind} paused.`);
+            if (producer.kind === kind) {
+                if (isEnabled) {
+                    if (producer.paused) {
+                        await producer.resume();
+                        consoleWarn(`producer ${producer.kind} is resumed`);
+                    }
+                } else {
+                    if (!producer.paused) {
+                        await producer.pause();
+                        consoleWarn(`producer ${producer.kind} is paused`);
+                    }
+                }
             }
         }
     }

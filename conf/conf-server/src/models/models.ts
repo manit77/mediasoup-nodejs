@@ -355,6 +355,7 @@ export class Conference {
 
     private startInterval() {
         consoleLog(`startInterval`);
+        
         if(this.status == "closed") {
             return;
         }

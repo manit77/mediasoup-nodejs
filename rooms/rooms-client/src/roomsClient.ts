@@ -666,13 +666,13 @@ export class RoomsClient {
 
   }
 
-  muteParticipantTrack = async (peerId: string, audioEnabled: boolean, videoEnabled: boolean) => {
-    console.log(`muteParticipantTrack audioEnabled: ${audioEnabled}, videoEnabled:${videoEnabled}`);
+  muteParticipantTrack = async (peerId: string, audioMuted: boolean, videoMuted: boolean) => {
+    console.log(`muteParticipantTrack audioMuted: ${audioMuted}, videoMuted:${videoMuted}`);
 
     let msg = new PeerMuteTracksMsg();
     msg.data.peerId = peerId;
     msg.data.roomId = this.localRoom.roomId;
-    msg.data.tracksInfo = { isAudioEnabled: audioEnabled, isVideoEnabled: videoEnabled };
+    msg.data.tracksInfo = { isAudioEnabled: !audioMuted, isVideoEnabled: !videoMuted, isVideoMuted: videoMuted, isAudioMuted: audioMuted };
     this.send(msg);
   }
 
@@ -879,7 +879,6 @@ export class RoomsClient {
 
     return this.localRoom.peers.delete(remotePeer.peerId);
   };
-
 
   private onAuthUserNewTokenResult = async (msgIn: AuthUserNewTokenResultMsg) => {
     console.log("onAuthUserNewTokenResult");

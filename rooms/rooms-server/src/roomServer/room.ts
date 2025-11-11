@@ -428,7 +428,7 @@ export class Room {
         await roomPeer.closeProducer(kind);
     }
 
-    async muteProducer(peer: Peer) {
+    async toggleProducer(peer: Peer, kind: MediaKind, isEnabled:boolean,) {
         consoleWarn(`room - muteProducer ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
@@ -437,7 +437,7 @@ export class Room {
             return;
         }
 
-        roomPeer.muteProducer();
+        await roomPeer.toggleProducer(kind, isEnabled);
     }
 
     /**
