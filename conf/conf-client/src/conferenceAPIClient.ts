@@ -1,4 +1,4 @@
-import { apiGetScheduledConferencePost, apiGetScheduledConferencesPost, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
+import { apiGetParticipantsOnlinePost, apiGetScheduledConferencePost, apiGetScheduledConferencesPost, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
 import { ConferenceClientConfig } from './models.js';
 
 export class ConferenceAPIClient {
@@ -32,7 +32,10 @@ export class ConferenceAPIClient {
                 body: JSON.stringify(postMsg),
             });
 
-            let loginResult = await response.json() as LoginResultMsg;
+            let responseText = await response.text();
+            console.log(responseText);
+
+            let loginResult = JSON.parse(responseText) as LoginResultMsg;
             console.log(`loginResult`, loginResult);
 
             return loginResult;
@@ -118,4 +121,30 @@ export class ConferenceAPIClient {
             return null;
         }
     };
+
+    getParticipantsOnline = async (authToken: string, username: string, clientData: {}): Promise<GetParticipantsResultMsg | null> => {
+        console.log("getParticipantsOnline", clientData);
+        try {
+
+            let post = new apiGetParticipantsOnlinePost();
+            post.data.username = username;
+            post.data.clientData = clientData;
+
+            const response = await fetch(`${this.config.conf_server_url}${WebRoutes.getParticipantsOnline}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+
+                },
+                body: JSON.stringify(post),
+            });
+
+            return await response.json() as GetParticipantsResultMsg;
+        } catch (err) {
+            console.error(err);
+            return null;
+        }
+    };
+
 };

@@ -3,7 +3,7 @@ import {
   AuthUserNewTokenResultMsg,
   ConnectConsumerTransportMsg, ConnectProducerTransportMsg,
   CreateConsumerTransportMsg, CreateProducerTransportMsg,
-  ErrorMsg, IMsg, OkMsg, payloadTypeClient, payloadTypeServer, ProducerTransportConnectedMsg, createProducerTransportResultMsg,
+  ErrorMsg, IMsg, OkMsg, payloadTypeClient, payloadTypeServer, ProducerTransportConnectedMsg, CreateProducerTransportResultMsg,
   RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeProducerMsg, roomConsumeProducerResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
   RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
   PeerMuteTracksMsg,
@@ -666,13 +666,13 @@ export class RoomsClient {
 
   }
 
-  muteParticipantTrack = async (peerId: string, audioEnabled: boolean, videoEnabled: boolean) => {
-    console.log(`muteParticipantTrack audioEnabled: ${audioEnabled}, videoEnabled:${videoEnabled}`);
+  muteParticipantTrack = async (peerId: string, audioMuted: boolean, videoMuted: boolean) => {
+    console.log(`muteParticipantTrack audioMuted: ${audioMuted}, videoMuted:${videoMuted}`);
 
     let msg = new PeerMuteTracksMsg();
     msg.data.peerId = peerId;
     msg.data.roomId = this.localRoom.roomId;
-    msg.data.tracksInfo = { isAudioEnabled: audioEnabled, isVideoEnabled: videoEnabled };
+    msg.data.tracksInfo = { isAudioEnabled: !audioMuted, isVideoEnabled: !videoMuted, isVideoMuted: videoMuted, isAudioMuted: audioMuted };
     this.send(msg);
   }
 
@@ -879,7 +879,6 @@ export class RoomsClient {
 
     return this.localRoom.peers.delete(remotePeer.peerId);
   };
-
 
   private onAuthUserNewTokenResult = async (msgIn: AuthUserNewTokenResultMsg) => {
     console.log("onAuthUserNewTokenResult");
@@ -1318,7 +1317,7 @@ export class RoomsClient {
     console.log("** onConsumerTransportConnected");
   }
 
-  private oncreateProducerTransportResult = async (msgIn: createProducerTransportResultMsg) => {
+  private oncreateProducerTransportResult = async (msgIn: CreateProducerTransportResultMsg) => {
     console.log("** oncreateProducerTransportResult:", msgIn);
 
     //the server has created a producer transport for the peer

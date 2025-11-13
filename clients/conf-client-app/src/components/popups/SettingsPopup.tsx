@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Button, Form, Tab, Row, Col, Nav } from 'react-bootstrap';
-import { useCall } from '../../hooks/useCall'; // Assuming settings are also relevant during a call
-import { FilePersonFill, Gear } from 'react-bootstrap-icons';
+import { useCall } from '../../hooks/useCall';
+import { FilePersonFill } from 'react-bootstrap-icons';
 import { useUI } from '../../hooks/useUI';
 
 const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ show, handleClose }) => {
@@ -16,33 +16,61 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
 
     const [audioId, setAudioId] = useState("");
     const [videoId, setVideoId] = useState("");
-    const [speakerId, setSpeakerId] = useState("");
+    //const [speakerId, setSpeakerId] = useState("");
     const [showingPreview, setShowingPreview] = useState(false);
-    const [showSettings, setShowSettings] = useState(false);
+    const [audioLevel, setAudioLevel] = useState(0); // 🔊 audio meter state
     const videoRef = useRef<HTMLVideoElement>(null);
+    const audioStreamRef = useRef<MediaStream | null>(null);
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const analyserRef = useRef<AnalyserNode | null>(null);
+    const animationRef = useRef<number | null>(null);
+    const barRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-
-        let video = videoRef.current;
         return () => {
-            if (video) {
-                let stream: MediaStream = video.srcObject as MediaStream;
+            stopAudioMeter();
+            if (videoRef.current) {
+                let stream = videoRef.current.srcObject as MediaStream;
                 if (stream) {
                     stream.getTracks().forEach(t => t.stop());
                 }
             }
+            setShowingPreview(false);
         };
-
     }, []);
 
     useEffect(() => {
-        if (show) {
-            getMediaDevices();
-            setAudioId(selectedDevices.audioInId);
-            setVideoId(selectedDevices.videoId);
-            setSpeakerId(selectedDevices.audioOutId);
-        }
-    }, [selectedDevices, show, getMediaDevices]);
+        const initMedia = async () => {
+            if (!show) {
+                stopAudioMeter();
+                if (videoRef.current) {
+                    const stream = videoRef.current.srcObject as MediaStream;
+                    if (stream) {
+                        stream.getTracks().forEach(t => t.stop());
+                    }
+                }
+                setShowingPreview(false);
+                return;
+            }
+
+            try {
+                // Request full mic+camera permission first
+                const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+                tempStream.getTracks().forEach(track => track.stop());
+                
+                await getMediaDevices();
+                setAudioId(selectedDevices.audioInId);
+                setVideoId(selectedDevices.videoId);
+                
+                startAudioMeter(selectedDevices.audioInId);
+            } catch (err) {
+                console.error("Permission or device error:", err);
+                ui.showPopUp("Please grant camera and microphone permissions to access devices.", 'error', 30);
+            }
+        };
+
+        initMedia();
+    }, [show, selectedDevices]);
 
     const handleDeviceChange = (type: 'video' | 'audioIn' | 'audioOut', deviceId: string) => {
         if (type === "video") {
@@ -51,8 +79,10 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         } else if (type === "audioIn") {
             setAudioId(deviceId);
             selectedDevices.audioInId = deviceId;
+            stopAudioMeter();
+            startAudioMeter(deviceId); // restart meter with new mic
         } else {
-            setSpeakerId(deviceId);
+            //setSpeakerId(deviceId);
             selectedDevices.audioOutId = deviceId;
         }
     };
@@ -63,7 +93,73 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
     };
 
     const previewClick = () => {
-        setShowingPreview((prev) => !prev); // Just toggle, let effect handle fetch/stop
+        setShowingPreview(prev => !prev);
+    };
+
+    const startAudioMeter = async (deviceId?: string) => {
+        try {
+            stopAudioMeter();
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+                video: false
+            });
+
+            audioStreamRef.current = stream;
+            const audioContext = new AudioContext();
+            audioContextRef.current = audioContext;
+
+            const source = audioContext.createMediaStreamSource(stream);
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            analyserRef.current = analyser;
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            source.connect(analyser);
+
+            let frameCount = 0;
+
+            const update = () => {
+                analyser.getByteFrequencyData(dataArray);
+                const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+                const level = avg / 255;
+
+                // Smooth instant visual update without React delay
+                if (barRef.current) {
+                    barRef.current.style.width = `${Math.min(level * 100, 100)}%`;
+                    barRef.current.style.background =
+                        level > 0.6 ? "#dc3545" :
+                            level > 0.3 ? "#ffc107" :
+                                "#28a745";
+                }
+
+                // Update React state less frequently (every ~6 frames)
+                if (++frameCount % 6 === 0) {
+                    setAudioLevel(level);
+                }
+
+                animationRef.current = requestAnimationFrame(update);
+            };
+            update();
+
+        } catch (err) {
+            console.error("Error accessing microphone:", err);
+            setAudioLevel(0);
+        }
+    };
+
+    const stopAudioMeter = () => {
+        if (animationRef.current) cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+        if (analyserRef.current) analyserRef.current.disconnect();
+        if (audioContextRef.current) audioContextRef.current.close();
+        if (audioStreamRef.current) {
+            audioStreamRef.current.getTracks().forEach(t => t.stop());
+        }
+        analyserRef.current = null;
+        audioContextRef.current = null;
+        audioStreamRef.current = null;
+        setAudioLevel(0);
     };
 
     useEffect(() => {
@@ -75,37 +171,25 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         }
 
         const constraints = getMediaConstraints(false, true);
-        console.log('Fetching preview with constraints:', constraints); // Debug log
-
         navigator.mediaDevices.getUserMedia(constraints)
             .then((stream) => {
-
-                console.log('got stream', stream.getTracks());
-                videoRef.current.srcObject = stream;
-                console.log(`videoRefSet`);
-
-                // Mute audio
                 const audioTrack = stream.getAudioTracks()[0];
-                if (audioTrack) {
-                    audioTrack.enabled = false;
-                }
-                // Ensure video
+                if (audioTrack) audioTrack.enabled = false;
                 const videoTrack = stream.getVideoTracks()[0];
                 if (!videoTrack) {
                     ui.showPopUp("No video devices available", "error");
-                    stream.getTracks().forEach((track) => track.stop()); // Clean up failed stream
+                    stream.getTracks().forEach((track) => track.stop());
                     setShowingPreview(false);
                     return;
                 }
+                videoRef.current.srcObject = new MediaStream([videoTrack]);
             })
             .catch((error) => {
                 console.error('Error getting preview stream:', error);
                 ui.showPopUp("Failed to get camera. Check permissions.", "error");
                 setShowingPreview(false);
             });
-
-
-    }, [showingPreview, selectedDevices, getMediaConstraints, ui]);
+    }, [showingPreview]);
 
     return (
         <Modal show={show} onHide={handleClose} size="lg">
@@ -120,9 +204,6 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                 <Nav.Item>
                                     <Nav.Link eventKey="devices">Media Devices</Nav.Link>
                                 </Nav.Item>
-                                {/* <Nav.Item>
-                                    <Nav.Link eventKey="screenShare">Screen Share</Nav.Link>
-                                </Nav.Item> */}
                             </Nav>
                         </Col>
                         <Col sm={9}>
@@ -144,7 +225,34 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                         </Form.Select>
                                     ) : <p>No microphones found.</p>}
 
-                                    {/* <Form.Check label="Mic enabled" checked={isAudioEnabled} onChange={(e) => setIsAudioEnabled(e.target.checked)}></Form.Check> */}
+                                    <div className="d-flex align-items-center mb-3" style={{ gap: '10px' }}>
+                                        <div className="audio-meter flex-grow-1" style={{
+                                            height: "10px",
+                                            background: "#ddd",
+                                            borderRadius: "4px",
+                                            overflow: "hidden",
+                                            position: "relative"
+                                        }}>
+                                            <div
+                                                ref={barRef}
+                                                style={{
+                                                    width: `0%`,
+                                                    height: "100%",
+                                                    background: "#28a745",
+                                                    transition: "width 50ms linear"
+                                                }}
+                                            />
+                                        </div>
+
+                                        <div style={{
+                                            minWidth: "40px",
+                                            textAlign: "right",
+                                            fontFamily: "monospace",
+                                            fontSize: "0.9rem"
+                                        }}>
+                                            {Math.round(audioLevel * 100)}%
+                                        </div>
+                                    </div>
 
 
                                     <h5>Video</h5>
@@ -165,7 +273,6 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
 
                                     <h5>Preview</h5>
                                     <div className="d-flex gap-2 mb-3">
-
                                         <Button
                                             variant="outline-secondary"
                                             onClick={previewClick}
@@ -183,35 +290,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                         className="w-100 h-auto rounded shadow-sm"
                                         style={{ background: "#000000" }}
                                     />
-
-                                    {/* <Form.Check label="Camera enabled" checked={isVideoEnabled} onChange={(e) => setIsVideoEnabled(e.target.checked)}></Form.Check> */}
-
-
-                                    {/* <h5>Speaker</h5>
-                                    {availableDevices.audioOut.length > 0 ? (
-                                        <Form.Select
-                                        title-"Select Speaker"    
-                                        aria-label="Select Speaker"
-                                            value={speakerId || ""}
-                                            onChange={(e) => handleDeviceChange('audioOut', e.target.value)}
-                                            className="mb-3"
-                                        >
-                                            <option value="">Default Speaker</option>
-                                            {availableDevices.audioOut.map(device => (
-                                                <option key={device.id} value={device.id}>{device.label}</option>
-                                            ))}
-                                        </Form.Select>
-                                    ) : <p>No speakers found. (Note: Speaker selection support varies by browser)</p>}
-                                     */}
-
                                 </Tab.Pane>
-                                {/* <Tab.Pane eventKey="screenShare">
-                                    <h5>Select Screen to Share</h5>
-                                    <p>When you click "Start Screen Sharing", your browser will prompt you to choose which screen, window, or tab to share.</p>
-                                    <Button variant="primary" onClick={handleScreenShareSelect}>
-                                        Start Screen Sharing
-                                    </Button>
-                                </Tab.Pane> */}
                             </Tab.Content>
                         </Col>
                     </Row>

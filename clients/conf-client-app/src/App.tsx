@@ -11,6 +11,7 @@ import { UIProvider } from './contexts/UIContext';
 import { useLocation } from 'react-router-dom';
 import { getConferenceClient } from './services/ConferenceService';
 import LoginGuestPage from './components/auth/LoginGuestPage';
+import LogoutPage from './components/auth/LogoutPage';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAPI();
@@ -44,6 +45,7 @@ const AppRoutes: React.FC = () => {
 
   return (
     <Routes>
+      <Route path="/logout" element={<LogoutPage />} />
       {!isAuthenticated ? (
         <>
           <Route path="/loginGuest" element={<LoginGuestPage />} />

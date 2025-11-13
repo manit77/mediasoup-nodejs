@@ -9,6 +9,7 @@ import {
     AuthUserRoles,
     IMsg,
     RoomGetStatusMsg,
+    RoomPongMsg,
 } from "@rooms/rooms-models";
 import { RoomServer } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
@@ -32,6 +33,8 @@ defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newAuthUserToken] = [AuthUserRo
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoomToken] = [AuthUserRoles.admin];
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoom] = [AuthUserRoles.admin];
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.terminateRoom] = [AuthUserRoles.admin];
+defaultHTTPServerSecurityMap[RoomServerAPIRoutes.getRoomStatus] = [AuthUserRoles.admin];
+
 
 /**
  * these are admin functions of the room server
@@ -126,13 +129,22 @@ export class RoomAPIServer {
             let msgIn = req.body as RoomGetStatusMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
-            let resultMsg = this.roomServer.inServiceMsg(msgIn);
+            let resultMsg = await this.roomServer.inServiceMsg(msgIn);
             res.send(resultMsg);
         });
 
         app.post(RoomServerAPIRoutes.terminateRoom, this.tokenCheck as any, async (req, res) => {
             console.log(RoomServerAPIRoutes.terminateRoom);
             let msgIn = req.body as RoomTerminateMsg;
+            msgIn.data.authToken = req.rooms_authtoken;
+
+            let resultMsg = this.roomServer.inServiceMsg(msgIn);
+            res.send(resultMsg);
+        });
+
+        app.post(RoomServerAPIRoutes.roomPong, this.tokenCheck as any, async (req, res) => {
+            console.log(RoomServerAPIRoutes.roomPong);
+            let msgIn = req.body as RoomPongMsg;
             msgIn.data.authToken = req.rooms_authtoken;
 
             let resultMsg = this.roomServer.inServiceMsg(msgIn);

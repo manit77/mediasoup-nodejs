@@ -14,7 +14,6 @@ type onSocketTimeout = (conn: SocketConnection) => void;
 
 export class SocketConnection {
 
-
     ws: WebSocket;
 
     /**
@@ -118,6 +117,8 @@ export class Conference {
     leader?: Participant;
 
     timeoutId: any;
+    intervalIdTimeoutId: any;
+
     /**
      * default 12 hours
      */
@@ -151,7 +152,9 @@ export class Conference {
     onReadyListeners: (() => void)[] = [];
     dateCreated: Date;
 
-    onClose: (conf: Conference, participants: Participant[], reason: string) => void;
+    onClose = (conf: Conference, participants: Participant[], reason: string) => { };
+    onInterval = (conf: Conference) => { };
+    onNewParticipant = (part: Participant) => { };
 
     constructor() {
         this.dateCreated = new Date();
@@ -191,11 +194,11 @@ export class Conference {
             this.participants.delete(id);
             consoleLog("participant removed");
 
-            if(this.leader == part){
+            if (this.leader == part) {
                 this.leader = null;
             }
 
-            if(this.presenter == part){
+            if (this.presenter == part) {
                 this.presenter = null;
             }
         }
@@ -236,7 +239,7 @@ export class Conference {
         this.participants.set(part.participantId, part);
         part.conference = this;
 
-        if(!this.leader && this.config.leaderTrackingId === part.participantId){
+        if (!this.leader && this.config.leaderTrackingId === part.participantId) {
             consoleWarn(`leader set ${this.roomName} ${part.displayName}`);
             this.leader = part;
         }
@@ -252,6 +255,8 @@ export class Conference {
                 clearTimeout(this.noUserTimeoutId);
             }
         }
+
+        this.onNewParticipant(part);
 
         return true;
     }
@@ -292,10 +297,11 @@ export class Conference {
             clearTimeout(this.noUserTimeoutId);
             this.noUserTimeoutId = null;
         }
-
-        if (this.onClose) {
-            this.onClose(this, existingParticipants, reason);
+        if (this.intervalIdTimeoutId) {
+            clearTimeout(this.intervalIdTimeoutId);
+            this.intervalIdTimeoutId = null;
         }
+        this.onClose(this, existingParticipants, reason);
     }
 
     /**
@@ -303,21 +309,23 @@ export class Conference {
      */
     startTimers() {
         consoleLog(`startTimers`);
+
         this.startConferenceTimer();
-        this.startTimerMinParticipants()
+        this.startTimerMinParticipants();
+        this.startInterval();
     }
 
     private startConferenceTimer() {
         consoleLog(`startConferenceTimer, timeout in ${this.timeoutSecs}`);
+
         if (this.timeoutSecs > 0) {
             consoleWarn(`shutting down conf ${this.roomName} in ${Math.round(this.timeoutSecs / 60)} min.`);
-            this.timeoutId = setTimeout(() => { this.close("room timedout."); }, this.timeoutSecs * 1000);
+            this.timeoutId = setTimeout(() => { this.close("room timeout."); }, this.timeoutSecs * 1000);
             consoleLog(`startTimer, timer started in ${this.timeoutSecs}`);
             return;
         }
         consoleWarn(`not timelimit for room ${this.roomName}`);
     }
-
 
     /**
      * starts a timer for min participants
@@ -346,6 +354,25 @@ export class Conference {
                 }
             }, this.minParticipantsTimeoutSec * 1000);
         }
+    }
+
+    private startInterval() {
+        consoleLog(`startInterval`);
+
+        if (this.status == "closed") {
+            return;
+        }
+
+        if (this.intervalIdTimeoutId) {
+            clearTimeout(this.intervalIdTimeoutId);
+        }
+
+        this.intervalIdTimeoutId = setTimeout(() => {
+            this.onInterval(this);
+            this.startInterval();
+            //}, 60 * 1000);
+        }, 10 * 1000);
+
     }
 
     /**

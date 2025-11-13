@@ -1,7 +1,7 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { apiService, LoginResponse } from '../services/ApiService';
 import { useConfig } from '../hooks/useConfig';
-import { ConferenceScheduledInfo } from '@conf/conf-models';
+import { ConferenceScheduledInfo, ParticipantInfo } from '@conf/conf-models';
 import { User } from '../types';
 import { getConferenceClient } from '../services/ConferenceService';
 
@@ -14,11 +14,15 @@ interface APIContextType {
     login: (username: string, password: string, clientData: {}) => Promise<LoginResponse>;
     logout: () => {};
     fetchConferencesScheduled: () => Promise<ConferenceScheduledInfo[]>;
-    startFetchConferencesScheduled: () => void;
     getCurrentUser: () => User | null;
     conferencesScheduled: ConferenceScheduledInfo[];
+
+    fetchParticipantsOnline: () => Promise<ParticipantInfo[]>;
+    participantsOnline: ParticipantInfo[];
+
     setConferencesScheduled: React.Dispatch<React.SetStateAction<ConferenceScheduledInfo[]>>;
     getClientData: () => {};
+    clearClientData: () => void;
 }
 
 export const APIContext = createContext<APIContextType | undefined>(undefined);
@@ -28,6 +32,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceScheduledInfo[]>(apiService.conferencesScheduled);
+    const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>(apiService.participantsOnline);
 
     useEffect(() => {
         apiService.init(config);
@@ -39,6 +44,10 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const getClientData = useCallback((): {} | null => {
         return apiService.getClientData();
+    }, []);
+
+    const clearClientData = useCallback((): void => {
+        apiService.clearClientData();
     }, []);
 
     const isAdmin = useCallback((): boolean => {
@@ -138,15 +147,14 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setIsLoading(false);
         }
     }, []);
-
-    const startFetchConferencesScheduled = useCallback(() => {
-        apiService.startFetchConferencesScheduled();
-    }, []);
-
+   
     const fetchConferencesScheduled = useCallback(async (): Promise<ConferenceScheduledInfo[]> => {
         console.log("fetchConferencesScheduled, ", apiService.getClientData());
-        let conferences = await apiService.fetchConferencesScheduled();
-        return conferences;
+        return apiService.fetchConferencesScheduled();
+    }, []);
+
+    const fetchParticipantsOnline = useCallback(async (): Promise<ParticipantInfo[]> => {
+        return await apiService.fetchParticipantsOnline();
     }, []);
 
     const setUpConnections = useCallback(() => {
@@ -157,11 +165,20 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setConferencesScheduled(prev => conferences);
         };
 
+        apiService.onParticipantsOnlineReceived = async (participants) => {
+            //console.log("onConferencesReceived", conferences);
+            setParticipantsOnline(prev => participants);
+        };
+
         let user = apiService.getUser();
         if (user) {
             getConferenceClient().connect(user.participantGroup, user.username, user.authToken, user.clientData);
+            
             fetchConferencesScheduled();
             apiService.startFetchConferencesScheduled();
+
+            fetchParticipantsOnline();
+            apiService.startFetchParticipantsOnline();
 
         }
     }, [fetchConferencesScheduled]);
@@ -197,9 +214,13 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         login,
         logout,
         fetchConferencesScheduled,
-        startFetchConferencesScheduled,
         setConferencesScheduled,
-        getClientData
+
+        participantsOnline,
+        fetchParticipantsOnline,
+
+        getClientData,
+        clearClientData,
     }), [conferencesScheduled, getCurrentUser, isAuthenticated, isAdmin, isUser, isLoading, loginGuest, login, logout, fetchConferencesScheduled, getClientData]);
 
 

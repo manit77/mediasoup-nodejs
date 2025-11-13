@@ -65,6 +65,7 @@ const OnCallScreen: React.FC = () => {
     };
 
     useEffect(() => {
+        console.log("OnCallScreen: conferencePong.");
         conferencePong();
     }, [onConferencePing]);
 
@@ -76,14 +77,13 @@ const OnCallScreen: React.FC = () => {
     return (
         <div className="d-flex flex-column bg-dark text-light" style={{ height: "100dvh" }}>
             <CallTopMenu onShowSettings={() => setShowSettings(true)} />
-            <div className="pt-5">
-                <div style={{
-                    paddingTop: '8px',
-                    height: 'calc(100dvh - 56px)',
+            <div className="pt-0">
+                <div style={{                    
+                    height: 'calc(100dvh)',
                     overflow: 'auto',
                 }}>
                     <div className="p-0 m-0 h-100 w-full">
-                        <div className="d-flex flex-column h-100" style={{ minHeight: "0" }}>
+                        <div className="d-flex flex-column" style={{ height: "100dvh", minHeight: "0" }}>
 
                             {/* presenter video */}
                             <div style={presenter ? { flex: '1 1 auto', overflow: 'hidden' } : { display: "none" }}>
@@ -112,14 +112,13 @@ const OnCallScreen: React.FC = () => {
                                     containerStyle={{
                                         display: 'flex',
                                         flexDirection: 'row',
-                                        flexWrap: 'wrap', // Enable wrapping based on available width
-                                        gap: '5px',
-                                        padding: '5px',
+                                        flexWrap: 'wrap',
+                                        gap: '5px',                                        
                                         background: '#2a2f34',
                                         width: '100%',
                                         boxSizing: 'border-box',
-                                        justifyContent: 'center', // Align left to reduce space between elements
-                                        overflowX: 'hidden', // Prevent horizontal scrolling; let wrapping handle it
+                                        justifyContent: 'center',
+                                        overflowX: 'hidden',
                                         minHeight: 0,                                        
                                     }}
                                     cardStyle={
@@ -136,7 +135,7 @@ const OnCallScreen: React.FC = () => {
                                                 }
                                                 : callParticipants.size == 2 ? {
                                                     flex: "1 1 auto",
-                                                    height: 'calc(100dvh - 56px)',
+                                                    height: 'calc(100dvh)',
                                                     justifyContent: "center",
                                                 }
                                                     : {
@@ -151,7 +150,7 @@ const OnCallScreen: React.FC = () => {
                                             callParticipants.size == 1 ? {
                                                 flex: "1 1 auto",
                                                 aspectRatio: "4/3",
-                                                height: 'calc(100dvh - 56px)',
+                                                height: 'calc(100dvh)',
                                                 justifyContent: "center",
                                             }
                                                 : callParticipants.size == 2 ? {

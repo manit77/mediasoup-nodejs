@@ -4,7 +4,7 @@ import { PeerTracksInfo, RoomCallBackMsg, RoomConfig, RoomLog, RoomLogAction, Ro
 import { setTimeout, setInterval, clearInterval } from 'node:timers';
 import axios from 'axios';
 import { RoomPeer } from './roomPeer.js';
-import { consoleError, consoleWarn } from '../utils/utils.js';
+import { consoleError, consoleInfo, consoleLog, consoleWarn } from '../utils/utils.js';
 import { Consumer, MediaKind, Producer } from 'mediasoup/types';
 import { RoomServerConfig } from './models.js';
 import { RecPeer } from '../recording/recPeer.js';
@@ -243,6 +243,17 @@ export class Room {
         return this.roomPeers.values().find(p => p.peer.id === peerId)?.peer;
     }
 
+    getPeerByTrackingId(peerTrackingId: string) {
+        if(!peerTrackingId) {
+            return;
+        }
+        return this.roomPeers.values().find(p => p.peer.trackingId === peerTrackingId)?.peer;
+    }
+
+    getRoomPeers() {
+        return this.roomPeers.values();
+    }
+
     getRoomPeer(peer: Peer) {
         return this.roomPeers.get(peer);
     }
@@ -321,17 +332,23 @@ export class Room {
         }
 
         if (this.config.isRecorded && this.config.closeOnRecordingFailed && this.config.closeOnRecordingTimeoutSecs) {
-            // let timeoutid = setTimeout(() => {
-            //     consoleError(`recording timed out. ${peer.trackingId} ${peer.displayName}`);
-            //     this.close(`recording timed out. ${peer.trackingId} ${peer.displayName}`);
-            // }, this.config.closeOnRecordingTimeoutSecs * 1000)
+            this.createRecPeer(peer, producer);
+        }
 
-            //init the recording peer and set the timeout
-            let recPeer = this.recPeers.get(peer);
-            if (!recPeer) {
-                recPeer = new RecPeer(this, peer);
-                this.recPeers.set(peer, recPeer);
-            }
+        return producer;
+    }
+
+    createRecPeer(peer: Peer, producer: Producer) {
+        consoleLog('createRecPeer');
+
+        let recPeer = this.recPeers.get(peer);
+        if (recPeer) {
+            consoleLog('recording peer already exists.');
+        } else {
+            consoleLog('creating new recPeer');
+
+            recPeer = new RecPeer(this, peer);
+            this.recPeers.set(peer, recPeer);
 
             recPeer.eventRecordingTimeout = (peer: Peer, kind: MediaKind) => {
                 consoleError(`recording failed for ${peer.displayName} ${kind}`);
@@ -339,8 +356,19 @@ export class Room {
             };
             recPeer.startTimeout(producer.kind, this.config.closeOnRecordingTimeoutSecs);
         }
+    }
 
-        return producer;
+    destroyRecPeer(peer: Peer) {
+        consoleLog('createRecPeer');
+
+        let recPeer = this.recPeers.get(peer);
+        if (recPeer) {
+            consoleLog('recording peer found.');
+            recPeer.close();
+            this.recPeers.delete(peer);
+        } else {
+            consoleLog('no recPeer found');
+        }
     }
 
     async recordProducer(peer: Peer, producerId: string, recIP: string, recPort: number): Promise<boolean> {
@@ -389,15 +417,6 @@ export class Room {
 
     }
 
-    // getProducer(peer: Peer, kind: MediaKind) {
-    //     let roomPeer = this.roomPeers.get(peer);
-    //     if (!roomPeer) {
-    //         consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
-    //         return;
-    //     }
-    //     return roomPeer.producers.get(kind);
-    // }
-
     async closeProducer(peer: Peer, kind: MediaKind) {
         console.log(`room - closeProducer ${peer.id} ${peer.displayName}`);
 
@@ -409,7 +428,7 @@ export class Room {
         await roomPeer.closeProducer(kind);
     }
 
-    async muteProducer(peer: Peer) {
+    async toggleProducer(peer: Peer, kind: MediaKind, isEnabled:boolean,) {
         consoleWarn(`room - muteProducer ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
@@ -418,7 +437,7 @@ export class Room {
             return;
         }
 
-        roomPeer.muteProducer();
+        await roomPeer.toggleProducer(kind, isEnabled);
     }
 
     /**

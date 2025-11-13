@@ -6,6 +6,10 @@ import {
     RoomLeaveResultMsg,
     RoomNewResultMsg,
     AuthUserRoles,
+    RoomPongMsg,
+    IMsg,
+    RoomGetStatusResultMsg,
+    RoomGetStatusMsg,
 } from "@rooms/rooms-models";
 import https from "https"
 
@@ -64,6 +68,19 @@ export class RoomsAPI {
         msgIn.data.roomId = roomId;
         return await this.post(RoomServerAPIRoutes.terminateRoom, msgIn);
     }
+
+    async roomPong(roomId: string, peerTrackingId: string) : Promise<IMsg> {
+        let msgIn = new RoomPongMsg();
+        msgIn.data.roomId = roomId;
+        msgIn.data.peerTrackingId = peerTrackingId;
+        return await this.post(RoomServerAPIRoutes.roomPong, msgIn);
+    }
+
+    async getRoomStatus(roomId: string) : Promise<IMsg> {
+        let msgIn = new RoomGetStatusMsg();
+        msgIn.data.roomId = roomId;
+        return await this.post(RoomServerAPIRoutes.getRoomStatus, msgIn);
+    }        
 
     private async post(path: string, dataObj: any): Promise<any> {
         const url = `${this.config.apiURI}${path}`;

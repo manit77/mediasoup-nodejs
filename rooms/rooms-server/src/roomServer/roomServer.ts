@@ -6,7 +6,7 @@ import {
     AuthUserNewTokenResultMsg,
     ConnectConsumerTransportMsg, ConnectProducerTransportMsg,
     ConsumerTransportConnectedMsg, CreateConsumerTransportResultMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient,
-    PeerTerminatedMsg, ProducerTransportConnectedMsg, createProducerTransportResultMsg,
+    PeerTerminatedMsg, ProducerTransportConnectedMsg, CreateProducerTransportResultMsg,
     RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomGetLogsMsg, RoomJoinMsg,
     RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg,
     RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
@@ -26,7 +26,9 @@ import {
     RoomPingMsg,
     RoomPongMsg,
     RoomGetStatusMsg,
-    RoomStatusMsg
+    RoomGetStatusResultMsg,
+    RoomRecordingStart,
+    RoomRecordingStop
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
@@ -37,7 +39,6 @@ import { consoleError, consoleInfo, consoleLog, consoleWarn } from '../utils/uti
 import { outMessageEventListener, RoomServerConfig, WorkerData } from './models.js';
 import { RecCallBackMsg, RecMsgTypes, RecRoomNewMsg, RecRoomProduceStreamMsg, RecRoomTerminateMsg } from '../recording/recModels.js';
 import { recRoomNew, recRoomProduceStream, recRoomTerminate } from '../recording/recAPI.js';
-
 
 export class RoomServer {
 
@@ -258,6 +259,14 @@ export class RoomServer {
                 resultMsg = await this.onRoomPong(peerId, msgIn);
                 break;
             }
+            case payloadTypeClient.roomRecordingStart: {
+                resultMsg = await this.onRoomRecordingStart(peerId, msgIn);
+                break;
+            }
+            case payloadTypeClient.roomRecordingStop: {
+                resultMsg = await this.onRoomRecordingStop(peerId, msgIn);
+                break;
+            }
         }
 
         return resultMsg;
@@ -271,50 +280,74 @@ export class RoomServer {
         console.log(`inServiceMsg`, msgIn.type);
 
         try {
-            if (msgIn.type == payloadTypeClient.authUserNewToken) {
-                return await this.onAuthUserNewTokenMsg(msgIn as RoomNewTokenMsg);
-            } else if (msgIn.type == payloadTypeClient.roomNewToken) {
-                return await this.onRoomNewTokenMsg(msgIn as RoomNewTokenMsg);
-            } else if (msgIn.type == payloadTypeClient.roomNew) {
-                return await this.onRoomNewMsg(msgIn as RoomNewMsg);
-            } else if (msgIn.type == payloadTypeClient.roomTerminate) {
-                return await this.terminateRoomMsg(msgIn as RoomTerminateMsg);
-            } else if (msgIn.type == payloadTypeClient.roomGetStatus || msgIn.type == RecMsgTypes.recRoomStatus) {
-                return await this.getRoomStatus(msgIn as RoomGetStatusMsg);
-            } else if (msgIn.type == RecMsgTypes.recReady) {
-
-                let { roomId, peerId, producerId, recPort, recIP } = (msgIn as RecCallBackMsg).data;
-                let room = this.getRoom(roomId);
-                if (!room) {
-                    consoleError("room not found.");
-                    return new ErrorMsg(payloadTypeServer.error, "room not found.");
+            switch (msgIn.type) {
+                case payloadTypeClient.authUserNewToken: {
+                    return await this.onAuthUserNewTokenMsg(msgIn as RoomNewTokenMsg);
                 }
-                let peer = room.getPeer(peerId);
-                if (!peer) {
-                    consoleError("peer not found.");
-                    return new ErrorMsg(payloadTypeServer.error, "room peer not found.");
+                case payloadTypeClient.roomNewToken: {
+                    return await this.onRoomNewTokenMsg(msgIn as RoomNewTokenMsg);
                 }
+                case payloadTypeClient.roomNew: {
+                    return await this.onRoomNewMsg(msgIn as RoomNewMsg);
+                }
+                case payloadTypeClient.roomTerminate: {
+                    return await this.terminateRoomMsg(msgIn as RoomTerminateMsg);
+                }
+                case payloadTypeClient.roomGetStatus:
+                case RecMsgTypes.recRoomStatus: {
+                    return await this.getRoomStatus(msgIn as RoomGetStatusMsg);
+                }
+                case payloadTypeClient.roomPong: {
+                    let room = this.getRoom(msgIn.data.roomId);
+                    if (!room) {
+                        consoleError(`room not found ${msgIn.data.roomId}`);
+                        return;
+                    }
+                    let peer = room.getPeerByTrackingId(msgIn.data.peerTrackingId);
+                    if (!peer) {
+                        consoleError(`peer by trackingId found ${msgIn.data.peerTrackingId}`);
+                        return;
+                    }
 
-                if (!await room.recordProducer(peer, producerId, recIP, recPort)) {
+                    return await this.onRoomPong(peer.id, msgIn);
+                }
+                case RecMsgTypes.recReady: {
+
+                    let { roomId, peerId, producerId, recPort, recIP } = (msgIn as RecCallBackMsg).data;
+                    let room = this.getRoom(roomId);
+                    if (!room) {
+                        consoleError("room not found.");
+                        return new ErrorMsg(payloadTypeServer.error, "room not found.");
+                    }
+                    let peer = room.getPeer(peerId);
+                    if (!peer) {
+                        consoleError("peer not found.");
+                        return new ErrorMsg(payloadTypeServer.error, "room peer not found.");
+                    }
+
+                    if (!await room.recordProducer(peer, producerId, recIP, recPort)) {
+                        return new OkMsg(payloadTypeServer.ok, {});
+                    }
+                    return new ErrorMsg(payloadTypeServer.error, "failed to record producer");
+
+                }
+                case msgIn.type == RecMsgTypes.recFailed: {
+                    consoleInfo("handle recording failed.");
+
+                    let { roomId } = (msgIn as RecCallBackMsg).data;
+                    let room = this.getRoom(roomId);
+                    if (!room) {
+                        consoleError("room not found.");
+                        return new ErrorMsg(payloadTypeServer.error, "room not found.");
+                    }
+
+                    if (room.config.closeOnRecordingFailed) {
+                        room.close("recording failed.");
+                    }
                     return new OkMsg(payloadTypeServer.ok, {});
                 }
-                return new ErrorMsg(payloadTypeServer.error, "failed to record producer");
-
-            } else if (msgIn.type == RecMsgTypes.recFailed) {
-                consoleInfo("handle recording failed.");
-
-                let { roomId, peerId, producerId, recPort, recIP } = (msgIn as RecCallBackMsg).data;
-                let room = this.getRoom(roomId);
-                if (!room) {
-                    consoleError("room not found.");
-                    return new ErrorMsg(payloadTypeServer.error, "room not found.");
-                }
-
-                if (room.config.closeOnRecordingFailed) {
-                    room.close("recording failed.");
-                }
-                return new OkMsg(payloadTypeServer.ok, {});
             }
+
         } catch (err) {
             consoleError(err);
         }
@@ -469,9 +502,9 @@ export class RoomServer {
         room.roomRtpCapabilities = router.rtpCapabilities;
 
         //for testing
-        room.config.isRecorded = true;
-        room.config.closeOnRecordingFailed = true;
-        room.config.closeOnRecordingTimeoutSecs = 30;
+        //room.config.isRecorded = true;
+        //room.config.closeOnRecordingFailed = true;
+        //room.config.closeOnRecordingTimeoutSecs = 30;
         //
 
         if (room.config.isRecorded) {
@@ -555,10 +588,14 @@ export class RoomServer {
                 if (!result) {
                     consoleError("recRoomProduceStream call failed.");
                     //close room if our query failed
-                    room.close("failed to communicate with recordings server.");
+                    if (room.config.closeOnRecordingFailed) {
+                        room.close("failed to communicate with recordings server.");
+                    }
                 } else if (result.error) {
                     consoleError("recRoomProduceStream call failed, error: ", result.error);
-                    room.close("error received from recording server.");
+                    if (room.config.closeOnRecordingFailed) {
+                        room.close("error received from recording server.");
+                    }
                 }
             }
         };
@@ -575,10 +612,14 @@ export class RoomServer {
             let result = await recRoomNew(room.recServerURI, msg);
             if (!result) {
                 consoleError(`failed to contact recording instance ${room.recServerURI} `);
-                room.close("failed to contact recording instance");
+                if (room.config.closeOnRecordingFailed) {
+                    room.close("failed to contact recording instance");
+                }
                 return null;
             } else if (result.error) {
-                room.close("failed to init recording instance");
+                if (room.config.closeOnRecordingFailed) {
+                    room.close("failed to init recording instance");
+                }
                 consoleError("failed to init recording instance, error: ", result.error);
                 return null;
             }
@@ -760,7 +801,7 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeServer.createProducerTransportResult, "could not create producer transport");
         }
 
-        let createProducerTransportResult = new createProducerTransportResultMsg();
+        let createProducerTransportResult = new CreateProducerTransportResultMsg();
         createProducerTransportResult.data = {
             roomId: peer.room.id,
             iceServers: this.config.room_iceServers,
@@ -1016,20 +1057,19 @@ export class RoomServer {
         return await this.terminateRoomMsg(msg);
     }
 
-    async getRoomStatus(msg: RoomGetStatusMsg): Promise<RoomStatusMsg> {
-        console.log(`terminateRoomMsg() - ${msg.data.roomId}`);
+    async getRoomStatus(msg: RoomGetStatusMsg): Promise<RoomGetStatusResultMsg> {
+        console.log(`getRoomStatus() - ${msg.data.roomId}`);
 
         const room = this.rooms.get(msg.data.roomId);
         if (!room) {
-            consoleLog("terminateRoomMsg - room not found.");
-            let msgError = new RoomStatusMsg();
+            consoleLog("getRoomStatus - room not found.");
+            let msgError = new RoomGetStatusResultMsg();
             msgError.data.roomId = msg.data.roomId;
             msgError.data.error = "unable to find room.";
-
             return msgError;
         }
 
-        let msgResult = new RoomStatusMsg();
+        let msgResult = new RoomGetStatusResultMsg();
         msgResult.data.roomId = room.id;
         msgResult.data.numPeers = room.getPeers().length;
 
@@ -1124,6 +1164,7 @@ export class RoomServer {
         let joinRoomResult = new RoomJoinResultMsg();
         joinRoomResult.data.roomId = room.id;
         joinRoomResult.data.roomRtpCapabilities = room.roomRtpCapabilities;
+        //joinRoomResult.data.trackInfo = peer.tracksInfo;
 
         let otherRoomPeers = room.otherRoomPeers(peer.id);
         for (let otherPeer of otherRoomPeers) {
@@ -1138,7 +1179,6 @@ export class RoomServer {
                 trackInfo: otherPeer.peer.tracksInfo
             });
         }
-
 
         //alert the other participants in the room of the peer joining
         let producersInfo = [...roomPeer.producers.values()].map(producer => ({
@@ -1365,13 +1405,25 @@ export class RoomServer {
         if (!msgIn.data.tracksInfo) {
             consoleError(`no tracksInfo sent`);
             return new ErrorMsg(payloadTypeServer.error, "`no tracksInfo sent.");
+        }        
+
+        let changed = false;
+        //process toggle only if not muted
+        if (!peer.tracksInfo.isAudioMuted) {
+            consoleWarn(`onPeerTracksInfo ${peer.displayName} isAudioEnabled:${peer.tracksInfo.isAudioEnabled}, isVideoEnabled:${peer.tracksInfo.isVideoEnabled}`);
+            peer.tracksInfo.isAudioEnabled = !!(msgIn.data.tracksInfo.isAudioEnabled);
+            changed = true;
         }
 
-        consoleWarn(`onPeerTracksInfo ${peer.displayName} isAudioEnabled:${peer.tracksInfo.isAudioEnabled}, isVideoEnabled:${peer.tracksInfo.isVideoEnabled}`);
-        peer.tracksInfo.isAudioEnabled = !!(msgIn.data.tracksInfo.isAudioEnabled);
-        peer.tracksInfo.isVideoEnabled = !!(msgIn.data.tracksInfo.isVideoEnabled);
+        if (!peer.tracksInfo.isVideoMuted) {
+            peer.tracksInfo.isVideoEnabled = !!(msgIn.data.tracksInfo.isVideoEnabled);
+            changed = true;
+        }
 
-        //we don't need to pause/resume the producer on the server side, the client will enable/disable the track
+        if(!changed) {
+            //change made
+            return;
+        }
 
         //send to all peers in the room
         if (peer.room) {
@@ -1416,13 +1468,18 @@ export class RoomServer {
             return;
         }
 
+        let isVideoMuted = msgIn.data.tracksInfo.isVideoMuted;
+        let isAudioMuted = msgIn.data.tracksInfo.isAudioMuted;
+
         consoleLog(`current tracksInfo${remotePeer.displayName} isAudioEnabled: ${remotePeer.tracksInfo.isAudioEnabled} isVideoEnabled: ${remotePeer.tracksInfo.isVideoEnabled}`);
-        remotePeer.tracksInfo.isAudioEnabled = !!msgIn.data.tracksInfo.isAudioEnabled;
-        remotePeer.tracksInfo.isVideoEnabled = !!msgIn.data.tracksInfo.isVideoEnabled;
+        remotePeer.tracksInfo.isAudioEnabled = !isAudioMuted;
+        remotePeer.tracksInfo.isVideoEnabled = !isVideoMuted;
+        remotePeer.tracksInfo.isAudioMuted = isAudioMuted;
+        remotePeer.tracksInfo.isVideoMuted = isVideoMuted;
         consoleLog(`after tracksInfo${remotePeer.displayName} isAudioEnabled: ${remotePeer.tracksInfo.isAudioEnabled} isVideoEnabled: ${remotePeer.tracksInfo.isVideoEnabled}`);
 
-
-        await peer.room.muteProducer(remotePeer);
+        await peer.room.toggleProducer(remotePeer, "video", !isVideoMuted);
+        await peer.room.toggleProducer(remotePeer, "audio", !isAudioMuted);
 
         //send the track state to all peers so they can update their UI
         let msg = new PeerTracksInfoMsg();
@@ -1438,7 +1495,7 @@ export class RoomServer {
     }
 
     private async onRoomPong(peerId: string, msgIn: RoomPongMsg): Promise<IMsg> {
-        consoleWarn("onRoomPong");
+        //consoleWarn("onRoomPong");
 
         let peer = this.peers.get(peerId);
         if (!peer) {
@@ -1446,6 +1503,29 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeServer.error, "peer not found.");
         }
 
+        //the peer must be in room
+        if (!peer.room) {
+            consoleError("peer not in room.");
+            return new ErrorMsg(payloadTypeServer.error, "peer not in room.");
+        }
+
+        if (peer.room.id !== msgIn.data.roomId) {
+            consoleError("invalid roomid");
+            return new ErrorMsg(payloadTypeServer.error, "invalid room.");
+        }
+
+        peer.room.pong(peer);
+
+    }
+
+    private async onRoomRecordingStart(peerId: string, msgIn: RoomRecordingStart): Promise<IMsg> {
+        consoleWarn("onRoomRecordingStart");
+
+        let peer = this.peers.get(peerId);
+        if (!peer) {
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeServer.error, "peer not found.");
+        }
 
         //the peer must be in room
         if (!peer.room) {
@@ -1453,13 +1533,116 @@ export class RoomServer {
             return;
         }
 
-        if (peer.room.id !== msgIn.data.roomId) {
-            consoleError("invalid roomid");
+        if (peer.role != AuthUserRoles.guest) {
+            consoleError("guests cannot start recording.");
             return;
         }
 
-        peer.room.pong(peer);
+        if (!peer.room.config.isRecordable) {
+            consoleError("room is not recordable");
+            return;
+        }
 
+        let room = peer.room;
+        let msg: RecRoomNewMsg = {
+            type: RecMsgTypes.recRoomNew,
+            data: {
+                roomCallBackURI: this.config.room_rec_callback_uri,
+                roomId: room.id,
+                roomTrackingId: room.trackingId
+            }
+        }
+
+        if (!room.recServerURI) {
+            room.recServerURI = roomUtils.getNextRecURI(this.config);
+        }
+
+        //alert the recording server of new room 
+        let result = await recRoomNew(room.recServerURI, msg);
+        if (!result) {
+            consoleError(`failed to contact recording instance ${room.recServerURI} `);
+            if (room.config.closeOnRecordingFailed) {
+                room.close("failed to contact recording instance");
+            }
+            return null;
+        } else if (result.error) {
+            room.close("failed to init recording instance");
+            if (room.config.closeOnRecordingFailed) {
+                consoleError("failed to init recording instance, error: ", result.error);
+            }
+            return null;
+        }
+
+        //alert the room of all producers
+        for (let roomPeer of room.getRoomPeers()) {
+            for (let producer of roomPeer.producers.values()) {
+
+                //create recording instance for peer in room
+                room.createRecPeer(roomPeer.peer, producer);
+
+                let msg: RecRoomProduceStreamMsg = {
+                    type: RecMsgTypes.recRoomProduceStream,
+                    data: {
+                        roomId: room.id,
+                        roomTrackingId: room.trackingId,
+                        joinInstanceId: roomPeer.joinInstance,
+                        kind: producer.kind,
+                        peerId: peer.id,
+                        peerTrackingId: peer.trackingId,
+                        producerId: producer.id,
+                        codec: producer.consumableRtpParameters.codecs[0]
+                    }
+                }
+                let result = await recRoomProduceStream(room.recServerURI, msg);
+                if (!result) {
+                    consoleError("recRoomProduceStream call failed.");
+                    //close room if our query failed
+                    if (room.config.closeOnRecordingFailed) {
+                        room.close("failed to communicate with recordings server.");
+                    }
+                } else if (result.error) {
+                    consoleError("recRoomProduceStream call failed, error: ", result.error);
+                    if (room.config.closeOnRecordingFailed) {
+                        room.close("error received from recording server.");
+                    }
+                }
+            }
+        }
+
+        return new OkMsg(payloadTypeServer.roomRecordingStartResult, { roomId: msgIn.data.roomId });
+    }
+
+    private async onRoomRecordingStop(peerId: string, msgIn: RoomRecordingStop): Promise<IMsg> {
+        consoleWarn("onRoomRecordingStop");
+
+        let peer = this.peers.get(peerId);
+        if (!peer) {
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeServer.error, "peer not found.");
+        }
+
+        //the peer must be in room
+        if (!peer.room) {
+            consoleError("peer not in room.");
+            return;
+        }
+
+        if (peer.role != AuthUserRoles.guest) {
+            consoleError("guests cannot start recording.");
+            return;
+        }
+
+        if (!peer.room.config.isRecorded) {
+            consoleError(`room is not recorded.`);
+            return;
+        }
+
+        let room = peer.room;
+        for (let roomPeer of room.getRoomPeers()) {
+            room.destroyRecPeer(roomPeer.peer);
+        }
+
+        return new OkMsg(payloadTypeServer.roomRecordingStartResult, { roomId: msgIn.data.roomId });
     }
 
     // async printStats() {

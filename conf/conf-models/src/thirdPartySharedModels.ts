@@ -7,6 +7,7 @@ export enum apiMsgTypes {
     getScheduledConferenceResult = "getScheduledConferenceResult",
     getScheduledConferences = "getScheduledConferences",
     getScheduledConferencesResult = "getScheduledConferencesResult",
+    getParticipantsOnline = "getParticipantsOnline",
 }
 
 export class apiLoginPost {
@@ -69,6 +70,14 @@ export class apiScheduledConference {
     name: string;
     description: string;
     config: ConferenceConfig 
+}
+
+export class apiGetParticipantsOnlinePost {
+    type = apiMsgTypes.getParticipantsOnline;
+    data: {
+        username?: string
+        clientData?: {};
+    } = {}
 }
 
 

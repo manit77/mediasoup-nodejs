@@ -1,7 +1,7 @@
 import express, { NextFunction, Request, Response } from 'express';
-import { apiGetScheduledConferencePost, apiGetScheduledConferenceResult, ConferenceConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesMsg, GetConferencesScheduledResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantRole, WebRoutes } from '@conf/conf-models';
+import { apiGetParticipantsOnlinePost, apiGetScheduledConferencePost, apiGetScheduledConferenceResult, ConferenceConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesMsg, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantInfo, ParticipantRole, WebRoutes } from '@conf/conf-models';
 import { ConferenceServer } from './conferenceServer.js';
-import { IAuthPayload } from '../models/models.js';
+import { IAuthPayload, Participant } from '../models/models.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
 import { AuthUserRoles, RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/rooms-models';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
@@ -282,7 +282,7 @@ export class ConferenceAPI {
                     if (resultMsg.data.conferences.length > 0) {
                         this.cache.set(cacheKey, resultMsg.data.conferences, this.config.conf_data_cache_timeout_secs);
                     }
-                    
+
                 } else {
                     //get from demo data
                     //console.log(`${WebRoutes.getConferencesScheduled}`);
@@ -387,6 +387,29 @@ export class ConferenceAPI {
 
             let msg = req.body as RoomPeerCallBackMsg;
             console.log(`peerId: ${msg.data.peerId} peerTrackingId: ${msg.data.peerTrackingId} roomId: ${msg.data.roomId} roomTrackingId: ${msg.data.roomTrackingId}`);
+        });
+
+        console.log(`route: ${WebRoutes.getParticipantsOnline}`);
+        this.app.post(WebRoutes.getParticipantsOnline, this.tokenCheck as any, async (req, res) => {
+            //console.log(`${WebRoutes.getParticipantsOnline}`);
+            let authPayload = req["IAuthPayload"] as IAuthPayload;
+            //let msg = req.body as apiGetParticipantsOnlinePost;
+            let participantGroup = parseString(authPayload.participantGroup);
+            let username = parseString(authPayload.username);
+
+            let resultMsg = new GetParticipantsResultMsg();
+
+            let participants = this.confServer.getParticipants(participantGroup);
+            resultMsg.data.participants = [];
+            for (let p of participants.filter(p=> p.username !== username)) {
+                resultMsg.data.participants.push({
+                    displayName: p.displayName,
+                    participantId: p.participantId,
+                    status: p.conference ? "busy" : "online"
+                });
+            }
+           
+            res.send(resultMsg);
         });
 
     }

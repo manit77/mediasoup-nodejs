@@ -1,5 +1,5 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
-import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, GetUserMediaConfig, InviteMsg, JoinConferenceParams, ParticipantInfo, RegisterResultMsg } from '@conf/conf-models';
+import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, GetUserMediaConfig, InviteMsg, JoinConferenceParams, ParticipantInfo } from '@conf/conf-models';
 import { Conference, Device, getBrowserDisplayMedia, getBrowserUserMedia, Participant, SelectedDevices } from '@conf/conf-client';
 import { useUI } from '../hooks/useUI';
 import { useAPI } from '../hooks/useAPI';
@@ -7,8 +7,6 @@ import { useConfig } from '../hooks/useConfig';
 import { IMsg } from '@rooms/rooms-models';
 import { EventParticpantNewTrackMsg, EventTypes } from '@conf/conf-client';
 import { getConferenceClient } from '../services/ConferenceService';
-import { debounce } from 'lodash';
-import { unstable_batchedUpdates } from 'react-dom';
 
 export const conferenceClient = getConferenceClient();
 
@@ -21,7 +19,6 @@ interface CallContextType {
     localParticipant: Participant;
     //isLocalStreamUpdated: boolean;
     presenter: Participant;
-
 
     isWaiting: boolean;
     isCallActive: boolean;
@@ -41,7 +38,6 @@ interface CallContextType {
     selectedDevices: SelectedDevices;
     setSelectedDevices: React.Dispatch<React.SetStateAction<SelectedDevices>>;
 
-
     getLocalMedia: (options: GetUserMediaConfig) => Promise<MediaStreamTrack[]>;
     getMediaConstraints: (getAudio: boolean, getVideo: boolean) => MediaStreamConstraints;
     getConferenceRoomsOnline: () => void;
@@ -60,7 +56,7 @@ interface CallContextType {
     terminateCurrentConference: () => void;
 
     broadCastTrackInfo: () => void;
-    muteParticipantTrack: (participantId: string, audioEnabled: boolean, videoEnabled: boolean) => void;
+    muteParticipantTrack: (participantId: string, audioMuted: boolean, videoMuted: boolean) => void;
 
     startPresentingCamera: () => Promise<boolean>;
     stopPresentingCamera: () => Promise<void>;
@@ -71,7 +67,6 @@ interface CallContextType {
     switchDevicesOnCall: () => Promise<void>;//, isAudioEnabled: boolean, isVideoEnabled: boolean) => Promise<void>;
 
     disconnect: () => void;
-
 }
 
 export const CallContext = createContext<CallContextType>(undefined);
@@ -457,6 +452,17 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                     break;
                 }
+                case EventTypes.inviteCancelled:{
+                    console.log(`CallContext: call was cancelled.`);
+
+                    ui.showToast("call was cancelled.", "warning");
+                    setIsCallActive(false);
+                    setInviteInfoSend(null);
+                    setInviteInfoReceived(null);
+                    setIsScreenSharing(false);
+
+                    break;
+                }
                 case EventTypes.rejectReceived: {
                     console.log(`CallContext: call was rejected.`);
 
@@ -629,8 +635,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCallParticipants(new Map());
         setIsScreenSharing(false);
         setPresenter(null);
-
-
+        
     }, []);
 
     const terminateCurrentConference = useCallback(() => {
@@ -678,7 +683,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error('wait for registration failed.');
             return;
         }
-
 
         let joinArgs: JoinConferenceParams = {
             joinMediaConfig: joinMediaConfig,
@@ -734,15 +738,15 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     }, [api, ui]);
 
-    const muteParticipantTrack = useCallback((participantId: string, audioEnabled: boolean, videoEnabled: boolean) => {
-        console.log("CallContext: muteParticipantTrack");
+    const muteParticipantTrack = useCallback((participantId: string, audioMuted: boolean, videoMuted: boolean) => {
+        console.log("CallContext: toggleParticipantTrack");
 
         let participant = conferenceClient.conference.participants.get(participantId);
         if (!participant) {
             console.error(`participant not found ${participantId}`);
             return;
         }
-        conferenceClient.muteParticipantTrack(participantId, audioEnabled, videoEnabled);
+        conferenceClient.muteParticipantTrack(participantId, audioMuted, videoMuted);
 
     }, []);
 
@@ -960,8 +964,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const conferencePong = useCallback(async () => {
         console.log(`conferencePong`, conference);
-        conferenceClient.sendPong(conferenceClient.conference.conferenceId);
-    }, [])
+        conferenceClient.sendConferencePong(conferenceClient.conference.conferenceId);
+    }, []);
 
 
     useEffect(() => {

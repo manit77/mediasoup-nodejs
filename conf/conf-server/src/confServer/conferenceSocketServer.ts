@@ -144,7 +144,7 @@ export class ConferenceSocketServer {
                 const conn = this.connections.get(ws);
                 if (conn) {
                     conn.lastPong = Date.now();
-                    consoleWarn(LOG, `Pong received for ${conn.username || 'unregistered'}`, Date.now());
+                    consoleWarn(LOG, `pong received for ${conn.username || 'unregistered'}`, Date.now());
                 }
             });
 

@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { GetUserMediaConfig, ParticipantInfo } from '@conf/conf-models';
 import { ArrowRepeat, CameraVideoFill, Circle, CircleFill, MicFill, Phone } from 'react-bootstrap-icons';
 import ThrottledButton from './ThrottledButton';
 import { useUI } from '../../hooks/useUI';
+import { useAPI } from '../../hooks/useAPI';
 
 const ParticipantsOnlinePane: React.FC = () => {
     const ui = useUI()
@@ -12,12 +13,14 @@ const ParticipantsOnlinePane: React.FC = () => {
         localParticipant,
         isAuthenticated,
         isConnected,
-        participantsOnline,
-        getParticipantsOnline,
         sendInvite,
         isCallActive,
         inviteInfoSend,
-        getLocalMedia } = useCall();
+        getLocalMedia, participantsOnline } = useCall();
+
+    const api = useAPI();
+
+    const [participantsToDisplay, setParticipantsToDisplay] = useState<ParticipantInfo[]>([]);
 
     // Handle initial loading state
     useEffect(() => {
@@ -25,10 +28,17 @@ const ParticipantsOnlinePane: React.FC = () => {
 
     }, [isAuthenticated, isConnected]);
 
-    // Optional: Function to manually refresh contacts
+    useEffect(() => {
+        setParticipantsToDisplay(api.participantsOnline);
+    }, [api.participantsOnline]);
+
+     useEffect(() => {
+        setParticipantsToDisplay(participantsOnline);
+    }, [participantsOnline]);
+
     const handleRefreshParticipants = async () => {
         try {
-            getParticipantsOnline();
+            setParticipantsToDisplay(await api.fetchParticipantsOnline());
         } catch (error) {
             console.error('Failed to refresh contacts:', error);
         }
@@ -61,12 +71,12 @@ const ParticipantsOnlinePane: React.FC = () => {
                 </Button>
             </div>
             {!isConnected || !isAuthenticated ? (
-                <p>Loading contacts...</p>
-            ) : participantsOnline.length === 0 ? (
+                <p>Loading users...</p>
+            ) : participantsToDisplay.length === 0 ? (
                 <p>No contacts found.</p>
             ) : (
                 <ListGroup>
-                    {participantsOnline.map((participantInfo) => (
+                    {participantsToDisplay.map((participantInfo) => (
                         <ListGroup.Item
                             key={participantInfo.participantId}
                             action

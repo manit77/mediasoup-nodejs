@@ -1,3 +1,4 @@
+
 export enum WebRoutes {
     login = "/login",
     loginGuest = "/loginGuest",
@@ -6,7 +7,8 @@ export enum WebRoutes {
     getConferenceScheduled = "/getConferenceScheduled",
     onRoomClosed = "/onRoomClosed",
     onPeerJoined = "/onPeerJoined",
-    onPeerLeft = "/onPeerLeft"
+    onPeerLeft = "/onPeerLeft",
+    getParticipantsOnline = "/getParticipantsOnline",
 }
 
 export type conferenceType = "p2p" | "room";
@@ -53,6 +55,7 @@ export class ConferenceConfig {
     guestsAllowCamera: boolean = true;
     guestsAllowScreenShare: boolean = true;
     guestsRequireConferenceCode: boolean = false;
+    isRecordable = false;
     isRecorded = false;
     isPrivate = false;
     leaderTrackingId : string = "";
@@ -72,18 +75,9 @@ export class ConferenceRoomJoinConfig {
     cameraEnabled: boolean;
 }
 
-export class GetUserMediaConfig {
-    /**
-     * muted or unumuted
-     */
-    isAudioEnabled: boolean = false;
-    /**
-     * muted or unumuted
-     */
+export class GetUserMediaConfig {  
+    isAudioEnabled: boolean = false;   
     isVideoEnabled: boolean = false;
-
-    // getVideo: boolean = false;
-    // getAudio: boolean = false;
     constraints: MediaStreamConstraints;
 }
 
