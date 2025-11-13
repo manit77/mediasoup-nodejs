@@ -68,7 +68,7 @@ export class RoomAPIServer {
                 return res.status(401).json({ error: 'Missing or invalid authToken' });
             }
 
-            let payload = roomUtils.decodeAuthUserToken(this.config.room_secretKey, authtoken);
+            let payload = roomUtils.decodeAuthUserToken(this.config.room_secret_key, authtoken);
             if (!payload) {
                 console.error(DSTR, "invalid authToken.");
                 return res.status(401).json({ error: 'invalid authToken.' });

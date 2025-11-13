@@ -25,7 +25,7 @@ export class ThirdPartyAPI {
         postData.data.username = username;
         postData.data.password = password;        
         postData.data.clientData = clientData;
-        return await this.post(this.config.conf_data_urls.loginURL, postData) as apiLoginResult;
+        return await this.post(this.config.conf_data_urls.login_url, postData) as apiLoginResult;
     }
 
     async loginGuest(displayName: string, clientData: {}) {
@@ -34,7 +34,7 @@ export class ThirdPartyAPI {
         let postData = new apiLoginPost();
         postData.data.username = displayName;        
         postData.data.clientData = clientData;
-        return await this.post(this.config.conf_data_urls.loginGuestURL, postData) as apiLoginResult;
+        return await this.post(this.config.conf_data_urls.login_guest_url, postData) as apiLoginResult;
     }
 
     async getScheduledConferences(clientData: any) {
@@ -42,7 +42,7 @@ export class ThirdPartyAPI {
 
         let postData = new apiGetScheduledConferencesPost();
         postData.data.clientData = clientData;
-        return await this.post(this.config.conf_data_urls.getScheduledConferencesURL, postData) as apiGetScheduledConferencesResult;
+        return await this.post(this.config.conf_data_urls.get_scheduled_conferences_url, postData) as apiGetScheduledConferencesResult;
     }
 
     async getScheduledConference(id: string, clientData: any) {
@@ -51,7 +51,7 @@ export class ThirdPartyAPI {
         let postData = new apiGetScheduledConferencePost();
         postData.data.id = id;
         postData.data.clientData = clientData;
-        return await this.post(this.config.conf_data_urls.getScheduledConferenceURL, postData) as apiGetScheduledConferenceResult;
+        return await this.post(this.config.conf_data_urls.get_scheduled_conference_url, postData) as apiGetScheduledConferenceResult;
     }
 
     private async post(url: string, dataObj?: any): Promise<any> {

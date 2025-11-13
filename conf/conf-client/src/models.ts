@@ -6,7 +6,7 @@ export class ConferenceClientConfig {
     debug_auto_answer : true;
     conf_ws_url = 'wss://localhost:3001';
     socket_enable_logs = false;
-    socket_autoReconnect = true;
+    socket_auto_reconnect = true;
     socket_reconnect_secs = 5;
     conf_server_url = "https://localhost:3100";
     conf_call_connect_timeout_secs = 30;

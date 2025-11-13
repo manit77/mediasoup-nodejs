@@ -49,7 +49,7 @@ describe("roomServerTests", () => {
         expect(room).toBeFalsy();
 
         //generate a room tokn
-        let [payload, roomtoken] = generateRoomToken(config.room_secretKey, 1);
+        let [payload, roomtoken] = generateRoomToken(config.room_secret_key, 1);
         expect(payload).toBeTruthy();
 
         //should not return a room, we need the roomid

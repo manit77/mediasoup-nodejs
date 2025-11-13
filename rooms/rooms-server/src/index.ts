@@ -61,7 +61,7 @@ import { RoomServerConfig } from './roomServer/models.js';
         socketServerHttp.init(new WebSocketServer({ server: httpServer }));
       });
     } else {
-      consoleError("no HTTP ports configured");
+      consoleError("no room_server_https_port or room_server_http_port configured");
     }
     
     let roomAPIServer = new RoomAPIServer(config, httpServerSecurityMap, roomServer);

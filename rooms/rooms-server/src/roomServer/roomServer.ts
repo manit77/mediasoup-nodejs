@@ -405,7 +405,7 @@ export class RoomServer {
     private createPeer(authToken: string, username: string, trackingId: string, displayName: string): Peer {
         console.log(`createPeer() - trackingId: ${trackingId}, displayName: ${displayName}`);
 
-        let payload: AuthUserTokenPayload = roomUtils.decodeAuthUserToken(this.config.room_secretKey, authToken);
+        let payload: AuthUserTokenPayload = roomUtils.decodeAuthUserToken(this.config.room_secret_key, authToken);
 
         if (!payload) {
             consoleError("failed to validate validateAuthUserToken.")
@@ -453,7 +453,7 @@ export class RoomServer {
             return null;
         }
 
-        let payload = roomUtils.validateRoomToken(this.config.room_secretKey, args.roomToken);
+        let payload = roomUtils.validateRoomToken(this.config.room_secret_key, args.roomToken);
         if (!payload) {
             consoleError("invalid token while creating room.");
             return null;
@@ -741,7 +741,7 @@ export class RoomServer {
             consoleWarn(`peer already exists by trackingId ${peer.trackingId}, ${peer.displayName}, ${peer.id}`);
 
             //verify the auth token
-            let payload: AuthUserTokenPayload = roomUtils.decodeAuthUserToken(this.config.room_secretKey, msgIn.data.authToken);
+            let payload: AuthUserTokenPayload = roomUtils.decodeAuthUserToken(this.config.room_secret_key, msgIn.data.authToken);
 
             if (!payload) {
                 consoleError("failed to validate validateAuthUserToken.")
@@ -804,8 +804,8 @@ export class RoomServer {
         let createProducerTransportResult = new CreateProducerTransportResultMsg();
         createProducerTransportResult.data = {
             roomId: peer.room.id,
-            iceServers: this.config.room_iceServers,
-            iceTransportPolicy: this.config.room_iceTransportPolicy,
+            iceServers: this.config.room_ice_servers,
+            iceTransportPolicy: this.config.room_ice_transport_policy,
             transportId: producerTransport.id,
             iceParameters: producerTransport.iceParameters,
             iceCandidates: producerTransport.iceCandidates,
@@ -840,8 +840,8 @@ export class RoomServer {
         let consumerTransportCreated = new CreateConsumerTransportResultMsg();
         consumerTransportCreated.data = {
             roomId: peer.room.id,
-            iceServers: this.config.room_iceServers,
-            iceTransportPolicy: this.config.room_iceTransportPolicy,
+            iceServers: this.config.room_ice_servers,
+            iceTransportPolicy: this.config.room_ice_transport_policy,
             transportId: consumerTransport.id,
             iceParameters: consumerTransport.iceParameters,
             iceCandidates: consumerTransport.iceCandidates,
@@ -932,7 +932,7 @@ export class RoomServer {
         console.log("onRoomNewTokenMsg");
 
         let msg = new RoomNewTokenResultMsg();
-        let [payloadRoom, roomToken] = roomUtils.generateRoomToken(this.config.room_secretKey, msgIn.data.expiresInMin);
+        let [payloadRoom, roomToken] = roomUtils.generateRoomToken(this.config.room_secret_key, msgIn.data.expiresInMin);
 
         if (roomToken) {
             msg.data.roomId = payloadRoom.roomId;
@@ -953,7 +953,7 @@ export class RoomServer {
         }
 
         let msg = new AuthUserNewTokenResultMsg();
-        let authToken = roomUtils.generateAuthUserToken(this.config.room_secretKey, msgIn.data.username, msgIn.data.role, msgIn.data.expiresInMin);
+        let authToken = roomUtils.generateAuthUserToken(this.config.room_secret_key, msgIn.data.username, msgIn.data.role, msgIn.data.expiresInMin);
 
         if (authToken) {
             msg.data.authToken = authToken;

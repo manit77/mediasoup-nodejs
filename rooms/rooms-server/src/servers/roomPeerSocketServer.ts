@@ -198,7 +198,7 @@ export class RoomPeerSocketServer {
             return errMsg;
         }
 
-        let payload = roomUtils.decodeAuthUserToken(this.config.room_secretKey, authToken);
+        let payload = roomUtils.decodeAuthUserToken(this.config.room_secret_key, authToken);
         if (!payload) {
             consoleError(LOG, "invalid authToken.");
             let errMsg = new UnauthorizedMsg();

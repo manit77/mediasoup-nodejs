@@ -780,7 +780,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         if (msgIn.data.conferenceExternalId) {
             //tracking id was passed fetch config from external datasource
-            if (this.config.conf_data_urls.getScheduledConferenceURL) {
+            if (this.config.conf_data_urls.get_scheduled_conference_url) {
                 let resultMsg = await this.thirdParty.getScheduledConference(msgIn.data.conferenceExternalId, participant.clientData);
                 if (!resultMsg) {
                     consoleError(`could not get conference ${msgIn.data.conferenceExternalId} with clientData:`, participant.clientData);

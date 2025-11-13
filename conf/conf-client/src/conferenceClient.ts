@@ -152,7 +152,7 @@ export class ConferenceClient {
             this.onNetworkChange();
         });
 
-        this.socket.connect(this.config.conf_ws_url, this.config.socket_autoReconnect ?? true, this.config.socket_reconnect_secs ?? 5);
+        this.socket.connect(this.config.conf_ws_url, this.config.socket_auto_reconnect ?? true, this.config.socket_reconnect_secs ?? 5);
 
     }
 

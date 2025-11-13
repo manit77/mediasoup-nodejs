@@ -14,18 +14,18 @@ export interface RoomServerConfig {
 
     room_rtc_start_port: number,
     room_rtc_end_port: number,
-    room_recordingsDir: string,
-    room_secretKey: string,
-    room_newRoomTokenExpiresInMinutes: number,
-    room_maxRoomDurationMinutes: number,
-    room_timeOutNoParticipantsSecs: number,
-    room_peer_timeOutInactivitySecs: number,
+    room_recordings_dir: string,
+    room_secret_key: string,
+    room_new_room_token_expire_min: number,
+    room_max_room_dur_min: number,
+    room_timeout_no_participants_secs: number,
+    room_peer_timeout_inactivity_secs: number,
 
-    room_iceServers :[];
+    room_ice_servers :[];
     room_rec_enabled: boolean;
     room_rec_callback_uri : string;    
     rec_servers_uris: [];
-    room_iceTransportPolicy: "all" | "relay"
+    room_ice_transport_policy: "all" | "relay"
     
     cert_file_path: string,
     cert_key_path: string,

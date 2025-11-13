@@ -87,10 +87,10 @@ export class ConferenceAPI {
                 return;
             }
 
-            if (this.config.conf_data_urls.loginGuestURL) {
+            if (this.config.conf_data_urls.login_guest_url) {
                 var result = await this.thirdPartyAPI.loginGuest(msg.data.displayName, msg.data.clientData);
                 if (result.data.error) {
-                    console.error(`loginGuestURL error ${this.config.conf_data_urls.loginGuestURL}`, result.data.error);
+                    console.error(`login_guest_url error ${this.config.conf_data_urls.login_guest_url}`, result.data.error);
                     let errorMsg = new LoginResultMsg();
                     errorMsg.data.error = "authentication failed";
 
@@ -145,11 +145,11 @@ export class ConferenceAPI {
 
             if (msg.data.username && msg.data.password) {
                 //use a third party service to send a username and password
-                if (this.config.conf_data_urls.loginURL) {
+                if (this.config.conf_data_urls.login_url) {
                     //mock: post the username and password to external URL
                     var result = await this.thirdPartyAPI.login(msg.data.username, msg.data.password, msg.data.clientData);
                     if (result.data.error) {
-                        console.error(`loginURL error ${this.config.conf_data_urls.loginURL}`, result.data.error);
+                        console.error(`login_url error ${this.config.conf_data_urls.login_url}`, result.data.error);
                     } else {
                         console.log(`user authenticated.`, result);
                         isAuthenticated = true;
@@ -260,7 +260,7 @@ export class ConferenceAPI {
                 resultMsg.data.conferences = cachedResults;
                 console.log(`${WebRoutes.getConferencesScheduled} from cache ${cacheKey}`);
             } else {
-                if (this.config.conf_data_urls.getScheduledConferencesURL) {
+                if (this.config.conf_data_urls.get_scheduled_conferences_url) {
                     //make a post to the url
 
                     let result = await this.thirdPartyAPI.getScheduledConferences(msg.data.clientData) as apiGetScheduledConferencesResult;
@@ -318,7 +318,7 @@ export class ConferenceAPI {
             let resultMsg = new GetConferenceScheduledResultMsg();
 
             let msg = req.body as apiGetScheduledConferencePost;
-            if (this.config.conf_data_urls.getScheduledConferencesURL) {
+            if (this.config.conf_data_urls.get_scheduled_conferences_url) {
                 //make a post to the url
 
                 let result = await this.thirdPartyAPI.getScheduledConference(msg.data.id, msg.data.clientData) as apiGetScheduledConferenceResult;

@@ -11,26 +11,26 @@
   "conf_data_cache_timeout_secs": 360,
   "conf_data_access_token": "!!!**** access token for conf_data_urls",
   "conf_data_urls": {
-    "getScheduledConferencesURL": "",
-    "getScheduledConferenceURL": "",
-    "loginURL": "",
-    "loginGuestURL": ""
+    "get_scheduled_conferences_url": "",
+    "get_scheduled_conference_url": "",
+    "login_url": "",
+    "login_guest_url": ""
   },
   "room_access_token": "!!!**** use the rooms/src/utils/cli.ts to generate an access token",
   "room_servers_uris": [
     "127.0.0.1"
   ],
-  "room_secretKey": "!!!**** your own password goes here",
+  "room_secret_key": "!!!**** your own password goes here",
   "room_public_ip": "!!!**** if behind a NAT",
   "room_server_ip": "127.0.0.1",
   "room_server_port": 8001,
   "room_rtc_start_port": 10000,
   "room_rtc_end_port": 11000,
-  "room_recordingsDir": "/var/www/recordings",
-  "room_newRoomTokenExpiresInMinutes": 720,
-  "room_maxRoomDurationMinutes": 720,
-  "room_timeOutNoParticipantsSecs": 300,
-  "room_peer_timeOutInactivitySecs": 300,
+  "room_recordings_dir": "/var/www/recordings",
+  "room_new_room_token_expire_min": 720,
+  "room_max_room_dur_min": 720,
+  "room_timeout_no_participants_secs": 300,
+  "room_peer_timeout_inactivity_secs": 300,
   "cert_file_path": "../../certs/localhost-fullchain.pem",
   "cert_key_path": "../../certs/localhost-key.pem"
 }

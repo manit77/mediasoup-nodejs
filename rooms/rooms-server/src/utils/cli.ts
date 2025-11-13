@@ -12,10 +12,10 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
-const secretKey = config.room_secretKey;
+const secretKey = config.room_secret_key;
 
 if (!secretKey) {    
-    console.error("no env variable set for room_secretKey: export room_secretKey=your-secure-secret-key");
+    console.error("no env variable set for room_secret_key: export room_secret_key=your-secure-secret-key");
 }
 
 function generateToken(type: string, role: AuthUserRoles, username: string): string {

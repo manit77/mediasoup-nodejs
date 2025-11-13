@@ -51,7 +51,7 @@ export function decodeAuthUserToken(secretKey: string, token: string): AuthUserT
     try {
 
         if (!secretKey) {
-            console.error("no secret key.");
+            console.error("decodeAuthUserToken: no secret key.");
             return null;
         }
 
