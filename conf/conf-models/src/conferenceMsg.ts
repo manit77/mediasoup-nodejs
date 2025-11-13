@@ -38,6 +38,10 @@ export enum CallMessageType {
 
     particpantNewTrack = "particpantNewTrack",
     presenterInfo = "presenterInfo",
+
+    joinLobby = "joinLobby",
+    leaveLobby = "leaveLobby",
+
 }
 
 export interface IMsg {
@@ -65,7 +69,7 @@ export class LoginMsg implements IMsg {
 
 export class LoginResultMsg implements IMsg {
     type = CallMessageType.loginResult
-    data: {        
+    data: {
         participantGroup?: string,
         participantGroupName?: string,
         username?: string,
@@ -80,7 +84,7 @@ export class LoginResultMsg implements IMsg {
 export class LoggedOffMsg implements IMsg {
     type = CallMessageType.loggedOff;
     data: {
-        reason?: string        
+        reason?: string
     } = {};
 }
 
@@ -91,7 +95,7 @@ export class RegisterMsg implements IMsg {
         displayName?: string,
         authToken?: string,
         participantId?: string,
-        participantGroup?:string,
+        participantGroup?: string,
         clientData?: {}
     } = {};
 }
@@ -113,7 +117,11 @@ export class GetParticipantsMsg implements IMsg {
 
 export class GetParticipantsResultMsg implements IMsg {
     type = CallMessageType.getParticipantsResult;
-    data: { participants: ParticipantInfo[] } = { participants: [] };
+    data: {
+        participants?: ParticipantInfo[],
+        error?: string,
+
+    } = { participants: [] };
 }
 
 export class GetConferencesMsg implements IMsg {
@@ -179,7 +187,7 @@ export class JoinConfResultMsg implements IMsg {
     data: {
         conferenceId?: string,
         leaderId?: string,
-        presenterId?: string,        
+        presenterId?: string,
         error?: string
     } = {};
 }
@@ -292,6 +300,24 @@ export class PresenterInfoMsg implements IMsg {
     data: {
         participantId?: string,
         status?: "on" | "off"
+    } = {};
+}
+
+export class JoinLobbyMsg implements IMsg {
+    type = CallMessageType.joinLobby;
+    data: {
+        participantId?: string,
+        conferenceExternalId?: string,
+        conferenceId?: string
+    } = {};
+}
+
+export class LeaveLobbyMsg implements IMsg {
+    type = CallMessageType.leaveLobby;
+    data: {
+        participantId?: string,
+        conferenceExternalId?: string,
+        conferenceId?: string
     } = {};
 }
 

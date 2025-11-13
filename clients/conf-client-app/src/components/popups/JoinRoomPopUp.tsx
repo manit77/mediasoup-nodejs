@@ -158,7 +158,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
     return (
         <Modal show={show} centered backdrop="static" keyboard={false} onHide={onClose}>
-            <Modal.Header closeButton> {/* Added closeButton for convenience */}
+            <Modal.Header closeButton>
                 <Modal.Title>
                     Join Conference Room
                 </Modal.Title>
@@ -167,7 +167,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                 <Form>
                     <Form.Group className="mb-3" controlId="roomName">
                         <Form.Label>Conference Room Name:</Form.Label> {conferenceScheduled.name}
-                    </Form.Group>
+                    </Form.Group>                    
                     {
                         requireConfCode ? (
                             <Form.Group className="mb-3" controlId="conferenceCode">

@@ -154,6 +154,7 @@ export class Conference {
 
     onClose = (conf: Conference, participants: Participant[], reason: string) => { };
     onInterval = (conf: Conference) => { };
+    onNewParticipant = (part: Participant) => { };
 
     constructor() {
         this.dateCreated = new Date();
@@ -255,6 +256,8 @@ export class Conference {
             }
         }
 
+        this.onNewParticipant(part);
+
         return true;
     }
 
@@ -294,7 +297,7 @@ export class Conference {
             clearTimeout(this.noUserTimeoutId);
             this.noUserTimeoutId = null;
         }
-        if(this.intervalIdTimeoutId) {
+        if (this.intervalIdTimeoutId) {
             clearTimeout(this.intervalIdTimeoutId);
             this.intervalIdTimeoutId = null;
         }
@@ -355,8 +358,8 @@ export class Conference {
 
     private startInterval() {
         consoleLog(`startInterval`);
-        
-        if(this.status == "closed") {
+
+        if (this.status == "closed") {
             return;
         }
 
@@ -367,7 +370,7 @@ export class Conference {
         this.intervalIdTimeoutId = setTimeout(() => {
             this.onInterval(this);
             this.startInterval();
-        //}, 60 * 1000);
+            //}, 60 * 1000);
         }, 10 * 1000);
 
     }

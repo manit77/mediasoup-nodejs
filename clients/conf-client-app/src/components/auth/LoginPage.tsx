@@ -17,7 +17,6 @@ const LoginPage: React.FC = () => {
     let config = getConferenceConfig();
 
     const [participantGroupName, setParticipantGroupName] = useState("");
-    const [participantGroup, setParticipantGroup] = useState("");
 
     useEffect(() => {
         console.log("getQueryParams:", getQueryParams());
@@ -30,8 +29,8 @@ const LoginPage: React.FC = () => {
             setParticipantGroupName(query.participantGroupName);
         }
 
-        if (clientData?.participantGroup) {
-            setParticipantGroup(clientData.participantGroup);
+        if (clientData?.participantGroupName) {
+            setParticipantGroupName(clientData.participantGroupName);
         }
 
 

@@ -9,7 +9,7 @@ import { ConferenceScheduledInfo, conferenceLayout } from '@conf/conf-models';
 
 const RoomsPane: React.FC = () => {
   const { isAuthenticated, isCallActive, inviteInfoSend, conferencesOnline } = useCall();
-  const { isAdmin, isUser, conferencesScheduled, fetchConferencesScheduled, startFetchConferencesScheduled } = useAPI();
+  const { isAdmin, isUser, conferencesScheduled, fetchConferencesScheduled } = useAPI();
   const ui = useUI();
 
   const [loading, setLoading] = useState(false);
@@ -20,15 +20,9 @@ const RoomsPane: React.FC = () => {
   // State to hold the conference selected by the user to join
   const [selectedConferenceToJoin, setSelectedConferenceToJoin] = useState<ConferenceScheduledInfo | null>(null);
 
-
-  useEffect(() => {
-    startFetchConferencesScheduled();
-  }, []);
-
   useEffect(() => {
     setMergedConferences(conferencesScheduled);
   }, [conferencesScheduled]);
-
 
   const handleRefreshRooms = useCallback(async () => {
     //console.log('handleRefreshRooms:');

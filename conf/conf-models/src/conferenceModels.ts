@@ -1,3 +1,4 @@
+
 export enum WebRoutes {
     login = "/login",
     loginGuest = "/loginGuest",
@@ -6,7 +7,8 @@ export enum WebRoutes {
     getConferenceScheduled = "/getConferenceScheduled",
     onRoomClosed = "/onRoomClosed",
     onPeerJoined = "/onPeerJoined",
-    onPeerLeft = "/onPeerLeft"
+    onPeerLeft = "/onPeerLeft",
+    getParticipantsOnline = "/getParticipantsOnline",
 }
 
 export type conferenceType = "p2p" | "room";
