@@ -1,0 +1,26 @@
+{
+    "room_access_token": "your_access_token",
+    "room_servers_uris": [
+        "https://127.0.0.1:8001"
+    ],
+    "conf_server_ip": "127.0.0.1",
+    "conf_server_port": 8000,
+    "conf_reconnection_timeout": 30000,
+    "conf_secret_key": "yoursecretkey",
+    "conf_max_peers_per_conf": 99,
+    "conf_token_expires_min": 60,
+    "conf_socket_timeout_secs": 60,
+    "conf_socket_pong_timeout_secs": 30,
+    "conf_socket_ping_interval_secs": 15,
+    "conf_require_participant_group": true,
+    "conf_data_cache_timeout_secs": 360,
+    "conf_data_access_token": "your_access_token",
+    "conf_data_urls": {
+        "get_scheduled_conferences_url": "https://your_web_service/Web/Conference/GetConferences.aspx",
+        "get_scheduled_conference_url": "https://your_web_service/Web/Conference/GetConferences.aspx",
+        "login_url": "https://your_web_service/Web/Conference/Login.aspx",
+        "login_guest_url": "https://your_web_service/Web/Conference/LoginDevice.aspx"
+    },
+    "cert_file_path": "../../certs/localhost-fullchain.pem",
+    "cert_key_path": "../../certs/localhost-key.pem"
+}

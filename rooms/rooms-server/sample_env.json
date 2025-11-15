@@ -1,0 +1,37 @@
+{
+  "room_public_ip": "",
+  "room_server_ip": "127.0.0.1",
+  "room_server_https_port": 8001,
+  "room_server_http_port": 8002,
+  "room_rtc_start_port": 10000,
+  "room_rtc_end_port": 11000,
+  "room_audio_codec": "opus",
+  "room_audio_clock_rate": 48000,
+  "room_audio_channels": 2,
+  "room_video_codec": "VP8",
+  "room_video_clock_rate": 90000,
+  "room_secret_key": "your_secret_key",
+  "room_recordings_dir": "/mnt/recordings",
+  "room_new_room_token_expires_min": 720,
+  "room_max_room_duration_min": 720,
+  "room_timeout_no_participants_sec": 300,
+  "room_peer_timeout_inactivity_sec": 300,
+  "room_access_token": "your_access_token",
+  "room_servers_uris": [
+    "https://127.0.0.1:8001"
+  ],
+  "room_ice_transport_policy": "all",
+  "room_ice_servers": [
+    {
+      "url": "stun:turn.google.us:3478",
+      "urls": "stun:turn.google.us:3478"
+    }   
+  ],
+  "room_rec_enabled": true,
+  "room_rec_callback_uri": "https://127.0.0.1:8001/recCallBack",
+  "rec_servers_uris": [
+    "https://127.0.0.1:8010"
+  ],
+  "cert_file_path": "../../certs/localhost-fullchain.pem",
+  "cert_key_path": "../../certs/localhost-key.pem"
+}
