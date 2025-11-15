@@ -1,9 +1,11 @@
+//copy this to the public folder, and remove this line
 {
     "title": "Video Conferencing Server",
-    "conf_ws_url": "wss://192.168.40.24:8000",
-    "conf_server_url": "https://192.168.40.24:8000",
+    "conf_ws_url": "wss://127.0.0.1:8000",
+    "conf_server_url": "https://127.0.0.1:8000",
     "conf_call_connect_timeout_secs": 30,
     "conf_socket_register_timeout_secs": 30,
+    "conf_require_participant_group": true,
     "socket_enable_logs": false,
     "socket_auto_reconnect": true,
     "socket_reconnect_secs": 5,

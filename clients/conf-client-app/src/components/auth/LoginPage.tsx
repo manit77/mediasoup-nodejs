@@ -16,6 +16,9 @@ const LoginPage: React.FC = () => {
     const navigate = useNavigate();
     let config = getConferenceConfig();
 
+    const [configError, setConfigError] = useState("");
+
+
     const [participantGroupName, setParticipantGroupName] = useState("");
 
     useEffect(() => {
@@ -25,14 +28,21 @@ const LoginPage: React.FC = () => {
         let clientData: any = api.getClientData();
         console.log("clientData:", clientData);
 
+        let pgName = "";
         if (query.participantGroupName) {
             setParticipantGroupName(query.participantGroupName);
+            pgName = query.participantGroupName;
         }
 
         if (clientData?.participantGroupName) {
             setParticipantGroupName(clientData.participantGroupName);
+            pgName = clientData.participantGroupName;
         }
 
+        if (config.conf_require_participant_group && !pgName) {
+            //error
+            setConfigError("Invalid login variables.");
+        }
 
     }, []);
 
@@ -64,36 +74,48 @@ const LoginPage: React.FC = () => {
         <Container className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
             <h1>{participantGroupName}</h1>
             <Card style={{ width: '400px', borderColor: '#ff9800' }}>
-                <Card.Body>
-                    <Card.Title className="card-title-bg-orange text-center mb-4">Login as Admin</Card.Title>
-                    {error && <Alert variant="danger">{error}</Alert>}
-                    <Form onSubmit={handleSubmitAdmin}>
-                        <Form.Group className="mb-3" controlId="username">
-                            <Form.Control
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                placeholder="Enter your username"
-                                required
-                                disabled={loading}
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-3" controlId="password">
-                            <Form.Control
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Enter your passsword"
-                                required
-                                disabled={loading}
-                            />
-                        </Form.Group>
-                        <Button variant="primary" type="submit" className="w-100" disabled={loading}>
-                            {loading ? 'Logging in...' : 'Login'}
-                        </Button>
-                        <small>version: {config.version}</small> <small>commit: {config.commit}</small>
-                    </Form>
-                </Card.Body>
+
+                {
+                    configError ? (
+                        <Card.Body>
+                            <Card.Title className="card-title-bg-orange text-center mb-4">{configError}</Card.Title>
+                        </Card.Body>
+                    )
+                        :
+                        (
+                            <Card.Body><Card.Title className="card-title-bg-orange text-center mb-4">Login as Admin</Card.Title>
+                                {error && <Alert variant="danger">{error}</Alert>}
+                                <Form onSubmit={handleSubmitAdmin}>
+                                    <Form.Group className="mb-3" controlId="username">
+                                        <Form.Control
+                                            type="text"
+                                            value={username}
+                                            onChange={(e) => setUsername(e.target.value)}
+                                            placeholder="Enter your username"
+                                            required
+                                            disabled={loading}
+                                        />
+                                    </Form.Group>
+                                    <Form.Group className="mb-3" controlId="password">
+                                        <Form.Control
+                                            type="password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            placeholder="Enter your passsword"
+                                            required
+                                            disabled={loading}
+                                        />
+                                    </Form.Group>
+                                    <Button variant="primary" type="submit" className="w-100" disabled={loading}>
+                                        {loading ? 'Logging in...' : 'Login'}
+                                    </Button>
+                                    <small>version: {config.version}</small> <small>commit: {config.commit}</small>
+                                </Form>
+                            </Card.Body>
+                        )
+                }
+
+
             </Card>
 
         </Container>
