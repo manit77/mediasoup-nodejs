@@ -13,7 +13,7 @@ export class ThirdPartyAPI {
         console.log('getUser', externalId);
 
         let postData = new apiLoginPost();
-        postData.data.externalId = externalId;    
+        postData.data.externalId = externalId;
         postData.data.clientData = clientData;
         return await this.post(this.config.conf_data_urls.getUser, postData) as apiLoginResult;
     }
@@ -23,7 +23,7 @@ export class ThirdPartyAPI {
 
         let postData = new apiLoginPost();
         postData.data.username = username;
-        postData.data.password = password;        
+        postData.data.password = password;
         postData.data.clientData = clientData;
         return await this.post(this.config.conf_data_urls.login_url, postData) as apiLoginResult;
     }
@@ -32,7 +32,7 @@ export class ThirdPartyAPI {
         console.log(`loginGuest`, clientData);
 
         let postData = new apiLoginPost();
-        postData.data.username = displayName;        
+        postData.data.username = displayName;
         postData.data.clientData = clientData;
         return await this.post(this.config.conf_data_urls.login_guest_url, postData) as apiLoginResult;
     }

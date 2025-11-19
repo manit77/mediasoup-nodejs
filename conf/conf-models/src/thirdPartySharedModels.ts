@@ -25,6 +25,7 @@ export class apiLoginResult {
     data: {
         participantGroup?: string;
         participantGroupName?: string;
+        conferenceGroup?: string;
         username?: string;
         displayName?: string;
         externalId?: string;
@@ -69,7 +70,7 @@ export class apiScheduledConference {
     id: string;
     name: string;
     description: string;
-    config: ConferenceConfig 
+    config: ConferenceConfig
 }
 
 export class apiGetParticipantsOnlinePost {

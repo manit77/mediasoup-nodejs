@@ -72,6 +72,7 @@ export class LoginResultMsg implements IMsg {
     data: {
         participantGroup?: string,
         participantGroupName?: string,
+        conferenceGroup?: string,
         username?: string,
         displayName?: string,
         authToken?: string,
@@ -95,7 +96,8 @@ export class RegisterMsg implements IMsg {
         displayName?: string,
         authToken?: string,
         participantId?: string,
-        participantGroup?: string,
+        participantGroup?: string, //groups users together
+        conferenceGroup? : string, //groups users to conferences
         clientData?: {}
     } = {};
 }

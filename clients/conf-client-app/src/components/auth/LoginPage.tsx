@@ -18,17 +18,16 @@ const LoginPage: React.FC = () => {
 
     const [configError, setConfigError] = useState("");
 
-
     const [participantGroupName, setParticipantGroupName] = useState("");
+    const [participantGroup, setParticipantGroup] = useState("");
 
     useEffect(() => {
         console.log("getQueryParams:", getQueryParams());
         let query = getQueryParams();
-
         let clientData: any = api.getClientData();
-        console.log("clientData:", clientData);
-
+       
         let pgName = "";
+        let pg = "";
         if (query.participantGroupName) {
             setParticipantGroupName(query.participantGroupName);
             pgName = query.participantGroupName;
@@ -39,9 +38,24 @@ const LoginPage: React.FC = () => {
             pgName = clientData.participantGroupName;
         }
 
-        if (config.conf_require_participant_group && !pgName) {
+        if (query.participantGroup) {
+            setParticipantGroup(query.participantGroup);
+            pg = query.participantGroup;
+        }
+
+        if (clientData?.participantGroup) {
+            setParticipantGroup(clientData.participantGroup);
+            pg = clientData.participantGroup;
+        }
+
+        if (config.conf_require_participant_group && !pg) {
             //error
-            setConfigError("Invalid login variables.");
+            setConfigError("Invalid login group.");
+        }
+
+        if (config.conf_require_participant_group_name && !pgName) {
+            //error
+            setConfigError("Invalid login group name.");
         }
 
     }, []);

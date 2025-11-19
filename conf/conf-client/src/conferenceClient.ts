@@ -27,6 +27,7 @@ export class ConferenceClient {
     private socket: WebSocketClient;
     localParticipant = new Participant();
     participantGroup: string = "";
+    conferenceGroup: string = "";
     username: string = "";
     authToken: string = "";
     clientData = {};
@@ -87,7 +88,7 @@ export class ConferenceClient {
 
     }
 
-    connect(participantGroup: string, username: string, authToken: string, clientData: any, options?: { socket_ws_uri?: string }) {
+    connect(participantGroup: string, conferenceGroup: string, username: string, authToken: string, clientData: any, options?: { socket_ws_uri?: string }) {
         console.log(`connect to socket server. participantGroup:${participantGroup} username:${username}`, this.config);
 
         if (this.socket && this.socket.state != "disconnected") {
@@ -116,6 +117,7 @@ export class ConferenceClient {
             this.config.conf_ws_url = options.socket_ws_uri;
         }
         this.participantGroup = participantGroup;
+        this.conferenceGroup = conferenceGroup;
         this.username = username;
         this.authToken = authToken;
         this.clientData = clientData;
@@ -195,7 +197,7 @@ export class ConferenceClient {
         this.isScreenSharing = false;
     }
 
-    waitRegisterConnection(participantGroup: string, username: string, authToken: string, clientData: {}) {
+    waitRegisterConnection(participantGroup: string, conferenceGroup: string, username: string, authToken: string, clientData: {}) {
         console.log("waitRegisterConnection");
 
         return new Promise<RegisterResultMsg>((resolve, reject) => {
@@ -232,7 +234,7 @@ export class ConferenceClient {
                 };
 
                 this.socket.addEventHandler("onmessage", _onmessage);
-                this.registerConnection(participantGroup, username, authToken, clientData);
+                this.registerConnection(participantGroup, conferenceGroup, username, authToken, clientData);
 
             } catch (err: any) {
                 console.log(err);
@@ -303,7 +305,7 @@ export class ConferenceClient {
     private async register() {
         console.log("register()");
         try {
-            let registerResult = await this.waitRegisterConnection(this.participantGroup, this.username, this.authToken, this.clientData);
+            let registerResult = await this.waitRegisterConnection(this.participantGroup, this.conferenceGroup, this.username, this.authToken, this.clientData);
             if (!registerResult.data.error) {
                 await this.onEvent(EventTypes.connected, new OkMsg());
                 return true;
@@ -439,7 +441,7 @@ export class ConferenceClient {
             //disconnected from server
             //this.waitRegisterConnection(this.username, this.authToken, this.clientData);
             //this.disconnectRoomsClient("network change", 0);            
-            this.connect(this.participantGroup, this.username, this.authToken, this.clientData);
+            this.connect(this.participantGroup, this.conferenceGroup, this.username, this.authToken, this.clientData);
         }
     }
 
@@ -804,7 +806,7 @@ export class ConferenceClient {
      * @param username 
      * @param authToken 
      */
-    private registerConnection(participantGroup: string, username: string, authToken: string, clientData: {}) {
+    private registerConnection(participantGroup: string, conferenceGroup: string, username: string, authToken: string, clientData: {}) {
         console.log("registerConnection");
 
         if (this.isRegistered()) {
@@ -829,6 +831,7 @@ export class ConferenceClient {
         registerMsg.data.displayName = username;
         registerMsg.data.authToken = authToken;
         registerMsg.data.participantGroup = participantGroup;
+        registerMsg.data.conferenceGroup = conferenceGroup;
         registerMsg.data.clientData = clientData;
 
         this.sendToServer(registerMsg);
@@ -952,7 +955,7 @@ export class ConferenceClient {
      * @param config 
      * @returns 
      */
-    
+
     waitCreateConferenceRoom(args: CreateConferenceParams) {
         console.log(`waitCreateConferenceRoom externalId: ${args.externalId}, roomName: ${args.roomName}, conferenceCode: ${args.conferenceCode}`);
         return new Promise<CreateConfResultMsg>((resolve, reject) => {
@@ -1242,7 +1245,7 @@ export class ConferenceClient {
 
         //clear the inviteSendMsg, set the conference variables
         //this.inviteSendMsg = null;
-        this.inviteSendMsg.data.conferenceId = message.data.conferenceId;        
+        this.inviteSendMsg.data.conferenceId = message.data.conferenceId;
         this.conference.conferenceId = message.data.conferenceId;
         this.conference.conferenceName = message.data.conferenceName || `Call with ${message.data.displayName}`;
         this.conference.conferenceExternalId = message.data.conferenceExternalId;
@@ -1435,7 +1438,7 @@ export class ConferenceClient {
         }
 
         this.localParticipant.tracksInfo = {
-            isAudioEnabled : false,
+            isAudioEnabled: false,
             isVideoEnabled: false,
             isAudioMuted: false,
             isVideoMuted: false
@@ -1583,7 +1586,7 @@ export class ConferenceClient {
     private async onUnauthorized(message: UnauthorizedMsg) {
         console.log("onUnauthorized");
 
-        this.connect(this.participantGroup, this.username, this.authToken, this.clientData);
+        this.connect(this.participantGroup, this.conferenceGroup, this.username, this.authToken, this.clientData);
         await this.onEvent(EventTypes.unAuthorized, message);
     }
 
@@ -1695,7 +1698,7 @@ export class ConferenceClient {
 
         this.inviteReceivedMsg = null;
         this.inviteSendMsg = null;
-        
+
         //p2p call
         this.conference.conferenceName = message.data.conferenceName || `Call with ${message.data.displayName}`;
 
