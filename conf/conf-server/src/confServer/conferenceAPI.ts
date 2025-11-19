@@ -7,7 +7,7 @@ import { AuthUserRoles, RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/room
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from '@conf/conf-models';
 import { getDemoSchedules } from '../demoData/demoData.js';
-import { fill, parseString } from '../utils/utils.js';
+import { consoleError, fill, parseString } from '../utils/utils.js';
 import { CacheManager } from '../utils/cacheManager.js';
 import { ConferenceServerConfig } from './models.js';
 
@@ -78,6 +78,7 @@ export class ConferenceAPI {
             let clientData = msg.data.clientData;
             let participantGroup = "demo";
             let participantGroupName = "demo";
+            let conferenceGroup = "demo";
 
             if (!msg.data.displayName) {
                 let errorMsg = new LoginResultMsg();
@@ -101,6 +102,7 @@ export class ConferenceAPI {
                     clientData = result.data.clientData;
                     participantGroup = result.data.participantGroup;
                     participantGroupName = result.data.participantGroupName;
+                    conferenceGroup = result.data.conferenceGroup;
                     console.log(`new clientData received.`, clientData);
                 }
             }
@@ -109,6 +111,7 @@ export class ConferenceAPI {
                 externalId: result.data.externalId,
                 username: msg.data.displayName,
                 participantGroup: participantGroup,
+                conferenceGroup: conferenceGroup,
                 role: ParticipantRole.guest
             };
             let authToken = jwtSign(this.config.conf_secret_key, authTokenPayload);
@@ -116,6 +119,7 @@ export class ConferenceAPI {
             let resultMsg = new LoginResultMsg();
             resultMsg.data.participantGroup = participantGroup;
             resultMsg.data.participantGroupName = participantGroupName;
+            resultMsg.data.conferenceGroup = conferenceGroup;
             resultMsg.data.username = msg.data.displayName;
             resultMsg.data.displayName = msg.data.displayName;
             resultMsg.data.authToken = authToken;
@@ -141,6 +145,7 @@ export class ConferenceAPI {
             let role: string = ParticipantRole.user;
             let participantGroup = "demo";
             let participantGroupName = "demo";
+            let conferenceGroup = "demo";
             let externalId = "";
 
             if (msg.data.username && msg.data.password) {
@@ -158,7 +163,8 @@ export class ConferenceAPI {
                         returnedClientData = result.data.clientData;
                         role = result.data.role;
                         participantGroup = result.data.participantGroup;
-                        participantGroupName = result.data.participantGroupName
+                        participantGroupName = result.data.participantGroupName;
+                        conferenceGroup = result.data.conferenceGroup;
                         externalId = result.data.externalId;
                     }
 
@@ -195,7 +201,8 @@ export class ConferenceAPI {
                                 returnedClientData = result.data.clientData;
                                 role = result.data.role;
                                 participantGroup = result.data.participantGroup;
-                                participantGroupName = result.data.participantGroupName
+                                participantGroupName = result.data.participantGroupName;
+                                conferenceGroup = result.data.conferenceGroup;
                                 externalId = result.data.externalId;
                             }
                         }
@@ -218,6 +225,7 @@ export class ConferenceAPI {
                     externalId: externalId,
                     username: username,
                     participantGroup: participantGroup,
+                    conferenceGroup: conferenceGroup,
                     role: role
                 };
 
@@ -226,6 +234,7 @@ export class ConferenceAPI {
                 let resultMsg = new LoginResultMsg();
                 resultMsg.data.participantGroup = participantGroup;
                 resultMsg.data.participantGroupName = participantGroupName;
+                resultMsg.data.conferenceGroup = conferenceGroup;
                 resultMsg.data.username = msg.data.username;
                 resultMsg.data.displayName = displayName;
                 resultMsg.data.authToken = authToken;
@@ -252,7 +261,8 @@ export class ConferenceAPI {
 
             let msg = req.body as apiGetScheduledConferencesPost;
             let participantGroup = parseString(authPayload.participantGroup);
-            let cacheKey = WebRoutes.getConferencesScheduled + "_" + participantGroup;
+            let conferenceGroup =  parseString(authPayload.conferenceGroup);
+            let cacheKey = WebRoutes.getConferencesScheduled + "_" + participantGroup + "_" + conferenceGroup;
 
             let cachedResults = this.cache.get(cacheKey);
             let resultMsg = new GetConferencesScheduledResultMsg();
@@ -265,7 +275,7 @@ export class ConferenceAPI {
 
                     let result = await this.thirdPartyAPI.getScheduledConferences(msg.data.clientData) as apiGetScheduledConferencesResult;
                     if (result.data.error) {
-                        console.log(`getScheduledConferences error:`, result.data.error);
+                        consoleError(`getScheduledConferences error:`, result.data.error);
                         return;
                     }
 
@@ -301,7 +311,7 @@ export class ConferenceAPI {
             }
 
             //get active rooms
-            let activeConferences = await this.confServer.getConferences(participantGroup);
+            let activeConferences = await this.confServer.getConferences(participantGroup, conferenceGroup);
             resultMsg.data.conferences.forEach(c => {
                 c.conferenceId = activeConferences.find(ac => ac.externalId === c.externalId)?.conferenceId ?? "";
                 return c;
@@ -323,7 +333,7 @@ export class ConferenceAPI {
 
                 let result = await this.thirdPartyAPI.getScheduledConference(msg.data.id, msg.data.clientData) as apiGetScheduledConferenceResult;
                 if (result.data.error) {
-                    console.log(result.data.error);
+                    consoleError(result.data.error);
                     return;
                 }
 

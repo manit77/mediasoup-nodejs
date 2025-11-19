@@ -56,13 +56,14 @@ class ApiService {
                 user: {
                     participantGroup: loginResult.data.participantGroup,
                     participantGroupName: loginResult.data.participantGroupName,
+                    conferenceGroup: loginResult.data.conferenceGroup,
                     username: loginResult.data.username,
                     displayName: loginResult.data.displayName,
                     role: loginResult.data.role as any,
                     authToken: loginResult.data.authToken,
                     clientData: loginResult.data.clientData
                 }
-            }
+            };
 
             console.log(`LoginResponse`, result);
             localStorage.setItem('user', JSON.stringify(result.user));
@@ -102,6 +103,7 @@ class ApiService {
                 user: {
                     participantGroup: loginResult.data.participantGroup,
                     participantGroupName: loginResult.data.participantGroupName,
+                    conferenceGroup: loginResult.data.conferenceGroup,
                     username: loginResult.data.username,
                     displayName: loginResult.data.displayName,
                     role: loginResult.data.role as any,
