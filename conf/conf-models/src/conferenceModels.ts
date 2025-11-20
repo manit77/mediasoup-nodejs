@@ -56,6 +56,9 @@ export class ConferenceConfig {
     guestsAllowCamera: boolean = true;
     guestsAllowScreenShare: boolean = true;
     guestsRequireConferenceCode: boolean = false;
+    guestsAllowDeviceControls: boolean = true; //guests can enabled disable devices
+    guestsRequireMic: boolean = false;
+    guestsRequireCamera : boolean = false;
     isRecordable = false;
     isRecorded = false;
     isPrivate = false;

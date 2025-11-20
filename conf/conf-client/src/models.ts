@@ -34,6 +34,7 @@ export class Participant {
         this.videoEle = document.createElement("video");
         this.videoEle.playsInline = true;
         this.videoEle.muted = true;
+        this.videoEle.autoplay = true;
     }
 }
 

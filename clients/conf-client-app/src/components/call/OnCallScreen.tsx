@@ -19,13 +19,11 @@ const OnCallScreen: React.FC = () => {
     const [layout, setLayout] = useState<conferenceLayout>("auto");
 
     useEffect(() => {
-        console.error('on call screen rendered. layout ', conference.conferenceConfig.layout);
+        console.warn('on call screen rendered. layout ', conference.conferenceConfig.layout);
         if (conference.conferenceConfig.layout) {
             setLayout(conference.conferenceConfig.layout);
         }
-
     }, []);
-
 
     useEffect(() => {
         console.log(`try to switch devices, selectedDevices triggered `, localParticipant.stream.getTracks());
@@ -78,7 +76,7 @@ const OnCallScreen: React.FC = () => {
         <div className="d-flex flex-column bg-dark text-light" style={{ height: "100dvh" }}>
             <CallTopMenu onShowSettings={() => setShowSettings(true)} />
             <div className="pt-0">
-                <div style={{                    
+                <div style={{
                     height: 'calc(100dvh)',
                     overflow: 'auto',
                 }}>
@@ -113,13 +111,13 @@ const OnCallScreen: React.FC = () => {
                                         display: 'flex',
                                         flexDirection: 'row',
                                         flexWrap: 'wrap',
-                                        gap: '5px',                                        
+                                        gap: '5px',
                                         background: '#2a2f34',
                                         width: '100%',
                                         boxSizing: 'border-box',
                                         justifyContent: 'center',
                                         overflowX: 'hidden',
-                                        minHeight: 0,                                        
+                                        minHeight: 0,
                                     }}
                                     cardStyle={
                                         presenter
@@ -139,7 +137,7 @@ const OnCallScreen: React.FC = () => {
                                                     justifyContent: "center",
                                                 }
                                                     : {
-                                                        flex: "1 1 auto",                                                                                                               
+                                                        flex: "1 1 auto",
                                                         justifyContent: "center",
                                                         minHeight: "480px",
                                                         alignSelf: 'flex-start',
