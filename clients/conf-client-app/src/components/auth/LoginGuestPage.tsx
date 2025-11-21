@@ -19,6 +19,7 @@ const LoginGuestPage: React.FC = () => {
     const [participantGroupName, setParticipantGroupName] = useState("");
     const [participantGroup, setParticipantGroup] = useState("");
     const [conferenceGroup, setConferenceGroup] = useState("");
+    const [title, setTitle] = useState("");
 
     const [configError, setConfigError] = useState("");
 
@@ -27,6 +28,7 @@ const LoginGuestPage: React.FC = () => {
         let query = getQueryParams();
         let clientData: any = api.getClientData();
         let generateDisplayName = query.generateDisplayName;
+        let title = query.title;
 
         let pgName = "";
         let pg = "";
@@ -94,6 +96,12 @@ const LoginGuestPage: React.FC = () => {
             }
         }
 
+        if(title) {
+            setTitle(title);
+        } else {
+            setTitle(participantGroupName);
+        }
+
     }, []);
 
     const handleSubmitGuest = async (e: React.FormEvent) => {
@@ -123,7 +131,7 @@ const LoginGuestPage: React.FC = () => {
 
     return (
         <Container className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
-            <h1>{participantGroupName}</h1>
+            <h1>{title}</h1>
             <Card style={{ width: '400px', borderColor: '#007bff' }}>
                 {
                     configError ? (

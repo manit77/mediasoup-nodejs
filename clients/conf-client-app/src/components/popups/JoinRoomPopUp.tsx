@@ -97,7 +97,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
        getBrowserUserMedia(getMediaConstraints(true, true));
 
 
-    }, [api, conferenceScheduled])
+    }, [])
 
     // useEffect(() => {
 
