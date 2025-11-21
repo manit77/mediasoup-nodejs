@@ -92,6 +92,11 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             localParticipant.tracksInfo.isVideoEnabled = false;
         }
 
+        //get the stream here for browser permissions issues
+        //certain browsers tie permissions to a click
+       getBrowserUserMedia(getMediaConstraints(true, true));
+
+
     }, [api, conferenceScheduled])
 
     // useEffect(() => {
@@ -143,14 +148,6 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             console.log('conferenceScheduled', conferenceScheduled);
 
             joinMediaConfig.constraints = getMediaConstraints(joinMediaConfig.isAudioEnabled, joinMediaConfig.isVideoEnabled);
-
-            //get the stream here for browser permissions issues
-            //certain browsers tie permissions to a click
-            getLocalMedia({
-                constraints: joinMediaConfig.constraints,
-                isAudioEnabled: true,
-                isVideoEnabled: true
-            });
 
             if (api.isUser()) {
                 createOrJoinConference(conferenceScheduled.externalId, conferenceCode, joinMediaConfig);

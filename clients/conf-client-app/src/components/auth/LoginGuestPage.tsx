@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
 import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
-import { getQueryParams } from '../../utils/utils';
+import { generateRandomDisplayName, getQueryParams } from '../../utils/utils';
 import { getConferenceConfig } from '../../services/ConferenceConfig';
 
 const LoginGuestPage: React.FC = () => {
@@ -26,6 +26,7 @@ const LoginGuestPage: React.FC = () => {
         console.log("getQueryParams", getQueryParams());
         let query = getQueryParams();
         let clientData: any = api.getClientData();
+        let generateDisplayName = query.generateDisplayName;
 
         let pgName = "";
         let pg = "";
@@ -49,7 +50,7 @@ const LoginGuestPage: React.FC = () => {
         if (clientData?.participantGroupName) {
             setParticipantGroupName(clientData.participantGroupName);
             pgName = clientData.participantGroupName;
-        }        
+        }
 
         if (clientData?.participantGroup) {
             setParticipantGroup(clientData.participantGroup);
@@ -71,18 +72,26 @@ const LoginGuestPage: React.FC = () => {
             setConfigError("Invalid login group name.");
         }
 
-        if(config.conf_require_conference_group && !confGroup) {
+        if (config.conf_require_conference_group && !confGroup) {
             setConfigError("Invalid conf group.");
         }
-
-        if (query.displayName) {
-            setDisplayName(query.displayName);
+        
+        if (generateDisplayName) {
+            
+            let displayName = generateRandomDisplayName();//generate a random display name
+            setDisplayName(displayName);
             setAllowEntry(false);
-        }
 
-        if (clientData?.displayName) {
-            setDisplayName(clientData.displayName);
-            setAllowEntry(false);
+        } else {
+            if (query.displayName) {
+                setDisplayName(query.displayName);
+                setAllowEntry(false);
+            }
+
+            if (clientData?.displayName) {
+                setDisplayName(clientData.displayName);
+                setAllowEntry(false);
+            }
         }
 
     }, []);
