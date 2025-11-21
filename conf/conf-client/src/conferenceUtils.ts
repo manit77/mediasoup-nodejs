@@ -1,7 +1,7 @@
 import { Conference, Participant } from "./models.js";
 
 export async function getBrowserUserMedia(constraints: MediaStreamConstraints = { video: true, audio: true }): Promise<MediaStream | null> {
-    console.log(`getUserMedia constraints:`, constraints);
+    console.log(`getBrowserUserMedia constraints:`, constraints);
     
     try {
         return await navigator.mediaDevices.getUserMedia(constraints);

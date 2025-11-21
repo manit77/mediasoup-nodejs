@@ -6,6 +6,7 @@ import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
 import { ConferenceScheduledInfo, GetUserMediaConfig } from '@conf/conf-models';
 import ThrottledButton from '../layout/ThrottledButton';
+import { getBrowserUserMedia } from '@conf/conf-client';
 
 
 interface JoinRoomPopUpProps {
@@ -17,7 +18,7 @@ interface JoinRoomPopUpProps {
 const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show, onClose }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, isWaiting } = useCall();
+    const { localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, getLocalMedia, isWaiting } = useCall();
     const navigate = useNavigate();
 
     const [conferenceCode, setConferenceCode] = useState<string>("");
@@ -28,46 +29,86 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
     const [showMicOption, setShowMicOption] = useState<boolean>(true); // Default to true
     const [showCameraOption, setShowCameraOption] = useState<boolean>(true); // Default to true
 
-
     useEffect(() => {
 
         if (!conferenceScheduled.config) {
             setRequireConfCode(false);
+            console.error('no conference config');
             return;
         }
 
         const user = api.getCurrentUser();
         if (!user) {
+            console.error('no current user');
             return;
         }
 
         if (user.role === "guest" && conferenceScheduled.config.guestsRequireConferenceCode) {
             setRequireConfCode(true);
-            return;
         }
 
         if (user.role === "user" && conferenceScheduled.config.usersRequireConferenceCode) {
             setRequireConfCode(true);
-            return;
         }
 
         if (user.role === "admin") {
             setRequireConfCode(false);
-            return;
         }
 
-    }, [api, conferenceScheduled])
+        if (user.role === "guest") {
+            console.log(`guest user`);
 
-    useEffect(() => {
-        console.log("useEffect localParticipant:", localParticipant.tracksInfo);
-        setMicEnabled(true);
-        setCameraEnabled(false);
+            //guests cannot override conference configs
+            //hide the checkboxes for camera and mic
+            if (!conferenceScheduled.config.guestsAllowCamera) {
+                localParticipant.tracksInfo.isVideoEnabled = false;
+                setShowCameraOption(false);
+                toggleCamera(false);
+            }
+            if (!conferenceScheduled.config.guestsAllowMic) {
+                localParticipant.tracksInfo.isAudioEnabled = false;
+                setShowMicOption(false);
+                toggleMic(false);
+            }
 
-        localParticipant.tracksInfo.isAudioEnabled = true;
-        localParticipant.tracksInfo.isAudioEnabled = false;
+            if (conferenceScheduled.config.guestsRequireCamera) {
+                localParticipant.tracksInfo.isVideoEnabled = true;
+                setCameraEnabled(true);
+                setShowCameraOption(false);
+            }
+
+            if (conferenceScheduled.config.guestsRequireMic) {
+                localParticipant.tracksInfo.isVideoEnabled = true;
+                setMicEnabled(true);
+                setShowMicOption(false);
+            }
+
+        } else {
+            //default to mic enabled            
+            setMicEnabled(true);
+            setCameraEnabled(false);
+
+            localParticipant.tracksInfo.isAudioEnabled = true;
+            localParticipant.tracksInfo.isVideoEnabled = false;
+        }
+
+        //get the stream here for browser permissions issues
+        //certain browsers tie permissions to a click
+       getBrowserUserMedia(getMediaConstraints(true, true));
 
 
-    }, [localParticipant])
+    }, [])
+
+    // useEffect(() => {
+
+    //     setMicEnabled(true);
+    //     setCameraEnabled(false);
+
+    //     localParticipant.tracksInfo.isAudioEnabled = true;
+    //     localParticipant.tracksInfo.isAudioEnabled = false;
+
+
+    // }, [localParticipant])
 
     useEffect(() => {
         console.log(`isCallActive`, isCallActive);
@@ -90,29 +131,6 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
         setCameraEnabled(enabled);
     }, [localParticipant]);
 
-    useEffect(() => {
-        console.log(`useEffect guest`);
-
-        let user = api.getCurrentUser();
-        if (user.role === "guest") {
-            console.log(`guest user`);
-            //guests cannot oveeride conference configs
-            if (!conferenceScheduled.config.guestsAllowCamera) {
-                localParticipant.tracksInfo.isVideoEnabled = false;
-                setShowCameraOption(false);
-                toggleCamera(false);
-            }
-            if (!conferenceScheduled.config.guestsAllowMic) {
-                localParticipant.tracksInfo.isAudioEnabled = false;
-                setShowMicOption(false);
-                toggleMic(false);
-            }
-
-            return;
-        }
-    }, [api, conferenceScheduled, localParticipant, toggleCamera, toggleMic]);
-
-
     const handleJoinConf = async (event: React.FormEvent) => {
         event.preventDefault();
 
@@ -130,7 +148,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             console.log('conferenceScheduled', conferenceScheduled);
 
             joinMediaConfig.constraints = getMediaConstraints(joinMediaConfig.isAudioEnabled, joinMediaConfig.isVideoEnabled);
-                        
+
             if (api.isUser()) {
                 createOrJoinConference(conferenceScheduled.externalId, conferenceCode, joinMediaConfig);
             } else {
@@ -167,7 +185,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                 <Form>
                     <Form.Group className="mb-3" controlId="roomName">
                         <Form.Label>Conference Room Name:</Form.Label> {conferenceScheduled.name}
-                    </Form.Group>                    
+                    </Form.Group>
                     {
                         requireConfCode ? (
                             <Form.Group className="mb-3" controlId="conferenceCode">

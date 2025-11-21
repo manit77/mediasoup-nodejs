@@ -1,5 +1,5 @@
 import React, { } from 'react';
-import { Participant } from '@conf/conf-client';
+import { Conference, Participant } from '@conf/conf-client';
 import { ParticipantVideoPreview } from './ParticipantVideoPreview';
 
 interface ParticipantsPaneProps {

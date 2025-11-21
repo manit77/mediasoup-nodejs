@@ -126,7 +126,7 @@ export class ConferenceAPI {
             resultMsg.data.role = "guest";
             resultMsg.data.clientData = clientData;
 
-            console.log(`send `, resultMsg);
+            console.log(`LoginResultMsg: `, resultMsg);
 
             res.send(resultMsg);
 

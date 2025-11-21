@@ -3,6 +3,7 @@ import { Modal, Button, Form, Tab, Row, Col, Nav } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { FilePersonFill } from 'react-bootstrap-icons';
 import { useUI } from '../../hooks/useUI';
+import { getBrowserUserMedia } from '@conf/conf-client';
 
 const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ show, handleClose }) => {
     const {
@@ -55,7 +56,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
 
             try {
                 // Request full mic+camera permission first
-                const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+                const tempStream = await getBrowserUserMedia({ audio: true, video: true });
                 tempStream.getTracks().forEach(track => track.stop());
                 
                 await getMediaDevices();
@@ -100,7 +101,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         try {
             stopAudioMeter();
 
-            const stream = await navigator.mediaDevices.getUserMedia({
+            const stream = await getBrowserUserMedia({
                 audio: deviceId ? { deviceId: { exact: deviceId } } : true,
                 video: false
             });
@@ -171,7 +172,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         }
 
         const constraints = getMediaConstraints(false, true);
-        navigator.mediaDevices.getUserMedia(constraints)
+        getBrowserUserMedia(constraints)
             .then((stream) => {
                 const audioTrack = stream.getAudioTracks()[0];
                 if (audioTrack) audioTrack.enabled = false;

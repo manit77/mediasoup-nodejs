@@ -9,7 +9,7 @@ import { useUI } from "../../hooks/useUI";
 import ThrottledButton from "../layout/ThrottledButton";
 
 interface ParticipantVideoPreviewProps {
-    participant: Participant
+    participant: Participant;
     onClick: (participant: Participant) => void;
     isSelected?: boolean;
     style?: React.CSSProperties;
@@ -21,6 +21,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
     const { localParticipant, broadCastTrackInfo, conference, muteParticipantTrack, getMediaConstraints } = useCall();
     const [videoEnabled, setVideoEnabled] = useState(false);
     const [audioEnabled, setAudioEnabled] = useState(false);
+    const [allowControls, setAllowControls] = useState(true);
     const videoContainerRef = React.useRef<HTMLDivElement>(null);
 
     const videoStyle = {
@@ -35,6 +36,10 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
     useEffect(() => {
         console.warn(`attach video triggered. ${participant.displayName}`);
 
+        if (localParticipant.role == "guest") {
+            setAllowControls(conference.conferenceConfig.guestsAllowDeviceControls);
+        }
+
         if (!videoContainerRef.current) {
             console.warn(`-- attach video triggered, no videoContainerRef ${participant.displayName}`);
             return;
@@ -44,9 +49,9 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
             if (videoContainerRef.current && participant.videoEle) {
 
                 //if (participant.videoEle && !participant.videoEle.parentElement) {
-                    if (videoContainerRef.current.children.length == 0) {
-                        videoContainerRef.current.appendChild(participant.videoEle);
-                    }
+                if (videoContainerRef.current.children.length == 0) {
+                    videoContainerRef.current.appendChild(participant.videoEle);
+                }
                 //}
 
                 // Mute the video element if it belongs to the local user
@@ -61,9 +66,10 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
                 }
 
                 // Attempt to play the video, catching any errors
-                participant.videoEle.play().catch(err => {
-                    console.error(`Autoplay failed for ${participant.displayName}:`, err);
-                });
+                // participant.videoEle.play().then(() => console.warn(`participant.videoEle playing for ${participant.displayName}`)).catch(err => {
+                //     console.error(`participant.videoEle.play() failed for ${participant.displayName}:`, err);
+                // });
+
 
             } else {
                 console.log(`Video element or container ref is missing for ${participant.displayName}`);
@@ -98,6 +104,10 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
         event.preventDefault();
         event.stopPropagation();
 
+        if (localParticipant.role == "guest" && !conference.conferenceConfig.guestsAllowDeviceControls) {
+            return;
+        }
+
         let audioAllowedFor = isAudioAllowedFor(conference, participant);
         if (!audioAllowedFor) {
             console.error(`audio is not allowed for ${participant.displayName} ${participant.role}`);
@@ -113,7 +123,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
         // Guests cannot mute/unmute remote participants
         if (!isLocalParticipant && !api.isUser()) {
             console.log(`Guests cannot mute/unmute remote participants.`);
-            ui.showToast(`Guests cannot mute/unmute remote participants.`);
+            //ui.showToast(`Guests cannot mute/unmute remote participants.`);
             return;
         }
 
@@ -180,6 +190,10 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
         event.preventDefault();
         event.stopPropagation();
 
+        if (localParticipant.role == "guest" && !conference.conferenceConfig.guestsAllowDeviceControls) {
+            return;
+        }
+
         let videoAllowedFor = isVideoAllowedFor(conference, participant);
         if (!videoAllowedFor) {
             console.error(`video is not allowed for ${participant.displayName} ${participant.role}`);
@@ -195,7 +209,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
         // Guests cannot mute/unmute remote participants
         if (!isLocalParticipant && !api.isUser()) {
             console.log(`Guests cannot mute/unmute remote participants.`);
-            ui.showToast(`Guests cannot mute/unmute remote participants.`);
+            //ui.showToast(`Guests cannot mute/unmute remote participants.`);
             return;
         }
 
