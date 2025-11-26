@@ -115,7 +115,7 @@ const LoginPage: React.FC = () => {
             setLoading(false);
         };
 
-        setTimeout(()=> fetchConfig(), 100);
+       fetchConfig();
 
 
     }, []);

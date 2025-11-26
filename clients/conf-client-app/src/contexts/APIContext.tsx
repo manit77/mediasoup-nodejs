@@ -54,13 +54,6 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>(apiService.participantsOnline);
 
     //
-    // INIT
-    //
-    useEffect(() => {
-        apiService.init(config);
-    }, [config]);
-
-    //
     // BASIC HELPERS
     //
     const getCurrentUser = useCallback(() => apiService.getUser(), []);
