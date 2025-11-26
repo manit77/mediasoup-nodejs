@@ -18,6 +18,8 @@ const AppRoutes: React.FC = () => {
   const { isCallActive } = useCall();
   const location = useLocation();
 
+  console.log("ROUTE:", location.pathname, "AUTH:", isAuthenticated);
+
   useEffect(() => {
     console.log('loading app');
     return () => {
@@ -39,25 +41,18 @@ const AppRoutes: React.FC = () => {
     return () => window.removeEventListener('resize', updateVh);
   }, []);
 
-  if (isLoading) {
-    return <div className="d-flex justify-content-center align-items-center vh-100">Loading...</div>;
-  }
-
   return (
+    <>
+    {isLoading && <div className="d-flex justify-content-center align-items-center vh-100">Loading...</div>}
     <Routes>
       <Route path="/logout" element={<LogoutPage />} />
       {!isAuthenticated ? (
         <>
           <Route path="/loginGuest" element={<LoginGuestPage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="*"
-            element={
-              !location.pathname.startsWith("/login") && !location.pathname.startsWith("/loginGuest")
-                ? <Navigate to={`/login${location.search}`} replace />
-                : null
-            }
-          />
+
+          {/* Catch-all redirects to login */}
+          <Route path="*" element={<Navigate to={`/login${location.search}`} replace />} />
         </>
       ) : (
         <>
@@ -66,19 +61,23 @@ const AppRoutes: React.FC = () => {
           ) : (
             <Route path="/app" element={<AuthenticatedLayout />} />
           )}
+
+          {/* Catch-all redirects to app */}
           <Route
             path="*"
             element={<Navigate to={`${isCallActive ? "/on-call" : "/app"}`} replace />}
           />
         </>
       )}
+
     </Routes>
+    </>
   );
 };
 
-function App() {
+function App() { 
   return (
-    <Router>
+    <Router>      
       <UIProvider>
         <APIProvider>
           <CallProvider>

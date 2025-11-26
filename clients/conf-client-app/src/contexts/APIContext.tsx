@@ -1,7 +1,22 @@
-import React, { createContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
+import React, {
+    createContext,
+    useState,
+    ReactNode,
+    useEffect,
+    useCallback,
+    useMemo
+} from 'react';
+
 import { apiService, LoginResponse } from '../services/ApiService';
 import { useConfig } from '../hooks/useConfig';
-import { ConferenceScheduledInfo, ParticipantInfo } from '@conf/conf-models';
+
+import {
+    ClientConfig,
+    ConferenceScheduledInfo,
+    GetClientConfigResultMsg,
+    ParticipantInfo
+} from '@conf/conf-models';
+
 import { User } from '../types';
 import { getConferenceClient } from '../services/ConferenceService';
 
@@ -10,7 +25,7 @@ interface APIContextType {
     isLoading: boolean;
     isAdmin: () => boolean;
     isUser: () => boolean;
-    loginGuest: (displayName: string, clientData: {}) => Promise<LoginResponse>;
+    loginGuest: (userName: string, password: string, clientData: {}) => Promise<LoginResponse>;
     login: (username: string, password: string, clientData: {}) => Promise<LoginResponse>;
     logout: () => {};
     fetchConferencesScheduled: () => Promise<ConferenceScheduledInfo[]>;
@@ -23,186 +38,161 @@ interface APIContextType {
     setConferencesScheduled: React.Dispatch<React.SetStateAction<ConferenceScheduledInfo[]>>;
     getClientData: () => {};
     clearClientData: () => void;
+    fetchClientConfig: (clientData: {}) => Promise<GetClientConfigResultMsg>;
+    getClientConfig: () => ClientConfig;
 }
 
 export const APIContext = createContext<APIContextType | undefined>(undefined);
 
 export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    let { config } = useConfig();
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const { config } = useConfig();
+
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+
     const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceScheduledInfo[]>(apiService.conferencesScheduled);
     const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>(apiService.participantsOnline);
 
+    //
+    // INIT
+    //
     useEffect(() => {
         apiService.init(config);
     }, [config]);
 
-    const getCurrentUser = useCallback((): User | null => {
-        return apiService.getUser();
+    //
+    // BASIC HELPERS
+    //
+    const getCurrentUser = useCallback(() => apiService.getUser(), []);
+
+    const getClientData = useCallback(() => apiService.getClientData(), []);
+    const clearClientData = useCallback(() => apiService.clearClientData(), []);
+
+    const isAdmin = useCallback(() => {
+        const user = apiService.getUser();
+        return user?.role === "admin";
     }, []);
 
-    const getClientData = useCallback((): {} | null => {
-        return apiService.getClientData();
+    const isUser = useCallback(() => {
+        const user = apiService.getUser();
+        return user?.role === "user" || user?.role === "admin";
     }, []);
 
-    const clearClientData = useCallback((): void => {
-        apiService.clearClientData();
-    }, []);
-
-    const isAdmin = useCallback((): boolean => {
-        const user = getCurrentUser();
-        if (user) {
-            return user.role === "admin";
-        }
-        return false;
-    }, [getCurrentUser]);
-
-    const isUser = useCallback((): boolean => {
-        const user = getCurrentUser();
-        if (user) {
-            return user.role === "user" || user.role === "admin";
-        }
-        return false;
-    }, [getCurrentUser]);
-
-    const loginGuest = useCallback(async (displayName: string, clientData: any) => {
-        console.log("loginGuest");
+    //
+    // AUTH
+    //
+    const loginBase = async (
+        action: () => Promise<LoginResponse>
+    ): Promise<LoginResponse> => {
         try {
             setIsLoading(true);
+            const result = await action();
 
-            if (!clientData) {
-                clientData = {};
-            }
-
-            let loginClientData = getClientData() ?? {};
-            for (let key of Object.keys(clientData)) {
-                loginClientData[key] = clientData[key];
-            }
-
-            console.log(`using loginClientData`, loginClientData);
-
-            const loginResult = await apiService.loginGuest(displayName, loginClientData);
-
-            if (loginResult.error) {
+            if (!result || result.error) {
                 setIsAuthenticated(false);
-                console.error(loginResult.error);
-                return loginResult;
+                return result;
             }
 
-            console.log("authenticated");
             setIsAuthenticated(true);
+            return result;
 
-            return loginResult;
-        } catch (error) {
-            console.error('Login failed:', error);
-            let errorResponse: LoginResponse = {
-                user: null,
-                error: "login failed. server connection error."
-            }
-            return errorResponse;
+        } catch (err) {
+            console.error(err);
+            return { user: null, error: "login failed. server connection error." };
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    };
 
-    const login = useCallback(async (username: string, password: string, clientData: {}) => {
-        try {
-            setIsLoading(true);
+    const loginGuest = useCallback(async (username: string, password: string, clientData: any) => {
+        return loginBase(async () => {
+            const local = getClientData() ?? {};
+            Object.assign(local, clientData ?? {});
+            return apiService.loginGuest(username, password, local);
+        });
+    }, [getClientData]);
 
-            if (!clientData) {
-                clientData = {};
-            }
-
-            const loginResult = await apiService.login(username, password, clientData);
-
-            if (loginResult.error) {
-                setIsAuthenticated(false);
-                console.error(loginResult.error);
-                return loginResult;
-            }
-            setIsAuthenticated(true);
-            return loginResult;
-        } catch (error) {
-            console.error('Login failed:', error);
-            let errorResponse: LoginResponse = {
-                user: null,
-                error: "login failed. server connection error."
-            }
-            return errorResponse;
-        } finally {
-            setIsLoading(false);
-        }
+    const login = useCallback(async (username: string, password: string, clientData: any) => {
+        return loginBase(() => apiService.login(username, password, clientData ?? {}));
     }, []);
 
     const logout = useCallback(async () => {
         try {
             setIsLoading(true);
-            getConferenceClient().disconnect(); // Disconnect signaling on logout            
+            getConferenceClient().disconnect();
             return apiService.logout();
-        } catch (error) {
-            console.error('Logout failed:', error);
         } finally {
             setIsAuthenticated(false);
             setIsLoading(false);
         }
     }, []);
-   
-    const fetchConferencesScheduled = useCallback(async (): Promise<ConferenceScheduledInfo[]> => {
-        console.log("fetchConferencesScheduled, ", apiService.getClientData());
+
+    //
+    // FETCHERS
+    //
+    const fetchConferencesScheduled = useCallback(async () => {
         return apiService.fetchConferencesScheduled();
     }, []);
 
-    const fetchParticipantsOnline = useCallback(async (): Promise<ParticipantInfo[]> => {
-        return await apiService.fetchParticipantsOnline();
+    const fetchParticipantsOnline = useCallback(async () => {
+        return apiService.fetchParticipantsOnline();
     }, []);
 
+    const fetchClientConfig = useCallback(async (clientData: {}) => {
+        return apiService.fetchClientConfig(clientData);
+    }, []);
+
+    const getClientConfig = useCallback(() => {
+        return apiService.clientConfig;
+    }, []);
+
+    //
+    // SET UP CONNECTIONS
+    //
     const setUpConnections = useCallback(() => {
-        console.log(`setUpConnections`);
+        console.log("setUpConnections");
 
-        apiService.onConferencesReceived = async (conferences) => {
-            //console.log("onConferencesReceived", conferences);
-            setConferencesScheduled(prev => conferences);
+        apiService.onConferencesReceived = (conferences) => {
+            setConferencesScheduled(conferences);
         };
 
-        apiService.onParticipantsOnlineReceived = async (participants) => {
-            //console.log("onConferencesReceived", conferences);
-            setParticipantsOnline(prev => participants);
+        apiService.onParticipantsOnlineReceived = (participants) => {
+            setParticipantsOnline(participants);
         };
 
-        let user = apiService.getUser();
-        if (user) {
-            getConferenceClient().connect(user.participantGroup, user.conferenceGroup, user.username, user.authToken, user.clientData);
-            
-            fetchConferencesScheduled();
-            apiService.startFetchConferencesScheduled();
+        const user = apiService.getUser();
+        if (!user) return;
 
-            fetchParticipantsOnline();
-            apiService.startFetchParticipantsOnline();
+        getConferenceClient().connect(
+            user.participantGroup,
+            user.conferenceGroup,
+            user.username,
+            user.authToken,
+            user.clientData
+        );
 
-        }
-    }, [fetchConferencesScheduled]);
+        fetchConferencesScheduled();
+        apiService.startFetchConferencesScheduled();
 
+        fetchParticipantsOnline();
+        apiService.startFetchParticipantsOnline();
+
+    }, [fetchConferencesScheduled, fetchParticipantsOnline]);
+
+    //
+    // AUTH INIT EFFECT
+    //
     useEffect(() => {
-        console.log("AuthProvider triggered.");
-        let currentUser = getCurrentUser();
-        if (currentUser) {
-            console.log("user found.");
-            setIsAuthenticated(true);
-            setUpConnections();
-            return;
-        } else {
-            console.log("user not found. ");
-        }
-        setIsAuthenticated(false);
-    }, [getCurrentUser, setUpConnections]);
+        const user = apiService.getUser();
+        const loggedIn = Boolean(user);
+        setIsAuthenticated(loggedIn);
 
-    useEffect(() => {
-        if (isAuthenticated) {
-            setUpConnections();
-        }
-    }, [isAuthenticated, setUpConnections]);
+        if (loggedIn) setUpConnections();
+    }, [isAuthenticated]);
 
+    //
+    // CONTEXT VALUE (fully stable)
+    //
     const value = useMemo(() => ({
         conferencesScheduled,
         getCurrentUser,
@@ -210,9 +200,11 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isAdmin,
         isUser,
         isLoading,
+
         loginGuest,
         login,
         logout,
+
         fetchConferencesScheduled,
         setConferencesScheduled,
 
@@ -221,8 +213,33 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         getClientData,
         clearClientData,
-    }), [conferencesScheduled, getCurrentUser, isAuthenticated, isAdmin, isUser, isLoading, loginGuest, login, logout, fetchConferencesScheduled, getClientData]);
 
+        fetchClientConfig,
+        getClientConfig,
+
+    }), [
+        conferencesScheduled,
+        participantsOnline,
+
+        getCurrentUser,
+        isAuthenticated,
+        isAdmin,
+        isUser,
+        isLoading,
+
+        loginGuest,
+        login,
+        logout,
+
+        fetchConferencesScheduled,
+        fetchParticipantsOnline,
+
+        getClientData,
+        clearClientData,
+
+        fetchClientConfig,
+        getClientConfig
+    ]);
 
     return (
         <APIContext.Provider value={value}>

@@ -5,11 +5,14 @@ import { useUI } from '../../hooks/useUI';
 import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
 import { generateRandomDisplayName, getQueryParams } from '../../utils/utils';
 import { getConferenceConfig } from '../../services/ConferenceConfig';
+import { ClientConfig } from '@conf/conf-models';
 
 const LoginGuestPage: React.FC = () => {
 
     const [allowEntry, setAllowEntry] = useState(true);
-    const [displayName, setDisplayName] = useState("");
+    const [requirePassword, setRequirePassword] = useState(false);
+    const [userName, setUserName] = useState("");
+    const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const api = useAPI();
@@ -19,8 +22,8 @@ const LoginGuestPage: React.FC = () => {
     const [participantGroupName, setParticipantGroupName] = useState("");
     const [participantGroup, setParticipantGroup] = useState("");
     const [conferenceGroup, setConferenceGroup] = useState("");
+    const [clientConfig, setClientConfig] = useState<ClientConfig>(null);
     const [title, setTitle] = useState("");
-
     const [configError, setConfigError] = useState("");
 
     useEffect(() => {
@@ -64,39 +67,26 @@ const LoginGuestPage: React.FC = () => {
             confGroup = clientData.conferenceGroup;
         }
 
-        if (config.conf_require_participant_group && !pg) {
-            //error
-            setConfigError("Invalid login group.");
-        }
+        setLoading(true);       
 
-        if (config.conf_require_participant_group_name && !pgName) {
-            //error
-            setConfigError("Invalid login group name.");
-        }
-
-        if (config.conf_require_conference_group && !confGroup) {
-            setConfigError("Invalid conf group.");
-        }
-        
         if (generateDisplayName) {
-            
             let displayName = generateRandomDisplayName();//generate a random display name
-            setDisplayName(displayName);
+            setUserName(displayName);
             setAllowEntry(false);
 
         } else {
             if (query.displayName) {
-                setDisplayName(query.displayName);
+                setUserName(query.displayName);
                 setAllowEntry(false);
             }
 
             if (clientData?.displayName) {
-                setDisplayName(clientData.displayName);
+                setUserName(clientData.displayName);
                 setAllowEntry(false);
             }
         }
 
-        if(title) {
+        if (title) {
             setTitle(title);
         } else {
             setTitle(participantGroupName);
@@ -106,15 +96,17 @@ const LoginGuestPage: React.FC = () => {
 
     const handleSubmitGuest = async (e: React.FormEvent) => {
         e.preventDefault();
+        
         setError("");
-        if (!displayName.trim()) {
+        if (!userName.trim()) {
             setError('Display name is required.');
             return;
         }
+        
         setLoading(true);
         try {
             let clientData = getQueryParams();
-            let response = await api.loginGuest(displayName, clientData);
+            let response = await api.loginGuest(userName, password, clientData);
             if (response.error) {
                 setError(response.error);
                 ui.showToast(`Login failed. ${response.error}`, "error");
@@ -146,17 +138,32 @@ const LoginGuestPage: React.FC = () => {
                                 {error && <Alert variant="danger">{error}</Alert>}
                                 <Form onSubmit={handleSubmitGuest}>
                                     <Form.Group className="mb-3" controlId="username">
-                                        <Form.Label>Guest Display Name</Form.Label>
+                                        <Form.Label>Username</Form.Label>
                                         <Form.Control
                                             type="text"
-                                            value={displayName}
-                                            onChange={(e) => setDisplayName(e.target.value)}
+                                            value={userName}
+                                            onChange={(e) => setUserName(e.target.value)}
                                             placeholder="Enter your display name"
                                             required
                                             disabled={loading || !allowEntry}
                                             style={{ background: !allowEntry ? "#c0c0c0" : "" }}
                                         />
                                     </Form.Group>
+                                    {
+                                        requirePassword ? (
+                                            <Form.Group className="mb-3" controlId="password">
+                                                <Form.Label>Password</Form.Label>
+                                                <Form.Control
+                                                    type="Password"
+                                                    onChange={(e) => setPassword(e.target.value)}
+                                                    placeholder="Enter your password"
+                                                    required
+                                                    disabled={loading || !allowEntry}
+                                                    style={{ background: !allowEntry ? "#c0c0c0" : "" }}
+                                                />
+                                            </Form.Group>
+                                        ) : (null)
+                                    }
                                     <Button variant="primary" type="submit" className="w-100" disabled={loading}>
                                         {loading ? 'Logging in...' : 'Login'}
                                     </Button>

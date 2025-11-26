@@ -1,4 +1,4 @@
-import { ConferenceConfig, ConferenceScheduledInfo, conferenceType, ParticipantInfo, ParticipantRole } from "./conferenceModels.js";
+import { ClientConfig, ConferenceConfig, ConferenceScheduledInfo, conferenceType, ParticipantInfo, ParticipantRole } from "./conferenceModels.js";
 
 export enum CallMessageType {
 
@@ -42,6 +42,8 @@ export enum CallMessageType {
     joinLobby = "joinLobby",
     leaveLobby = "leaveLobby",
 
+    getClientConfigResult = "getClientConfigResult",
+
 }
 
 export interface IMsg {
@@ -52,7 +54,8 @@ export interface IMsg {
 export class LoginGuestMsg implements IMsg {
     type = CallMessageType.loginGuest;
     data: {
-        displayName?: string,
+        username?: string,
+        password?: string,
         clientData?: {}
     } = {};
 }
@@ -321,6 +324,16 @@ export class LeaveLobbyMsg implements IMsg {
         conferenceExternalId?: string,
         conferenceId?: string
     } = {};
+}
+
+export class GetClientConfigResultMsg implements IMsg {
+    type = CallMessageType.getClientConfigResult;
+    data: {
+        participantGroupName?: string,
+        participantGroup?: string,
+        config? : ClientConfig,
+        error?: string,
+    } = { };
 }
 
 // export class NotRegisteredMsg implements IMsg {
