@@ -37,35 +37,14 @@ const LoginGuestPage: React.FC = () => {
         let _participantGroupName = "";
         let _conferenceGroup = "";
 
-        if (query.participantGroup) {
-            setParticipantGroup(query.participantGroup);
-            _participantGroup = query.participantGroup;
-        }
+       _participantGroup = query.participantGroup || clientData.participantGroup;
+        setParticipantGroup(_participantGroup);
 
-        if (query.participantGroupName) {
-            setParticipantGroupName(query.participantGroupName);
-            _participantGroupName = query.participantGroupName;
-        }
+        _participantGroupName = query.participantGroupName || clientData.participantGroupName;
+        setParticipantGroupName(_participantGroupName);
 
-        if (query.conferenceGroup) {
-            setConferenceGroup(query.conferenceGroup);
-            _conferenceGroup = query.confGroup;
-        }
-
-        if (clientData?.participantGroupName) {
-            setParticipantGroupName(clientData.participantGroupName);
-            _participantGroupName = clientData.participantGroupName;
-        }
-
-        if (clientData?.participantGroup) {
-            setParticipantGroup(clientData.participantGroup);
-            _participantGroup = clientData.participantGroup;
-        }
-
-        if (clientData?.conferenceGroup) {
-            setConferenceGroup(clientData.conferenceGroup);
-            _conferenceGroup = clientData.conferenceGroup;
-        }
+        _conferenceGroup = query.conferenceGroup || clientData.conferenceGroup;
+        setConferenceGroup(_conferenceGroup);
 
         if (config.conf_require_participant_group && !_participantGroup) {
             setConfigError("participant group is required.");
@@ -159,10 +138,10 @@ const LoginGuestPage: React.FC = () => {
         setLoading(true);
         try {
 
-            let  _password = password;
+            let _password = password;
 
             //client does not require a password
-            if(!clientConfig.guest_login_require_password && !password) {                
+            if (!clientConfig.guest_login_require_password && !password) {
                 _password = userName;
             }
 

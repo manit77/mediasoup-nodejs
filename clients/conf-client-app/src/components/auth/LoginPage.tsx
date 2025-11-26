@@ -32,55 +32,33 @@ const LoginPage: React.FC = () => {
         let query = getQueryParams();
         let clientData: any = api.getClientData();
 
-        let pgName = "";
-        let pg = "";
-        let confGroup = "";
+        let _participantGroup = "";
+        let _participantGroupName = "";
+        let _conferenceGroup = "";
 
-        if (query.participantGroup) {
-            setParticipantGroup(query.participantGroup);
-            pg = query.participantGroup;
-        }
+        _participantGroup = query.participantGroup || clientData.participantGroup;
+        setParticipantGroup(_participantGroup);
 
-        if (query.participantGroupName) {
-            setParticipantGroupName(query.participantGroupName);
-            pgName = query.participantGroupName;
-        }
+        _participantGroupName = query.participantGroupName || clientData.participantGroupName;
+        setParticipantGroupName(_participantGroupName);
 
-        if (query.conferenceGroup) {
-            setConferenceGroup(query.conferenceGroup);
-            confGroup = query.confGroup;
-        }
+        _conferenceGroup = query.conferenceGroup || clientData.conferenceGroup;
+        setConferenceGroup(_conferenceGroup);
 
-        if (clientData?.participantGroupName) {
-            setParticipantGroupName(clientData.participantGroupName);
-            pgName = clientData.participantGroupName;
-        }
-
-        if (clientData?.participantGroup) {
-            setParticipantGroup(clientData.participantGroup);
-            pg = clientData.participantGroup;
-        }
-
-        if (clientData?.conferenceGroup) {
-            setConferenceGroup(clientData.conferenceGroup);
-            confGroup = clientData.conferenceGroup;
-        }
-
-        if (config.conf_require_participant_group && !pg) {
+        if (config.conf_require_participant_group && !_participantGroup) {
             setConfigError("participant group is required.");
             return;
         }
 
         let postData: any = {};
-        postData.participantGroup = pg;
-        postData.participantGroupName = pgName;
-        postData.conferenceGroup = confGroup;
+        postData.participantGroup = _participantGroup;
+        postData.participantGroupName = _participantGroupName;
+        postData.conferenceGroup = _conferenceGroup;
 
         postData = { ...postData, ...query };
 
         setPostData(postData);
         setLoading(true);
-
 
         let fetchConfig = async () => {
             let resultMsg = await api.fetchClientConfig(postData);
@@ -93,26 +71,31 @@ const LoginPage: React.FC = () => {
             }
 
             if (resultMsg.data.participantGroup) {
-                pg = resultMsg.data.participantGroup;
-                setParticipantGroup(pg);
+                _participantGroup = resultMsg.data.participantGroup;
+                setParticipantGroup(_participantGroup);
             }
 
             if (resultMsg.data.participantGroupName) {
-                pgName = resultMsg.data.participantGroupName;
-                setParticipantGroupName(pgName);
+                _participantGroupName = resultMsg.data.participantGroupName;
+                setParticipantGroupName(_participantGroupName);
+            }
+
+            if (resultMsg.data.conferenceGroup) {
+                _conferenceGroup = resultMsg.data.conferenceGroup;
+                setConferenceGroup(_conferenceGroup);
             }
 
             setClientConfig(resultMsg.data.config);
 
             /**
-             * hand user login
-             */
+            * hand user login
+            */
 
-            if (resultMsg.data.config.user_login_require_participant_group && !pg) {
+            if (resultMsg.data.config.user_login_require_participant_group && !_participantGroup) {
                 setConfigError("Invalid login group.");
             }
 
-            if (resultMsg.data.config.user_login_require_conference_group && !confGroup) {
+            if (resultMsg.data.config.user_login_require_conference_group && !_conferenceGroup) {
                 setConfigError("Invalid conference group.");
             }
             //
@@ -121,7 +104,6 @@ const LoginPage: React.FC = () => {
         };
 
         fetchConfig();
-
 
     }, []);
 
