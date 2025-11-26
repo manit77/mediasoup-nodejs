@@ -25,95 +25,167 @@ const LoginGuestPage: React.FC = () => {
     const [clientConfig, setClientConfig] = useState<ClientConfig>(null);
     const [title, setTitle] = useState("");
     const [configError, setConfigError] = useState("");
+    const [postData, setPostData] = useState<any>(null);
+
 
     useEffect(() => {
-        console.log("getQueryParams", getQueryParams());
+        console.log("getQueryParams:", getQueryParams());
         let query = getQueryParams();
         let clientData: any = api.getClientData();
-        let generateDisplayName = query.generateDisplayName;
-        let title = query.title;
 
-        let pgName = "";
-        let pg = "";
-        let confGroup = "";
-
-        if (query.participantGroupName) {
-            setParticipantGroupName(query.participantGroupName);
-            pgName = query.participantGroupName;
-        }
+        let _participantGroup = "";
+        let _participantGroupName = "";
+        let _conferenceGroup = "";
 
         if (query.participantGroup) {
             setParticipantGroup(query.participantGroup);
-            pg = query.participantGroup;
+            _participantGroup = query.participantGroup;
+        }
+
+        if (query.participantGroupName) {
+            setParticipantGroupName(query.participantGroupName);
+            _participantGroupName = query.participantGroupName;
         }
 
         if (query.conferenceGroup) {
             setConferenceGroup(query.conferenceGroup);
-            confGroup = query.confGroup;
+            _conferenceGroup = query.confGroup;
         }
 
         if (clientData?.participantGroupName) {
             setParticipantGroupName(clientData.participantGroupName);
-            pgName = clientData.participantGroupName;
+            _participantGroupName = clientData.participantGroupName;
         }
 
         if (clientData?.participantGroup) {
             setParticipantGroup(clientData.participantGroup);
-            pg = clientData.participantGroup;
+            _participantGroup = clientData.participantGroup;
         }
 
         if (clientData?.conferenceGroup) {
             setConferenceGroup(clientData.conferenceGroup);
-            confGroup = clientData.conferenceGroup;
+            _conferenceGroup = clientData.conferenceGroup;
         }
 
-        setLoading(true);       
+        if (config.conf_require_participant_group && !_participantGroup) {
+            setConfigError("participant group is required.");
+            return;
+        }
 
-        if (generateDisplayName) {
-            let displayName = generateRandomDisplayName();//generate a random display name
-            setUserName(displayName);
-            setAllowEntry(false);
+        let postData: any = {};
+        postData.participantGroup = _participantGroup;
+        postData.participantGroupName = _participantGroupName;
+        postData.conferenceGroup = _conferenceGroup;
 
-        } else {
-            if (query.displayName) {
-                setUserName(query.displayName);
-                setAllowEntry(false);
+        postData = { ...postData, ...query };
+
+        setPostData(postData);
+        setLoading(true);
+
+        let fetchConfig = async () => {
+            let resultMsg = await api.fetchClientConfig(postData);
+
+            console.warn(resultMsg);
+
+            if (!resultMsg) {
+                setConfigError("unable to get config");
+                return;
             }
 
-            if (clientData?.displayName) {
-                setUserName(clientData.displayName);
-                setAllowEntry(false);
+            if (resultMsg.data.participantGroup) {
+                _participantGroup = resultMsg.data.participantGroup;
+                setParticipantGroup(_participantGroup);
             }
-        }
 
-        if (title) {
-            setTitle(title);
-        } else {
-            setTitle(participantGroupName);
-        }
+            if (resultMsg.data.participantGroupName) {
+                _participantGroupName = resultMsg.data.participantGroupName;
+                setParticipantGroupName(_participantGroupName);
+            }
+
+            if (resultMsg.data.conferenceGroup) {
+                _conferenceGroup = resultMsg.data.conferenceGroup;
+                setConferenceGroup(_conferenceGroup);
+            }
+
+            setClientConfig(resultMsg.data.config);
+
+            /**
+             * handle guest login
+             */
+            let generateDisplayName = resultMsg.data.config.guest_login_generate_username;
+
+            if (resultMsg.data.config.guest_login_require_participant_group && !_participantGroup) {
+                setConfigError("Invalid login group.");
+            }
+
+            if (resultMsg.data.config.guest_login_require_conference_group && !_conferenceGroup) {
+                setConfigError("Invalid conference group.");
+            }
+
+            if (generateDisplayName) {
+                let displayName = generateRandomDisplayName();//generate a random display name
+                setUserName(displayName);
+                setAllowEntry(false);
+
+            } else {
+                if (query.displayName) {
+                    setUserName(query.displayName);
+                    setAllowEntry(false);
+                }
+
+                if (clientData?.displayName) {
+                    setUserName(clientData.displayName);
+                    setAllowEntry(false);
+                }
+            }
+            //
+
+            setLoading(false);
+        };
+
+        fetchConfig();
 
     }, []);
 
     const handleSubmitGuest = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         setError("");
         if (!userName.trim()) {
             setError('Display name is required.');
             return;
         }
-        
+
         setLoading(true);
         try {
+
+            let  _password = password;
+
+            //client does not require a password
+            if(!clientConfig.guest_login_require_password && !password) {                
+                _password = userName;
+            }
+
             let clientData = getQueryParams();
-            let response = await api.loginGuest(userName, password, clientData);
-            if (response.error) {
-                setError(response.error);
-                ui.showToast(`Login failed. ${response.error}`, "error");
+            let response = await api.loginGuest(userName, _password, clientData);
+
+            if (response?.user) {
+                setError("");
+                navigate('/app');
                 return;
             }
-            setError("");
-            navigate('/app');
+
+            if (response?.error) {
+                setError(`Login failed. ${response?.error}`);
+                ui.showToast(`Login failed. Please try again.`, "error");
+                return;
+            }
+
+            setError(`Login failed.`);
+            ui.showToast(`Login failed. Please try again.`, "error");
+            return;
+
+
         } catch (err: any) {
             setError(err.message || 'Login failed. Please try again.');
         } finally {
@@ -123,7 +195,7 @@ const LoginGuestPage: React.FC = () => {
 
     return (
         <Container className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
-            <h1>{title}</h1>
+            <h1>{participantGroupName}</h1>
             <Card style={{ width: '400px', borderColor: '#007bff' }}>
                 {
                     configError ? (
@@ -143,7 +215,7 @@ const LoginGuestPage: React.FC = () => {
                                             type="text"
                                             value={userName}
                                             onChange={(e) => setUserName(e.target.value)}
-                                            placeholder="Enter your display name"
+                                            placeholder="Enter your user name"
                                             required
                                             disabled={loading || !allowEntry}
                                             style={{ background: !allowEntry ? "#c0c0c0" : "" }}

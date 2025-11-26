@@ -104,6 +104,10 @@ const LoginPage: React.FC = () => {
 
             setClientConfig(resultMsg.data.config);
 
+            /**
+             * hand user login
+             */
+
             if (resultMsg.data.config.user_login_require_participant_group && !pg) {
                 setConfigError("Invalid login group.");
             }
@@ -111,11 +115,12 @@ const LoginPage: React.FC = () => {
             if (resultMsg.data.config.user_login_require_conference_group && !confGroup) {
                 setConfigError("Invalid conference group.");
             }
+            //
 
             setLoading(false);
         };
 
-       fetchConfig();
+        fetchConfig();
 
 
     }, []);

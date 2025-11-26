@@ -26,6 +26,12 @@
           "video[playsinline]"
         ]
       }
+    ],
+    "axe/aria": [
+      "default",
+      {
+        "aria-valid-attr-value": "off"
+      }
     ]
   }
 }

@@ -331,6 +331,7 @@ export class GetClientConfigResultMsg implements IMsg {
     data: {
         participantGroupName?: string,
         participantGroup?: string,
+        conferenceGroup?: string,     
         config? : ClientConfig,
         error?: string,
     } = { };
