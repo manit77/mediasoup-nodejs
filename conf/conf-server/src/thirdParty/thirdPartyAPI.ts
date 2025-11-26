@@ -49,7 +49,7 @@ export class ThirdPartyAPI {
     async getScheduledConference(id: string, clientData: {}) {
         console.log(`getScheduledConference, clientData:`, clientData);
 
-        let postData = new apiGetScheduledConferencesPost();
+        let postData = new apiGetScheduledConferencePost();
         postData.data.id = id;
         postData.data.clientData = clientData;
         return await this.post(this.config.conf_data_urls.get_scheduled_conference_url, postData) as apiGetScheduledConferenceResult;

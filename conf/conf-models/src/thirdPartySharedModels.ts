@@ -56,8 +56,7 @@ export class apiGetScheduledConferenceResult {
 
 export class apiGetScheduledConferencesPost {
     type = apiMsgTypes.getScheduledConferences;
-    data: {
-        id?: string,
+    data: {       
         clientData?: {};
     } = {}
 }
