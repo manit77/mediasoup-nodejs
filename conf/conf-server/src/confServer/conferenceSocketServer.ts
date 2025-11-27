@@ -99,19 +99,19 @@ export class ConferenceSocketServer {
                     return;
                 }
 
-                let returnMsg: IMsg;
+                let returnMsg: RegisterResultMsg;
 
                 if (msgIn.type == CallMessageType.register) {
                     //register belongs to the a socket connection
                     if (conn.participantId) {
                         consoleError(LOG, `already registered`, conn.participantId);
                         returnMsg = new RegisterResultMsg();
-                        returnMsg.data.error = "already registered.";
+                        returnMsg.error = "already registered.";
 
                     } else {
                         returnMsg = (await this.confServer.onRegister(msgIn) as RegisterResultMsg);
-                        if (returnMsg.data.error) {
-                            consoleError(LOG, `failed to register socket ${returnMsg.data.error}`);
+                        if (returnMsg.error) {
+                            consoleError(LOG, `failed to register socket ${returnMsg.error}`);
                             return;
                         } else {
                             conn.participantId = returnMsg.data.participantId;

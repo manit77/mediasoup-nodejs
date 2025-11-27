@@ -18,7 +18,7 @@ import { Peer } from '../roomServer/peer.js';
 const LOG = "RoomSocketServer";
 
 export type RoomPeerSocketSecurityMap = {
-    [key in payloadTypeClient | payloadTypeServer]: AuthUserRoles[];
+    [key: string]: AuthUserRoles[];
 };
 
 export let defaultPeerSocketServerSecurityMap: RoomPeerSocketSecurityMap = {} as any;
@@ -48,7 +48,7 @@ export class SocketConnection {
     room_authtoken: string;
 }
 
-export class RoomPeerSocketStore {    
+export class RoomPeerSocketStore {
     connections = new Map<WebSocket, SocketConnection>();
 }
 
@@ -194,7 +194,7 @@ export class RoomPeerSocketServer {
         if (!authToken) {
             consoleError(LOG, "no authToken");
             let errMsg = new UnauthorizedMsg();
-            errMsg.data.error = "authToken required.";
+            errMsg.error = "authToken required.";
             return errMsg;
         }
 
@@ -202,7 +202,7 @@ export class RoomPeerSocketServer {
         if (!payload) {
             consoleError(LOG, "invalid authToken.");
             let errMsg = new UnauthorizedMsg();
-            errMsg.data.error = "invalid authToken.";
+            errMsg.error = "invalid authToken.";
             return errMsg;
         }
 
@@ -211,7 +211,7 @@ export class RoomPeerSocketServer {
         if (!secMap || (secMap.length > 0 && !secMap.includes(payload.role))) {
             consoleError(LOG, "unauthorized");
             let errMsg = new UnauthorizedMsg();
-            errMsg.data.error = "unauthorized access.";
+            errMsg.error = "unauthorized access.";
             return errMsg;
         }
 

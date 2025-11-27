@@ -28,7 +28,8 @@ import {
     TerminateConfMsg,
     ConferencePongMsg,
     JoinLobbyMsg,
-    LeaveLobbyMsg
+    LeaveLobbyMsg,
+    BaseMsg
 } from '@conf/conf-models';
 import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
@@ -98,7 +99,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         }
     }
 
-    async handleMsgInWS(participantId: string, msgIn: IMsg) {
+    async handleMsgInWS(participantId: string, msgIn: BaseMsg) {
         try {
 
             consoleLog("msgIn: ", msgIn);
@@ -278,7 +279,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
             let api = new RoomsAPI(conf.roomURI, this.config.room_access_token);
             let resultMsg = await api.getRoomStatus(conf.roomId);
-            if (resultMsg && resultMsg.data?.error) {
+            if (!resultMsg || resultMsg?.error) {
                 //room not found or error state
                 conf.close("room not found.");
                 return;
@@ -321,7 +322,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError("username is required.");
 
             let errorMsg = new RegisterResultMsg();
-            errorMsg.data.error = "username is required.";
+            errorMsg.error = "username is required.";
             return errorMsg;
         }
 
@@ -329,7 +330,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError("displayName is required.");
 
             let errorMsg = new RegisterResultMsg();
-            errorMsg.data.error = "displayName is required.";
+            errorMsg.error = "displayName is required.";
             return errorMsg;
         }
 
@@ -337,7 +338,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError("authToken is required.");
 
             let errorMsg = new RegisterResultMsg();
-            errorMsg.data.error = "authToken is required.";
+            errorMsg.error = "authToken is required.";
             return errorMsg;
         }
 
@@ -349,7 +350,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             //if in conference
             if (existingParticipant.conference) {
                 let errorMsg = new RegisterResultMsg();
-                errorMsg.data.error = "already logged in from another location.";
+                errorMsg.error = "already logged in from another location.";
                 return errorMsg;
             }
 
@@ -366,7 +367,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         if (this.config.conf_require_participant_group && !msgIn.data.participantGroup) {
             let errorMsg = new RegisterResultMsg();
-            errorMsg.data.error = "participant group is required.";
+            errorMsg.error = "participant group is required.";
             return errorMsg;
         }
 
@@ -537,7 +538,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
             let errorMsg = new InviteResultMsg();
             errorMsg.data.conferenceId = participant.conference.id;
-            errorMsg.data.error = "already in a conference room.";
+            errorMsg.error = "already in a conference room.";
 
             return errorMsg;
         }
@@ -547,7 +548,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError("remote participant not found.");
 
             let errorMsg = new InviteResultMsg();
-            errorMsg.data.error = "remote party not found.";
+            errorMsg.error = "remote party not found.";
 
             return errorMsg;
         }
@@ -556,7 +557,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`receiver is in another conference room. ${remote.conference.id}`);
 
             let errorMsg = new InviteResultMsg();
-            errorMsg.data.error = "remote party is on another call.";
+            errorMsg.error = "remote party is on another call.";
 
             return errorMsg;
         }
@@ -565,7 +566,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`not in the same participant group.`);
 
             let errorMsg = new InviteResultMsg();
-            errorMsg.data.error = "invalid participantId.";
+            errorMsg.error = "invalid participantId.";
 
             return errorMsg;
         }
@@ -574,7 +575,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`cannot invite self`);
 
             let errorMsg = new InviteResultMsg();
-            errorMsg.data.error = "invalid participantId.";
+            errorMsg.error = "invalid participantId.";
 
             return errorMsg;
         }
@@ -604,7 +605,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             let errorMsg = new InviteResultMsg();
             //send InviteResult back to the caller
             errorMsg.data.conferenceId = conference.id;
-            errorMsg.data.error = "invite failed.";
+            errorMsg.error = "invite failed.";
 
             return errorMsg;
         }
@@ -713,7 +714,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError("ERROR: conference room does not exist");
             let msg = new AcceptResultMsg();
             msg.data.conferenceId = msgIn.data.conferenceId;
-            msg.data.error = "unable to join conference";
+            msg.error = "unable to join conference";
             return msg;
         }
 
@@ -721,14 +722,14 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError("ERROR: not the same participant group.");
             let msg = new AcceptResultMsg();
             msg.data.conferenceId = msgIn.data.conferenceId;
-            msg.data.error = "unable to join conference";
+            msg.error = "unable to join conference";
             return msg;
         }
 
         if (conference.status == "closed") {
             let msg = new AcceptResultMsg();
             msg.data.conferenceId = msgIn.data.conferenceId;
-            msg.data.error = "conference is closed";
+            msg.error = "conference is closed";
             return msg;
         }
 
@@ -742,7 +743,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError("timeout waiting to join conference.");
             let msg = new AcceptResultMsg();
             msg.data.conferenceId = msgIn.data.conferenceId;
-            msg.data.error = "timeout, unable to join conference";
+            msg.error = "timeout, unable to join conference";
             this.send(participant, msg);
         }, 5000);
 
@@ -794,15 +795,15 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 if (!resultMsg) {
                     consoleError(`could not get conference ${msgIn.data.conferenceExternalId} with clientData:`, participant.clientData);
                     let errorMsg = new CreateConfResultMsg();
-                    errorMsg.data.error = "could not get conference configs.";
+                    errorMsg.error = "could not get conference configs.";
                     return errorMsg;
                 }
 
                 consoleLog(`getScheduledConference:`, resultMsg);
-                if (resultMsg.data.error) {
-                    consoleError(resultMsg.data.error);
+                if (resultMsg.error) {
+                    consoleError(resultMsg.error);
                     let errorMsg = new CreateConfResultMsg();
-                    errorMsg.data.error = "error getting conference configs.";
+                    errorMsg.error = "error getting conference configs.";
                     return errorMsg;
                 }
 
@@ -824,7 +825,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 if (confConfig.guestsRequireConferenceCode && confConfig.conferenceCode != msgIn.data.conferenceCode) {
                     consoleError("invalid conference code");
                     let errorMsg = new CreateConfResultMsg();
-                    errorMsg.data.error = "invalid conference code.";
+                    errorMsg.error = "invalid conference code.";
                     return errorMsg;
                 }
             }
@@ -833,7 +834,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 if (confConfig.usersRequireConferenceCode && confConfig.conferenceCode != msgIn.data.conferenceCode) {
                     consoleError("invalid conference code");
                     let errorMsg = new CreateConfResultMsg();
-                    errorMsg.data.error = "invalid conference code.";
+                    errorMsg.error = "invalid conference code.";
                     return errorMsg;
                 }
             }
@@ -859,7 +860,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             if (!await this.startRoom(conference)) {
                 consoleError("unable to start a conference");
                 let errorMsg = new CreateConfResultMsg();
-                errorMsg.data.error = "unable to start the conference.";
+                errorMsg.error = "unable to start the conference.";
                 return errorMsg;
             }
         }
@@ -889,7 +890,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError("conferenceId or externalId is required.");
 
             let errorMsg = new JoinConfResultMsg();
-            errorMsg.data.error = "invalid room data.";
+            errorMsg.error = "invalid room data.";
             return errorMsg;
         }
 
@@ -911,7 +912,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`conference room not found ${msgIn.data.conferenceId}`);
 
             let errorMsg = new JoinConfResultMsg();
-            errorMsg.data.error = "conference room not found.";
+            errorMsg.error = "conference room not found.";
             return errorMsg;
         }
 
@@ -920,7 +921,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`conference room not ready ${conference.id}`);
 
             let errorMsg = new JoinConfResultMsg();
-            errorMsg.data.error = "conference room not ready.";
+            errorMsg.error = "conference room not ready.";
 
             return errorMsg;
         }
@@ -930,7 +931,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`guests not allowed ${conference.id}`);
 
             let errorMsg = new JoinConfResultMsg();
-            errorMsg.data.error = "guests not allowed.";
+            errorMsg.error = "guests not allowed.";
 
             return errorMsg;
         }
@@ -940,7 +941,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`invalid conference code: ${msgIn.data.conferenceCode}`);
 
             let errorMsg = new JoinConfResultMsg();
-            errorMsg.data.error = "invalid conference code";
+            errorMsg.error = "invalid conference code";
 
             return errorMsg;
         }
@@ -949,7 +950,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`invalid conference code: ${msgIn.data.conferenceCode}`);
 
             let errorMsg = new JoinConfResultMsg();
-            errorMsg.data.error = "invalid conference code";
+            errorMsg.error = "invalid conference code";
 
             return errorMsg;
         }
@@ -959,7 +960,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`guest not allowed: ${participant.role}`);
 
             let errorMsg = new JoinConfResultMsg();
-            errorMsg.data.error = "unauthorized";
+            errorMsg.error = "unauthorized";
 
             return errorMsg;
         }
@@ -968,7 +969,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError("ERROR: not the same participant group.");
             let msg = new JoinConfResultMsg();
             msg.data.conferenceId = msgIn.data.conferenceId;
-            msg.data.error = "unable to join conference";
+            msg.error = "unable to join conference";
             return msg;
         }
 
@@ -977,7 +978,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         if (!conference.addParticipant(participant)) {
             let errorMsg = new JoinConfResultMsg();
-            errorMsg.data.error = "unable to add you to the conference.";
+            errorMsg.error = "unable to add you to the conference.";
 
             return errorMsg;
         }
@@ -1008,10 +1009,10 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         //create an authtoken per user
         let authUserTokenResult = await roomsAPI.newAuthUserToken(participant.username, participant.role as any);
-        if (!authUserTokenResult || authUserTokenResult?.data?.error) {
+        if (!authUserTokenResult || authUserTokenResult?.error) {
             consoleError("failed to create new authUser token in rooms");
             let errorMsg = new InviteResultMsg();
-            errorMsg.data.error = "error creating conference for user.";
+            errorMsg.error = "error creating conference for user.";
             this.send(participant, errorMsg);
             return null;
         }
@@ -1069,7 +1070,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         let roomsAPI = new RoomsAPI(roomURI, this.config.room_access_token);
 
         let roomTokenResult = await roomsAPI.newRoomToken();
-        if (!roomTokenResult || roomTokenResult?.data?.error) {
+        if (!roomTokenResult || roomTokenResult?.error) {
             consoleError("failed to create new room token");
             clearTimeout(initTimerId);
             conference.close("failed to init new room");
@@ -1097,7 +1098,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         roomConfig.isRecorded = conference.config.isRecorded;
 
         let roomNewResult = await roomsAPI.newRoom(roomId, roomToken, conference.roomName, conference.id, roomConfig);
-        if (!roomNewResult || roomNewResult?.data?.error) {
+        if (!roomNewResult || roomNewResult?.error) {
             consoleError("failed to create new room");
 
             clearTimeout(initTimerId);
@@ -1227,7 +1228,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         let roomsAPI = new RoomsAPI(conference.roomURI, this.config.room_access_token);
         let resultMsg: IMsg = await roomsAPI.roomPong(participant.participantId, conference.roomId);
-        if (resultMsg && resultMsg.data.error) {
+        if (resultMsg && resultMsg.error) {
             //roomPong returned an error, room not found or not in room
         }
 

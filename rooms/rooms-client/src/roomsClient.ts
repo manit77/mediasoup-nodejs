@@ -255,15 +255,15 @@ export class RoomsClient {
           console.log("--waitForRegister() - onmessage", msg);
           if (msg.type == payloadTypeServer.registerPeerResult) {
 
-            if (msg.data.error) {
+            if (msg.error) {
               clearTimeout(timerid);
               this.ws.removeEventHandler("onmessage", _onmessage);
-              console.error(msg.data.error)
+              console.error(msg.error)
               reject("register error.");
               return;
             }
 
-            this.localPeer.peerId = msg.data.peerId;
+            this.localPeer.peerId = (msg as RegisterPeerResultMsg).data.peerId;
             clearTimeout(timerid);
             this.ws.removeEventHandler("onmessage", _onmessage);
             console.log(`register result received, remove _onmessage`);
@@ -400,8 +400,8 @@ export class RoomsClient {
             this.removeMessageListener(_onmessage);
 
             let msgIn = msg as RegisterPeerResultMsg;
-            if (msgIn.data.error) {
-              console.error(msgIn.data.error);
+            if (msgIn.error) {
+              console.error(msgIn.error);
               reject(`register error`);
               return;
             }
@@ -886,7 +886,7 @@ export class RoomsClient {
     if (msgIn.data.authToken) {
       this.localPeer.authToken = msgIn.data.authToken;
     } else {
-      console.log(`Error getting authtoken ${msgIn.data.error}`);
+      console.log(`Error getting authtoken ${msgIn.error}`);
     }
 
   };
@@ -894,8 +894,8 @@ export class RoomsClient {
   private onRegisterResult = async (msgIn: RegisterPeerResultMsg) => {
     console.log(`** onRegisterResult - peerId: ${msgIn.data?.peerId}`);
 
-    if (msgIn.data.error) {
-      console.log(`register failed ${msgIn.data.error}`);
+    if (msgIn.error) {
+      console.log(`register failed ${msgIn.error}`);
       this.localPeer.peerId = "";
       return;
     }
@@ -927,8 +927,8 @@ export class RoomsClient {
   private onRoomNewTokenResult = async (msgIn: RoomNewTokenResultMsg) => {
     console.log("** onRoomNewTokenResult()");
 
-    if (msgIn.data.error) {
-      console.error(msgIn.data.error);
+    if (msgIn.error) {
+      console.error(msgIn.error);
       return;
     }
 
@@ -958,8 +958,8 @@ export class RoomsClient {
   private onRoomJoinResult = async (msgIn: RoomJoinResultMsg) => {
     console.log("** onRoomJoinResult()", msgIn.data);
 
-    if (msgIn.data.error) {
-      console.error(msgIn.data.error);
+    if (msgIn.error) {
+      console.error(msgIn.error);
       await this.eventOnRoomJoinFailed(this.localRoom.roomId);
       return;
     }
@@ -983,7 +983,7 @@ export class RoomsClient {
     console.log(`-- onRoomJoinResult() peers : ${msgIn.data?.peers.length}`);
 
     let transports = await this.waitForRoomTransports();
-    if (transports.data.error) {
+    if (transports.error) {
       console.log("unable to create transports");
       return;
     }

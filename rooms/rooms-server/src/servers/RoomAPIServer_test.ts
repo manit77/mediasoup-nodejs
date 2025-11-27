@@ -120,7 +120,7 @@ describe("roomServerTests", () => {
         expect(response.status).toBe(200);
 
         let resultMsg = response.body as RoomNewResultMsg;
-        console.log(resultMsg.data.error);
+        console.log(resultMsg.error);
         expect(resultMsg.data.roomId).toBeTruthy();
         expect(resultMsg.data.roomToken).toBeTruthy();
 
@@ -151,7 +151,7 @@ describe("roomServerTests", () => {
         expect(response.status).toBe(200);
 
         let resultMsg = response.body as RoomTerminateResultMsg;
-        expect(resultMsg.data.error).toBeFalsy();
+        expect(resultMsg.error).toBeFalsy();
         expect(roomServer.getRoomCount()).toBe(0);
 
     });

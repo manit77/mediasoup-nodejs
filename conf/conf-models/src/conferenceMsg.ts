@@ -1,68 +1,85 @@
 import { ClientConfig, ConferenceConfig, ConferenceScheduledInfo, conferenceType, ParticipantInfo, ParticipantRole } from "./conferenceModels.js";
 
-export enum CallMessageType {
+export const CallMessageType = {
 
-    login = "login",
-    loginGuest = "loginGuest",
-    loginResult = "loginResult",
+    login: "login",
+    loginGuest: "loginGuest",
+    loginResult: "loginResult",
 
-    loggedOff = "loggedOff",
-    unauthorized = "unauthorized",
-    //notRegistered = "notRegistered",
+    loggedOff: "loggedOff",
+    unauthorized: "unauthorized",
+    //notRegistered : "notRegistered",
 
-    register = "register", //register the partcipant as online
-    registerResult = "registerResult", //partcipant recieves a registration result
+    register: "register",//register the partcipant as online
+    registerResult: "registerResult", //partcipant recieves a registration result
 
-    createConf = "createConf",
-    createConfResult = "createConfResult",
-    joinConf = "joinConf",
-    joinConfResult = "joinConfResult",
-    terminateConf = "terminateConf",
+    createConf: "createConf",
+    createConfResult: "createConfResult",
+    joinConf: "joinConf",
+    joinConfResult: "joinConfResult",
+    terminateConf: "terminateConf",
 
-    invite = "invite", //invite to join room
-    inviteCancelled = "inviteCancelled", //invite cancelled
-    inviteResult = "inviteResult", //result of the invite, the other participant could reject it
+    invite: "invite", //invite to join room
+    inviteCancelled: "inviteCancelled", //invite cancelled
+    inviteResult: "inviteResult", //result of the invite, the other participant could reject it
 
-    reject = "reject", //the receiver rejects
-    accept = "accept", //participant requests to join the conference room
-    acceptResult = "acceptResult",
-    leave = "leave", //participant signals to leave the room
-    conferenceReady = "conferenceReady",
-    conferenceClosed = "conferenceClosed",
-    conferencePong = "conferencePong",
+    reject: "reject", //the receiver rejects
+    accept: "accept", //participant requests to join the conference room
+    acceptResult: "acceptResult",
+    leave: "leave", //participant signals to leave the room
+    conferenceReady: "conferenceReady",
+    conferenceClosed: "conferenceClosed",
+    conferencePong: "conferencePong",
 
-    getParticipants = "getParticipants",
-    getParticipantsResult = "getParticipantsResult",
-    getConferences = "getConferences",
-    getConferencesResult = "getConferencesResult",
+    getParticipants: "getParticipants",
+    getParticipantsResult: "getParticipantsResult",
+    getConferences: "getConferences",
+    getConferencesResult: "getConferencesResult",
 
-    particpantNewTrack = "particpantNewTrack",
-    presenterInfo = "presenterInfo",
+    particpantNewTrack: "particpantNewTrack",
+    presenterInfo: "presenterInfo",
 
-    joinLobby = "joinLobby",
-    leaveLobby = "leaveLobby",
+    joinLobby: "joinLobby",
+    leaveLobby: "leaveLobby",
 
-    getClientConfigResult = "getClientConfigResult",
+    getClientConfigResult: "getClientConfigResult",
 
 }
 
 export interface IMsg {
-    type: any;
-    data: any | { error?: any };
+    type: string;
+    error?: string;
+    data?: {};
 }
 
-export class LoginGuestMsg implements IMsg {
+export class BaseMsg implements IMsg {
+    type: string;
+    error?: string;
+    data?: {};
+}
+
+export function isMsgErorr(msg: IMsg) {
+    if (!msg) {
+        return true;
+    }
+
+    if (msg.error) {
+        return true;
+    }
+}
+
+export class LoginGuestMsg extends BaseMsg {
     type = CallMessageType.loginGuest;
-    data: {
+    data?: {
         username?: string,
         password?: string,
         clientData?: {}
     } = {};
 }
 
-export class LoginMsg implements IMsg {
+export class LoginMsg extends BaseMsg {
     type = CallMessageType.login;
-    data: {
+    data?: {
         username?: string,
         password?: string,
         authToken?: string,
@@ -70,9 +87,9 @@ export class LoginMsg implements IMsg {
     } = {};
 }
 
-export class LoginResultMsg implements IMsg {
+export class LoginResultMsg extends BaseMsg {
     type = CallMessageType.loginResult
-    data: {
+    data?: {
         participantGroup?: string,
         participantGroupName?: string,
         conferenceGroup?: string,
@@ -80,126 +97,121 @@ export class LoginResultMsg implements IMsg {
         displayName?: string,
         authToken?: string,
         role?: string,
-        error?: string,
         clientData?: {},
     } = {};
 }
 
-export class LoggedOffMsg implements IMsg {
+export class LoggedOffMsg extends BaseMsg {
     type = CallMessageType.loggedOff;
-    data: {
+    data?: {
         reason?: string
     } = {};
 }
 
-export class RegisterMsg implements IMsg {
+export class RegisterMsg extends BaseMsg {
     type = CallMessageType.register;
-    data: {
+    data?: {
         username?: string,
         displayName?: string,
         authToken?: string,
         participantId?: string,
         participantGroup?: string, //groups users together
-        conferenceGroup? : string, //groups users to conferences
+        conferenceGroup?: string, //groups users to conferences
         clientData?: {}
     } = {};
 }
 
-export class RegisterResultMsg implements IMsg {
+export class RegisterResultMsg extends BaseMsg {
     type = CallMessageType.registerResult;
-    data: {
+    data?: {
         username?: string,
         participantId?: string,
         role?: ParticipantRole | string,
-        error?: string
+
     } = {};
 }
 
-export class GetParticipantsMsg implements IMsg {
+export class GetParticipantsMsg extends BaseMsg {
     type = CallMessageType.getParticipants;
-    data = {};
+    data?: {} = {};
 }
 
-export class GetParticipantsResultMsg implements IMsg {
+export class GetParticipantsResultMsg extends BaseMsg {
     type = CallMessageType.getParticipantsResult;
-    data: {
+    data?: {
         participants?: ParticipantInfo[],
-        error?: string,
 
     } = { participants: [] };
 }
 
-export class GetConferencesMsg implements IMsg {
+export class GetConferencesMsg extends BaseMsg {
     type = CallMessageType.getConferences;
-    data = {};
+    data? = {};
 }
 
-export class GetConferenceScheduledResultMsg implements IMsg {
+export class GetConferenceScheduledResultMsg extends BaseMsg {
     type = CallMessageType.getConferencesResult;
-    data: {
+    data?: {
         conference?: ConferenceScheduledInfo,
-        error?: string,
     } = {};
 }
 
-export class GetConferencesScheduledResultMsg implements IMsg {
+export class GetConferencesScheduledResultMsg extends BaseMsg {
     type = CallMessageType.getConferencesResult;
-    data: {
+    data?: {
         conferences?: ConferenceScheduledInfo[],
-        error?: string,
     } = {};
 }
 
-export class GetConferencesResultMsg implements IMsg {
+export class GetConferencesResultMsg extends BaseMsg {
     type = CallMessageType.getConferencesResult;
-    data: {
+    data?: {
         conferences: ConferenceScheduledInfo[],
-        error?: string,
     } = { conferences: [] };
 }
 
-export class CreateConfMsg implements IMsg {
+export class CreateConfMsg extends BaseMsg {
     type = CallMessageType.createConf;
-    data = {
-        conferenceExternalId: "",
-        conferenceConfig: new ConferenceConfig(),
-        roomName: "",
-        conferenceCode: "",
-    }
+    data?: {
+        conferenceExternalId?: string,
+        roomName?: string,
+        conferenceCode?: string,
+        conferenceConfig?: ConferenceConfig,
+    } = {
+            conferenceConfig: new ConferenceConfig(),
+        };
 }
 
-export class CreateConfResultMsg implements IMsg {
+export class CreateConfResultMsg extends BaseMsg {
     type = CallMessageType.createConfResult;
-    data: {
+    data?: {
         conferenceId?: string,
         externalId?: string,
         roomName?: string,
-        error?: string
     } = {};
 }
 
-export class JoinConfMsg implements IMsg {
+export class JoinConfMsg extends BaseMsg {
     type = CallMessageType.joinConf;
-    data = {
-        conferenceId: "",
-        conferenceCode: "",
-        externalId: "",
-    }
+    data?: {
+        conferenceId?: string,
+        conferenceCode?: string,
+        externalId?: string
+    } = {}
 }
 
-export class JoinConfResultMsg implements IMsg {
+export class JoinConfResultMsg extends BaseMsg {
     type = CallMessageType.joinConfResult;
-    data: {
+    data?: {
         conferenceId?: string,
         leaderId?: string,
         presenterId?: string,
-        error?: string
     } = {};
 }
 
-export class InviteMsg implements IMsg {
+export class InviteMsg extends BaseMsg {
     type = CallMessageType.invite;
-    data: {
+    data?: {
         participantId?: string,
         displayName?: string,
         conferenceId?: string,
@@ -209,63 +221,63 @@ export class InviteMsg implements IMsg {
     } = {};
 }
 
-export class InviteCancelledMsg implements IMsg {
+export class InviteCancelledMsg extends BaseMsg {
     type = CallMessageType.inviteCancelled;
-    data: {
+    data?: {
         conferenceId?: string,
         participantId?: string
     } = {};
 }
 
-export class InviteResultMsg implements IMsg {
+export class InviteResultMsg extends BaseMsg {
     type = CallMessageType.inviteResult;
-    data: {
+    data?: {
         participantId?: string,
         displayName?: string,
         conferenceId?: string,
         conferenceName?: string,
         conferenceExternalId?: string,
         conferenceType?: conferenceType,
-        error?: string
+
     } = {};
 }
 
-export class RejectMsg implements IMsg {
+export class RejectMsg extends BaseMsg {
     type = CallMessageType.reject;
-    data: {
+    data?: {
         conferenceId?: string,
         fromParticipantId?: string,
         toParticipantId?: string,
     } = {};
 }
 
-export class AcceptMsg implements IMsg {
+export class AcceptMsg extends BaseMsg {
     type = CallMessageType.accept;
-    data: {
+    data?: {
         conferenceId?: string,
-        error?: string
+
     } = {};
 }
 
-export class AcceptResultMsg implements IMsg {
+export class AcceptResultMsg extends BaseMsg {
     type = CallMessageType.acceptResult;
-    data: {
+    data?: {
         conferenceId?: string,
-        error?: string
+
     } = {};
 }
 
-export class LeaveMsg implements IMsg {
+export class LeaveMsg extends BaseMsg {
     type = CallMessageType.leave;
-    data: {
+    data?: {
         conferenceId?: string,
         participantId?: string
     } = {};
 }
 
-export class ConferenceReadyMsg implements IMsg {
+export class ConferenceReadyMsg extends BaseMsg {
     type = CallMessageType.conferenceReady;
-    data: {
+    data?: {
         participantId?: string,
         displayName?: string,
         leaderId?: string,
@@ -285,79 +297,74 @@ export class ConferenceReadyMsg implements IMsg {
     } = {};
 }
 
-export class ConferenceClosedMsg implements IMsg {
+export class ConferenceClosedMsg extends BaseMsg {
     type = CallMessageType.conferenceClosed;
-    data: {
+    data?: {
         conferenceId?: string,
         reason?: string
     } = {};
 }
 
-export class ConferencePongMsg implements IMsg {
+export class ConferencePongMsg extends BaseMsg {
     type = CallMessageType.conferencePong;
-    data: {
+    data?: {
         conferenceId?: string,
     } = {};
 }
 
-export class PresenterInfoMsg implements IMsg {
+export class PresenterInfoMsg extends BaseMsg {
     type = CallMessageType.presenterInfo;
-    data: {
+    data?: {
         participantId?: string,
         status?: "on" | "off"
     } = {};
 }
 
-export class JoinLobbyMsg implements IMsg {
+export class JoinLobbyMsg extends BaseMsg {
     type = CallMessageType.joinLobby;
-    data: {
+    data?: {
         participantId?: string,
         conferenceExternalId?: string,
         conferenceId?: string
     } = {};
 }
 
-export class LeaveLobbyMsg implements IMsg {
+export class LeaveLobbyMsg extends BaseMsg {
     type = CallMessageType.leaveLobby;
-    data: {
+    data?: {
         participantId?: string,
         conferenceExternalId?: string,
         conferenceId?: string
     } = {};
 }
 
-export class GetClientConfigResultMsg implements IMsg {
+export class GetClientConfigResultMsg extends BaseMsg {
     type = CallMessageType.getClientConfigResult;
-    data: {
+    data?: {
         participantGroupName?: string,
         participantGroup?: string,
-        conferenceGroup?: string,     
-        config? : ClientConfig,
-        error?: string,
-    } = { };
+        conferenceGroup?: string,
+        config?: ClientConfig,
+    } = {};
 }
 
-// export class NotRegisteredMsg implements IMsg {
+// export class NotRegisteredMsg extends BaseMsg {
 //     type = CallMessageType.notRegistered;
-//     data: {
-//         error?: string
+//     data?: {
+//         
 //     } = {};
 // }
 
 
-export class UnauthorizedMsg implements IMsg {
+export class UnauthorizedMsg extends BaseMsg {
     type = CallMessageType.unauthorized;
-    data: {
-        error?: string
-    } = {};
 }
 
 
-export class TerminateConfMsg implements IMsg {
+export class TerminateConfMsg extends BaseMsg {
     type = CallMessageType.terminateConf;
-    data: {
-        conferenceId?: string,
-        error?: string
+    data?: {
+        conferenceId?: string
     } = {};
 }
 

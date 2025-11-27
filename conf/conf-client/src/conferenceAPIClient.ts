@@ -1,4 +1,6 @@
-import { apiGetClientConfigPost, apiGetParticipantsOnlinePost, apiGetScheduledConferencePost, apiGetScheduledConferencesPost, GetClientConfigResultMsg, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
+import { apiGetClientConfigPost, apiGetParticipantsOnlinePost, apiGetScheduledConferencePost, apiGetScheduledConferencesPost, 
+    GetClientConfigResultMsg, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, 
+    LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
 import { ConferenceClientConfig } from './models.js';
 
 export class ConferenceAPIClient {
@@ -97,7 +99,10 @@ export class ConferenceAPIClient {
                 body: JSON.stringify(post),
             });
 
-            return await response.json() as GetConferencesScheduledResultMsg;
+            let body = await response.text();
+            console.log(body);
+
+            return JSON.parse(body) as GetConferencesScheduledResultMsg;
         } catch (err) {
             console.error(err);
             return null;

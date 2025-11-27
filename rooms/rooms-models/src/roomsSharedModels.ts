@@ -1,85 +1,92 @@
 /**
  * server receives these payload types
  */
-export enum payloadTypeClient {
-    authUserNewToken = "authUserNewToken",
+export const payloadTypeClient = {
+    authUserNewToken : "authUserNewToken",
 
-    registerPeer = "registerPeer",
-    terminatePeer = "terminatePeer",
+    registerPeer : "registerPeer",
+    terminatePeer : "terminatePeer",
 
-    createProducerTransport = "createProducerTransport",
-    createConsumerTransport = "createConsumerTransport",
-    connectProducerTransport = "connectProducerTransport",
-    connectConsumerTransport = "connectConsumerTransport",
+    createProducerTransport : "createProducerTransport",
+    createConsumerTransport : "createConsumerTransport",
+    connectProducerTransport : "connectProducerTransport",
+    connectConsumerTransport : "connectConsumerTransport",
 
-    roomNewToken = "roomNewToken",
-    roomNewTokenResult = "roomNewTokenResult",
-    roomNew = "roomNew",
-    roomJoin = "roomJoin",
-    roomLeave = "roomLeave",
-    roomTerminate = "roomTerminate",
-    roomPong = "roomPong",
-    roomRecordingStart = "roomRecordingStart",
-    roomRecordingStop = "roomRecordingStop",
+    roomNewToken : "roomNewToken",
+    roomNewTokenResult : "roomNewTokenResult",
+    roomNew : "roomNew",
+    roomJoin : "roomJoin",
+    roomLeave : "roomLeave",
+    roomTerminate : "roomTerminate",
+    roomPong : "roomPong",
+    roomRecordingStart : "roomRecordingStart",
+    roomRecordingStop : "roomRecordingStop",
 
-    roomGetLogs = "roomGetLogs",
-    roomGetStatus = "roomGetStatus",
+    roomGetLogs : "roomGetLogs",
+    roomGetStatus : "roomGetStatus",
 
-    roomProduceStream = "roomProduceStream",
-    roomCloseProducer = "roomCloseProducer",
-    roomConsumeProducer = "roomConsumeProducer",
+    roomProduceStream : "roomProduceStream",
+    roomCloseProducer : "roomCloseProducer",
+    roomConsumeProducer : "roomConsumeProducer",
 
-    peerTracksInfo = "peerTracksInfo",
-    peerMuteTracks = "peerMuteTracks",
+    peerTracksInfo : "peerTracksInfo",
+    peerMuteTracks : "peerMuteTracks",
 }
 
 
 /**
  * server sends these payload types
  */
-export enum payloadTypeServer {
+export const payloadTypeServer = {
 
-    authUserNewTokenResult = "authUserNewTokenResult",
-    registerPeerResult = "registerPeerResult",
+    authUserNewTokenResult : "authUserNewTokenResult",
+    registerPeerResult : "registerPeerResult",
 
-    //createProducerTransport = "createProducerTransport",
-    createProducerTransportResult = "createProducerTransportResult",
-    connectProducerTransportResult = "connectProducerTransportResult",
-    producerTransportConnected = "producerTransportConnected",
+    //createProducerTransport : "createProducerTransport",
+    createProducerTransportResult : "createProducerTransportResult",
+    connectProducerTransportResult : "connectProducerTransportResult",
+    producerTransportConnected : "producerTransportConnected",
 
-    //consumerTransportCreated = "consumerTransportCreated",
-    createConsumerTransportResult = "createConsumerTransportResult",
-    connectConsumerTransportResult = "connectConsumerTransportResult",
-    consumerTransportConnected = "consumerTransportConnected",
+    //consumerTransportCreated : "consumerTransportCreated",
+    createConsumerTransportResult : "createConsumerTransportResult",
+    connectConsumerTransportResult : "connectConsumerTransportResult",
+    consumerTransportConnected : "consumerTransportConnected",
 
-    roomProduceStreamResult = "roomProduceStreamResult",
-    roomConsumeProducerResult = "roomConsumeProducerResult",
-    roomConsumerClosed = "roomConsumerClosed",
+    roomProduceStreamResult : "roomProduceStreamResult",
+    roomConsumeProducerResult : "roomConsumeProducerResult",
+    roomConsumerClosed : "roomConsumerClosed",
 
-    roomNewResult = "roomNewResult",
-    roomNewTokenResult = "roomNewTokenResult",
-    roomJoinResult = "roomJoinResult",
-    roomLeaveResult = "roomLeaveResult",
-    roomNewPeer = "roomNewPeer",
-    roomNewProducer = "roomNewProducer",
-    roomPeerLeft = "roomPeerLeft",
-    roomTerminateResult = "roomTerminateResult",
-    roomGetStatusResult = "roomGetStatusResult",
-    roomClosed = "roomClosed",
-    roomPing = "roomPing",
-    roomGetLogsResult = "roomGetLogsResult",
-    roomRecordingStartResult = "roomRecordingStartResult",
+    roomNewResult : "roomNewResult",
+    roomNewTokenResult : "roomNewTokenResult",
+    roomJoinResult : "roomJoinResult",
+    roomLeaveResult : "roomLeaveResult",
+    roomNewPeer : "roomNewPeer",
+    roomNewProducer : "roomNewProducer",
+    roomPeerLeft : "roomPeerLeft",
+    roomTerminateResult : "roomTerminateResult",
+    roomGetStatusResult : "roomGetStatusResult",
+    roomClosed : "roomClosed",
+    roomPing : "roomPing",
+    roomGetLogsResult : "roomGetLogsResult",
+    roomRecordingStartResult : "roomRecordingStartResult",
 
-    peerTerminated = "peerTerminated",
-    error = "error",
-    ok = "ok",
-    unauthorized = "unauthorized",
+    peerTerminated : "peerTerminated",
+    error : "error",
+    ok : "ok",
+    unauthorized : "unauthorized",
     //notRegistered = "notRegistered",
 }
 
 export interface IMsg {
-    type: any;
-    data: any | { error?: any };
+    type: string;    
+    error?: string;
+    data?: any;
+}
+
+export class BaseMsg implements IMsg {
+    type: string;    
+    error?: string;
+    data: any;
 }
 
 export enum AuthUserRoles {
@@ -88,23 +95,26 @@ export enum AuthUserRoles {
     , guest = "guest"
 }
 
-export class ErrorMsg implements IMsg {
+export class ErrorMsg extends BaseMsg {
     type = payloadTypeServer.error;
     data = {
-        error: ""
+        
     }
 
     constructor(msgType: any, error: string) {
+        super();        
         this.type = msgType;
-        this.data.error = error;
+        this.error = error;
     }
 }
 
-export class OkMsg implements IMsg {
+export class OkMsg extends BaseMsg {
     type = payloadTypeServer.ok;
     data = {}
 
     constructor(msgType?: any, data?: {}) {
+        super();
+
         if (msgType) {
             this.type = msgType;
         }
@@ -114,7 +124,7 @@ export class OkMsg implements IMsg {
     }
 }
 
-export class RegisterPeerMsg implements IMsg {
+export class RegisterPeerMsg extends BaseMsg {
     type = payloadTypeClient.registerPeer;
     data: {
         authToken?: string,
@@ -127,17 +137,16 @@ export class RegisterPeerMsg implements IMsg {
     } = {}
 }
 
-export class RegisterPeerResultMsg implements IMsg {
+export class RegisterPeerResultMsg extends BaseMsg {
     type = payloadTypeServer.registerPeerResult;
     data: {
         peerId?: string,
         displayName?: string,
-        rtpCapabilities?: any,
-        error?: string
+        rtpCapabilities?: any,        
     } = {};
 }
 
-export class TerminatePeerMsg implements IMsg {
+export class TerminatePeerMsg extends BaseMsg {
     type = payloadTypeClient.terminatePeer;
     data: {
         authToken?: string,
@@ -145,15 +154,14 @@ export class TerminatePeerMsg implements IMsg {
     } = {};
 }
 
-export class PeerTerminatedMsg implements IMsg {
+export class PeerTerminatedMsg extends BaseMsg {
     type = payloadTypeServer.peerTerminated;
     data: {
-        peerId?: string,
-        error?: string
+        peerId?: string,       
     } = {};
 }
 
-export class CreateProducerTransportMsg implements IMsg {
+export class CreateProducerTransportMsg extends BaseMsg {
     type = payloadTypeClient.createProducerTransport;
     data: {
         authToken?: string,
@@ -161,7 +169,7 @@ export class CreateProducerTransportMsg implements IMsg {
     } = {}
 }
 
-export class CreateProducerTransportResultMsg implements IMsg {
+export class CreateProducerTransportResultMsg extends BaseMsg {
     type = payloadTypeServer.createProducerTransportResult;
     data: {
         roomId?: string,
@@ -174,15 +182,14 @@ export class CreateProducerTransportResultMsg implements IMsg {
     } = {};
 }
 
-export class ProducerTransportConnectedMsg implements IMsg {
+export class ProducerTransportConnectedMsg extends BaseMsg {
     type = payloadTypeServer.producerTransportConnected;
     data: {
-        roomId?: string,
-        error?: any,
+        roomId?: string        
     } = {};
 }
 
-export class ConnectProducerTransportMsg implements IMsg {
+export class ConnectProducerTransportMsg extends BaseMsg {
     type = payloadTypeClient.connectProducerTransport;
     data: {
         transportId?: string,
@@ -192,7 +199,7 @@ export class ConnectProducerTransportMsg implements IMsg {
     } = {}
 }
 
-export class CreateConsumerTransportMsg implements IMsg {
+export class CreateConsumerTransportMsg extends BaseMsg {
     type = payloadTypeClient.createConsumerTransport;
     data: {
         authToken?: string,
@@ -200,7 +207,7 @@ export class CreateConsumerTransportMsg implements IMsg {
     } = {}
 }
 
-export class CreateConsumerTransportResultMsg implements IMsg {
+export class CreateConsumerTransportResultMsg extends BaseMsg {
     type = payloadTypeServer.createConsumerTransportResult;
     data: {
         roomId?: string,
@@ -213,15 +220,14 @@ export class CreateConsumerTransportResultMsg implements IMsg {
     } = {};
 }
 
-export class ConsumerTransportConnectedMsg implements IMsg {
+export class ConsumerTransportConnectedMsg extends BaseMsg {
     type = payloadTypeServer.consumerTransportConnected;
     data: {
-        roomId?: string,
-        error?: any,
+        roomId?: string        
     } = {};
 }
 
-export class ConnectConsumerTransportMsg implements IMsg {
+export class ConnectConsumerTransportMsg extends BaseMsg {
     type = payloadTypeClient.connectConsumerTransport;
     data: {
         transportId?: string,
@@ -231,7 +237,7 @@ export class ConnectConsumerTransportMsg implements IMsg {
     } = {};
 }
 
-export class RoomNewMsg implements IMsg {
+export class RoomNewMsg extends BaseMsg {
     type = payloadTypeClient.roomNew;
     data: {
         authToken?: string,
@@ -247,7 +253,7 @@ export class RoomNewMsg implements IMsg {
         }
 }
 
-export class AuthUserNewTokenMsg implements IMsg {
+export class AuthUserNewTokenMsg extends BaseMsg {
     type = payloadTypeClient.authUserNewToken;
     data: {
         username?: string;
@@ -256,18 +262,17 @@ export class AuthUserNewTokenMsg implements IMsg {
     } = {}
 }
 
-export class AuthUserNewTokenResultMsg implements IMsg {
+export class AuthUserNewTokenResultMsg extends BaseMsg {
     type = payloadTypeServer.authUserNewTokenResult;
     data: {
         authToken?: string,
         expiresIn?: number,
-        role?: AuthUserRoles;
-        error?: string
+        role?: AuthUserRoles;        
     } = {
         }
 }
 
-export class RoomNewTokenMsg implements IMsg {
+export class RoomNewTokenMsg extends BaseMsg {
     type = payloadTypeClient.roomNewToken;
     data: {
         authToken?: string,
@@ -275,16 +280,15 @@ export class RoomNewTokenMsg implements IMsg {
     } = {}
 }
 
-export class RoomNewTokenResultMsg implements IMsg {
+export class RoomNewTokenResultMsg extends BaseMsg {
     type = payloadTypeClient.roomNewTokenResult;
     data: {
         roomId?: string,
-        roomToken?: string
-        error?: string
+        roomToken?: string        
     } = {}
 }
 
-export class RoomNewResultMsg implements IMsg {
+export class RoomNewResultMsg extends BaseMsg {
     type = payloadTypeServer.roomNewResult;
     data: {
         peerId?: string,
@@ -294,12 +298,11 @@ export class RoomNewResultMsg implements IMsg {
         /**
          * your app's unique to track the room
          */
-        roomTrackingId?: string,
-        error?: string,
+        roomTrackingId?: string,        
     } = {}
 }
 
-export class RoomJoinMsg implements IMsg {
+export class RoomJoinMsg extends BaseMsg {
     type = payloadTypeClient.roomJoin;
     data: {
         authToken?: string,
@@ -309,7 +312,7 @@ export class RoomJoinMsg implements IMsg {
     } = {}
 }
 
-export class RoomLeaveMsg implements IMsg {
+export class RoomLeaveMsg extends BaseMsg {
     type = payloadTypeClient.roomLeave;
     data: {
         authToken?: string,
@@ -319,22 +322,21 @@ export class RoomLeaveMsg implements IMsg {
     } = {}
 }
 
-export class RoomLeaveResultMsg implements IMsg {
+export class RoomLeaveResultMsg extends BaseMsg {
     type = payloadTypeServer.roomLeaveResult;
     data: {
-        roomId?: string,
-        error?: string
+        roomId?: string,       
     } = {}
 }
 
-export class RoomClosedMsg implements IMsg {
+export class RoomClosedMsg extends BaseMsg {
     type = payloadTypeServer.roomClosed;
     data: {
         roomId?: string
     } = {}
 }
 
-export class RoomJoinResultMsg implements IMsg {
+export class RoomJoinResultMsg extends BaseMsg {
     type = payloadTypeServer.roomJoinResult;
     data: {
         roomId?: string,
@@ -347,12 +349,11 @@ export class RoomJoinResultMsg implements IMsg {
             displayName: string,
             producers?: { producerId: string, kind: "audio" | "video" }[],
             trackInfo: PeerTracksInfo,
-        }[],
-        error?: string,
+        }[],       
     } = { peers: [] };
 }
 
-export class RoomNewPeerMsg implements IMsg {
+export class RoomNewPeerMsg extends BaseMsg {
     type = payloadTypeServer.roomNewPeer;
     data: {
         peerId?: string,
@@ -364,7 +365,7 @@ export class RoomNewPeerMsg implements IMsg {
     } = {};
 }
 
-export class RoomPeerLeftMsg implements IMsg {
+export class RoomPeerLeftMsg extends BaseMsg {
     type = payloadTypeServer.roomPeerLeft;
     data: {
         peerId?: string;
@@ -372,7 +373,7 @@ export class RoomPeerLeftMsg implements IMsg {
     } = {};
 }
 
-export class RoomNewProducerMsg implements IMsg {
+export class RoomNewProducerMsg extends BaseMsg {
     type = payloadTypeServer.roomNewProducer;
     data: {
         authToken?: string,
@@ -383,7 +384,7 @@ export class RoomNewProducerMsg implements IMsg {
     } = {};
 }
 
-export class RoomGetStatusMsg implements IMsg {
+export class RoomGetStatusMsg extends BaseMsg {
     type = payloadTypeClient.roomGetStatus;
     data: {
         authToken?: string,
@@ -391,7 +392,7 @@ export class RoomGetStatusMsg implements IMsg {
     } = {}
 }
 
-export class RoomTerminateMsg implements IMsg {
+export class RoomTerminateMsg extends BaseMsg {
     type = payloadTypeClient.roomTerminate;
     data: {
         authToken?: string,
@@ -401,24 +402,22 @@ export class RoomTerminateMsg implements IMsg {
     } = {}
 }
 
-export class RoomGetStatusResultMsg implements IMsg {
+export class RoomGetStatusResultMsg extends BaseMsg {
     type = payloadTypeServer.roomGetStatusResult;
     data: {
         roomId?: string,
-        numPeers?: number,
-        error?: string
+        numPeers?: number       
     } = {}
 }
 
-export class RoomTerminateResultMsg implements IMsg {
+export class RoomTerminateResultMsg extends BaseMsg {
     type = payloadTypeServer.roomTerminateResult;
     data: {
-        roomId?: string,
-        error?: string
+        roomId?: string       
     } = {}
 }
 
-export class RoomCloseProducerMsg implements IMsg {
+export class RoomCloseProducerMsg extends BaseMsg {
     type = payloadTypeClient.roomCloseProducer;
     data: {
         roomId?: string,
@@ -426,7 +425,7 @@ export class RoomCloseProducerMsg implements IMsg {
     } = {};
 }
 
-export class RoomProduceStreamMsg implements IMsg {
+export class RoomProduceStreamMsg extends BaseMsg {
     type = payloadTypeClient.roomProduceStream;
     data: {
         roomId?: string,
@@ -435,7 +434,7 @@ export class RoomProduceStreamMsg implements IMsg {
     } = {};
 }
 
-export class RoomProduceStreamResultMsg implements IMsg {
+export class RoomProduceStreamResultMsg extends BaseMsg {
     type = payloadTypeServer.roomProduceStreamResult;
     data: {
         roomId?: string,
@@ -443,18 +442,17 @@ export class RoomProduceStreamResultMsg implements IMsg {
     } = {};
 }
 
-export class RoomConsumeProducerMsg implements IMsg {
+export class RoomConsumeProducerMsg extends BaseMsg {
     type = payloadTypeClient.roomConsumeProducer;
     data: {
         roomId?: string,
         remotePeerId?: string,
         producerId?: string,
-        rtpCapabilities?: any
-        error?: string
+        rtpCapabilities?: any       
     } = {};
 }
 
-export class roomConsumeProducerResultMsg implements IMsg {
+export class roomConsumeProducerResultMsg extends BaseMsg {
     type = payloadTypeServer.roomConsumeProducerResult;
     data: {
         roomId?: string,
@@ -462,12 +460,11 @@ export class roomConsumeProducerResultMsg implements IMsg {
         consumerId?: string,
         producerId?: string,
         kind?: "audio" | "video",
-        rtpParameters?: any,
-        error?: string,
+        rtpParameters?: any      
     } = {};
 }
 
-export class RoomConsumerClosedMsg implements IMsg {
+export class RoomConsumerClosedMsg extends BaseMsg {
     type = payloadTypeServer.roomConsumerClosed;
     data: {
         roomId?: string,
@@ -501,11 +498,8 @@ export interface PeerTracksInfo {
     isVideoMuted?: boolean
 }
 
-export class UnauthorizedMsg implements IMsg {
-    type = payloadTypeServer.unauthorized;
-    data: {
-        error?: string
-    } = {};
+export class UnauthorizedMsg extends BaseMsg {
+    type = payloadTypeServer.unauthorized;    
 }
 
 export enum RoomServerAPIRoutes {
@@ -542,7 +536,7 @@ export enum payloadTypeCallBacks {
     roomCallBackMsg = "roomCallBackMsg",
 }
 
-export class RoomPeerCallBackMsg implements IMsg {
+export class RoomPeerCallBackMsg extends BaseMsg {
     type = payloadTypeCallBacks.roomPeerCallBackMsg;
     data: {
         peerId?: string;
@@ -552,7 +546,7 @@ export class RoomPeerCallBackMsg implements IMsg {
     } = {}
 }
 
-export class RoomCallBackMsg implements IMsg {
+export class RoomCallBackMsg extends BaseMsg {
     type = payloadTypeCallBacks.roomCallBackMsg;
     data: {
         roomId?: string;
@@ -576,26 +570,26 @@ export interface RoomLog {
     Action: RoomLogAction
 }
 
-export class RoomGetLogsMsg implements IMsg {
+export class RoomGetLogsMsg extends BaseMsg {
     type = payloadTypeClient.roomGetLogs;
     data = {};
 }
 
-export class RoomGetLogsResultMsg implements IMsg {
+export class RoomGetLogsResultMsg extends BaseMsg {
     type = payloadTypeServer.roomGetLogsResult;
     data: {
         logs: RoomLog[]
     } = { logs: [] };
 }
 
-export class RoomPingMsg implements IMsg {
+export class RoomPingMsg extends BaseMsg {
     type = payloadTypeServer.roomPing;
     data: {
         roomId?: string
     } = {};
 }
 
-export class RoomPongMsg implements IMsg {
+export class RoomPongMsg extends BaseMsg {
     type = payloadTypeClient.roomPong;
     data: {
         roomId?: string,
@@ -604,14 +598,14 @@ export class RoomPongMsg implements IMsg {
     } = {};
 }
 
-export class RoomRecordingStart implements IMsg {
+export class RoomRecordingStart extends BaseMsg {
     type = payloadTypeClient.roomRecordingStart;
     data: {
         roomId?: string
     } = {};
 }
 
-export class RoomRecordingStop implements IMsg {
+export class RoomRecordingStop extends BaseMsg {
     type = payloadTypeClient.roomRecordingStop;
     data: {
         roomId?: string

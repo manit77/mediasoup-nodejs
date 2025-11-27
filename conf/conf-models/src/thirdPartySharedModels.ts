@@ -1,19 +1,19 @@
 import { ConferenceConfig } from "./conferenceModels.js";
-import { IMsg } from "./conferenceMsg.js";
+import { BaseMsg, IMsg } from "./conferenceMsg.js";
 
-export enum apiMsgTypes {
-    login = "login",
-    loginResult = "loginResult",
-    getScheduledConference = "getScheduledConference",
-    getScheduledConferenceResult = "getScheduledConferenceResult",
-    getScheduledConferences = "getScheduledConferences",
-    getScheduledConferencesResult = "getScheduledConferencesResult",
-    getParticipantsOnline = "getParticipantsOnline",
-    getClientConfig = "getClientConfig",
-    getClientConfigResult = "getClientConfigResult",
+export const apiMsgTypes = {
+    login: "login",
+    loginResult: "loginResult",
+    getScheduledConference: "getScheduledConference",
+    getScheduledConferenceResult: "getScheduledConferenceResult",
+    getScheduledConferences: "getScheduledConferences",
+    getScheduledConferencesResult: "getScheduledConferencesResult",
+    getParticipantsOnline: "getParticipantsOnline",
+    getClientConfig: "getClientConfig",
+    getClientConfigResult: "getClientConfigResult",
 }
 
-export class apiLoginPost {
+export class apiLoginPost extends BaseMsg {
     type = apiMsgTypes.login;
     data: {
         username?: string;
@@ -23,7 +23,7 @@ export class apiLoginPost {
     } = {}
 }
 
-export class apiLoginResult {
+export class apiLoginResult extends BaseMsg {
     type = apiMsgTypes.loginResult;
     data: {
         participantGroup?: string;
@@ -33,12 +33,11 @@ export class apiLoginResult {
         displayName?: string;
         externalId?: string;
         role?: string;
-        clientData?: {};
-        error?: string;
+        clientData?: {};        
     } = {}
 }
 
-export class apiGetScheduledConferencePost {
+export class apiGetScheduledConferencePost extends BaseMsg {
     type = apiMsgTypes.getScheduledConference;
     data: {
         id?: string;
@@ -46,26 +45,24 @@ export class apiGetScheduledConferencePost {
     } = {}
 }
 
-export class apiGetScheduledConferenceResult {
-    type: apiMsgTypes.getScheduledConferenceResult;
+export class apiGetScheduledConferenceResult extends BaseMsg {
+    type = apiMsgTypes.getScheduledConferenceResult;
     data: {
-        conference?: apiScheduledConference;
-        error?: string;
+        conference?: apiScheduledConference;        
     } = {}
 }
 
-export class apiGetScheduledConferencesPost {
+export class apiGetScheduledConferencesPost extends BaseMsg {
     type = apiMsgTypes.getScheduledConferences;
-    data: {       
+    data: {
         clientData?: {};
     } = {}
 }
 
-export class apiGetScheduledConferencesResult {
-    type: apiMsgTypes.getScheduledConferencesResult;
+export class apiGetScheduledConferencesResult extends BaseMsg {
+    type = apiMsgTypes.getScheduledConferencesResult;
     data: {
-        conferences?: apiScheduledConference[];
-        error?: string;
+        conferences?: apiScheduledConference[];       
     } = {}
 }
 
@@ -76,7 +73,7 @@ export class apiScheduledConference {
     config: ConferenceConfig
 }
 
-export class apiGetParticipantsOnlinePost {
+export class apiGetParticipantsOnlinePost extends BaseMsg {
     type = apiMsgTypes.getParticipantsOnline;
     data: {
         username?: string;
@@ -84,16 +81,10 @@ export class apiGetParticipantsOnlinePost {
     } = {}
 }
 
-export class apiGetClientConfigPost {
+export class apiGetClientConfigPost extends BaseMsg {
     type = apiMsgTypes.getClientConfig;
     data: { clientData?: {} } = {};
 }
 
-export function createIMsg<T>(type: apiMsgTypes): T {
-    return {
-        type: type,
-        data: {}
-    } as T;
-}
 
 

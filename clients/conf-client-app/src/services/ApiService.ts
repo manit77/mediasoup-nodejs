@@ -53,10 +53,10 @@ class ApiService {
                 return;
             }
 
-            if (loginResult.data.error) {
-                console.error(`login failed: ${loginResult.data.error}`);
+            if (loginResult.error) {
+                console.error(`login failed: ${loginResult.error}`);
                 return {
-                    error: loginResult.data.error
+                    error: loginResult.error
                 } as LoginResponse;
             }
 
@@ -100,10 +100,10 @@ class ApiService {
             let loginResult = await this.conferenceAPIClient.loginGuest(username, password, clientData);
             console.log(`loginResult`, loginResult);
 
-            if (loginResult.data.error) {
-                console.error(`login guest failed: ${loginResult.data.error}`);
+            if (loginResult.error) {
+                console.error(`login guest failed: ${loginResult.error}`);
                 return {
-                    error: loginResult.data.error
+                    error: loginResult.error
                 } as LoginResponse;
             }
 
@@ -179,8 +179,8 @@ class ApiService {
 
         console.warn("fetchClientConfig", result);
         
-        if(result.data.error) {
-            console.error(result.data.error);
+        if(result.error) {
+            console.error(result.error);
             return;            
         }
 
@@ -200,8 +200,8 @@ class ApiService {
             let user = this.getUser();
             let result = await this.conferenceAPIClient.getParticipantsOnline(user.authToken, user.username, this.getClientData());
 
-            if (result.data.error) {
-                console.error(`ERROR:`, result.data.error);
+            if (result.error) {
+                console.error(`ERROR:`, result.error);
                 return this.participantsOnline;
             }
 
@@ -242,8 +242,8 @@ class ApiService {
             //get rooms from API
             let result = await this.conferenceAPIClient.getConferencesScheduled(user.authToken, this.getClientData());
 
-            if (result.data.error) {
-                console.error(`ERROR:`, result.data.error);
+            if (result.error) {
+                console.error(`ERROR:`, result.error);
                 return this.conferencesScheduled;
             }
 

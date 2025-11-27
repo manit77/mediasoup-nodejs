@@ -1,7 +1,10 @@
 import axios from "axios";
 import https from "https"
 import { ConferenceServerConfig } from "../confServer/models.js";
-import { apiGetClientConfigPost, apiGetScheduledConferencePost, apiGetScheduledConferenceResult, apiGetScheduledConferencesPost, apiGetScheduledConferencesResult, apiLoginPost, apiLoginResult, apiMsgTypes, apiScheduledConference, createIMsg, IMsg } from "@conf/conf-models";
+import {
+    apiGetClientConfigPost, apiGetScheduledConferencePost, apiGetScheduledConferenceResult, apiGetScheduledConferencesPost,
+    apiGetScheduledConferencesResult, apiLoginPost, apiLoginResult, IMsg
+} from "@conf/conf-models";
 
 export class ThirdPartyAPI {
 
