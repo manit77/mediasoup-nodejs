@@ -1,5 +1,5 @@
 import express, { NextFunction, Request, Response } from 'express';
-import { apiGetParticipantsOnlinePost, apiGetScheduledConferencePost, apiGetScheduledConferenceResult, ConferenceConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesMsg, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantInfo, ParticipantRole, WebRoutes } from '@conf/conf-models';
+import { apiGetParticipantsOnlinePost, apiGetScheduledConferencePost, apiGetScheduledConferenceResult, apiMsgTypes, ConferenceConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesMsg, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantInfo, ParticipantRole, WebRoutes } from '@conf/conf-models';
 import { ConferenceServer } from './conferenceServer.js';
 import { IAuthPayload, Participant } from '../models/models.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
@@ -9,7 +9,7 @@ import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from
 import { getDemoSchedules } from '../demoData/demoData.js';
 import { consoleError, fill, parseString } from '../utils/utils.js';
 import { CacheManager } from '../utils/cacheManager.js';
-import { ConferenceServerConfig } from './models.js';
+import { ConferenceServerConfig, defaultClientConfig } from './models.js';
 
 export class ConferenceAPI {
     thirdPartyAPI: ThirdPartyAPI;
@@ -75,12 +75,9 @@ export class ConferenceAPI {
             console.log(WebRoutes.loginGuest, req.body);
 
             let msg = req.body as LoginGuestMsg;
-            let clientData = msg.data.clientData;
-            let participantGroup = "demo";
-            let participantGroupName = "demo";
-            let conferenceGroup = "demo";
+            let resultMsg = new LoginResultMsg();
 
-            if (!msg.data.displayName) {
+            if (!msg.data.username) {
                 let errorMsg = new LoginResultMsg();
                 errorMsg.data.error = "authentication failed";
 
@@ -89,42 +86,50 @@ export class ConferenceAPI {
             }
 
             if (this.config.conf_data_urls.login_guest_url) {
-                var result = await this.thirdPartyAPI.loginGuest(msg.data.displayName, msg.data.clientData);
-                if (result.data.error) {
-                    console.error(`login_guest_url error ${this.config.conf_data_urls.login_guest_url}`, result.data.error);
+                var result = await this.thirdPartyAPI.loginGuest(msg.data.username, msg.data.password, msg.data.clientData);
+                if (!result?.data?.username) {
+                    console.error(`login_guest_url error ${this.config.conf_data_urls.login_guest_url}`, result);
                     let errorMsg = new LoginResultMsg();
                     errorMsg.data.error = "authentication failed";
 
                     res.send(errorMsg);
                     return;
                 }
+
+                resultMsg.data.username = result.data.username;
+                resultMsg.data.displayName = result.data.displayName;
+
                 if (result.data.clientData) {
-                    clientData = result.data.clientData;
-                    participantGroup = result.data.participantGroup;
-                    participantGroupName = result.data.participantGroupName;
-                    conferenceGroup = result.data.conferenceGroup;
-                    console.log(`new clientData received.`, clientData);
+                    resultMsg.data.clientData = result.data.clientData;
+                    resultMsg.data.participantGroup = result.data.participantGroup;
+                    resultMsg.data.participantGroupName = result.data.participantGroupName;
+                    resultMsg.data.conferenceGroup = result.data.conferenceGroup;
                 }
+            } else {
+                //demo data
+                resultMsg.data.clientData = msg.data.clientData;
+                resultMsg.data.participantGroup = "demo";
+                resultMsg.data.conferenceGroup = "demo";
+
             }
 
             let authTokenPayload: IAuthPayload = {
                 externalId: result.data.externalId,
-                username: msg.data.displayName,
-                participantGroup: participantGroup,
-                conferenceGroup: conferenceGroup,
+                username: msg.data.username,
+                participantGroup: resultMsg.data.participantGroup,
+                conferenceGroup: resultMsg.data.conferenceGroup,
                 role: ParticipantRole.guest
             };
             let authToken = jwtSign(this.config.conf_secret_key, authTokenPayload);
 
-            let resultMsg = new LoginResultMsg();
-            resultMsg.data.participantGroup = participantGroup;
-            resultMsg.data.participantGroupName = participantGroupName;
-            resultMsg.data.conferenceGroup = conferenceGroup;
-            resultMsg.data.username = msg.data.displayName;
-            resultMsg.data.displayName = msg.data.displayName;
+            resultMsg.data.participantGroup = resultMsg.data.participantGroup;
+            resultMsg.data.participantGroupName = resultMsg.data.participantGroupName;
+            resultMsg.data.conferenceGroup = resultMsg.data.conferenceGroup;
+            resultMsg.data.username = msg.data.username;
+            resultMsg.data.displayName = resultMsg.data.displayName;
             resultMsg.data.authToken = authToken;
             resultMsg.data.role = "guest";
-            resultMsg.data.clientData = clientData;
+            resultMsg.data.clientData = resultMsg.data.clientData;
 
             console.log(`LoginResultMsg: `, resultMsg);
 
@@ -153,9 +158,7 @@ export class ConferenceAPI {
                 if (this.config.conf_data_urls.login_url) {
                     //mock: post the username and password to external URL
                     var result = await this.thirdPartyAPI.login(msg.data.username, msg.data.password, msg.data.clientData);
-                    if (result.data.error) {
-                        console.error(`login_url error ${this.config.conf_data_urls.login_url}`, result.data.error);
-                    } else {
+                    if (result?.data?.username) {
                         console.log(`user authenticated.`, result);
                         isAuthenticated = true;
                         username = result.data.username;
@@ -166,8 +169,10 @@ export class ConferenceAPI {
                         participantGroupName = result.data.participantGroupName;
                         conferenceGroup = result.data.conferenceGroup;
                         externalId = result.data.externalId;
-                    }
 
+                    } else {
+                        console.error(`login_url error ${this.config.conf_data_urls.login_url}`, result);
+                    }
                 } else {
                     //mock: this is a demo app with no database, login user in
                     isAuthenticated = true;
@@ -185,14 +190,14 @@ export class ConferenceAPI {
                         displayName = username;
                         role = payload.role;
                     }
-                    if (this.confServer.config.conf_data_urls.getUser) {
+                    if (this.confServer.config.conf_data_urls.get_user_url) {
 
                         if (payload.externalId) {
                             isAuthenticated = false;
                         } else {
                             var result = await this.thirdPartyAPI.getUser(payload.externalId, msg.data.clientData);
                             if (result.data.error) {
-                                console.error(`getUser error ${this.config.conf_data_urls.getUser}`, result.data.error);
+                                console.error(`getUser error ${this.config.conf_data_urls.get_user_url}`, result.data.error);
                             } else {
                                 console.log(`getUser `, result);
                                 isAuthenticated = true;
@@ -261,7 +266,7 @@ export class ConferenceAPI {
 
             let msg = req.body as apiGetScheduledConferencesPost;
             let participantGroup = parseString(authPayload.participantGroup);
-            let conferenceGroup =  parseString(authPayload.conferenceGroup);
+            let conferenceGroup = parseString(authPayload.conferenceGroup);
             let cacheKey = WebRoutes.getConferencesScheduled + "_" + participantGroup + "_" + conferenceGroup;
 
             let cachedResults = this.cache.get(cacheKey);
@@ -276,6 +281,7 @@ export class ConferenceAPI {
                     let result = await this.thirdPartyAPI.getScheduledConferences(msg.data.clientData) as apiGetScheduledConferencesResult;
                     if (result.data.error) {
                         consoleError(`getScheduledConferences error:`, result.data.error);
+                        res.status(500).end();
                         return;
                     }
 
@@ -334,6 +340,7 @@ export class ConferenceAPI {
                 let result = await this.thirdPartyAPI.getScheduledConference(msg.data.id, msg.data.clientData) as apiGetScheduledConferenceResult;
                 if (result.data.error) {
                     consoleError(result.data.error);
+                    res.status(500).end();
                     return;
                 }
 
@@ -411,15 +418,40 @@ export class ConferenceAPI {
 
             let participants = this.confServer.getParticipants(participantGroup);
             resultMsg.data.participants = [];
-            for (let p of participants.filter(p=> p.username !== username)) {
+            for (let p of participants.filter(p => p.username !== username)) {
                 resultMsg.data.participants.push({
                     displayName: p.displayName,
                     participantId: p.participantId,
                     status: p.conference ? "busy" : "online"
                 });
             }
-           
+
             res.send(resultMsg);
+        });
+
+        console.log(`route: ${WebRoutes.getClientConfig}`);
+        this.app.post(WebRoutes.getClientConfig, async (req, res) => {
+            console.log(`${WebRoutes.getClientConfig}`);
+
+            if (this.confServer.config.conf_data_urls.get_client_config_url) {
+                let msg = req.body;
+                let result = await this.thirdPartyAPI.getClientConfig(msg.data.clientData);
+                if (result.data.error) {
+                    consoleError(result.data.error);
+                    res.status(500).end();
+                    return;
+                }
+
+                res.send(result);
+
+            } else {
+                res.send({
+                    type: apiMsgTypes.getClientConfigResult,
+                    data: {
+                        config: defaultClientConfig
+                    }
+                });
+            }
         });
 
     }

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { loadConferenceConfig } from './services/ConferenceConfig';
+import { apiService } from "./services/ApiService";
 import { ConfigProvider } from './contexts/ConfigContext';
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 
@@ -29,6 +30,9 @@ async function checkForUpdate() {
 
 loadConferenceConfig().then(config => {
   console.log("config loaded", config);
+
+  apiService.init(config);
+
   currentCommit = config.commit;
 
   const root = ReactDOM.createRoot(

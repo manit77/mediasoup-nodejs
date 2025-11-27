@@ -2,6 +2,7 @@
 export enum WebRoutes {
     login = "/login",
     loginGuest = "/loginGuest",
+    getClientConfig = "/getClientConfig",
     authenticate = "/authenticate",
     getConferencesScheduled = "/getConferencesScheduled",
     getConferenceScheduled = "/getConferenceScheduled",
@@ -91,3 +92,12 @@ export class TestObject {
     }
 }
 
+export class ClientConfig  {
+    guest_login_require_password = false;
+    guest_login_require_participant_group = false;
+    guest_login_require_conference_group = false;
+    guest_login_generate_username = false;
+    
+    user_login_require_participant_group = false;
+    user_login_require_conference_group  = false;
+}

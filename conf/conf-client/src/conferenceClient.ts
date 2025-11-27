@@ -938,6 +938,11 @@ export class ConferenceClient {
             return false;
         }
 
+        // if(!args.config) {
+        //     console.error(`no configs`);
+        //     return false;
+        // }
+        
         const msg = new CreateConfMsg();
         msg.data.conferenceExternalId = args.externalId;
         msg.data.roomName = args.roomName;
