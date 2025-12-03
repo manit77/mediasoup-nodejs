@@ -68,6 +68,15 @@ export function isMsgErorr(msg: IMsg) {
     }
 }
 
+export function getMsgErorr(msg: IMsg) {
+
+    if (msg?.error) {
+        return msg.error;
+    }
+
+    return "unknown";
+}
+
 export class LoginGuestMsg extends BaseMsg {
     type = CallMessageType.loginGuest;
     data?: {
@@ -178,6 +187,9 @@ export class CreateConfMsg extends BaseMsg {
         conferenceCode?: string,
         conferenceConfig?: ConferenceConfig,
     } = {
+            conferenceExternalId: "",
+            roomName: "",
+            conferenceCode: "",
             conferenceConfig: new ConferenceConfig(),
         };
 }
@@ -197,7 +209,11 @@ export class JoinConfMsg extends BaseMsg {
         conferenceId?: string,
         conferenceCode?: string,
         externalId?: string
-    } = {}
+    } = {
+        conferenceId : "",
+        conferenceCode : "",
+        externalId: ""
+    }
 }
 
 export class JoinConfResultMsg extends BaseMsg {

@@ -1,7 +1,7 @@
 import { User } from '../types';
 import { ConferenceAPIClient } from '@conf/conf-client';
 import { ConferenceClientConfig } from '@conf/conf-client/src/models';
-import { ClientConfig, ConferenceScheduledInfo, GetClientConfigResultMsg, IMsg, ParticipantInfo } from '@conf/conf-models';
+import { ClientConfig, ConferenceScheduledInfo, GetClientConfigResultMsg, IMsg, isMsgErorr, ParticipantInfo } from '@conf/conf-models';
 
 export interface LoginResponse {
     user: User;
@@ -242,8 +242,8 @@ class ApiService {
             //get rooms from API
             let result = await this.conferenceAPIClient.getConferencesScheduled(user.authToken, this.getClientData());
 
-            if (result.error) {
-                console.error(`ERROR:`, result.error);
+            if (isMsgErorr(result)) {
+                console.error(`ERROR:`, result?.error ?? "unknown");
                 return this.conferencesScheduled;
             }
 

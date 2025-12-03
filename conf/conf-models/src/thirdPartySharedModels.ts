@@ -33,7 +33,7 @@ export class apiLoginResult extends BaseMsg {
         displayName?: string;
         externalId?: string;
         role?: string;
-        clientData?: {};        
+        clientData?: {};
     } = {}
 }
 
@@ -41,14 +41,14 @@ export class apiGetScheduledConferencePost extends BaseMsg {
     type = apiMsgTypes.getScheduledConference;
     data: {
         id?: string;
-        clientData?: {};
+        clientData?: { };
     } = {}
 }
 
 export class apiGetScheduledConferenceResult extends BaseMsg {
     type = apiMsgTypes.getScheduledConferenceResult;
     data: {
-        conference?: apiScheduledConference;        
+        conference?: apiScheduledConference;
     } = {}
 }
 
@@ -62,7 +62,7 @@ export class apiGetScheduledConferencesPost extends BaseMsg {
 export class apiGetScheduledConferencesResult extends BaseMsg {
     type = apiMsgTypes.getScheduledConferencesResult;
     data: {
-        conferences?: apiScheduledConference[];       
+        conferences?: apiScheduledConference[];
     } = {}
 }
 

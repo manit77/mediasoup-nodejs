@@ -5,6 +5,7 @@ import {
     apiGetClientConfigPost, apiGetScheduledConferencePost, apiGetScheduledConferenceResult, apiGetScheduledConferencesPost,
     apiGetScheduledConferencesResult, apiLoginPost, apiLoginResult, IMsg
 } from "@conf/conf-models";
+import { consoleError } from "../utils/utils.js";
 
 export class ThirdPartyAPI {
 
@@ -91,7 +92,7 @@ export class ThirdPartyAPI {
             console.log(`Unexpected status code: ${result.status}`);
             return null;
         } catch (err) {
-            console.error(`POST error: ${err}`);
+            consoleError(`axios POST error:`, err);
             return null;
         }
     }

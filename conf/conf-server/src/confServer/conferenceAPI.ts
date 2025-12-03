@@ -1,9 +1,9 @@
 import express, { NextFunction, Request, Response } from 'express';
-import { apiGetParticipantsOnlinePost, apiGetScheduledConferencePost, apiGetScheduledConferenceResult, apiMsgTypes, ConferenceConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesMsg, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, isMsgErorr, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantInfo, ParticipantRole, WebRoutes } from '@conf/conf-models';
+import { apiGetParticipantsOnlinePost, apiGetScheduledConferencePost, apiGetScheduledConferenceResult, apiMsgTypes, ConferenceConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesMsg, GetConferencesScheduledResultMsg, getMsgErorr, GetParticipantsResultMsg, isMsgErorr, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantInfo, ParticipantRole, WebRoutes } from '@conf/conf-models';
 import { ConferenceServer } from './conferenceServer.js';
 import { IAuthPayload, Participant } from '../models/models.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
-import { AuthUserRoles, RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/rooms-models';
+import { AuthUserRoles, ErrorMsg, RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/rooms-models';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from '@conf/conf-models';
 import { getDemoSchedules } from '../demoData/demoData.js';
@@ -197,7 +197,7 @@ export class ConferenceAPI {
                         } else {
                             var result = await this.thirdPartyAPI.getUser(payload.externalId, msg.data.clientData);
                             if (isMsgErorr(result)) {
-                                console.error(`getUser error ${this.config.conf_data_urls.get_user_url}`, result.error ?? "unknown");
+                                console.error(`getUser error ${this.config.conf_data_urls.get_user_url}`, getMsgErorr(result));
                             } else {
                                 console.log(`getUser `, result);
                                 isAuthenticated = true;
@@ -277,11 +277,10 @@ export class ConferenceAPI {
             } else {
                 if (this.config.conf_data_urls.get_scheduled_conferences_url) {
                     //make a post to the url
-
                     let result = await this.thirdPartyAPI.getScheduledConferences(msg.data.clientData) as apiGetScheduledConferencesResult;
                     if (isMsgErorr(result)) {
-                        consoleError(`getScheduledConferences error:`, result.error ?? "unknown");
-                        res.status(500).end();
+                        consoleError(`getScheduledConferences error:`, getMsgErorr(result));
+                        res.status(500).send(new ErrorMsg(apiMsgTypes.getScheduledConferencesResult, "unable to get conferences")).end();
                         return;
                     }
 
@@ -339,8 +338,8 @@ export class ConferenceAPI {
 
                 let result = await this.thirdPartyAPI.getScheduledConference(msg.data.id, msg.data.clientData) as apiGetScheduledConferenceResult;
                 if (isMsgErorr(result)) {
-                    consoleError(`Error: ${result.error ?? "error on getScheduledConference"}`);
-                    res.status(500).end();
+                    consoleError(`Error: ${getMsgErorr(result)}`);
+                    res.status(500).send(new ErrorMsg(apiMsgTypes.getScheduledConferenceResult, "unable to get conference.")).end();
                     return;
                 }
 
@@ -437,7 +436,7 @@ export class ConferenceAPI {
                 let msg = req.body;
                 let result = await this.thirdPartyAPI.getClientConfig(msg.data.clientData);
                 if (isMsgErorr(result)) {
-                    consoleError(`error: ${result.error ?? "error getting config"}`);
+                    consoleError(`error: ${getMsgErorr(result)}`);
                     res.status(500).end();
                     return;
                 }

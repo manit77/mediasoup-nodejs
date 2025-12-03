@@ -96,11 +96,7 @@ export enum AuthUserRoles {
 }
 
 export class ErrorMsg extends BaseMsg {
-    type = payloadTypeServer.error;
-    data = {
-        
-    }
-
+    type = payloadTypeServer.error;  
     constructor(msgType: any, error: string) {
         super();        
         this.type = msgType;
