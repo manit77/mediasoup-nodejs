@@ -279,7 +279,7 @@ export class ConferenceAPI {
                     //make a post to the url
                     let result = await this.thirdPartyAPI.getScheduledConferences(msg.data.clientData) as apiGetScheduledConferencesResult;
                     if (isMsgErorr(result)) {
-                        consoleError(`getScheduledConferences error:`, getMsgErorr(result));
+                        consoleError(`getScheduledConferences error:`, result);
                         res.status(500).send(new ErrorMsg(apiMsgTypes.getScheduledConferencesResult, "unable to get conferences")).end();
                         return;
                     }

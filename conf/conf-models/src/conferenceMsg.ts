@@ -59,22 +59,37 @@ export class BaseMsg implements IMsg {
 }
 
 export function isMsgErorr(msg: IMsg) {
+    //if msg is null
     if (!msg) {
         return true;
     }
 
+    //if msg contains an error
     if (msg.error) {
         return true;
     }
+
+    //msg must contain a type
+    if(!msg.type) {
+        return true;
+    }
+
+    return false;
 }
 
 export function getMsgErorr(msg: IMsg) {
-
     if (msg?.error) {
         return msg.error;
     }
+    if (!msg) {
+        return "unknown";
+    }
 
-    return "unknown";
+    if(!msg.type) {
+        return "invalid msg type";
+    }
+
+    return "";
 }
 
 export class LoginGuestMsg extends BaseMsg {
@@ -210,10 +225,10 @@ export class JoinConfMsg extends BaseMsg {
         conferenceCode?: string,
         externalId?: string
     } = {
-        conferenceId : "",
-        conferenceCode : "",
-        externalId: ""
-    }
+            conferenceId: "",
+            conferenceCode: "",
+            externalId: ""
+        }
 }
 
 export class JoinConfResultMsg extends BaseMsg {

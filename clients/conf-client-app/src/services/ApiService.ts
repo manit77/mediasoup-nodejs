@@ -1,7 +1,7 @@
 import { User } from '../types';
 import { ConferenceAPIClient } from '@conf/conf-client';
 import { ConferenceClientConfig } from '@conf/conf-client/src/models';
-import { ClientConfig, ConferenceScheduledInfo, GetClientConfigResultMsg, IMsg, isMsgErorr, ParticipantInfo } from '@conf/conf-models';
+import { ClientConfig, ConferenceScheduledInfo, GetClientConfigResultMsg, getMsgErorr, IMsg, isMsgErorr, ParticipantInfo } from '@conf/conf-models';
 
 export interface LoginResponse {
     user: User;
@@ -177,10 +177,10 @@ class ApiService {
     async fetchClientConfig(clientData: any): Promise<GetClientConfigResultMsg> {
         let result = await this.conferenceAPIClient.getClientConfig(clientData);
 
-        console.warn("fetchClientConfig", result);
-        
-        if(result.error) {
-            console.error(result.error);
+        console.warn("fetchClientConfig", result);        
+        let error = getMsgErorr(result);
+        if(error) {
+            console.error(error);
             return;            
         }
 

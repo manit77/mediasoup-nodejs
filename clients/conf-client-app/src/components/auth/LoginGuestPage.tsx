@@ -68,8 +68,14 @@ const LoginGuestPage: React.FC = () => {
 
             if (!resultMsg) {
                 setConfigError("unable to get config");
+
+                console.error("trying to fetchConfig again.");
+                //try again
+                setTimeout(fetchConfig, 1000);
                 return;
             }
+
+            setConfigError("");
 
             if (resultMsg.data.participantGroup) {
                 _participantGroup = resultMsg.data.participantGroup;
