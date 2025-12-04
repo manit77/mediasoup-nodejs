@@ -1,7 +1,7 @@
 import { User } from '../types';
 import { ConferenceAPIClient } from '@conf/conf-client';
 import { ConferenceClientConfig } from '@conf/conf-client/src/models';
-import { ConferenceScheduledInfo, ParticipantInfo } from '@conf/conf-models';
+import { ClientConfig, ConferenceScheduledInfo, GetClientConfigResultMsg, IMsg, ParticipantInfo } from '@conf/conf-models';
 
 export interface LoginResponse {
     user: User;
@@ -9,6 +9,7 @@ export interface LoginResponse {
 }
 
 class ApiService {
+    clientConfig  = new ClientConfig();
     conferenceAPIClient: ConferenceAPIClient;
     conferencesScheduled: ConferenceScheduledInfo[] = [];
     participantsOnline: ParticipantInfo[] = [];
@@ -19,7 +20,7 @@ class ApiService {
     onParticipantsOnlineReceived = (participants: ParticipantInfo[]) => { };
 
     init(config: ConferenceClientConfig) {
-        this.conferenceAPIClient = new ConferenceAPIClient(config);
+        this.conferenceAPIClient = new ConferenceAPIClient(config);        
     }
 
     dispose() {
@@ -44,6 +45,13 @@ class ApiService {
             }
 
             let loginResult = await this.conferenceAPIClient.login(username, password, clientData);
+            if(!loginResult) {
+                 console.error(`login failed to get response from server.`);
+                return {
+                    error: `login failed to get response from server.`
+                } as LoginResponse;
+                return;
+            }
 
             if (loginResult.data.error) {
                 console.error(`login failed: ${loginResult.data.error}`);
@@ -78,14 +86,18 @@ class ApiService {
         return null;
     };
 
-    loginGuest = async (displayName: string, clientData: any): Promise<LoginResponse | null> => {
+    loginGuest = async (username: string, password, clientData: any): Promise<LoginResponse | null> => {
         try {
-            console.log(`loginGuest ${displayName}`);
-            if (!displayName.trim()) {
-                throw new Error('Display name cannot be empty.');
+            console.log(`loginGuest ${username}`);
+            if (!username.trim()) {
+                throw new Error('username cannot be empty.');
             }
 
-            let loginResult = await this.conferenceAPIClient.loginGuest(displayName, clientData);
+            if (!password.trim()) {
+                throw new Error('password cannot be empty.');
+            }
+
+            let loginResult = await this.conferenceAPIClient.loginGuest(username, password, clientData);
             console.log(`loginResult`, loginResult);
 
             if (loginResult.data.error) {
@@ -160,6 +172,20 @@ class ApiService {
 
     clearClientData() {
         localStorage.removeItem("clientData");
+    }
+
+    async fetchClientConfig(clientData: any): Promise<GetClientConfigResultMsg> {
+        let result = await this.conferenceAPIClient.getClientConfig(clientData);
+
+        console.warn("fetchClientConfig", result);
+        
+        if(result.data.error) {
+            console.error(result.data.error);
+            return;            
+        }
+
+        this.clientConfig = result.data.config;
+        return result;
     }
 
     fetchParticipantsOnline = async (): Promise<ParticipantInfo[]> => {

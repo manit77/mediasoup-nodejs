@@ -1,4 +1,5 @@
 import { ConferenceConfig } from "./conferenceModels.js";
+import { IMsg } from "./conferenceMsg.js";
 
 export enum apiMsgTypes {
     login = "login",
@@ -8,6 +9,8 @@ export enum apiMsgTypes {
     getScheduledConferences = "getScheduledConferences",
     getScheduledConferencesResult = "getScheduledConferencesResult",
     getParticipantsOnline = "getParticipantsOnline",
+    getClientConfig = "getClientConfig",
+    getClientConfigResult = "getClientConfigResult",
 }
 
 export class apiLoginPost {
@@ -53,7 +56,7 @@ export class apiGetScheduledConferenceResult {
 
 export class apiGetScheduledConferencesPost {
     type = apiMsgTypes.getScheduledConferences;
-    data: {
+    data: {       
         clientData?: {};
     } = {}
 }
@@ -76,9 +79,21 @@ export class apiScheduledConference {
 export class apiGetParticipantsOnlinePost {
     type = apiMsgTypes.getParticipantsOnline;
     data: {
-        username?: string
+        username?: string;
         clientData?: {};
     } = {}
+}
+
+export class apiGetClientConfigPost {
+    type = apiMsgTypes.getClientConfig;
+    data: { clientData?: {} } = {};
+}
+
+export function createIMsg<T>(type: apiMsgTypes): T {
+    return {
+        type: type,
+        data: {}
+    } as T;
 }
 
 

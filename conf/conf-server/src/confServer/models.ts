@@ -9,7 +9,7 @@ export interface ConferenceServerConfig {
     conf_callback_urls: {},
     conf_data_access_token: string,
     conf_data_cache_timeout_secs: number,
-    conf_data_urls: { get_scheduled_conferences_url: string, get_scheduled_conference_url: string, login_url: string, login_guest_url: string, getUser: string },
+    conf_data_urls: { get_scheduled_conferences_url: string, get_scheduled_conference_url: string, login_url: string, login_guest_url: string, get_user_url: string, get_client_config_url: string },
     conf_socket_timeout_secs: 300,
     /**
      * socket has x seconds to respond to a ping
@@ -30,4 +30,13 @@ export interface ConferenceServerConfig {
 
 export enum ConferenceServerEventTypes {
     onSendMsg = 'onSendMsg',
+}
+
+export const defaultClientConfig = {
+    guest_login_require_password : false,
+    guest_login_require_participant_group : false,
+    guest_login_require_conference_group : false,
+    
+    user_login_require_participant_group : false,
+    user_login_require_conference_group : false
 }

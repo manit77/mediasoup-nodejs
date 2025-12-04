@@ -1,4 +1,4 @@
-import { apiGetParticipantsOnlinePost, apiGetScheduledConferencePost, apiGetScheduledConferencesPost, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
+import { apiGetClientConfigPost, apiGetParticipantsOnlinePost, apiGetScheduledConferencePost, apiGetScheduledConferencesPost, GetClientConfigResultMsg, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, LoginGuestMsg, LoginMsg, LoginResultMsg, WebRoutes } from '@conf/conf-models';
 import { ConferenceClientConfig } from './models.js';
 
 export class ConferenceAPIClient {
@@ -46,15 +46,20 @@ export class ConferenceAPIClient {
 
     };
 
-    loginGuest = async (displayName: string, clientData: {}): Promise<LoginResultMsg> => {
-        console.log(`loginGuest ${displayName}`);
+    loginGuest = async (username: string, password: string, clientData: {}): Promise<LoginResultMsg> => {
+        console.log(`loginGuest ${username}`);
         try {
-            if (!displayName.trim()) {
-                throw new Error('Display name cannot be empty.');
+            if (!username.trim()) {
+                throw new Error('username name cannot be empty.');
+            }
+
+            if (!password.trim()) {
+                throw new Error('password name cannot be empty.');
             }
 
             let postMsg = new LoginGuestMsg();
-            postMsg.data.displayName = displayName;
+            postMsg.data.username = username;
+            postMsg.data.password = password;
             postMsg.data.clientData = clientData;
 
             const response = await fetch(`${this.config.conf_server_url}${WebRoutes.loginGuest}`, {
@@ -63,7 +68,8 @@ export class ConferenceAPIClient {
                 body: JSON.stringify(postMsg),
             });
 
-            let loginResult = await response.json() as LoginResultMsg;
+            let body = await response.text();
+            let loginResult = await JSON.parse(body) as LoginResultMsg;
             console.log(`loginResult`, loginResult);
 
             return loginResult;
@@ -140,7 +146,29 @@ export class ConferenceAPIClient {
                 body: JSON.stringify(post),
             });
 
-            return await response.json() as GetParticipantsResultMsg;
+            return await response.json();
+        } catch (err) {
+            console.error(err);
+            return null;
+        }
+    };
+
+    getClientConfig = async (clientData: {}): Promise<GetClientConfigResultMsg | null> => {
+        console.log("getClientConfig", clientData);
+
+        try {
+            let post = new apiGetClientConfigPost();
+            post.data.clientData = clientData;
+
+            const response = await fetch(`${this.config.conf_server_url}${WebRoutes.getClientConfig}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(post),
+            });
+
+            return await response.json();
         } catch (err) {
             console.error(err);
             return null;
