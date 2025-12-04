@@ -421,7 +421,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     async broadCastParticipants(participantGroup: string) {
         console.log("broadCastParticipants ", participantGroup);
-        
+
         //broadcast to all participants of contacts        
         const allPartsInfo = [...this.participants.values()].filter(p => p.participantGroup === participantGroup).map(p => ({
             participantId: p.participantId,
@@ -854,7 +854,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                 externalId: msgIn.data.conferenceExternalId,
                 roomName: roomName,
                 leader: participant,
-                config: confConfig,                
+                config: confConfig,
             });
 
             if (!await this.startRoom(conference)) {
@@ -1266,7 +1266,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     async getConferences(participantGroup: string, conferenceGroup: string): Promise<ConferenceScheduledInfo[]> {
         //consoleLog("getConferences");
-        return [...this.conferences.values()].filter(c => !c.config.isPrivate && c.participantGroup === participantGroup && c.config.conferenceGroup == conferenceGroup)
+        return [...this.conferences.values()].filter(c => !c.config.isPrivate
+            && c.participantGroup === participantGroup
+            && (!conferenceGroup || c.config.conferenceGroup == conferenceGroup))
             .map(c => {
                 let newc = {
                     conferenceId: c.id,

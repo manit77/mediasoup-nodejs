@@ -29,8 +29,8 @@ const LoginPage: React.FC = () => {
 
     useEffect(() => {
         console.log("getQueryParams:", getQueryParams());
-        let query = getQueryParams();
-        let clientData: any = api.getClientData();
+        let query = getQueryParams() ?? {};
+        let clientData: any = api.getClientData() ?? {};
 
         let _participantGroup = "";
         let _participantGroupName = "";
