@@ -97,7 +97,7 @@
             console.log("-- onmessage", msg);
 
             if (msg.data?.error) {
-                console.error("Server error:", msg.data.error);
+                console.error("Server error:", msg.error);
                 return;
             }
 

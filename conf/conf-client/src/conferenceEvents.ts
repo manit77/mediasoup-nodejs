@@ -1,43 +1,44 @@
 import { IMsg } from "@rooms/rooms-models";
 import { Participant } from "./models.js";
+import { BaseMsg } from "@conf/conf-models";
 
-export enum EventTypes {
+export const EventTypes = {
 
-    connected = "connected",
-    disconnected = "disconnected",
+    connected : "connected",
+    disconnected : "disconnected",
 
-    registerResult = "registerResult",
-    loggedOff = "loggedOff",
-    unAuthorized = "unAuthorized",
-    //onNotRegistred = "onNotRegistred",
+    registerResult : "registerResult",
+    loggedOff : "loggedOff",
+    unAuthorized : "unAuthorized",
+    //onNotRegistred : "onNotRegistred",
 
-    participantsReceived = "participantsReceived",
-    conferencesReceived = "conferencesReceived",
+    participantsReceived : "participantsReceived",
+    conferencesReceived : "conferencesReceived",
 
-    acceptResult = "acceptResult",
-    inviteResult = "inviteResult",
-    inviteReceived = "inviteReceived",
-    inviteCancelled = "inviteCancelled",
-    rejectReceived = "rejectReceived",
+    acceptResult : "acceptResult",
+    inviteResult : "inviteResult",
+    inviteReceived : "inviteReceived",
+    inviteCancelled : "inviteCancelled",
+    rejectReceived : "rejectReceived",
 
-    conferenceCreatedResult = "conferenceCreatedResult",
-    conferenceJoined = "conferenceJoined",
-    conferenceClosed = "conferenceClosed",
-    conferenceFailed = "conferenceFailed",
-    conferencePing = "conferencePing",
+    conferenceCreatedResult : "conferenceCreatedResult",
+    conferenceJoined : "conferenceJoined",
+    conferenceClosed : "conferenceClosed",
+    conferenceFailed : "conferenceFailed",
+    conferencePing : "conferencePing",
 
 
-    participantNewTrack = "participantNewTrack",
-    participantTrackInfoUpdated = "participantTrackInfoUpdated",
-    participantJoined = "participantJoined",
-    participantLeft = "participantLeft",
-    particpantNewTrack = "particpantNewTrack",
+    participantNewTrack : "participantNewTrack",
+    participantTrackInfoUpdated : "participantTrackInfoUpdated",
+    participantJoined : "participantJoined",
+    participantLeft : "participantLeft",
+    particpantNewTrack : "particpantNewTrack",
 
-    prensenterInfo = "prensenterInfo"
+    prensenterInfo : "prensenterInfo"
 }
 
 
-export class EventParticpantNewTrackMsg implements IMsg {
+export class EventParticpantNewTrackMsg extends BaseMsg {
     type = EventTypes.particpantNewTrack;
     data: {
         participantId?: string,

@@ -1,5 +1,5 @@
 import { Server as MockWebSocketServer, WebSocket as MockWebSocket } from 'mock-socket';
-import { RoomServer, RoomServerConfig } from '../roomServer/roomServer.js';
+import { RoomServer } from '../roomServer/roomServer.js';
 import { defaultPeerSocketServerSecurityMap, RoomPeerSocketSecurityMap, RoomPeerSocketServer } from './roomPeerSocketServer.js';
 import { getENV } from '../utils/env.js';
 import {
@@ -62,13 +62,13 @@ describe('RoomPeerSocketServer', () => {
 
   test('register', (done: any) => {
     return new Promise((resolve, reject) => {
-      let authToken = "";
-      let peerId = "";
+      let authToken: any = "";
+      let peerId: string | null = "";
       let trackingId = "peer1";
-      let roomId = "";
-      let roomToken = "";
-      let room: Room;
-      let peer: Peer;
+      let roomId: string | null = "";
+      let roomToken: string | null = "";
+      let room: Room | null;
+      let peer: Peer | null;
 
       // Create a mock client
       const mockWS = new MockWebSocket('ws://localhost:8080');

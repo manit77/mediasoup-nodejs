@@ -1,5 +1,5 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
-import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, GetUserMediaConfig, InviteMsg, JoinConferenceParams, ParticipantInfo } from '@conf/conf-models';
+import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, GetUserMediaConfig, InviteMsg, JoinConferenceParams, LoggedOffMsg, ParticipantInfo } from '@conf/conf-models';
 import { Conference, Device, getBrowserDisplayMedia, getBrowserUserMedia, Participant, SelectedDevices } from '@conf/conf-client';
 import { useUI } from '../hooks/useUI';
 import { useAPI } from '../hooks/useAPI';
@@ -351,15 +351,15 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const setupWebRTCEvents = useCallback(() => {
 
-        conferenceClient.onEvent = async (eventType: EventTypes, msgIn: IMsg) => {
+        conferenceClient.onEvent = async (eventType: string, msgIn: IMsg) => {
             switch (eventType) {
                 case EventTypes.registerResult: {
                     console.log("CallContext: registerResult", msgIn.data);
 
-                    if (msgIn.data.error) {
-                        console.log("CallContext: onRegisterFailed: error", msgIn.data.error);
+                    if (msgIn.error) {
+                        console.log("CallContext: onRegisterFailed: error", msgIn.error);
                         setIsAuthenticated(false);
-                        ui.showPopUp(`socket registration failed. ${msgIn.data.error}`, "error");
+                        ui.showPopUp(`socket registration failed. ${msgIn.error}`, "error");
                         return;
                     }
                     getConferenceRoomsOnline();
@@ -372,7 +372,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                     initState();
 
-                    let reason = msgIn.data.reason ?? "you have logged off by the server";
+                    let reason = (msgIn as LoggedOffMsg).data.reason ?? "you have logged off by the server";
                     ui.showPopUp(reason, "error");
                     api.logout();
 
@@ -410,15 +410,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 case EventTypes.participantNewTrack: {
                     console.warn('CallContext: onParticipantTrack', msgIn);
 
-                    let msg = msgIn as EventParticpantNewTrackMsg;
-                    let participantId = msg.data.participant.participantId;
+                    let msg = msgIn as EventParticpantNewTrackMsg;                    
 
                     if (!msg.data.track) {
                         console.error("CallContext: no track");
                         return;
                     }
 
-                    //updateTracksInfo(participantId);
                     updateCallParticipants();
 
                     break;

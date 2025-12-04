@@ -121,7 +121,7 @@ describe("roomServerTests", () => {
 
         //join room
         let joinRoomResult = await onRoomJoin(peerId, roomId, roomToken);
-        expect(!joinRoomResult.data.error).toBeTruthy();
+        expect(!joinRoomResult.error).toBeTruthy();
 
         room = roomServer.getRoom(roomId);
         peer = roomServer.getPeer(peerId);

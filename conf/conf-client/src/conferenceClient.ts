@@ -20,7 +20,7 @@ import { ConferenceAPIClient } from "./conferenceAPIClient.js";
 import { IMsg, OkMsg, payloadTypeServer } from "@rooms/rooms-models";
 import { getBrowserDisplayMedia, getBrowserUserMedia } from "./conferenceUtils.js";
 
-export type ConferenceEvent = (eventType: EventTypes, payload: IMsg) => Promise<void>;
+export type ConferenceEvent = (eventType: string, payload: IMsg) => Promise<void>;
 
 export class ConferenceClient {
 
@@ -224,9 +224,9 @@ export class ConferenceClient {
                         _removeEvents();
 
                         let msgIn = msg as RegisterResultMsg;
-                        if (msgIn.data.error) {
-                            console.log(msgIn.data.error);
-                            reject("failed to register connection, " + msgIn.data.error);
+                        if (msgIn.error) {
+                            console.log(msgIn.error);
+                            reject("failed to register connection, " + msgIn.error);
                             return;
                         }
                         resolve(msgIn);
@@ -270,8 +270,8 @@ export class ConferenceClient {
                         _removeEvents();
 
                         let msgIn = msg as RegisterResultMsg;
-                        if (msgIn.data.error) {
-                            console.log(msgIn.data.error);
+                        if (msgIn.error) {
+                            console.log(msgIn.error);
                             return;
                         }
                         resolve(true);
@@ -306,7 +306,7 @@ export class ConferenceClient {
         console.log("register()");
         try {
             let registerResult = await this.waitRegisterConnection(this.participantGroup, this.conferenceGroup, this.username, this.authToken, this.clientData);
-            if (!registerResult.data.error) {
+            if (!registerResult.error) {
                 await this.onEvent(EventTypes.connected, new OkMsg());
                 return true;
             }
@@ -371,7 +371,7 @@ export class ConferenceClient {
         }
     }
 
-    private async onSocketMessage(message: { type: CallMessageType, data: any }) {
+    private async onSocketMessage(message: { type: string, data: any }) {
         console.log('onSocketMessage ' + message.type, message);
 
         switch (message.type) {
@@ -998,8 +998,8 @@ export class ConferenceClient {
                         _removeEvents();
 
                         let msgIn = msg as CreateConfResultMsg;
-                        if (msgIn.data.error) {
-                            console.log(msgIn.data.error);
+                        if (msgIn.error) {
+                            console.log(msgIn.error);
                             reject("failed to create conference");
                             return;
                         }
@@ -1059,8 +1059,8 @@ export class ConferenceClient {
 
                         let msgIn = msg as JoinConfResultMsg;
 
-                        if (msgIn.data.error) {
-                            console.log(msgIn.data.error);
+                        if (msgIn.error) {
+                            console.log(msgIn.error);
                             reject("failed to join conference");
                             return;
                         }
@@ -1095,16 +1095,16 @@ export class ConferenceClient {
             this.localParticipant.tracksInfo.isVideoMuted = false;
 
             let newResult = await this.waitCreateConferenceRoom(createArgs);
-            if (newResult.data.error) {
-                console.error(newResult.data.error);
+            if (newResult.error) {
+                console.error(newResult.error);
                 return false;
             }
 
             joinArgs.conferenceId = newResult.data.conferenceId;
 
             let joinResult = await this.waitJoinConferenceRoom(joinArgs);
-            if (joinResult.data.error) {
-                console.error(joinResult.data.error);
+            if (joinResult.error) {
+                console.error(joinResult.error);
                 return false;
             }
 
@@ -1154,8 +1154,8 @@ export class ConferenceClient {
 
             console.log(`getConferenceScheduled config `, args.externalId, args.clientData);
             let scheduled = await this.apiClient.getConferenceScheduled(this.authToken, args.externalId, args.clientData);
-            if (scheduled.data.error) {
-                console.error(scheduled.data.error);
+            if (scheduled.error) {
+                console.error(scheduled.error);
                 return false;
             }
             console.log(`getConferenceScheduled result `, scheduled);
@@ -1212,7 +1212,7 @@ export class ConferenceClient {
         console.log("onInviteResult()");
         //the conferenceId must be empty or it must match
 
-        if (message.data.error) {
+        if (message.error) {
             console.error("onInviteResult() - error received");
             this.callState = "disconnected";
 
@@ -1374,8 +1374,8 @@ export class ConferenceClient {
     async onAcceptResult(message: AcceptResultMsg) {
         console.log("onAcceptResult()", message);
 
-        if (message.data.error) {
-            console.error(`error accepting a call:`, message.data.error);
+        if (message.error) {
+            console.error(`error accepting a call:`, message.error);
             this.resetConferenceRoom();
             this.resetLocalTracks();
             return;
@@ -1568,8 +1568,8 @@ export class ConferenceClient {
     private async onRegisterResult(message: RegisterResultMsg) {
         console.log("onRegisterResult");
 
-        if (message.data.error) {
-            console.error(message.data.error);
+        if (message.error) {
+            console.error(message.error);
             await this.onEvent(EventTypes.registerResult, message);
         } else {
             this.localParticipant.participantId = message.data.participantId;
@@ -1640,10 +1640,10 @@ export class ConferenceClient {
     private async onCreateConfResult(message: CreateConfResultMsg) {
         console.log("onCreateConfResult");
 
-        if (message.data.error) {
-            console.error(message.data.error);
+        if (message.error) {
+            console.error(message.error);
 
-            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.data.error } });
+            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.error } });
             this.disconnectRoomsClient("onCreateConfResult");
             return;
         }
@@ -1651,7 +1651,7 @@ export class ConferenceClient {
         if (!message.data.conferenceId) {
             console.error(`no conferenceId`);
 
-            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.data.error } });
+            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.error } });
             this.disconnectRoomsClient("no conferenceId");
             return;
         }
@@ -1667,14 +1667,14 @@ export class ConferenceClient {
     private async onJoinConfResult(message: JoinConfResultMsg) {
         console.log("onJoinConfResult");
 
-        if (message.data.error) {
+        if (message.error) {
             console.error("onJoinConfResult() - error received");
 
             this.clearCallConnectTimer();
             this.callState = "disconnected";
             this.conference.conferenceId = "";
 
-            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.data.error } });
+            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.error } });
             this.disconnectRoomsClient("onJoinConfResult");
             return;
         }
@@ -1750,7 +1750,7 @@ export class ConferenceClient {
             console.log("-- room initialized.")
 
             let connectResult = await this.roomsClient.waitForConnect();
-            if (!connectResult.data.error) {
+            if (!connectResult.error) {
                 console.log("-- room socket connected.");
             } else {
                 console.log("-- room socket failed to connect.");
@@ -1764,7 +1764,7 @@ export class ConferenceClient {
                 timeoutSecs: 30
             });
 
-            if (!registerResult.data.error) {
+            if (!registerResult.error) {
                 console.log(`-- room socket registered. new peerId ${this.roomsClient.getPeerId()}`);
                 this.localParticipant.peerId = this.roomsClient.getPeerId();
 
@@ -1775,13 +1775,13 @@ export class ConferenceClient {
             }
 
             let roomJoinResult = connectResult = await this.roomsClient.waitForRoomJoin(this.conference.roomId, this.conference.roomToken);
-            if (!roomJoinResult.data.error) {
+            if (!roomJoinResult.error) {
                 console.log("-- room join.");
             } else {
                 console.log("-- room failed to join.");
             }
 
-            if (connectResult.data.error || registerResult.data.error || roomJoinResult.data.error) {
+            if (connectResult.error || registerResult.error || roomJoinResult.error) {
                 //call failed
                 let msg = {
                     type: EventTypes.conferenceFailed,
