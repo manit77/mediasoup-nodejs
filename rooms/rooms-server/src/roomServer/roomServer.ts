@@ -2,33 +2,25 @@ import * as mediasoup from 'mediasoup';
 import os from 'os';
 import { Room } from './room.js';
 import {
-    AuthUserNewTokenMsg,
-    AuthUserNewTokenResultMsg,
+    AuthUserNewTokenMsg, AuthUserNewTokenResultMsg,
     ConnectConsumerTransportMsg, ConnectProducerTransportMsg,
-    ConsumerTransportConnectedMsg, CreateConsumerTransportResultMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg, payloadTypeClient,
+    ConsumerTransportConnectedMsg, CreateConsumerTransportResultMsg, CreateProducerTransportMsg, ErrorMsg, IMsg, OkMsg,
     PeerTerminatedMsg, ProducerTransportConnectedMsg, CreateProducerTransportResultMsg,
     RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomGetLogsMsg, RoomJoinMsg,
     RoomJoinResultMsg, RoomLeaveMsg, RoomLeaveResultMsg, RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg,
     RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
-    RoomTerminateMsg,
-    RoomTerminateResultMsg,
-    TerminatePeerMsg,
-    payloadTypeServer,
-    RoomProduceStreamMsg,
-    RoomProduceStreamResultMsg,
-    RoomConsumeProducerMsg,
-    roomConsumeProducerResultMsg,
-    PeerTracksInfoMsg,
-    PeerMuteTracksMsg,
-    RoomCloseProducerMsg,
-    RoomConsumerClosedMsg,
+    RoomTerminateMsg, RoomTerminateResultMsg, TerminatePeerMsg,
+    payloadTypeClient, payloadTypeServer,
+    RoomProduceStreamMsg, RoomProduceStreamResultMsg,
+    RoomConsumeProducerMsg, RoomConsumeProducerResultMsg,
+    PeerTracksInfoMsg, PeerMuteTracksMsg,
+    RoomCloseProducerMsg, RoomConsumerClosedMsg,
     AuthUserRoles,
-    RoomPingMsg,
-    RoomPongMsg,
-    RoomGetStatusMsg,
-    RoomGetStatusResultMsg,
-    RoomRecordingStart,
-    RoomRecordingStop
+    RoomPingMsg, RoomPongMsg,
+    RoomGetStatusMsg, RoomGetStatusResultMsg,
+    RoomRecordingStart, RoomRecordingStop,
+    payloadTypeSDP, RoomNewProducerSDPMsg, RoomOfferSDPMsg, RoomConsumeSDPMsg, RoomOfferSDPResultMsg,
+    RoomConsumeSDPResultMsg,
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
@@ -39,6 +31,7 @@ import { consoleError, consoleInfo, consoleLog, consoleWarn } from '../utils/uti
 import { outMessageEventListener, RoomServerConfig, WorkerData } from './models.js';
 import { RecCallBackMsg, RecMsgTypes, RecRoomNewMsg, RecRoomProduceStreamMsg, RecRoomTerminateMsg } from '../recording/recModels.js';
 import { recRoomNew, recRoomProduceStream, recRoomTerminate } from '../recording/recAPI.js';
+import { Consumer } from 'mediasoup/types';
 
 export class RoomServer {
 
@@ -267,6 +260,14 @@ export class RoomServer {
                 resultMsg = await this.onRoomRecordingStop(peerId, msgIn);
                 break;
             }
+            case payloadTypeSDP.roomOfferSDP: {
+                resultMsg = await this.onRoomOfferSDP(peerId, msgIn);
+                break;
+            }
+            case payloadTypeSDP.roomConsumeSDP: {
+                resultMsg = await this.onRoomConsumeSDP(peerId, msgIn);
+                break;
+            }          
         }
 
         return resultMsg;
@@ -403,7 +404,7 @@ export class RoomServer {
      * @param trackingId custom id from a client
      * @returns 
      */
-    private createPeer(authToken: string, username: string, trackingId: string, displayName: string): Peer {
+    private createPeer(authToken: string, username: string, trackingId: string, displayName: string, clientType: "sdp" | "mediasoup"): Peer {
         console.log(`createPeer() - trackingId: ${trackingId}, displayName: ${displayName}`);
 
         let payload: AuthUserTokenPayload = roomUtils.decodeAuthUserToken(this.config.room_secret_key, authToken);
@@ -424,6 +425,7 @@ export class RoomServer {
         peer.username = username;
         peer.trackingId = trackingId;
         peer.role = payload.role;
+        peer.clientType = clientType;
 
         this.addPeerGlobal(peer);
 
@@ -754,7 +756,12 @@ export class RoomServer {
             this.closePeer(peer);
         }
 
-        peer = this.createPeer(msgIn.data.authToken, msgIn.data.username, msgIn.data.peerTrackingId, msgIn.data.displayName);
+        let clientType: any;
+        if (msgIn.data.clientType) {
+            clientType = msgIn.data.clientType;
+        }
+
+        peer = this.createPeer(msgIn.data.authToken, msgIn.data.username, msgIn.data.peerTrackingId, msgIn.data.displayName, clientType);
         if (!peer) {
             let errMsg = new RegisterPeerResultMsg();
             errMsg.error = "unable to create peer.";
@@ -1251,24 +1258,26 @@ export class RoomServer {
             }
         }
 
-        let producer = await peer.room.createProducer(peer, msgIn.data.kind, msgIn.data.rtpParameters);
-        consoleInfo(msgIn.data.rtpParameters);
+        if (!msgIn.data.kind) {
+            consoleError(`kind is required.`);
+            return new ErrorMsg(payloadTypeServer.roomProduceStreamResult, `kind: ${msgIn.data.kind} not allowed.`);
+        }
+
+        let producer: mediasoup.types.Producer = await peer.room.createProducer(peer, msgIn.data.kind, msgIn.data.rtpParameters);
+
         if (!producer) {
             consoleError(`producer not created.`);
             return new ErrorMsg(payloadTypeServer.roomProduceStreamResult, `could not created producer for kind ${msgIn.data.kind}`);
         }
 
-        //alert all peers in the room of new producer
-        if (peer.room) {
-            let newProducerMsg = new RoomNewProducerMsg();
-            newProducerMsg.data = {
-                roomId: peer.room.id,
-                peerId: peer.id,
-                producerId: producer.id,
-                kind: producer.kind
-            }
-            this.broadCastExcept(peer.room, [peer], newProducerMsg)
+        let newProducerMsg = new RoomNewProducerMsg();
+        newProducerMsg.data = {
+            roomId: peer.room.id,
+            peerId: peer.id,
+            producerId: producer.id,
+            kind: producer.kind
         }
+        this.broadCastExcept(peer.room, [peer], newProducerMsg);
 
         let producedMsg = new RoomProduceStreamResultMsg();
         producedMsg.data = {
@@ -1276,6 +1285,7 @@ export class RoomServer {
             kind: msgIn.data.kind
         };
         return producedMsg;
+
     }
 
     private async onRoomCloseProducer(peerId: string, msgIn: RoomCloseProducerMsg): Promise<IMsg> {
@@ -1357,14 +1367,16 @@ export class RoomServer {
         }
 
         //consume the producer
-        const consumer = await peer.room.createConsumer(peer, remotePeer, msgIn.data.producerId, msgIn.data.rtpCapabilities);
+        let consumer: Consumer;
+        consumer = await peer.room.createConsumer(peer, remotePeer, msgIn.data.producerId, msgIn.data.rtpCapabilities);
+
         if (!consumer) {
             consoleError(`could not create consumer.`);
             return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "could not create consumer.");
         }
 
         //send the consumer data back to the client
-        let resultMsg = new roomConsumeProducerResultMsg();
+        let resultMsg = new RoomConsumeProducerResultMsg();
         resultMsg.data = {
             roomId: room.id,
             peerId: remotePeer.id,
@@ -1376,6 +1388,88 @@ export class RoomServer {
 
         return resultMsg;
     }
+
+    /**
+     * for SDP   
+     */
+
+    private async onRoomOfferSDP(peerId: string, msgIn: RoomOfferSDPMsg) {
+
+        let peer = this.peers.get(peerId);
+        if (!peer) {
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeSDP.roomOfferSDPResult, "peer not found.");
+        }
+
+        //the peer must be in room to consume streams
+        if (!peer.room) {
+            consoleError("peer not in room.");
+            return new ErrorMsg(payloadTypeSDP.roomOfferSDPResult, "peer not in room.");
+        }
+
+        if (peer.room.id !== msgIn.data.roomId) {
+            consoleError("invalid roomid");
+            return new ErrorMsg(payloadTypeSDP.roomOfferSDPResult, "invalid room id");
+        }
+
+        if (!msgIn.data?.offer) {
+            consoleError("offer is required.");
+            return new ErrorMsg(payloadTypeSDP.roomOfferSDPResult, "offer is required.");
+        }
+
+        let { answer } = await peer.room.processOfferForSDP(peer, msgIn.data.offer);
+        let msg = new RoomOfferSDPResultMsg();
+        msg.data.roomId = peer.room.id;
+        msg.data.answer = answer;
+
+        //broad cast that a new sdp peer is producing
+        let msgToPeers = new RoomNewProducerSDPMsg();
+        msgToPeers.data.peerId = peer.id;
+        msgToPeers.data.roomId = peer.room.id;
+        this.broadCastExcept(peer.room, [peer], msgToPeers);
+
+        return msg;
+    }
+
+    private async onRoomConsumeSDP(peerId: string, msgIn: RoomConsumeSDPMsg) {
+
+        let peer = this.peers.get(peerId);
+        if (!peer) {
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeSDP.roomConsumeSDP, "peer not found.");
+        }
+
+        //the peer must be in room to consume streams
+        if (!peer.room) {
+            consoleError("peer not in room.");
+            return new ErrorMsg(payloadTypeSDP.roomConsumeSDP, "peer not in room.");
+        }
+
+        if (peer.room.id !== msgIn.data.roomId) {
+            consoleError("invalid roomid");
+            return new ErrorMsg(payloadTypeSDP.roomConsumeSDP, "invalid room id");
+        }
+
+        let remotePeer = peer.room.getPeer(msgIn.data.remotePeerId);
+        if (!remotePeer) {
+            consoleError("remote peer not found.");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "remote peer not found.");
+        }
+
+        //process offer, generate answer, send back to client
+        let answer = await peer.room.consumeSDP(peer, remotePeer, msgIn.data.offer);
+
+        if (!answer) {
+            consoleError("error generating answer for SDP");
+            return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "error generating answer for SDP");
+        }
+
+        let msg = new RoomConsumeSDPResultMsg()
+        msg.data.roomId = peer.room.id;
+        msg.data.answer = answer;
+
+        return msg;
+    }    
 
     /**
      * toggle self only, alert other peers
@@ -1392,7 +1486,7 @@ export class RoomServer {
         if (!msgIn.data.tracksInfo) {
             consoleError(`no tracksInfo sent`);
             return new ErrorMsg(payloadTypeServer.error, "`no tracksInfo sent.");
-        }        
+        }
 
         let changed = false;
         //process toggle only if not muted
@@ -1407,7 +1501,7 @@ export class RoomServer {
             changed = true;
         }
 
-        if(!changed) {
+        if (!changed) {
             //change made
             return;
         }

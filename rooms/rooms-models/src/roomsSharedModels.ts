@@ -2,35 +2,36 @@
  * server receives these payload types
  */
 export const payloadTypeClient = {
-    authUserNewToken : "authUserNewToken",
+    authUserNewToken: "authUserNewToken",
 
-    registerPeer : "registerPeer",
-    terminatePeer : "terminatePeer",
+    registerPeer: "registerPeer",
+    terminatePeer: "terminatePeer",
 
-    createProducerTransport : "createProducerTransport",
-    createConsumerTransport : "createConsumerTransport",
-    connectProducerTransport : "connectProducerTransport",
-    connectConsumerTransport : "connectConsumerTransport",
+    createProducerTransport: "createProducerTransport",
+    createConsumerTransport: "createConsumerTransport",
+    connectProducerTransport: "connectProducerTransport",
+    connectConsumerTransport: "connectConsumerTransport",
 
-    roomNewToken : "roomNewToken",
-    roomNewTokenResult : "roomNewTokenResult",
-    roomNew : "roomNew",
-    roomJoin : "roomJoin",
-    roomLeave : "roomLeave",
-    roomTerminate : "roomTerminate",
-    roomPong : "roomPong",
-    roomRecordingStart : "roomRecordingStart",
-    roomRecordingStop : "roomRecordingStop",
+    roomNewToken: "roomNewToken",
+    roomNewTokenResult: "roomNewTokenResult",
+    roomNew: "roomNew",
+    roomJoin: "roomJoin",
+    roomLeave: "roomLeave",
+    roomTerminate: "roomTerminate",
+    roomPong: "roomPong",
+    roomRecordingStart: "roomRecordingStart",
+    roomRecordingStop: "roomRecordingStop",
 
-    roomGetLogs : "roomGetLogs",
-    roomGetStatus : "roomGetStatus",
+    roomGetLogs: "roomGetLogs",
+    roomGetStatus: "roomGetStatus",
 
-    roomProduceStream : "roomProduceStream",
-    roomCloseProducer : "roomCloseProducer",
-    roomConsumeProducer : "roomConsumeProducer",
+    roomProduceStream: "roomProduceStream",
+    roomCloseProducer: "roomCloseProducer",
+    roomConsumeProducer: "roomConsumeProducer",
+    
 
-    peerTracksInfo : "peerTracksInfo",
-    peerMuteTracks : "peerMuteTracks",
+    peerTracksInfo: "peerTracksInfo",
+    peerMuteTracks: "peerMuteTracks",
 }
 
 
@@ -39,52 +40,52 @@ export const payloadTypeClient = {
  */
 export const payloadTypeServer = {
 
-    authUserNewTokenResult : "authUserNewTokenResult",
-    registerPeerResult : "registerPeerResult",
+    authUserNewTokenResult: "authUserNewTokenResult",
+    registerPeerResult: "registerPeerResult",
 
     //createProducerTransport : "createProducerTransport",
-    createProducerTransportResult : "createProducerTransportResult",
-    connectProducerTransportResult : "connectProducerTransportResult",
-    producerTransportConnected : "producerTransportConnected",
+    createProducerTransportResult: "createProducerTransportResult",
+    connectProducerTransportResult: "connectProducerTransportResult",
+    producerTransportConnected: "producerTransportConnected",
 
     //consumerTransportCreated : "consumerTransportCreated",
-    createConsumerTransportResult : "createConsumerTransportResult",
-    connectConsumerTransportResult : "connectConsumerTransportResult",
-    consumerTransportConnected : "consumerTransportConnected",
+    createConsumerTransportResult: "createConsumerTransportResult",
+    connectConsumerTransportResult: "connectConsumerTransportResult",
+    consumerTransportConnected: "consumerTransportConnected",
 
-    roomProduceStreamResult : "roomProduceStreamResult",
-    roomConsumeProducerResult : "roomConsumeProducerResult",
-    roomConsumerClosed : "roomConsumerClosed",
+    roomProduceStreamResult: "roomProduceStreamResult",
+    roomConsumeProducerResult: "roomConsumeProducerResult",
+    roomConsumerClosed: "roomConsumerClosed",
 
-    roomNewResult : "roomNewResult",
-    roomNewTokenResult : "roomNewTokenResult",
-    roomJoinResult : "roomJoinResult",
-    roomLeaveResult : "roomLeaveResult",
-    roomNewPeer : "roomNewPeer",
-    roomNewProducer : "roomNewProducer",
-    roomPeerLeft : "roomPeerLeft",
-    roomTerminateResult : "roomTerminateResult",
-    roomGetStatusResult : "roomGetStatusResult",
-    roomClosed : "roomClosed",
-    roomPing : "roomPing",
-    roomGetLogsResult : "roomGetLogsResult",
-    roomRecordingStartResult : "roomRecordingStartResult",
+    roomNewResult: "roomNewResult",
+    roomNewTokenResult: "roomNewTokenResult",
+    roomJoinResult: "roomJoinResult",
+    roomLeaveResult: "roomLeaveResult",
+    roomNewPeer: "roomNewPeer",
+    roomNewProducer: "roomNewProducer",
+    roomPeerLeft: "roomPeerLeft",
+    roomTerminateResult: "roomTerminateResult",
+    roomGetStatusResult: "roomGetStatusResult",
+    roomClosed: "roomClosed",
+    roomPing: "roomPing",
+    roomGetLogsResult: "roomGetLogsResult",
+    roomRecordingStartResult: "roomRecordingStartResult",
 
-    peerTerminated : "peerTerminated",
-    error : "error",
-    ok : "ok",
-    unauthorized : "unauthorized",
+    peerTerminated: "peerTerminated",
+    error: "error",
+    ok: "ok",
+    unauthorized: "unauthorized",
     //notRegistered = "notRegistered",
 }
 
 export interface IMsg {
-    type: string;    
+    type: string;
     error?: string;
     data?: any;
 }
 
 export class BaseMsg implements IMsg {
-    type: string;    
+    type: string;
     error?: string;
     data: any;
 }
@@ -96,9 +97,9 @@ export enum AuthUserRoles {
 }
 
 export class ErrorMsg extends BaseMsg {
-    type = payloadTypeServer.error;  
+    type = payloadTypeServer.error;
     constructor(msgType: any, error: string) {
-        super();        
+        super();
         this.type = msgType;
         this.error = error;
     }
@@ -130,7 +131,10 @@ export class RegisterPeerMsg extends BaseMsg {
          * your app's unique to track the room
          */
         peerTrackingId?: string,
-    } = {}
+        clientType: "sdp" | "mediasoup",
+    } = {
+            clientType: "mediasoup"
+        }
 }
 
 export class RegisterPeerResultMsg extends BaseMsg {
@@ -138,7 +142,7 @@ export class RegisterPeerResultMsg extends BaseMsg {
     data: {
         peerId?: string,
         displayName?: string,
-        rtpCapabilities?: any,        
+        rtpCapabilities?: any,
     } = {};
 }
 
@@ -153,14 +157,14 @@ export class TerminatePeerMsg extends BaseMsg {
 export class PeerTerminatedMsg extends BaseMsg {
     type = payloadTypeServer.peerTerminated;
     data: {
-        peerId?: string,       
+        peerId?: string,
     } = {};
 }
 
 export class CreateProducerTransportMsg extends BaseMsg {
     type = payloadTypeClient.createProducerTransport;
     data: {
-        authToken?: string,
+        //authToken?: string,
         roomId?: string,
     } = {}
 }
@@ -181,7 +185,7 @@ export class CreateProducerTransportResultMsg extends BaseMsg {
 export class ProducerTransportConnectedMsg extends BaseMsg {
     type = payloadTypeServer.producerTransportConnected;
     data: {
-        roomId?: string        
+        roomId?: string,       
     } = {};
 }
 
@@ -191,14 +195,14 @@ export class ConnectProducerTransportMsg extends BaseMsg {
         transportId?: string,
         authToken?: string,
         roomId?: string,
-        dtlsParameters?: any
+        dtlsParameters?: any,        
     } = {}
 }
 
 export class CreateConsumerTransportMsg extends BaseMsg {
     type = payloadTypeClient.createConsumerTransport;
     data: {
-        authToken?: string,
+        //authToken?: string,
         roomId?: string,
     } = {}
 }
@@ -219,7 +223,7 @@ export class CreateConsumerTransportResultMsg extends BaseMsg {
 export class ConsumerTransportConnectedMsg extends BaseMsg {
     type = payloadTypeServer.consumerTransportConnected;
     data: {
-        roomId?: string        
+        roomId?: string
     } = {};
 }
 
@@ -263,7 +267,7 @@ export class AuthUserNewTokenResultMsg extends BaseMsg {
     data: {
         authToken?: string,
         expiresIn?: number,
-        role?: AuthUserRoles;        
+        role?: AuthUserRoles;
     } = {
         }
 }
@@ -280,7 +284,7 @@ export class RoomNewTokenResultMsg extends BaseMsg {
     type = payloadTypeClient.roomNewTokenResult;
     data: {
         roomId?: string,
-        roomToken?: string        
+        roomToken?: string
     } = {}
 }
 
@@ -294,7 +298,7 @@ export class RoomNewResultMsg extends BaseMsg {
         /**
          * your app's unique to track the room
          */
-        roomTrackingId?: string,        
+        roomTrackingId?: string,
     } = {}
 }
 
@@ -321,7 +325,7 @@ export class RoomLeaveMsg extends BaseMsg {
 export class RoomLeaveResultMsg extends BaseMsg {
     type = payloadTypeServer.roomLeaveResult;
     data: {
-        roomId?: string,       
+        roomId?: string,
     } = {}
 }
 
@@ -345,7 +349,7 @@ export class RoomJoinResultMsg extends BaseMsg {
             displayName: string,
             producers?: { producerId: string, kind: "audio" | "video" }[],
             trackInfo: PeerTracksInfo,
-        }[],       
+        }[],
     } = { peers: [] };
 }
 
@@ -402,14 +406,14 @@ export class RoomGetStatusResultMsg extends BaseMsg {
     type = payloadTypeServer.roomGetStatusResult;
     data: {
         roomId?: string,
-        numPeers?: number       
+        numPeers?: number
     } = {}
 }
 
 export class RoomTerminateResultMsg extends BaseMsg {
     type = payloadTypeServer.roomTerminateResult;
     data: {
-        roomId?: string       
+        roomId?: string
     } = {}
 }
 
@@ -426,7 +430,7 @@ export class RoomProduceStreamMsg extends BaseMsg {
     data: {
         roomId?: string,
         kind?: "audio" | "video",
-        rtpParameters?: any
+        rtpParameters?: any,        
     } = {};
 }
 
@@ -434,7 +438,7 @@ export class RoomProduceStreamResultMsg extends BaseMsg {
     type = payloadTypeServer.roomProduceStreamResult;
     data: {
         roomId?: string,
-        kind?: "audio" | "video"
+        kind?: "audio" | "video",        
     } = {};
 }
 
@@ -444,11 +448,11 @@ export class RoomConsumeProducerMsg extends BaseMsg {
         roomId?: string,
         remotePeerId?: string,
         producerId?: string,
-        rtpCapabilities?: any       
+        rtpCapabilities?: any
     } = {};
 }
 
-export class roomConsumeProducerResultMsg extends BaseMsg {
+export class RoomConsumeProducerResultMsg extends BaseMsg {
     type = payloadTypeServer.roomConsumeProducerResult;
     data: {
         roomId?: string,
@@ -456,7 +460,7 @@ export class roomConsumeProducerResultMsg extends BaseMsg {
         consumerId?: string,
         producerId?: string,
         kind?: "audio" | "video",
-        rtpParameters?: any      
+        rtpParameters?: any,      
     } = {};
 }
 
@@ -495,7 +499,7 @@ export interface PeerTracksInfo {
 }
 
 export class UnauthorizedMsg extends BaseMsg {
-    type = payloadTypeServer.unauthorized;    
+    type = payloadTypeServer.unauthorized;
 }
 
 export enum RoomServerAPIRoutes {

@@ -244,7 +244,7 @@ export class Room {
     }
 
     getPeerByTrackingId(peerTrackingId: string) {
-        if(!peerTrackingId) {
+        if (!peerTrackingId) {
             return;
         }
         return this.roomPeers.values().find(p => p.peer.trackingId === peerTrackingId)?.peer;
@@ -428,7 +428,7 @@ export class Room {
         await roomPeer.closeProducer(kind);
     }
 
-    async toggleProducer(peer: Peer, kind: MediaKind, isEnabled:boolean,) {
+    async toggleProducer(peer: Peer, kind: MediaKind, isEnabled: boolean,) {
         consoleWarn(`room - muteProducer ${peer.displayName}`);
 
         let roomPeer = this.roomPeers.get(peer);
@@ -438,6 +438,49 @@ export class Room {
         }
 
         await roomPeer.toggleProducer(kind, isEnabled);
+    }
+
+    /**SDP Peer */
+    processOfferForSDP(peer: Peer, offer: string) {
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return;
+        }
+        return roomPeer.processOfferForSDP(offer);
+    }
+
+    consumeSDP(peer: Peer, remotePeer: Peer, offer: string) {
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return "";
+        }
+
+        let remoteRoomPeer = this.roomPeers.get(remotePeer);
+        if (!remoteRoomPeer) {
+            consoleError(`remote room peer not found. ${peer.id} ${peer.displayName}`);
+            return "";
+        }
+
+        return roomPeer.consumePeerSDP(remoteRoomPeer, offer);
+    }
+
+    processAnswerForSDP(peer: Peer, remotePeer: Peer, answer: string) {
+
+        let roomPeer = this.roomPeers.get(peer);
+        if (!roomPeer) {
+            consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
+            return false;
+        }
+
+        let remoteRoomPeer = this.roomPeers.get(remotePeer);
+        if (!remoteRoomPeer) {
+            consoleError(`remote room peer not found. ${peer.id} ${peer.displayName}`);
+            return false;
+        }
+
+        return roomPeer.processAnswerForSDP(answer);
     }
 
     /**
