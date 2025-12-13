@@ -36,9 +36,10 @@ export class RoomPeer {
     
     async createProducerTransport() {
         console.log(`createProducerTransport() ${this.peer.displayName}`);
+
         if (this.producerTransport) {
             console.log(`producer transport already created.`);
-            return;
+            return this.producerTransport;
         }
 
         if (!this.room) {
@@ -52,7 +53,6 @@ export class RoomPeer {
         }
 
         //let workerData: WorkerData = this.room.roomRouter.appData as any;
-
         this.producerTransport = await roomUtils.createWebRtcTransport(this.room.roomRouter, this.config.room_server_ip, this.config.room_public_ip, this.config.room_rtc_start_port, this.config.room_rtc_end_port);
 
         this.producerTransport.on('@close', () => {
@@ -77,7 +77,7 @@ export class RoomPeer {
 
         if (this.consumerTransport) {
             console.log(`consumer transport already created. ${this.peer.id} ${this.peer.displayName}`);
-            return;
+            return this.consumerTransport;
         }
 
         if (!this.room) {

@@ -7,6 +7,7 @@ import { AuthUserRoles } from '@rooms/rooms-models';
 import { consoleWarn } from '../utils/utils.js';
 import { RoomServerConfig } from './models.js';
 import { Producer } from 'mediasoup/types';
+import { Consumer } from 'mediasoup-client/types';
 
 export function GetRoomId() {
     return "room-" + randomUUID().toString();
@@ -171,7 +172,7 @@ export function getNextRecURI(config: RoomServerConfig) {
 
 const CHECK_INTERVAL_MS = 3000; // Check every 3 seconds
 export function startProducerMonitor(producers: Producer[]) {
-    setInterval(async () => {
+    const intervalId = setInterval(async () => {
         console.log("--- Checking Producer Stats ---");
 
         for (const producer of producers) {
@@ -195,9 +196,43 @@ export function startProducerMonitor(producers: Producer[]) {
                     }
                 } else {
                     console.log(`❌ ${producer.id} ${producer.kind} Producer stat not found.`);
+                    clearInterval(intervalId);
                 }
             } catch (error) {
                 console.error(`Error getting stats for ${producer.id} ${producer.kind} Producer:`, error);
+            }
+        }
+    }, CHECK_INTERVAL_MS);
+}
+
+export function startConsumerMonitor(consumers: Consumer[]) {
+    const intervalId = setInterval(async () => {
+        console.log("--- Checking Producer Stats ---");
+
+        for (const consumer of consumers) {
+            try {
+                const stats = await consumer.getStats();
+                const outboundRtpStat = [...stats.values()].find(s => s.type === 'outbound-rtp');
+
+                if (outboundRtpStat) {
+                    if (outboundRtpStat.packetCount > 0) {
+                        console.log(
+                            `${consumer.id} ${consumer.kind}`,
+                            `byteCount: ${outboundRtpStat.byteCount},`,
+                            `Packets Received: ${outboundRtpStat.packetCount}`,
+                            `bitrate: ${outboundRtpStat.bitrate}`
+                        );
+                    } else {
+                        console.log(
+                            `${consumer.id} ${consumer.kind} consumer is connected but no media flow (yet).`
+                        );
+                    }
+                } else {
+                    console.log(`❌ ${consumer.id} ${consumer.kind} consumer stat not found.`);
+                    clearInterval(intervalId);
+                }
+            } catch (error) {
+                console.error(`Error getting stats for ${consumer.id} ${consumer.kind} consumer:`, error);
             }
         }
     }, CHECK_INTERVAL_MS);

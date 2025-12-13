@@ -275,7 +275,7 @@ export class RoomServer {
                 //consume peers
                 resultMsg = await this.onRoomAnswerSDP(peerId, msgIn);
                 break;
-            }      
+            }
         }
 
         return resultMsg;
@@ -1199,6 +1199,12 @@ export class RoomServer {
             this.send(otherPeer.peer.id, msg);
         }
 
+        //create transport automatically if sdp, we may do the same for media soup
+        if (peer.clientType == "sdp") {
+            room.createProducerTransport(peer);
+            room.createConsumerTransport(peer);
+        }
+        
         //send back the the peer that joined
         return joinRoomResult;
     }
@@ -1478,7 +1484,7 @@ export class RoomServer {
 
         return msg;
     }
-    
+
     private async onRoomAnswerSDP(peerId: string, msgIn: RoomAnswerSDPMsg) {
 
         let peer = this.peers.get(peerId);
@@ -1503,7 +1509,7 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeSDP.roomAnswerSDPResult, "answer is required.");
         }
 
-        await peer.room.processAnswerForSDP(peer, msgIn.data.answer);        
+        await peer.room.processAnswerForSDP(peer, msgIn.data.answer);
     }
 
     /**
