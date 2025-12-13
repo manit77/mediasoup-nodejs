@@ -6,6 +6,7 @@ import { AuthUserTokenPayload, RoomTokenPayload } from "../models/tokenPayloads.
 import { AuthUserRoles } from '@rooms/rooms-models';
 import { consoleWarn } from '../utils/utils.js';
 import { RoomServerConfig } from './models.js';
+import { Producer } from 'mediasoup/types';
 
 export function GetRoomId() {
     return "room-" + randomUUID().toString();
@@ -126,7 +127,7 @@ export function generateAuthUserToken(secretKey: string, username: string, role:
  * creates a transport for the peer, can be a consumer or producer
  * @returns
  */
-export async function createTransport(router: mediasoup.types.Router, listeningIP: string, publicIP: string, minPort: number, maxPort: number) {
+export async function createWebRtcTransport(router: mediasoup.types.Router, listeningIP: string, publicIP: string, minPort: number, maxPort: number) {
     consoleWarn(`createTransport() ${listeningIP} ${publicIP} ${minPort} ${maxPort}`);
 
     if (!router) {
@@ -161,8 +162,43 @@ let recURIIndex = 0;
 export function getNextRecURI(config: RoomServerConfig) {
     let url = config.rec_servers_uris[recURIIndex];
     recURIIndex++;
-    if(recURIIndex >= config.rec_servers_uris.length){
-        recURIIndex =0;
+    if (recURIIndex >= config.rec_servers_uris.length) {
+        recURIIndex = 0;
     }
     return url;
+}
+
+
+const CHECK_INTERVAL_MS = 3000; // Check every 3 seconds
+export function startProducerMonitor(producers: Producer[]) {
+    setInterval(async () => {
+        console.log("--- Checking Producer Stats ---");
+
+        for (const producer of producers) {
+            try {
+                const stats = await producer.getStats();
+
+                const inboundRtpStat = stats.find(s => s.type === 'inbound-rtp');
+
+                if (inboundRtpStat) {
+                    if (inboundRtpStat.packetCount > 0) {
+                        console.log(
+                            `${producer.id} ${producer.kind}`,
+                            `byteCount: ${inboundRtpStat.byteCount},`,
+                            `Packets Received: ${inboundRtpStat.packetCount}`,
+                            `bitrate: ${inboundRtpStat.bitrate}`
+                        );
+                    } else {
+                        console.log(
+                            `${producer.id} ${producer.kind} Producer is connected but no media flow (yet).`
+                        );
+                    }
+                } else {
+                    console.log(`❌ ${producer.id} ${producer.kind} Producer stat not found.`);
+                }
+            } catch (error) {
+                console.error(`Error getting stats for ${producer.id} ${producer.kind} Producer:`, error);
+            }
+        }
+    }, CHECK_INTERVAL_MS);
 }

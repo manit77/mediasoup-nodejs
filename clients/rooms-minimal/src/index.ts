@@ -1,7 +1,7 @@
 
 import {
     CreateConsumerTransportMsg, CreateProducerTransportMsg, payloadTypeSDP, payloadTypeServer,
-    RegisterPeerMsg, RoomConsumeSDPMsg, RoomConsumeSDPResultMsg, RoomJoinMsg, RoomNewMsg,
+    RegisterPeerMsg, RoomAnswerSDPMsg, RoomConsumeSDPMsg, RoomConsumeSDPResultMsg, RoomJoinMsg, RoomNewMsg,
     RoomNewProducerSDPMsg,
     RoomNewTokenMsg, RoomOfferSDPMsg,
     RoomOfferSDPResultMsg,
@@ -19,7 +19,9 @@ let roomId = "";
 let roomName = "test room 1";
 let roomToken = "";
 let roomRtpCapabilities: any;
-let peerConnection: RTCPeerConnection;
+let producerConnection: RTCPeerConnection;
+let consumerConnection: RTCPeerConnection;
+
 let localStream: MediaStream;
 
 let ctlUserName: HTMLInputElement = document.getElementById("ctlUserName") as HTMLInputElement;
@@ -149,20 +151,20 @@ ws.onmessage = async (event) => {
             })));
 
             // Create RTCPeerConnection
-            initPeerConnection();
+            producerConnection = createPeerConnection();
 
             // Add tracks
             localStream.getTracks().forEach(track => {
-                peerConnection.addTrack(track, localStream);
+                producerConnection.addTrack(track, localStream);
                 console.log(`Track added: ${track.kind} (id: ${track.id})`);
             });
 
             // Create and set offer
             let offerDesc: RTCSessionDescriptionInit;
             try {
-                offerDesc = await peerConnection.createOffer({ iceRestart: false });
+                offerDesc = await producerConnection.createOffer({ iceRestart: false });
                 console.log("SDP Offer:", offerDesc.sdp);
-                await peerConnection.setLocalDescription(offerDesc);
+                await producerConnection.setLocalDescription(offerDesc);
                 console.log("Local description set");
             } catch (error) {
                 console.error("Error creating/setting offer:", error);
@@ -171,7 +173,7 @@ ws.onmessage = async (event) => {
 
             // Wait for ICE gathering with timeout
             try {
-                await waitForIceGatheringComplete(peerConnection);
+                await waitForIceGatheringComplete(producerConnection);
                 console.log("ICE gathering completed");
             } catch (error) {
                 console.error("ICE gathering failed:", error);
@@ -187,23 +189,21 @@ ws.onmessage = async (event) => {
 
             break;
         }
-        case payloadTypeSDP.roomOfferSDPResult:{
+        case payloadTypeSDP.roomOfferSDPResult: {
             console.log("-- roomOfferSDPResult", msgIn.data.answer);
             let msg = msgIn as RoomOfferSDPResultMsg;
 
-            //server processed the offer and sent us an answer
-            
-            //set answer
-            await peerConnection.setRemoteDescription(new RTCSessionDescription({
+            //server processed the producer offer and sent us an answer
+            await producerConnection.setRemoteDescription(new RTCSessionDescription({
                 type: 'answer',
                 sdp: msg.data.answer
             }));
 
             console.log(`answer set`);
-            
+
 
             break;
-        }       
+        }
         case payloadTypeServer.roomPing: {
             console.log("-- Received roomPing");
             send({
@@ -228,8 +228,9 @@ ws.onmessage = async (event) => {
             break;
         }
         case payloadTypeSDP.roomNewProducerSDP: {
-            console.warn("new roomNewProducerSDP: ", msgIn.data.peerId);
+            console.warn("-- new roomNewProducerSDP: ", msgIn.data.peerId);
 
+            //remote peer started producing, request an offer
             let remotePeerId = (msgIn as RoomNewProducerSDPMsg).data.peerId;
 
             if (!remotePeerId) {
@@ -242,24 +243,11 @@ ws.onmessage = async (event) => {
                 console.error(`Peer ${remotePeerId} not found`);
                 return;
             }
-            
-            //unfortunate for mediasoup lib, local peerconnection always sends offer first
-            let offerDesc: RTCSessionDescriptionInit;
-            try {
-                offerDesc = await peerConnection.createOffer({ iceRestart: false });
-                console.log("SDP Offer:", offerDesc.sdp);
-                await peerConnection.setLocalDescription(offerDesc);
-                console.log("Local description set");
-            } catch (error) {
-                console.error("Error creating/setting offer:", error);
-                throw error;
-            }
 
             let msg = new RoomConsumeSDPMsg();
             msg.data = {
                 roomId,
-                remotePeerId,
-                offer: offerDesc.sdp
+                remotePeerId
             };
 
             send(msg);
@@ -267,31 +255,86 @@ ws.onmessage = async (event) => {
             break;
         }
         case payloadTypeSDP.roomConsumeSDPResult: {
-            console.log("-- roomConsumeProducerResult stream:", msgIn);
+            console.log("-- roomConsumeProducerResult:", msgIn);
 
-            //we sent an offer to media soup, and received an answer            
-            const { answer } = (msgIn as RoomConsumeSDPResultMsg).data;
+            //we sent an offer to media soup, and received an answer
+            let offerSDP = (msgIn as RoomConsumeSDPResultMsg).data.offer;
+            let remotePeerId = (msgIn as RoomConsumeSDPResultMsg).data.remotePeerId;
+            consumerConnection = createPeerConnection();
 
-            const peer = peers.find(p => p.peerId === peerId);
-            if (!peer) {
-                console.error(`Peer ${peerId} not found`);
+            consumerConnection.setRemoteDescription({
+                type: "offer",
+                sdp: offerSDP
+            });
+            console.log("-- setRemoteDescription");
+
+            // Verify remoteVideos container
+            let remoteVideos = document.getElementById("remoteVideos");
+            if (!remoteVideos) {
+                console.error("remoteVideos element not found");
                 return;
             }
 
-            peerConnection.setRemoteDescription(new RTCSessionDescription({
-                type: "answer",
-                sdp: answer
-            }));          
+            // Create video element
+            let video = document.createElement("video");
+            video.id = `video-${remotePeerId}`;
+            video.autoplay = true;
+            video.muted = true;
+            video.style.width = "320px"; 
+            video.style.height = "240px";
+            video.style.backgroundColor = "black";
+
+            let remoteStream = new MediaStream();
+                        
+            // Append to container
+            remoteVideos.appendChild(video);
+            console.log("Video element appended:", video);
+
+            consumerConnection.ontrack = (event) => {
+                console.log("consumerConnection ontrack", event.track);                
+
+                // Skip probator track
+                if (event.streams[0]?.id.includes("probator") || event.track.id.includes("probator")) {
+                    console.log("Skipping probator track:", event.track.id);
+                    return;
+                }
+
+                remoteStream.addTrack(event.track);
+                
+                //set srcObject and play once
+                if (event.track.kind === 'video' && video.srcObject == null) {
+                    video.srcObject = remoteStream;
+                    // Attempt to play
+                    video.play().then(()=> console.log("remote video playing")).catch(error => console.error("Video play failed:", error));
+                    console.log('consumerConnection set srcObject');
+                }
+
+            };
+
+            //console.warn("consumerConnection begin wait for waitForIceGatheringComplete");
+            //await waitForIceGatheringComplete(consumerConnection);
+
+            let answer = await consumerConnection.createAnswer();
+            await consumerConnection.setLocalDescription(answer);
+
+            console.warn("consumerConnection offer, answer", offerSDP, answer.sdp);
+            
+            //send answer back to the server
+            let msg = new RoomAnswerSDPMsg();
+            msg.data.roomId = roomId;
+            msg.data.answer = answer.sdp;
+
+            send(msg);
 
             break;
         }
     }
 };
 
-function initPeerConnection() {
-    if (peerConnection) return;
+function createPeerConnection(): RTCPeerConnection {
 
-    peerConnection = new RTCPeerConnection({
+
+    let peerConnection = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
     });
 
@@ -312,57 +355,7 @@ function initPeerConnection() {
         console.log("ICE connection state:", peerConnection.iceConnectionState);
     };
 
-    //new tracks for remote media created
-    peerConnection.ontrack = (event) => {
-        console.log("ontrack", {
-            kind: event.track.kind,
-            id: event.track.id,
-            streamId: event.streams[0]?.id,
-            enabled: event.track.enabled,
-            readyState: event.track.readyState,
-            muted: event.track.muted
-        });
-
-        // Skip probator track
-        if (event.streams[0]?.id.includes("probator") || event.track.id.includes("probator")) {
-            console.log("Skipping probator track:", event.track.id);
-            return;
-        }
-
-        // Only handle video tracks
-        if (event.track.kind !== "video") {
-            console.log("Skipping non-video track:", event.track.kind);
-            return;
-        }
-
-        // Verify remoteVideos container
-        let remoteVideos = document.getElementById("remoteVideos");
-        if (!remoteVideos) {
-            console.error("remoteVideos element not found");
-            return;
-        }
-
-        // Create video element
-        let video = document.createElement("video");
-        video.id = `video-${event.track.id}`; // Unique ID for debugging
-        video.autoplay = true;
-        video.muted = true; // Required for autoplay
-        video.style.width = "320px"; // Ensure visibility
-        video.style.height = "240px";
-        video.style.backgroundColor = "black";
-
-        const stream = new MediaStream([event.track]);
-        console.log("MediaStream tracks:", stream.getTracks());
-        video.srcObject = stream;
-
-        // Attempt to play
-        video.play().catch(error => console.error("Video play failed:", error));
-
-        // Append to container
-        remoteVideos.appendChild(video);
-        console.log("Video element appended:", video);
-
-    };
+    return peerConnection;
 }
 
 async function waitForIceGatheringComplete(pc: RTCPeerConnection) {

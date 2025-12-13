@@ -21,6 +21,7 @@ import {
     RoomRecordingStart, RoomRecordingStop,
     payloadTypeSDP, RoomNewProducerSDPMsg, RoomOfferSDPMsg, RoomConsumeSDPMsg, RoomOfferSDPResultMsg,
     RoomConsumeSDPResultMsg,
+    RoomAnswerSDPMsg,
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
@@ -261,13 +262,20 @@ export class RoomServer {
                 break;
             }
             case payloadTypeSDP.roomOfferSDP: {
+                //publish local
                 resultMsg = await this.onRoomOfferSDP(peerId, msgIn);
                 break;
             }
             case payloadTypeSDP.roomConsumeSDP: {
+                //consume peers
                 resultMsg = await this.onRoomConsumeSDP(peerId, msgIn);
                 break;
-            }          
+            }
+            case payloadTypeSDP.roomAnswerSDP: {
+                //consume peers
+                resultMsg = await this.onRoomAnswerSDP(peerId, msgIn);
+                break;
+            }      
         }
 
         return resultMsg;
@@ -1457,19 +1465,46 @@ export class RoomServer {
         }
 
         //process offer, generate answer, send back to client
-        let answer = await peer.room.consumeSDP(peer, remotePeer, msgIn.data.offer);
+        let offer = await peer.room.consumeSDP(peer, remotePeer);
 
-        if (!answer) {
+        if (!offer) {
             consoleError("error generating answer for SDP");
             return new ErrorMsg(payloadTypeServer.roomConsumeProducerResult, "error generating answer for SDP");
         }
 
         let msg = new RoomConsumeSDPResultMsg()
         msg.data.roomId = peer.room.id;
-        msg.data.answer = answer;
+        msg.data.offer = offer;
 
         return msg;
-    }    
+    }
+    
+    private async onRoomAnswerSDP(peerId: string, msgIn: RoomAnswerSDPMsg) {
+
+        let peer = this.peers.get(peerId);
+        if (!peer) {
+            consoleError("peer not found: " + peerId);
+            return new ErrorMsg(payloadTypeSDP.roomAnswerSDPResult, "peer not found.");
+        }
+
+        //the peer must be in room to consume streams
+        if (!peer.room) {
+            consoleError("peer not in room.");
+            return new ErrorMsg(payloadTypeSDP.roomAnswerSDPResult, "peer not in room.");
+        }
+
+        if (peer.room.id !== msgIn.data.roomId) {
+            consoleError("invalid roomid");
+            return new ErrorMsg(payloadTypeSDP.roomAnswerSDPResult, "invalid room id");
+        }
+
+        if (!msgIn.data?.answer) {
+            consoleError("answer is required.");
+            return new ErrorMsg(payloadTypeSDP.roomAnswerSDPResult, "answer is required.");
+        }
+
+        await peer.room.processAnswerForSDP(peer, msgIn.data.answer);        
+    }
 
     /**
      * toggle self only, alert other peers

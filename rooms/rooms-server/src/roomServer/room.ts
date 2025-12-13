@@ -450,7 +450,7 @@ export class Room {
         return roomPeer.processOfferForSDP(offer);
     }
 
-    consumeSDP(peer: Peer, remotePeer: Peer, offer: string) {
+    consumeSDP(peer: Peer, remotePeer: Peer) {
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
             consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
@@ -463,20 +463,14 @@ export class Room {
             return "";
         }
 
-        return roomPeer.consumePeerSDP(remoteRoomPeer, offer);
+        return roomPeer.consumePeerSDP(remoteRoomPeer);
     }
 
-    processAnswerForSDP(peer: Peer, remotePeer: Peer, answer: string) {
+    processAnswerForSDP(peer: Peer, answer: string) {
 
         let roomPeer = this.roomPeers.get(peer);
         if (!roomPeer) {
             consoleError(`peer not found. ${peer.id} ${peer.displayName}`);
-            return false;
-        }
-
-        let remoteRoomPeer = this.roomPeers.get(remotePeer);
-        if (!remoteRoomPeer) {
-            consoleError(`remote room peer not found. ${peer.id} ${peer.displayName}`);
             return false;
         }
 

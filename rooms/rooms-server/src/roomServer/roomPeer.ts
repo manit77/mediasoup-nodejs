@@ -4,10 +4,11 @@ import * as roomUtils from "./utils.js";
 import chalk from 'chalk';
 import { Peer } from './peer.js';
 import { consoleError, consoleWarn, generateShortUID } from '../utils/utils.js';
-import { Consumer, MediaKind, Producer } from 'mediasoup/types';
+import { Consumer, MediaKind, Producer, Transport } from 'mediasoup/types';
 import { UniqueMap } from '@rooms/rooms-models';
 import { RoomServerConfig, WorkerData } from './models.js';
-import * as sdpBridge from 'mediasoup-sdp-bridge/index.js';
+import { SdpEndpoint } from '../sdp/SDPEndpoint.js';
+import { chrome } from '../sdp/BrowserRtpCapabilities.js';
 
 export class RoomPeer {
 
@@ -30,23 +31,9 @@ export class RoomPeer {
     producers: UniqueMap<MediaKind, mediasoup.types.Producer> = new UniqueMap();
     consumers: UniqueMap<string, mediasoup.types.Consumer> = new UniqueMap();
 
-
-
-    //use one transport for send and receive
-    private transport?: mediasoup.types.WebRtcTransport;
-    private async createTransport() {
-        if (!this.transport) {
-            this.transport = await roomUtils.createTransport(this.room.roomRouter, this.config.room_server_ip, this.config.room_public_ip, this.config.room_rtc_start_port, this.config.room_rtc_end_port);
-        }
-
-        return this.transport;
-    }
-
-    private sdpEndPoint: sdpBridge.SdpEndpoint;
-    private createSDPEndpoint() {
-        this.sdpEndPoint = sdpBridge.createSdpEndpoint(this.transport, this.room.roomRtpCapabilities);
-    }
-
+    private producerSdpEndPoint: SdpEndpoint;
+    private consumerSdpEndPoint: SdpEndpoint;
+    
     async createProducerTransport() {
         console.log(`createProducerTransport() ${this.peer.displayName}`);
         if (this.producerTransport) {
@@ -66,7 +53,7 @@ export class RoomPeer {
 
         //let workerData: WorkerData = this.room.roomRouter.appData as any;
 
-        this.producerTransport = await this.createTransport();
+        this.producerTransport = await roomUtils.createWebRtcTransport(this.room.roomRouter, this.config.room_server_ip, this.config.room_public_ip, this.config.room_rtc_start_port, this.config.room_rtc_end_port);
 
         this.producerTransport.on('@close', () => {
             consoleWarn(`Producer transport closed for peer ${this.peer.id} ${this.peer.displayName}`);
@@ -79,7 +66,7 @@ export class RoomPeer {
         });
 
         if (this.peer.clientType == "sdp") {
-            this.createSDPEndpoint();
+           this.producerSdpEndPoint = new SdpEndpoint(this.producerTransport, this.room.roomRtpCapabilities);
         }
 
         return this.producerTransport;
@@ -102,11 +89,9 @@ export class RoomPeer {
             console.log(`no room router.`);
             return;
         }
-
-        //let workerData: WorkerData = this.room.roomRouter.appData as any;
-        //this.consumerTransport = await roomUtils.createTransport(this.room.roomRouter, this.config.room_server_ip, this.config.room_public_ip, this.config.room_rtc_start_port, this.config.room_rtc_end_port);
-        this.consumerTransport = await this.createTransport();
-
+        
+        this.consumerTransport = await roomUtils.createWebRtcTransport(this.room.roomRouter, this.config.room_server_ip, this.config.room_public_ip, this.config.room_rtc_start_port, this.config.room_rtc_end_port);
+        
         // Consumer transport events
         this.consumerTransport.on('@close', () => {
             console.log(`Consumer transport closed for peer ${this.peer.id} ${this.peer.displayName}`);
@@ -120,7 +105,7 @@ export class RoomPeer {
         });
 
         if (this.peer.clientType == "sdp") {
-            this.createSDPEndpoint();
+            this.consumerSdpEndPoint = new SdpEndpoint(this.consumerTransport, this.room.roomRtpCapabilities);
         }
 
         return this.consumerTransport;
@@ -240,21 +225,24 @@ export class RoomPeer {
     }
 
     /***
-     * SDP peer
+     * creates producers and returns an answer
      */
     async processOfferForSDP(sdpOffer: string): Promise<{ producers: Producer[], answer: string }> {
 
-        let producers = await this.sdpEndPoint.processOffer(sdpOffer);
+        let producers = await this.producerSdpEndPoint.processOffer(sdpOffer);
 
         for (let producer of producers) {
             this.producers.set(producer.kind, producer);
         }
 
-        let answer = this.sdpEndPoint.createAnswer();
+        roomUtils.startProducerMonitor(producers);
+
+        let answer = this.producerSdpEndPoint.createAnswer();
         return { producers, answer };
     }
 
-    async consumePeerSDP(roomPeer: RoomPeer, offerSDP: string) {
+    //consumes a peers producers
+    async consumePeerSDP(roomPeer: RoomPeer) {
         console.log(`consumePeerSDP: ${this.peer.displayName} consuming ${roomPeer.peer.displayName}`);
 
         if (!this.consumerTransport) {
@@ -262,7 +250,8 @@ export class RoomPeer {
             return;
         }
 
-        let rtpCapabilitiesClient = sdpBridge.generateRtpCapabilities0();
+        //assume chrome
+        let rtpCapabilitiesClient = chrome;
 
         for (let producer of roomPeer.producers.values()) {
 
@@ -284,18 +273,22 @@ export class RoomPeer {
             }
 
             // Add consumer to SDP
-            this.sdpEndPoint.addConsumer(consumer);
+            this.consumerSdpEndPoint.addConsumer(consumer);
 
             this.consumers.set(consumer.id, consumer);
         }
 
-        await this.sdpEndPoint.processOffer(offerSDP);
-        return this.sdpEndPoint.createAnswer();
+        return this.consumerSdpEndPoint.createOffer();
+
+        //await this.consumerSdpEndPoint.processOffer(offerSDP);
+        //return this.consumerSdpEndPoint.createAnswer();
+
+        
 
     }
 
-    async processAnswerForSDP(answerSdp: string) {
-        await this.sdpEndPoint.processAnswer(answerSdp);
+    async processAnswerForSDP(sdpAnswer: string) {
+        await this.consumerSdpEndPoint.processAnswer(sdpAnswer);
         return true;
     }
 

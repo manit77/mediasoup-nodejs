@@ -1,8 +1,12 @@
 import { BaseMsg, IMsg, payloadTypeClient, payloadTypeServer } from "./roomsSharedModels.js";
 
 export const payloadTypeSDP = {
+    
     roomOfferSDP : "roomOfferSDP",
     roomOfferSDPResult : "roomOfferSDPResult",
+
+    roomAnswerSDP : "roomAnswerSDP",
+    roomAnswerSDPResult : "roomAnswerSDPResult",
     
     roomConsumeSDP: "roomConsumeSDP",
     roomConsumeSDPResult: "roomConsumeSDPResult",
@@ -14,6 +18,14 @@ export class RoomOfferSDPMsg implements IMsg {
     data: {
         roomId?: string,
         offer?: any,
+    } = {}
+}
+
+export class RoomAnswerSDPMsg implements IMsg {
+    type = payloadTypeSDP.roomAnswerSDP;
+    data: {
+        roomId?: string,
+        answer?: any,
     } = {}
 }
 
@@ -37,8 +49,7 @@ export class RoomConsumeSDPMsg extends BaseMsg {
     type = payloadTypeSDP.roomConsumeSDP;
     data: {
         roomId?: string,
-        remotePeerId?: string,       
-        offer?: string
+        remotePeerId?: string        
     } = {};
 }
 
@@ -46,6 +57,7 @@ export class RoomConsumeSDPResultMsg extends BaseMsg {
     type = payloadTypeSDP.roomConsumeSDPResult;
     data: {
         roomId?: string,        
-        answer?: string
+        offer?: string,
+        remotePeerId?: string
     } = {};
 }

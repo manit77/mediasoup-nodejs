@@ -45,6 +45,7 @@ defaultPeerSocketServerSecurityMap[payloadTypeClient.roomPong] = [];
 defaultPeerSocketServerSecurityMap[payloadTypeSDP.roomNewProducerSDP] = [];
 defaultPeerSocketServerSecurityMap[payloadTypeSDP.roomConsumeSDP] = [];
 defaultPeerSocketServerSecurityMap[payloadTypeSDP.roomOfferSDP] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeSDP.roomAnswerSDP] = [];
 
 export class SocketConnection {
     peerId: string;
