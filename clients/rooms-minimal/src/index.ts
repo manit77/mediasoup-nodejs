@@ -137,7 +137,7 @@ ws.onmessage = async (event) => {
                 peers = ps;
             }
 
-            if(peers.length > 0){
+            if (peers.length > 0) {
                 consumePeer(peers[0].peerId);
             }
 
@@ -181,12 +181,12 @@ ws.onmessage = async (event) => {
             }
 
             // Wait for ICE gathering with timeout
-            try {
-                await waitForIceGatheringComplete(producerConnection);
-                console.log("ICE gathering completed");
-            } catch (error) {
-                console.error("ICE gathering failed:", error);
-            }
+            // try {
+            //     await waitForIceGatheringComplete(producerConnection);
+            //     console.log("ICE gathering completed");
+            // } catch (error) {
+            //     console.error("ICE gathering failed:", error);
+            // }
 
             //send offer to server
             let msg = new RoomOfferSDPMsg();
@@ -322,9 +322,44 @@ ws.onmessage = async (event) => {
 
 function createPeerConnection(): RTCPeerConnection {
 
+    //creating a turn server connection takes a long time
+    // let peerConnection = new RTCPeerConnection({
+    //     iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    // });
 
+    //
+    // let peerConnection = new RTCPeerConnection({
+    //     iceTransportPolicy: 'all'  // Default anyway, but explicit.
+    // });
+
+    let iceServers = [{ "url": "stun:turn.visitel.us:3478", "urls": "stun:turn.visitel.us:3478" },
+    {
+        "username": "turnuser",
+        "credential": "51qu361P4Ng",
+        "url": "turn:turn.visitel.us:3478?transport=udp",
+        "urls": "turn:turn.visitel.us:3478?transport=udp",
+    },
+    {
+        "username": "turnuser",
+        "credential": "51qu361P4Ng",
+        "url": "turn:turn.visitel.us:3478?transport=tcp",
+        "urls": "turn:turn.visitel.us:3478?transport=tcp",
+    },
+    {
+        "username": "turnuser",
+        "credential": "51qu361P4Ng",
+        "url": "turn:turn.visitel.us:443?transport=tcp",
+        "urls": "turn:turn.visitel.us:443?transport=tcp"
+    },
+    ];
+
+    let iceTransportPolicy : RTCIceTransportPolicy = 'all';
+    //iceTransportPolicy = 'relay'; //turn only    
+
+    //turn only
     let peerConnection = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        iceServers: iceServers,
+        iceTransportPolicy: iceTransportPolicy
     });
 
     console.log("peerConnection created, initial ICE state:", peerConnection.iceGatheringState);
