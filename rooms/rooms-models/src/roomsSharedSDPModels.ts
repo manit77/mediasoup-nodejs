@@ -1,4 +1,4 @@
-import { BaseMsg, IMsg, payloadTypeClient, payloadTypeServer } from "./roomsSharedModels.js";
+import { BaseMsg, IMsg } from "./roomsSharedModels.js";
 
 export const payloadTypeSDP = {
     

@@ -1,24 +1,121 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
-    <title>Mediasoup WebRTC Example</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mediasoup Peer Connection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+        }
+
+        /* Grouping controls and status */
+        .control-panel {
+            background-color: #ffffff;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border: #333 solid 1px;
+        }
+
+        /* Styling the video containers */
+        #video-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        #localVideo {
+            width: 300px;
+            height: 225px;
+            background-color: #333;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        #remoteVideos {
+            /* Placeholder or grid container for remote streams */
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 10px;
+            min-height: 400px;
+            background-color: #e0f7fa; /* Light cyan background */
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px dashed #00bcd4;
+            flex-grow: 1;
+        }
+        
+        .status-badge {
+            font-weight: bold;
+            padding: 5px 8px;
+            border-radius: 4px;
+            color: white;
+            background-color: #6c757d; /* Default gray */
+            margin-left: 10px;
+        }
+
+        /* Status coloring for better UX (you'd update this dynamically in JS) */
+        .status-connected { background-color: #28a745; } /* Green */
+        .status-error { background-color: #dc3545; }    /* Red */
+    </style>
 </head>
 
 <body>
-    <h2>Mediasoup WebRTC Test</h2>
-    userName: <input type="text" id="ctlUserName" />
-    RoomId: <input type="text" id="ctlRoomId" /> RoomToken: <input type="text" id="ctlRoomToken" /> <br>
-    <button type="button" id="ctlNewRoom">New Room</button> <br>
-    <button type="button" id="ctlJoinRoom">Join Room</button> <br>
-    <hr>
+    <h1>🎥 Mediasoup PeerConnection Example</h1>
+    <div class="control-panel">
+        <h2>Connection Controls</h2>        
+        <p>
+            <label for="ctlUserName">Username:</label>
+            <input type="text" id="ctlUserName" placeholder="Enter your display name" required>
+        </p>        
+        <p>
+            <label for="ctlRoomId">Room ID:</label>
+            <input type="text" id="ctlRoomId" placeholder="Room identifier">
+            <label for="ctlRoomToken">Token (if needed):</label>
+            <input type="text" id="ctlRoomToken" placeholder="Optional secure token">
+        </p>
 
-    <video id="localVideo" autoplay playsinline muted></video>
-    <div id="remoteVideos" style="width: 500px; height: 500px; background-color: aquamarine"></div>
+        <p>
+            <button type="button" id="ctlNewRoom">➕ New Room</button>
+            <button type="button" id="ctlJoinRoom">▶️ Join Room</button>
+        </p>
+
+        <hr>
+
+        <p>
+            Socket Status: 
+            <span id="ctlSocketState" class="status-badge">disconnected</span>
+        </p>
+
+        <p>
+            Room Status: 
+            <span id="ctlRoomStatus" class="status-badge">none</span>
+        </p>
+
+    </div>
+
+    <div id="video-container">
+        <div id="local-stream-box">
+            <h3>You (Local Stream)</h3>
+            <video id="localVideo" autoplay playsinline muted></video>
+            <p>
+                ICE State: <span id="ctlIceState" class="status-badge">none</span>
+            </p>
+        </div>
+
+        <div id="remote-stream-box" style="flex-grow: 1;">
+            <h3>Remote Participants</h3>
+            <div id="remoteVideos">                
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="/src/index.ts"></script>
-
-    
 </body>
 
 </html>

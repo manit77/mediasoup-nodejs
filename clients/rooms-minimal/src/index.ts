@@ -9,6 +9,8 @@ import {
 import { generateRandomDisplayName } from "./utils";
 
 const wsUrl = "wss://192.168.40.24:8001";
+//const wsUrl = "wss://dev-conf.visitel.us:8001";
+
 const ws = new WebSocket(wsUrl);
 
 let serviceAuthToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwidHlwZSI6InNlcnZpY2UiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3NTYwODM4NTh9.Kqnh5zEi--_--JNMUkqf7X6WQQYJ57v3ssW5ks5bBbs";
@@ -30,7 +32,12 @@ let ctlRoomToken: HTMLInputElement = document.getElementById("ctlRoomToken") as 
 let ctlRoomId: HTMLInputElement = document.getElementById("ctlRoomId") as HTMLInputElement;
 let ctlJoinRoom = document.getElementById("ctlJoinRoom") as HTMLButtonElement;
 let ctlNewRoom = document.getElementById("ctlNewRoom") as HTMLButtonElement;
+let ctlSocketState = document.getElementById("ctlSocketState") as HTMLLabelElement;
+let ctlRoomStatus = document.getElementById("ctlRoomStatus") as HTMLLabelElement;
+
 let localVideo = document.getElementById("localVideo") as HTMLVideoElement;
+let ctlIceState = document.getElementById("ctlIceState") as HTMLLabelElement;
+
 
 console.log("ctlNewRoom", ctlNewRoom);
 
@@ -67,6 +74,7 @@ ws.onopen = async () => {
     username = generateRandomDisplayName();
 
     ctlUserName.value = username;
+    ctlSocketState.innerText = "open";
 
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -81,6 +89,7 @@ ws.onopen = async () => {
 
 ws.onclose = () => {
     console.error("socket closed");
+    ctlSocketState.innerText = "closed";
 }
 
 ws.onerror = () => {
@@ -128,9 +137,10 @@ ws.onmessage = async (event) => {
         }
         case payloadTypeServer.roomJoinResult: {
             console.log("-- roomJoinResult:", msgIn);
+
             roomRtpCapabilities = msgIn.data.roomRtpCapabilities;
             let ps = (msgIn as RoomJoinResultMsg).data.peers?.map(p => {
-                return { peerId: p.peerId, displayName: p.displayName }
+                return { peerId: p.peerId, displayName: p.displayName}
             });
 
             if (ps) {
@@ -140,6 +150,8 @@ ws.onmessage = async (event) => {
             if (peers.length > 0) {
                 consumePeer(peers[0].peerId);
             }
+
+            ctlRoomStatus.innerText = "joined";
 
             //createTransports();
             //break;
@@ -180,6 +192,10 @@ ws.onmessage = async (event) => {
                 throw error;
             }
 
+            producerConnection.addEventListener("track", (ev) =>{
+                console.warn("new track", ev)
+            });
+
             // Wait for ICE gathering with timeout
             // try {
             //     await waitForIceGatheringComplete(producerConnection);
@@ -199,7 +215,7 @@ ws.onmessage = async (event) => {
             break;
         }
         case payloadTypeSDP.roomOfferSDPResult: {
-            console.log("-- roomOfferSDPResult", msgIn.data.answer);
+            console.log("-- roomOfferSDPResult answer", msgIn.data.answer);
             let msg = msgIn as RoomOfferSDPResultMsg;
 
             //server processed the producer offer and sent us an answer
@@ -226,7 +242,7 @@ ws.onmessage = async (event) => {
 
             peers.push({
                 peerId: msgIn.data.peerId,
-                displayName: msgIn.data.displayName
+                displayName: msgIn.data.displayName,               
             });
 
             //if there are any producers send offer to consume
@@ -249,8 +265,10 @@ ws.onmessage = async (event) => {
             //we sent an offer to media soup, and received an answer
             let offerSDP = (msgIn as RoomConsumeSDPResultMsg).data.offer;
             let remotePeerId = (msgIn as RoomConsumeSDPResultMsg).data.remotePeerId;
+            
             consumerConnection = createPeerConnection();
-
+            //consumerConnection = producerConnection;
+            
             consumerConnection.setRemoteDescription({
                 type: "offer",
                 sdp: offerSDP
@@ -306,7 +324,8 @@ ws.onmessage = async (event) => {
             let answer = await consumerConnection.createAnswer();
             await consumerConnection.setLocalDescription(answer);
 
-            console.warn("consumerConnection offer, answer", offerSDP, answer.sdp);
+            console.warn("consumerConnection offer", offerSDP);
+            console.warn("consumerConnection offer", answer.sdp);
 
             //send answer back to the server
             let msg = new RoomAnswerSDPMsg();
@@ -315,6 +334,14 @@ ws.onmessage = async (event) => {
 
             send(msg);
 
+            break;
+        }
+        case payloadTypeServer.roomClosed: {
+            ctlRoomStatus.innerText = "closed";
+            break;
+        }
+        case payloadTypeServer.roomLeaveResult: {
+            ctlRoomStatus.innerText = "left";
             break;
         }
     }
@@ -332,35 +359,43 @@ function createPeerConnection(): RTCPeerConnection {
     //     iceTransportPolicy: 'all'  // Default anyway, but explicit.
     // });
 
-    let iceServers = [{ "url": "stun:turn.visitel.us:3478", "urls": "stun:turn.visitel.us:3478" },
-    {
-        "username": "turnuser",
-        "credential": "51qu361P4Ng",
-        "url": "turn:turn.visitel.us:3478?transport=udp",
-        "urls": "turn:turn.visitel.us:3478?transport=udp",
-    },
-    {
-        "username": "turnuser",
-        "credential": "51qu361P4Ng",
-        "url": "turn:turn.visitel.us:3478?transport=tcp",
-        "urls": "turn:turn.visitel.us:3478?transport=tcp",
-    },
-    {
-        "username": "turnuser",
-        "credential": "51qu361P4Ng",
-        "url": "turn:turn.visitel.us:443?transport=tcp",
-        "urls": "turn:turn.visitel.us:443?transport=tcp"
-    },
+    // {
+    //     "url": "stun:turn.visitel.us:3478"
+    //     , "urls": "stun:turn.visitel.us:3478"
+    // },
+
+    let iceServers = [
+        {
+            "username": "turnuser",
+            "credential": "51qu361P4Ng",
+            "url": "turn:turn.visitel.us:3478?transport=udp",
+            "urls": "turn:turn.visitel.us:3478?transport=udp",
+        },
+        {
+            "username": "turnuser",
+            "credential": "51qu361P4Ng",
+            "url": "turn:turn.visitel.us:3478?transport=tcp",
+            "urls": "turn:turn.visitel.us:3478?transport=tcp",
+        },
+        {
+            "username": "turnuser",
+            "credential": "51qu361P4Ng",
+            "url": "turn:turn.visitel.us:443?transport=tcp",
+            "urls": "turn:turn.visitel.us:443?transport=tcp"
+        },
     ];
 
-    let iceTransportPolicy : RTCIceTransportPolicy = 'all';
-    //iceTransportPolicy = 'relay'; //turn only    
+    let iceTransportPolicy: RTCIceTransportPolicy;
+    iceTransportPolicy = 'all'; //turn only    
 
     //turn only
-    let peerConnection = new RTCPeerConnection({
-        iceServers: iceServers,
-        iceTransportPolicy: iceTransportPolicy
-    });
+    // let peerConnection = new RTCPeerConnection({
+    //     iceServers: iceServers,
+    //     iceTransportPolicy: iceTransportPolicy
+    // });
+
+    let peerConnection = new RTCPeerConnection();
+
 
     console.log("peerConnection created, initial ICE state:", peerConnection.iceGatheringState);
     console.log("Browser:", navigator.userAgent);
@@ -369,15 +404,35 @@ function createPeerConnection(): RTCPeerConnection {
     peerConnection.onicecandidate = (event) => {
         console.log("ICE candidate:", event.candidate);
     };
-    peerConnection.onicegatheringstatechange = () => {
-        console.log("ICE gathering state:", peerConnection.iceGatheringState);
-    };
     peerConnection.onconnectionstatechange = () => {
         console.log("Connection state:", peerConnection.connectionState);
     };
+
     peerConnection.oniceconnectionstatechange = () => {
         console.log("ICE connection state:", peerConnection.iceConnectionState);
     };
+
+    const onIceGatheringStateChange = () => {
+        console.log(`pc.iceGatheringState`, peerConnection.iceGatheringState);
+        ctlIceState.innerText = peerConnection.iceGatheringState;
+    };
+    peerConnection.addEventListener('icegatheringstatechange', onIceGatheringStateChange);
+
+    // setInterval(() => {
+
+    //     peerConnection.getStats().then(stats => {
+    //         stats.forEach(report => {
+    //             if (report.type === "candidate-pair") {
+    //                 console.warn(report);
+    //                 const local = stats.get(report.localCandidateId);
+    //                 const remote = stats.get(report.remoteCandidateId);
+    //                 console.log("✅ Active local candidate:", local, local.address, local.port, local.candidateType);
+    //                 console.log("✅ Active remote candidate:", remote, remote.address, remote.port, remote.candidateType);
+    //             }
+    //         });
+
+    //     });
+    // }, 5000);
 
     return peerConnection;
 }

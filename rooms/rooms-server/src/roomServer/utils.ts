@@ -200,6 +200,7 @@ export function startProducerMonitor(producers: Producer[]) {
                 }
             } catch (error) {
                 console.error(`Error getting stats for ${producer.id} ${producer.kind} Producer:`, error);
+                clearInterval(intervalId);
             }
         }
     }, CHECK_INTERVAL_MS);
@@ -233,6 +234,7 @@ export function startConsumerMonitor(consumers: Consumer[]) {
                 }
             } catch (error) {
                 console.error(`Error getting stats for ${consumer.id} ${consumer.kind} consumer:`, error);
+                clearInterval(intervalId);
             }
         }
     }, CHECK_INTERVAL_MS);
