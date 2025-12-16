@@ -112,14 +112,19 @@ ws.onmessage = async (event) => {
             break;
         }
         case payloadTypeServer.registerPeerResult: {
+            console.log("-- Registered peer, peerId:", msgIn.data.peerId);
+
             peerId = msgIn.data.peerId;
-            console.log("-- Registered peer, peerId:", peerId);
+
+
             break;
         }
         case payloadTypeServer.roomNewTokenResult: {
+            console.log("-- Room token created, roomId:", msgIn.data.roomId);
+
             roomId = msgIn.data.roomId;
             roomToken = msgIn.data.roomToken;
-            console.log("-- Room token created, roomId:", roomId);
+
             ctlRoomId.value = roomId;
             ctlRoomToken.value = roomToken;
 
@@ -130,9 +135,11 @@ ws.onmessage = async (event) => {
             break;
         }
         case payloadTypeServer.roomNewResult: {
-            console.log("-- Room created:", msgIn);
+            console.log("-- Room created:", msgIn.data.roomId);
+
             roomRtpCapabilities = msgIn.data.roomRtpCapabilities;
             joinRoom();
+
             break;
         }
         case payloadTypeServer.roomJoinResult: {
@@ -140,24 +147,15 @@ ws.onmessage = async (event) => {
 
             roomRtpCapabilities = msgIn.data.roomRtpCapabilities;
             let ps = (msgIn as RoomJoinResultMsg).data.peers?.map(p => {
-                return { peerId: p.peerId, displayName: p.displayName}
+                return { peerId: p.peerId, displayName: p.displayName }
             });
 
             if (ps) {
                 peers = ps;
             }
 
-            if (peers.length > 0) {
-                consumePeer(peers[0].peerId);
-            }
-
             ctlRoomStatus.innerText = "joined";
 
-            //createTransports();
-            //break;
-            //}
-            //case payloadTypeServer.createProducerTransportResult: {
-            //console.log("-- createProducerTransportResult:", msgIn);
             const { roomId } = msgIn.data;
 
             // Verify localStream tracks
@@ -171,61 +169,62 @@ ws.onmessage = async (event) => {
                 enabled: track.enabled
             })));
 
-            // Create RTCPeerConnection
-            producerConnection = createPeerConnection();
+            // Create sender RTCPeerConnection
+            //this mimics the scenario of initial offer, and a second offer
+            producerConnection = createPeerConnection("producerConnection");
+            producerConnection.addEventListener('negotiationneeded', async () => {
+                try {
+                    console.warn("producerConnection negotiationneeded");
 
-            // Add tracks
-            localStream.getTracks().forEach(track => {
-                producerConnection.addTrack(track, localStream);
-                console.log(`Track added: ${track.kind} (id: ${track.id})`);
+                    const offerDesc = await producerConnection.createOffer();
+                    await producerConnection.setLocalDescription(offerDesc);
+
+                    //send offer to server
+                    let msg = new RoomOfferSDPMsg();
+                    msg.data = {
+                        roomId,
+                        offer: offerDesc.sdp
+                    };
+                    send(msg);
+
+                } catch (err) {
+                    console.error("Error during negotiation:", err);
+                }
             });
 
-            // Create and set offer
-            let offerDesc: RTCSessionDescriptionInit;
-            try {
-                offerDesc = await producerConnection.createOffer({ iceRestart: false });
-                console.log("SDP Offer:", offerDesc.sdp);
-                await producerConnection.setLocalDescription(offerDesc);
-                console.log("Local description set");
-            } catch (error) {
-                console.error("Error creating/setting offer:", error);
-                throw error;
+            producerConnection.addEventListener("iceconnectionstatechange", async (ev) => {
+                console.warn("producerConnection.iceConnectionState", ev);
+                console.log("producerConnection.iceConnectionState", producerConnection.iceConnectionState);
+                if (producerConnection.iceConnectionState == "connected") {
+                    producerConnection.addTrack(localStream.getAudioTracks()[0]);
+                }
+            });
+
+            producerConnection.addTrack(localStream.getVideoTracks()[0]);
+
+            //create receiver RTCPeerConnection, the server has a corresponding transport
+            consumerConnection = createPeerConnection("consumerConnection");
+
+            //consume existing peers
+            for (let peer of peers) {
+                if (peerId != peer.peerId) {
+                    consumePeer(peer.peerId);
+                }
             }
-
-            producerConnection.addEventListener("track", (ev) =>{
-                console.warn("new track", ev)
-            });
-
-            // Wait for ICE gathering with timeout
-            // try {
-            //     await waitForIceGatheringComplete(producerConnection);
-            //     console.log("ICE gathering completed");
-            // } catch (error) {
-            //     console.error("ICE gathering failed:", error);
-            // }
-
-            //send offer to server
-            let msg = new RoomOfferSDPMsg();
-            msg.data = {
-                roomId,
-                offer: offerDesc.sdp
-            };
-            send(msg);
 
             break;
         }
         case payloadTypeSDP.roomOfferSDPResult: {
             console.log("-- roomOfferSDPResult answer", msgIn.data.answer);
-            let msg = msgIn as RoomOfferSDPResultMsg;
 
+            let msg = msgIn as RoomOfferSDPResultMsg;
             //server processed the producer offer and sent us an answer
             await producerConnection.setRemoteDescription(new RTCSessionDescription({
                 type: 'answer',
                 sdp: msg.data.answer
             }));
 
-            console.log(`answer set`);
-
+            console.log(`-- roomOfferSDPResult answer set`);
 
             break;
         }
@@ -242,7 +241,7 @@ ws.onmessage = async (event) => {
 
             peers.push({
                 peerId: msgIn.data.peerId,
-                displayName: msgIn.data.displayName,               
+                displayName: msgIn.data.displayName,
             });
 
             //if there are any producers send offer to consume
@@ -254,7 +253,6 @@ ws.onmessage = async (event) => {
 
             //remote peer started producing, request an offer
             let remotePeerId = (msgIn as RoomNewProducerSDPMsg).data.peerId;
-
             consumePeer(remotePeerId);
 
             break;
@@ -265,67 +263,34 @@ ws.onmessage = async (event) => {
             //we sent an offer to media soup, and received an answer
             let offerSDP = (msgIn as RoomConsumeSDPResultMsg).data.offer;
             let remotePeerId = (msgIn as RoomConsumeSDPResultMsg).data.remotePeerId;
-            
-            consumerConnection = createPeerConnection();
-            //consumerConnection = producerConnection;
-            
-            consumerConnection.setRemoteDescription({
-                type: "offer",
-                sdp: offerSDP
-            });
-            console.log("-- setRemoteDescription");
 
-            // Verify remoteVideos container
-            let remoteVideos = document.getElementById("remoteVideos");
-            if (!remoteVideos) {
-                console.error("remoteVideos element not found");
-                return;
-            }
+            consumerConnection.addEventListener("track", (ev) => {
+                console.warn(`consumerConnection` + "new track " + ev.track.kind, ev);
 
-            // Create video element
-            let video = document.createElement("video");
-            video.id = `video-${remotePeerId}`;
-            video.autoplay = true;
-            video.muted = true;
-            video.style.width = "320px";
-            video.style.height = "240px";
-            video.style.backgroundColor = "black";
+                let video = getOrCreateRemoteVideo(remotePeerId);
+                let mediaStream = video.srcObject as MediaStream;
 
-            let remoteStream = new MediaStream();
-
-            // Append to container
-            remoteVideos.appendChild(video);
-            console.log("Video element appended:", video);
-
-            consumerConnection.ontrack = (event) => {
-                console.log("consumerConnection ontrack", event.track);
-
-                // Skip probator track
-                if (event.streams[0]?.id.includes("probator") || event.track.id.includes("probator")) {
-                    console.log("Skipping probator track:", event.track.id);
-                    return;
+                if (!mediaStream) {
+                    mediaStream = new MediaStream();
                 }
 
-                remoteStream.addTrack(event.track);
+                mediaStream.addTrack(ev.track);
 
-                //set srcObject and play once
-                if (event.track.kind === 'video' && video.srcObject == null) {
-                    video.srcObject = remoteStream;
-                    // Attempt to play
+                if (!video.srcObject) {
+                    video.srcObject = mediaStream;
                     video.play().then(() => console.log("remote video playing")).catch(error => console.error("Video play failed:", error));
-                    console.log('consumerConnection set srcObject');
+                    video.muted = false;
                 }
 
-            };
 
-            //console.warn("consumerConnection begin wait for waitForIceGatheringComplete");
-            //await waitForIceGatheringComplete(consumerConnection);
+            });
+
+            await consumerConnection.setRemoteDescription({ type: "offer", sdp: offerSDP });
+            console.log("consumerConnection setRemoteDescription", offerSDP);
 
             let answer = await consumerConnection.createAnswer();
             await consumerConnection.setLocalDescription(answer);
-
-            console.warn("consumerConnection offer", offerSDP);
-            console.warn("consumerConnection offer", answer.sdp);
+            console.warn("roomConsumeProducerResult consumerConnection answer", answer.sdp);
 
             //send answer back to the server
             let msg = new RoomAnswerSDPMsg();
@@ -347,7 +312,7 @@ ws.onmessage = async (event) => {
     }
 };
 
-function createPeerConnection(): RTCPeerConnection {
+function createPeerConnection(name: string): RTCPeerConnection {
 
     //creating a turn server connection takes a long time
     // let peerConnection = new RTCPeerConnection({
@@ -400,23 +365,31 @@ function createPeerConnection(): RTCPeerConnection {
     console.log("peerConnection created, initial ICE state:", peerConnection.iceGatheringState);
     console.log("Browser:", navigator.userAgent);
 
+    peerConnection.addEventListener("connectionstatechange", (event) => {
+        console.warn(`${name} ` + "Connection state:", peerConnection.connectionState);
+    });
+
     // Add event listeners for debugging
-    peerConnection.onicecandidate = (event) => {
-        console.log("ICE candidate:", event.candidate);
-    };
-    peerConnection.onconnectionstatechange = () => {
-        console.log("Connection state:", peerConnection.connectionState);
-    };
+    peerConnection.addEventListener("icecandidate", (event) => {
+        console.warn(`${name} ICE candidate:`, event.candidate);
+    });
 
-    peerConnection.oniceconnectionstatechange = () => {
-        console.log("ICE connection state:", peerConnection.iceConnectionState);
-    };
+    peerConnection.addEventListener("iceconnectionstatechange", (event) => {
+        console.warn(`${name} ` + "ICE connection state:", peerConnection.iceConnectionState);
+    });
 
-    const onIceGatheringStateChange = () => {
-        console.log(`pc.iceGatheringState`, peerConnection.iceGatheringState);
+    peerConnection.addEventListener('icegatheringstatechange', () => {
+        console.warn(`${name} ` + `iceGatheringState`, peerConnection.iceGatheringState);
         ctlIceState.innerText = peerConnection.iceGatheringState;
-    };
-    peerConnection.addEventListener('icegatheringstatechange', onIceGatheringStateChange);
+    });
+
+    peerConnection.addEventListener("icecandidateerror", (ev) => {
+        console.warn(`${name} ` + "icecandidateerror", ev);
+    });
+
+    peerConnection.addEventListener("track", (ev) => {
+        console.warn(`${name} ` + "new track " + ev.track.kind, ev);
+    });
 
     // setInterval(() => {
 
@@ -462,6 +435,8 @@ async function waitForIceGatheringComplete(pc: RTCPeerConnection) {
 }
 
 function consumePeer(remotePeerId?: string) {
+
+    console.warn("consumePeer", remotePeerId);
 
     if (!remotePeerId) {
         console.error("remotePeerId is required.");
@@ -567,6 +542,40 @@ function joinRoom() {
     };
 
     send(msg);
+}
+
+
+function getOrCreateRemoteVideo(remotePeerId: string) {
+    console.log(`getOrCreateRemoteVideo ${remotePeerId}`);
+
+    let id = `video-${remotePeerId}`;;
+    let video: HTMLVideoElement = document.getElementById(id) as HTMLVideoElement;
+
+    if (video) {
+        return video;
+    }
+
+    // Verify remoteVideos container
+    let remoteVideos = document.getElementById("remoteVideos");
+    if (!remoteVideos) {
+        console.error("remoteVideos element not found");
+        return null;
+    }
+
+    // Create video element
+    video = document.createElement("video");
+    video.id = `video-${remotePeerId}`;
+    video.autoplay = true;
+    video.muted = true;
+    video.style.width = "320px";
+    video.style.height = "240px";
+    video.style.backgroundColor = "black";
+
+    // Append to container
+    remoteVideos.appendChild(video);
+    console.log("Video element appended:", video);
+
+    return video;
 }
 
 

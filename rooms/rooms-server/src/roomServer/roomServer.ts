@@ -1204,7 +1204,7 @@ export class RoomServer {
             room.createProducerTransport(peer);
             room.createConsumerTransport(peer);
         }
-        
+
         //send back the the peer that joined
         return joinRoomResult;
     }
@@ -1431,7 +1431,11 @@ export class RoomServer {
             return new ErrorMsg(payloadTypeSDP.roomOfferSDPResult, "offer is required.");
         }
 
-        let { answer } = await peer.room.processOfferForSDP(peer, msgIn.data.offer);
+        let answer = await peer.room.processOfferForSDP(peer, msgIn.data.offer);
+        if (!answer) {
+            return new ErrorMsg(payloadTypeSDP.roomOfferSDPResult, "failed to generate answer.");
+        }
+
         let msg = new RoomOfferSDPResultMsg();
         msg.data.roomId = peer.room.id;
         msg.data.answer = answer;

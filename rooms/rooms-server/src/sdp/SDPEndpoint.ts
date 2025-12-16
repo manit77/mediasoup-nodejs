@@ -8,7 +8,6 @@ import {
     Producer,
     RtpCapabilities,
     RtpParameters,
-    Transport,
     WebRtcTransport,
 } from "mediasoup/types";
 
@@ -22,43 +21,36 @@ import * as SdpUtils from "./SdpUtils.js";
 
 const logger = debug("mediasoup-sdp-bridge:SdpEndpoint");
 const loggerWarn = logger.extend("WARN");
-const loggerError = logger.extend("ERROR");
 
 export class SdpEndpoint {
-    private transport: Transport;
+
     private webRtcTransport: WebRtcTransport;
     private localCaps: RtpCapabilities;
     private localSdp: string | undefined;
     private remoteSdp: string | undefined;
 
-    private producers: Producer[] = [];
+    private producers = new Map<string, Producer>();
     private producerOfferMedias: MediaDescription[] = [];
     private producerOfferParams: RtpParameters[] = [];
 
-    private consumers: Consumer[] = [];
+    private consumers = new Map<string, Consumer>();
 
     constructor(webRtcTransport: WebRtcTransport, localCaps: RtpCapabilities) {
         this.webRtcTransport = webRtcTransport;
-        this.transport = webRtcTransport;
-
         this.localCaps = localCaps;
     }
-
-    // Receive media into mediasoup
-    // ============================
-    //
-    // * processOffer
-    // * createAnswer
-
+    
+    /**
+     * client >> offer >> server
+     * client wants to publish tracks
+     * @param sdpOffer 
+     * @returns 
+     */
     public async processOffer(sdpOffer: string): Promise<Producer[]> {
-        if (this.remoteSdp) {
-            throw new Error(
-                "[SdpEndpoint.processOffer] A remote description was already set",
-            );
-        }
+
+        console.warn("processOffer dtlsState", this.webRtcTransport.dtlsState);
 
         this.remoteSdp = sdpOffer;
-
         // Parse the SDP message text into an object.
         const remoteSdpObj = SdpTransform.parse(sdpOffer);
 
@@ -69,25 +61,21 @@ export class SdpEndpoint {
             media.payloads = `${media.payloads}`;
         }
 
-        // DEBUG: Uncomment for details.
-        // prettier-ignore
-        // {
-        //   console.debug(
-        //     '[SdpEndpoint.processOffer] Remote SDP object',
-        //     remoteSdpObj
-        //   );
-        // }
+        //connect only once
+        if (["new", "failed", "closed"].includes(this.webRtcTransport.dtlsState)) {
+            // Use DTLS info from the remote SDP to connect the WebRTC transport.
+            let dtlsParameters;
+            dtlsParameters = MsSdpUtils.extractDtlsParameters({ sdpObject: remoteSdpObj, });
 
-        // Use DTLS info from the remote SDP to connect the WebRTC transport.
-        let dtlsParameters;
-        dtlsParameters = MsSdpUtils.extractDtlsParameters({ sdpObject: remoteSdpObj, });
+            await this.webRtcTransport.connect({
+                dtlsParameters,
+            });
+        }
 
-        await this.webRtcTransport.connect({
-            dtlsParameters,
-        });
+        let newProducers = [];
 
-        // Get a list of media and make Producers for all of them.
-        // NOTE: Only up to 1 audio and 1 video are accepted.
+        //Get a list of media and make Producers for all of them.
+        //1 audio and 1 video only
         const mediaKinds = new Set<MediaKind>();
 
         for (const media of remoteSdpObj.media) {
@@ -95,67 +83,58 @@ export class SdpEndpoint {
                 // Skip media that is not RTP.
                 continue;
             }
+
             if (!("direction" in media)) {
                 // Skip media for which the direction is unknown.
                 continue;
             }
 
             const mediaKind = media.type as MediaKind;
-
             if (mediaKinds.has(mediaKind)) {
                 // Skip media if the same kind was already processed.
-                // WARNING: Sending more than 1 audio or 1 video is a BUG in the client.
-                loggerWarn(
-                    `Client BUG: More than 1 '${mediaKind}' media was requested; skipping it`,
-                );
+                console.warn(`more than 1 '${mediaKind}' media was requested; skipping it`,);
                 continue;
             }
 
-            // Generate RtpSendParameters to be used for the new Producer.
-            // WARNING: This function only works well for max. 1 audio and 1 video.
-            const producerParams = SdpUtils.sdpToProducerRtpParameters(
+            let existingProducer = [...this.producers.values()].find(p => p.kind == mediaKind);
+            if (existingProducer) {
+                console.warn(`existing producer ${existingProducer.kind}`);
+                mediaKinds.add(mediaKind);
+                continue;
+            }
+
+            //Generate RtpSendParameters to be used for the new Producer
+            //max 1 video 1 audio
+            const rtpParameters = SdpUtils.sdpToProducerRtpParameters(
                 remoteSdpObj,
                 this.localCaps,
                 mediaKind,
             );
 
-            // Add a new Producer for the given media.
             let producer: Producer;
-            producer = await this.transport.produce({
+            producer = await this.webRtcTransport.produce({
                 kind: mediaKind,
-                rtpParameters: producerParams,
+                rtpParameters: rtpParameters,
                 paused: false,
             });
 
-            this.producers.push(producer);
+            this.producers.set(producer.id, producer);
             this.producerOfferMedias.push(media);
-            this.producerOfferParams.push(producerParams);
+            this.producerOfferParams.push(rtpParameters);
+            newProducers.push(producer);
 
-            // prettier-ignore
             logger(`[SdpEndpoint.processOffer] mediasoup Producer created, kind: ${producer.kind}, type: ${producer.type}, paused: ${producer.paused}`);
-
-            // DEBUG: Uncomment for details.
-            // prettier-ignore
-            // {
-            //   console.debug(
-            //     '[SdpEndpoint.processOffer] mediasoup Producer RtpParameters',
-            //     producer.rtpParameters
-            //   );
-            // }
-
-            // A new Producer was successfully added, so mark this media kind as added.
             mediaKinds.add(mediaKind);
         }
 
-        return this.producers;
+        return newProducers;
     }
 
+    /**
+     * server >> answer >> client
+     * @returns 
+     */
     public createAnswer(): string {
-        if (this.localSdp) {
-            throw new Error(
-                "[SdpEndpoint.createAnswer] A local description was already set",
-            );
-        }
 
         const sdpBuilder: RemoteSdp = new RemoteSdp({
             iceParameters: this.webRtcTransport.iceParameters,
@@ -166,42 +145,33 @@ export class SdpEndpoint {
 
         logger("[SdpEndpoint.createAnswer] Make 'recvonly' SDP Answer");
 
-        for (let i = 0; i < this.producers.length; i++) {
+        let producersArr = [...this.producers.values()];
+        for (let i = 0; i < this.producers.size; i++) {
             // Each call to RemoteSdp.send() creates a new AnswerMediaSection,
             // which always assumes an `a=recvonly` direction.
             sdpBuilder.send({
                 offerMediaObject: this.producerOfferMedias[i],
                 reuseMid: undefined,
                 offerRtpParameters: this.producerOfferParams[i],
-                answerRtpParameters: this.producers[i].rtpParameters,
+                answerRtpParameters: producersArr[i].rtpParameters,
                 codecOptions: undefined,
             });
         }
 
-        const localSdp = sdpBuilder.getSdp();
-
-        this.localSdp = localSdp;
-
-        return localSdp;
+        this.localSdp = sdpBuilder.getSdp();
+        return this.localSdp;
     }
-
-    // Send media from mediasoup
-    // =========================
-    //
-    // * addConsumer
-    // * createOffer
-    // * processAnswer
 
     public addConsumer(consumer: Consumer): void {
-        this.consumers.push(consumer);
+        this.consumers.set(consumer.id, consumer);
     }
 
+    /**
+     * creates offer to send to client
+     * client will receive tracks
+     * @returns 
+     */    
     public createOffer(): string {
-        if (this.localSdp) {
-            throw new Error(
-                "[SdpEndpoint.createOffer] A local description was already set",
-            );
-        }
 
         const sdpBuilder: RemoteSdp = new RemoteSdp({
             iceParameters: this.webRtcTransport.iceParameters,
@@ -214,11 +184,11 @@ export class SdpEndpoint {
         const sendMsid = randomUUID().replace(/-/g, "").slice(0, 8);
 
         logger("[SdpEndpoint.createOffer] Make 'sendonly' SDP Offer");
-
-        for (let i = 0; i < this.consumers.length; i++) {
-            const mid = this.consumers[i].rtpParameters.mid ?? "nomid";
-            const kind = this.consumers[i].kind;
-            const sendParams = this.consumers[i].rtpParameters;
+        let consumersArr = [...this.consumers.values()];
+        for (let i = 0; i < this.consumers.size; i++) {
+            const mid = consumersArr[i].rtpParameters.mid ?? "nomid";
+            const kind = consumersArr[i].kind;
+            const sendParams = consumersArr[i].rtpParameters;
 
             // Each call to RemoteSdp.receive() creates a new OfferMediaSection,
             // which always assumes an `a=sendonly` direction.
@@ -226,75 +196,33 @@ export class SdpEndpoint {
                 mid,
                 kind,
                 offerRtpParameters: sendParams,
-
-                // Parameters used to build the "msid" attribute:
-                // a=msid:<streamId> <trackId>
                 streamId: sendMsid,
                 trackId: `${sendMsid}-${kind}`,
             });
         }
 
-        const localSdp = sdpBuilder.getSdp();
-
-        this.localSdp = localSdp;
-
-        return localSdp;
+        this.localSdp = sdpBuilder.getSdp();      
+        return this.localSdp;
     }
 
+    /**
+     * server >> offer >> client >> answer >> server 
+     * client receives new tracks
+     * process the answer from the client
+     * @param sdpAnswer 
+     */
     public async processAnswer(sdpAnswer: string): Promise<void> {
-        if (this.remoteSdp) {
-            throw new Error(
-                "[SdpEndpoint.processAnswer] A remote description was already set",
-            );
-        }
 
         this.remoteSdp = sdpAnswer;
         const remoteSdpObj = SdpTransform.parse(sdpAnswer);
 
-        // DEBUG: Uncomment for details.
-        // prettier-ignore
-        // {
-        //   console.debug(
-        //     '[SdpEndpoint.processAnswer] Remote SDP object',
-        //     remoteSdpObj
-        //   );
-        // }
-
-        // Use DTLS info from the remote SDP to connect the WebRTC transport.
-        let dtlsParameters;
-        dtlsParameters = MsSdpUtils.extractDtlsParameters({ sdpObject: remoteSdpObj, });
-        await this.webRtcTransport.connect({ dtlsParameters });
-
-        // TODO: Normally in a proper SDP endpoint the SDP Answer would be used to
-        // match local and remote capabilities, and decide a subset of encodings
-        // that can be received by the remote peer. However, for the current
-        // implementation we just extract and print the remote capabilities.
-
-        // TODO:
-        // * Disable header extensions that are not accepted by the remote peer.
-
-        // DEBUG: Uncomment for details.
-        // prettier-ignore
-        // {
-        //   const remoteCaps = SdpUtils.sdpToConsumerRtpCapabilities(
-        //     remoteSdpObj,
-        //     this.localCaps
-        //   );
-        //   console.debug(
-        //     '[SdpEndpoint.processAnswer] Remote RECV RtpCapabilities',
-        //     remoteCaps
-        //   );
-        // }
+        if (["new", "failed", "closed"].includes(this.webRtcTransport.dtlsState)) {
+            let dtlsParameters = MsSdpUtils.extractDtlsParameters({ sdpObject: remoteSdpObj });
+            await this.webRtcTransport.connect({ dtlsParameters });
+        }
     }
 }
 
-export function createSdpEndpoint(
-    webRtcTransport: WebRtcTransport,
-    localCaps: RtpCapabilities,
-): SdpEndpoint {
-    return new SdpEndpoint(webRtcTransport, localCaps);
-}
-
-export function generateRtpCapabilities0(): RtpCapabilities {
+export function generateRtpCapabilities(): RtpCapabilities {
     return BrowserRtpCapabilities.chrome;
 }

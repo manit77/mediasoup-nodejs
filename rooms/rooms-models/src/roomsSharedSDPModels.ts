@@ -41,7 +41,7 @@ export class RoomNewProducerSDPMsg extends BaseMsg {
     type = payloadTypeSDP.roomNewProducerSDP;
     data: {
         roomId?: string,
-        peerId?: string,      
+        peerId?: string,
     } = {};
 }
 

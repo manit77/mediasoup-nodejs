@@ -4,11 +4,10 @@ import * as roomUtils from "./utils.js";
 import chalk from 'chalk';
 import { Peer } from './peer.js';
 import { consoleError, consoleWarn, generateShortUID } from '../utils/utils.js';
-import { Consumer, MediaKind, Producer, Transport } from 'mediasoup/types';
+import { Consumer, MediaKind, Producer } from 'mediasoup/types';
 import { UniqueMap } from '@rooms/rooms-models';
 import { RoomServerConfig, WorkerData } from './models.js';
-import { SdpEndpoint } from '../sdp/SDPEndpoint.js';
-import { chrome } from '../sdp/BrowserRtpCapabilities.js';
+import { generateRtpCapabilities, SdpEndpoint } from '../sdp/SDPEndpoint.js';
 
 export class RoomPeer {
 
@@ -33,7 +32,7 @@ export class RoomPeer {
 
     private producerSdpEndPoint: SdpEndpoint;
     private consumerSdpEndPoint: SdpEndpoint;
-    
+
     async createProducerTransport() {
         console.log(`createProducerTransport() ${this.peer.displayName}`);
 
@@ -55,18 +54,18 @@ export class RoomPeer {
         //let workerData: WorkerData = this.room.roomRouter.appData as any;
         this.producerTransport = await roomUtils.createWebRtcTransport(this.room.roomRouter, this.config.room_server_ip, this.config.room_public_ip, this.config.room_rtc_start_port, this.config.room_rtc_end_port);
 
-        this.producerTransport.on('@close', () => {
+        this.producerTransport.addListener('@close', () => {
             consoleWarn(`Producer transport closed for peer ${this.peer.id} ${this.peer.displayName}`);
         });
 
-        this.producerTransport.on('dtlsstatechange', (dtlsState) => {
+        this.producerTransport.addListener('dtlsstatechange', (dtlsState) => {
             if (dtlsState === 'failed' || dtlsState === 'closed') {
                 console.log(`Producer transport DTLS state: ${dtlsState} for peer ${this.peer.id} ${this.peer.displayName}`);
             }
         });
 
         if (this.peer.clientType == "sdp") {
-           this.producerSdpEndPoint = new SdpEndpoint(this.producerTransport, this.room.roomRtpCapabilities);
+            this.producerSdpEndPoint = new SdpEndpoint(this.producerTransport, this.room.roomRtpCapabilities);
         }
 
         return this.producerTransport;
@@ -89,16 +88,16 @@ export class RoomPeer {
             console.log(`no room router.`);
             return;
         }
-        
+
         this.consumerTransport = await roomUtils.createWebRtcTransport(this.room.roomRouter, this.config.room_server_ip, this.config.room_public_ip, this.config.room_rtc_start_port, this.config.room_rtc_end_port);
-        
+
         // Consumer transport events
-        this.consumerTransport.on('@close', () => {
+        this.consumerTransport.addListener('@close', () => {
             console.log(`Consumer transport closed for peer ${this.peer.id} ${this.peer.displayName}`);
             // Consumers will auto-cleanup via their event handlers
         });
 
-        this.consumerTransport.on('dtlsstatechange', (dtlsState) => {
+        this.consumerTransport.addListener('dtlsstatechange', (dtlsState) => {
             if (dtlsState === 'failed' || dtlsState === 'closed') {
                 console.log(`Consumer transport DTLS state: ${dtlsState} for peer ${this.peer.id} ${this.peer.displayName}`);
             }
@@ -109,7 +108,6 @@ export class RoomPeer {
         }
 
         return this.consumerTransport;
-
     }
 
     /**
@@ -132,6 +130,12 @@ export class RoomPeer {
             return;
         }
 
+        //make sure we are not consuming the producer already
+        let existingConsumer = [...this.consumers.values()].find(c=> c.producerId == producer.id);
+        if(existingConsumer) {
+            consoleError(`existing consumer found ${existingConsumer.id} ${existingConsumer.kind} producer ${producer.kind} ${producer.id}.`);
+            return;
+        }
         //consume the producer
         const consumer = await this.consumerTransport.consume({
             producerId: producer.id,
@@ -142,7 +146,7 @@ export class RoomPeer {
         this.consumers.set(consumer.id, consumer);
 
         //the remote peer's producer closed, close this consumer and remove it
-        consumer.on("producerclose", () => {
+        consumer.addListener("producerclose", () => {
             consoleWarn(`producerclose ${remotePeer.displayName} ${producer.kind}, removing from peer ${this.peer.id} ${this.peer.displayName}. producerid: ${consumer.producerId}`);
             consumer.close();
             this.consumers.delete(consumer.id);
@@ -151,13 +155,13 @@ export class RoomPeer {
             this.room.onConsumerClosed(this.peer, consumer);
         });
 
-        consumer.on('@close', () => {
+        consumer.addListener('@close', () => {
             consoleWarn(`Consumer ${consumer.id} closed, removing from peer ${this.peer.id}`);
             this.consumers.delete(consumer.id);
         });
 
         // Handle transport close events
-        consumer.on('transportclose', () => {
+        consumer.addListener('transportclose', () => {
             consoleWarn(`Consumer ${consumer.id} transport closed`);
             this.consumers.delete(consumer.id);
         });
@@ -174,46 +178,46 @@ export class RoomPeer {
             return
         }
 
+        //we only allow one audio, one video
+        if (this.producers.get(kind)) {
+            consoleError(`producer with ${kind} already exists`);
+            return;
+        }
+
         //init a producer with rtpParameters
         const producer = await this.producerTransport.produce({
             kind: kind,
             rtpParameters: rtpParameters,
         });
 
-        if (this.producers.get(kind)) {
-            consoleError(`producer with ${kind} already exists`);
-            return;
-        }
-
         this.producers.set(kind, producer);
 
         consoleWarn(`producer ceated for ${this.peer.displayName}, paused: ${producer.paused}`);
 
         // Auto-cleanup when producer closes                
-        producer.on('@close', () => {
+        producer.addListener('@close', () => {
             console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} closed, removing from peer ${this.peer.id} ${this.peer.displayName}`));
-            this.producers.delete(kind);
+            this.producers.delete(kind);            
         });
 
         // Handle transport close events
-        producer.on('transportclose', () => {
+        producer.addListener('transportclose', () => {
             console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} transport closed for ${this.peer.id} ${this.peer.displayName}`));
             this.producers.delete(producer.kind);
         });
 
-        producer.on("videoorientationchange", (args) => {
+        producer.addListener("videoorientationchange", (args) => {
             console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} videoorientationchange for ${this.peer.id} ${this.peer.displayName}`));
             console.log(args);
         });
 
-        producer.on("listenererror", (args) => {
+        producer.addListener("listenererror", (args) => {
             console.log(chalk.yellow(`Producer ${producer.id} ${producer.kind} listenererror for ${this.peer.id} ${this.peer.displayName}`));
             console.log(args);
         });
 
         return producer;
     }
-
 
     async closeProducer(kind: MediaKind) {
         console.log(`closeProducuer ${kind} - ${this.peer.id} ${this.peer.displayName}`);
@@ -224,21 +228,35 @@ export class RoomPeer {
         }
     }
 
+    async closeConsumer(id: string) {
+        console.log(`closeConsumer ${id} - ${this.peer.id} ${this.peer.displayName}`);
+
+        let consumer = this.consumers.get(id);        
+        if(consumer) {
+            consumer.close();            
+        }
+    }
+
     /***
      * creates producers and returns an answer
      */
-    async processOfferForSDP(sdpOffer: string): Promise<{ producers: Producer[], answer: string }> {
+    async processOfferForSDP(sdpOffer: string): Promise<string> {
 
-        let producers = await this.producerSdpEndPoint.processOffer(sdpOffer);
+        if (!sdpOffer) {
+            consoleError("sdpOffer is required.");
+            return "";
+        }
 
-        for (let producer of producers) {
+        let newProducers = await this.producerSdpEndPoint.processOffer(sdpOffer);
+
+        for (let producer of newProducers) {
             this.producers.set(producer.kind, producer);
         }
 
-        roomUtils.startProducerMonitor(producers);
+        //roomUtils.startProducerMonitor(newProducers);
 
         let answer = this.producerSdpEndPoint.createAnswer();
-        return { producers, answer };
+        return answer;
     }
 
     //consumes a peers producers
@@ -250,41 +268,32 @@ export class RoomPeer {
             return;
         }
 
-        //assume chrome
-        let rtpCapabilitiesClient = chrome;
-
+        let rtpCapabilitiesClient = generateRtpCapabilities();
         for (let producer of roomPeer.producers.values()) {
 
-            //consume the producer
-            let consumer: Consumer;
             try {
-                consumer = await this.consumerTransport.consume({
+                let existingConsumer = [...this.consumers.values()].find(c=> c.producerId == producer.id);
+                if(existingConsumer) {
+                    consoleWarn(`existing consumer found ${existingConsumer.id} ${existingConsumer.kind} producer ${producer.kind} ${producer.id}.`);
+                    continue;
+                }
+                let consumer: Consumer = await this.consumerTransport.consume({
                     producerId: producer.id,
                     rtpCapabilities: rtpCapabilitiesClient,
                     paused: false,
                 });
+
+                // Add consumer to SDP
+                this.consumerSdpEndPoint.addConsumer(consumer);
+                this.consumers.set(consumer.id, consumer);
+
             } catch (err) {
                 consoleError("unable to consumer producer", err);
             }
 
-            if (!consumer) {
-                consoleError("unable to createConsumerForSDP ");
-                return;
-            }
-
-            // Add consumer to SDP
-            this.consumerSdpEndPoint.addConsumer(consumer);
-
-            this.consumers.set(consumer.id, consumer);
         }
 
         return this.consumerSdpEndPoint.createOffer();
-
-        //await this.consumerSdpEndPoint.processOffer(offerSDP);
-        //return this.consumerSdpEndPoint.createAnswer();
-
-        
-
     }
 
     async processAnswerForSDP(sdpAnswer: string) {
