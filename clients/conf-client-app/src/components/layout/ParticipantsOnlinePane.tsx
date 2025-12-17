@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
 import { GetUserMediaConfig, ParticipantInfo } from '@conf/conf-models';
-import { ArrowRepeat, CameraVideoFill, Circle, CircleFill, MicFill, Phone } from 'react-bootstrap-icons';
 import ThrottledButton from './ThrottledButton';
 import { useUI } from '../../hooks/useUI';
 import { useAPI } from '../../hooks/useAPI';
+import { ArrowRepeat, MicFill, CameraVideoFill, CircleFill, Circle, PersonCircle } from 'react-bootstrap-icons';
+import { Button, ListGroup, Badge, Spinner } from 'react-bootstrap';
 
 const ParticipantsOnlinePane: React.FC = () => {
     const ui = useUI()
@@ -32,7 +32,7 @@ const ParticipantsOnlinePane: React.FC = () => {
         setParticipantsToDisplay(api.participantsOnline);
     }, [api.participantsOnline]);
 
-     useEffect(() => {
+    useEffect(() => {
         setParticipantsToDisplay(participantsOnline);
     }, [participantsOnline]);
 
@@ -63,88 +63,110 @@ const ParticipantsOnlinePane: React.FC = () => {
     };
 
     return (
-        <div>
-            <div className="d-flex justify-content-between align-items-center mb-2">
-                <h5 className="fw-semibold text-dark">Users</h5>
-                <Button variant="outline-primary" size="sm" onClick={handleRefreshParticipants} disabled={!isConnected || !isAuthenticated}>
-                    <ArrowRepeat />
+        <div className="p-1">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+                <h6 className="text-uppercase text-muted fw-bold small mb-0 tracking-wider">
+                    Active Participants
+                </h6>
+                <Button
+                    variant="ghost-primary" // Assuming a custom ghost style or just outline
+                    size="sm"
+                    className="rounded-circle border-0 text-primary"
+                    onClick={handleRefreshParticipants}
+                    disabled={!isConnected || !isAuthenticated}
+                >
+                    <ArrowRepeat className={!isConnected ? "animate-spin" : ""} />
                 </Button>
             </div>
+
             {!isConnected || !isAuthenticated ? (
-                <p>Loading users...</p>
+                <div className="text-center py-5 text-muted">
+                    <Spinner size="sm" className="me-2" />
+                    <small>Syncing directory...</small>
+                </div>
             ) : participantsToDisplay.length === 0 ? (
-                <p>No contacts found.</p>
+                <div className="text-center py-5 bg-body-tertiary rounded border border-dashed">
+                    <p className="text-muted mb-0">No contacts found.</p>
+                </div>
             ) : (
-                <ListGroup>
-                    {participantsToDisplay.map((participantInfo) => (
-                        <ListGroup.Item
-                            key={participantInfo.participantId}
-                            action
-                            className="d-flex justify-content-between align-items-center"
-                        >
-                            {participantInfo.displayName}
+                <ListGroup variant="flush" className="rounded border shadow-sm overflow-hidden">
+                    {participantsToDisplay.map((participantInfo) => {
+                        const isOnline = participantInfo.status === "online";
+                        const isBusy = participantInfo.status === "busy";
 
-                            <div className="d-flex align-items-center ms-auto gap-2">
+                        return (
+                            <ListGroup.Item
+                                key={participantInfo.participantId}
+                                className="d-flex justify-content-between align-items-center px-3 py-3 border-bottom bg-body"
+                                style={{ transition: 'all 0.2s ease' }}
+                            >
+                                {/* Avatar & Name Section */}
+                                <div className="d-flex align-items-center">
+                                    <div className="position-relative me-3">
+                                        <PersonCircle size={36} className="text-secondary opacity-50" />
+                                        <div
+                                            className={`position-absolute bottom-0 end-0 border border-2 border-white rounded-circle`}
+                                            style={{
+                                                width: '12px',
+                                                height: '12px',
+                                                backgroundColor: isOnline ? '#198754' : isBusy ? '#ffc107' : '#adb5bd'
+                                            }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <div className="fw-bold text-body">{participantInfo.displayName}</div>
+                                        <div className="small text-muted text-capitalize">
+                                            {participantInfo.status}
+                                        </div>
+                                    </div>
+                                </div>
 
-                                <ThrottledButton
-                                    variant="primary"
+                                {/* Call Actions */}
+                                <div className="d-flex align-items-center gap-2">
+                                    <div className="btn-group bg-body-tertiary rounded-pill p-1 shadow-sm border">
+                                        <ThrottledButton
+                                            variant="link"
+                                            className={`rounded-pill p-0 d-flex align-items-center justify-content-center ${isCallActive || !isOnline ? 'text-muted' : 'text-primary'}`}
+                                            disabled={isCallActive || !!inviteInfoSend || !isOnline}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                handleContactClick(participantInfo, true, false);
+                                            }}
+                                            style={{ width: "40px", height: "40px" }}
+                                        >
+                                            <MicFill size={18} />
+                                        </ThrottledButton>
 
-                                    disabled={isCallActive || !!inviteInfoSend}
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        event.preventDefault();
-                                        handleContactClick(participantInfo, true, false);
-                                    }}
-                                    style={{ width: "50px" }}
-                                >
-                                    <MicFill />
-                                </ThrottledButton>
+                                        <ThrottledButton
+                                            variant="link"
+                                            className={`rounded-pill p-0 d-flex align-items-center justify-content-center ${isCallActive || !isOnline ? 'text-muted' : 'text-success'}`}
+                                            disabled={isCallActive || !!inviteInfoSend || !isOnline}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                handleContactClick(participantInfo, true, true);
+                                            }}
+                                            style={{ width: "40px", height: "40px" }}
+                                        >
+                                            <CameraVideoFill size={18} />
+                                        </ThrottledButton>
+                                    </div>
 
-                                <ThrottledButton
-                                    variant="primary"
-                                    disabled={isCallActive || !!inviteInfoSend}
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        event.preventDefault();
-                                        handleContactClick(participantInfo, true, true);
-                                    }}
-                                    style={{ width: "50px" }}
-                                >
-                                    <CameraVideoFill />
-                                </ThrottledButton>
-
-                                <Badge
-                                    pill
-                                    bg={
-                                        participantInfo.status === "busy"
-                                            ? "warning" // Orange for busy
-                                            : participantInfo.status === "offline"
-                                                ? "secondary" // Gray for offline
-                                                : "success" // Green for online
-                                    }
-                                    className="ms-2"
-                                    style={{ minWidth: "120px" }}
-                                >
-                                    {participantInfo.status === "online" ? (
-                                        <>
-                                            <CircleFill /> Online
-                                        </>
-                                    ) : participantInfo.status === "busy" ? (
-                                        <>
-                                            <CircleFill /> Busy
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Circle /> Offline
-                                        </>
-                                    )}
-                                </Badge>
-                            </div>
-                        </ListGroup.Item>
-                    ))}
+                                    {/* Status Badge (Reduced width for cleaner look) */}
+                                    <Badge
+                                        bg={isBusy ? "warning-subtle" : isOnline ? "success-subtle" : "light"}
+                                        className={`ms-2 d-none d-md-inline-block border ${isBusy ? 'text-warning border-warning-subtle' : isOnline ? 'text-success border-success-subtle' : 'text-muted border-secondary-subtle'}`}
+                                        style={{ minWidth: "80px", fontWeight: '600' }}
+                                    >
+                                        {isOnline ? 'Available' : isBusy ? 'Busy' : 'Away'}
+                                    </Badge>
+                                </div>
+                            </ListGroup.Item>
+                        );
+                    })}
                 </ListGroup>
             )}
         </div>
+
     );
 };
 

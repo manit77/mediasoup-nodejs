@@ -585,6 +585,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             ui.showToast(`invite sent`);
             inviteMsg.data.displayName = participantInfo.displayName;
+            inviteMsg.data.withAudio = joinMediaConfig.isAudioEnabled;
+            inviteMsg.data.withVideo = joinMediaConfig.isVideoEnabled;
+
             setInviteInfoSend(inviteMsg);
 
             console.log(`Call initiated to ${participantInfo.displayName}`);
