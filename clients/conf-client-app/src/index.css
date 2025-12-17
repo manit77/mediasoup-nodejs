@@ -66,3 +66,13 @@ html, body, #root {
 .text-warn {
     color: var(--bs-warning) !important; /* Uses Bootstrap's theme-aware warning color */
 }
+
+@keyframes metal-drift {
+  0% { background-position: 0 0, 0 0, 0 0, 0 0, 0 0; }
+  100% { background-position: 200px 0, 100px 0, 0 0, 0 0, 0 0; }
+}
+
+@keyframes shine-sweep {
+  0% { transform: translateX(-200%); }
+  100% { transform: translateX(200%); }
+}
