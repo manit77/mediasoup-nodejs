@@ -93,6 +93,9 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
   100% 100%       /* base */
 `,
             backgroundBlendMode: 'overlay, overlay, overlay, overlay, overlay, normal',
+            overflow: 'hidden',
+            position: 'relative',
+            transform: 'translateZ(0)'
         };
     }, []);
 
