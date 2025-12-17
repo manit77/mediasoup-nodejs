@@ -373,8 +373,14 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     initState();
 
                     let reason = (msgIn as LoggedOffMsg).data.reason ?? "you have logged off by the server";
-                    ui.showPopUp(reason, "error");
-                    api.logout();
+                    ui.showPopUp(reason, "error", 0, () => {
+                        console.warn("popup clicked");
+                        api.logout();
+                    });
+
+                    //api.logout();
+                    conferenceClient.disconnect();
+                    setIsConnected(false);
 
                     break;
                 }
@@ -410,7 +416,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 case EventTypes.participantNewTrack: {
                     console.warn('CallContext: onParticipantTrack', msgIn);
 
-                    let msg = msgIn as EventParticpantNewTrackMsg;                    
+                    let msg = msgIn as EventParticpantNewTrackMsg;
 
                     if (!msg.data.track) {
                         console.error("CallContext: no track");
@@ -450,7 +456,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                     break;
                 }
-                case EventTypes.inviteCancelled:{
+                case EventTypes.inviteCancelled: {
                     console.log(`CallContext: call was cancelled.`);
 
                     ui.showToast("call was cancelled.", "warning");
@@ -633,7 +639,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCallParticipants(new Map());
         setIsScreenSharing(false);
         setPresenter(null);
-        
+
     }, []);
 
     const terminateCurrentConference = useCallback(() => {

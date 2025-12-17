@@ -53,11 +53,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceScheduledInfo[]>(apiService.conferencesScheduled);
     const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>(apiService.participantsOnline);
 
-    //
-    // BASIC HELPERS
-    //
     const getCurrentUser = useCallback(() => apiService.getUser(), []);
-
     const getClientData = useCallback(() => apiService.getClientData(), []);
     const clearClientData = useCallback(() => apiService.clearClientData(), []);
 
@@ -71,9 +67,6 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return user?.role === "user" || user?.role === "admin";
     }, []);
 
-    //
-    // AUTH
-    //
     const loginBase = async (
         action: () => Promise<LoginResponse>
     ): Promise<LoginResponse> => {
@@ -120,9 +113,6 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, []);
 
-    //
-    // FETCHERS
-    //
     const fetchConferencesScheduled = useCallback(async () => {
         return apiService.fetchConferencesScheduled();
     }, []);
@@ -139,9 +129,6 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return apiService.clientConfig;
     }, []);
 
-    //
-    // SET UP CONNECTIONS
-    //
     const setUpConnections = useCallback(() => {
         console.log("setUpConnections");
 
@@ -153,8 +140,21 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setParticipantsOnline(participants);
         };
 
+        apiService.onError = (error: string) => {
+            console.error("apiService.onError ", error);
+
+            const user = apiService.getUser();
+            if (!user) {
+                console.error("not logged in");
+                setIsAuthenticated(false);
+            }
+        }
+
         const user = apiService.getUser();
-        if (!user) return;
+        if (!user) {
+            console.error("not logged in");
+            return;
+        }
 
         getConferenceClient().connect(
             user.participantGroup,
@@ -172,20 +172,17 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     }, [fetchConferencesScheduled, fetchParticipantsOnline]);
 
-    //
-    // AUTH INIT EFFECT
-    //
+
     useEffect(() => {
         const user = apiService.getUser();
         const loggedIn = Boolean(user);
         setIsAuthenticated(loggedIn);
 
-        if (loggedIn) setUpConnections();
+        if (loggedIn) {
+            setUpConnections();
+        }
     }, [isAuthenticated]);
 
-    //
-    // CONTEXT VALUE (fully stable)
-    //
     const value = useMemo(() => ({
         conferencesScheduled,
         getCurrentUser,

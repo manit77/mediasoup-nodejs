@@ -7,7 +7,7 @@ export type AlertType = 'normal' | 'error' | 'warning';
 
 export interface UIContextType {
   hidePopUp: () => void;
-  showPopUp: (message: string, type?: AlertType, durationSec?: number) => void;
+  showPopUp: (message: string, type?: AlertType, durationSec?: number, okFunc?: () => void) => void;
   showToast: (message: string, type?: AlertType, durationSec?: number) => void;
 }
 
@@ -31,6 +31,7 @@ interface PopupMessageProps {
 }
 
 const PopupMessage: React.FC<PopupMessageProps> = ({ show, message, handleClose, type = 'normal' }) => {
+
   const alertStyles = {
     normal: { icon: <CheckCircleFill size={24} />, bgClass: 'bg-success-subtle', borderClass: 'border-success', title: 'Success' },
     error: { icon: <ExclamationCircleFill size={24} />, bgClass: 'bg-danger-subtle', borderClass: 'border-danger', title: 'Error' },
@@ -38,6 +39,7 @@ const PopupMessage: React.FC<PopupMessageProps> = ({ show, message, handleClose,
   };
 
   const { icon, bgClass, borderClass, title } = alertStyles[type];
+  let okFunCb: () => void;
 
   return (
     <Modal
@@ -54,7 +56,7 @@ const PopupMessage: React.FC<PopupMessageProps> = ({ show, message, handleClose,
           {title}
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body className={`${bgClass} ${borderClass}`}>
+      <Modal.Body className={`${borderClass}`}>
         {message || 'No message provided'}
       </Modal.Body>
       <Modal.Footer className="border-0 bg-light">
@@ -70,25 +72,41 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
   const [popup, setPopup] = useState<{ message: string; type: AlertType } | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
+  let popUpOnCloseFunc: () => void = null;
 
   const hidePopUp = useCallback(() => {
+
     setPopup(null);
+    
+    if (popUpOnCloseFunc) {
+      popUpOnCloseFunc();
+    }
+
   }, []);
 
-  const showPopUp = useCallback((message: string, type: AlertType = 'normal', durationSec: number = 5) => {
+
+  const showPopUp = useCallback((message: string, type: AlertType = 'normal', durationSec: number = 5, onCloseFunc?: () => void) => {
+
+    popUpOnCloseFunc = onCloseFunc;
+
     setPopup({ message, type });
-    setTimeout(() => {
-      setPopup(null);
-    }, durationSec * 1000);
+
+    if (durationSec > 0) {
+      setTimeout(() => { setPopup(null); }, durationSec * 1000);
+    }
+
   }, []);
 
   const showToast = useCallback((message: string, type: AlertType = 'normal', durationSec: number = 5) => {
-    console.log('showToast', message, type);
+
     const id = toastIdRef.current++;
+    
     setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, durationSec * 1000);
+    
+    if (durationSec > 0) {
+      setTimeout(() => { setToasts((prev) => prev.filter((t) => t.id !== id)); }, durationSec * 1000);
+    }
+
   }, []);
 
   const contextValue = useMemo(() => ({ showPopUp, showToast, hidePopUp }), [showPopUp, showToast, hidePopUp]);
