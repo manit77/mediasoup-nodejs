@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { APIProvider } from './contexts/APIContext';
 import { CallProvider } from './contexts/CallContext';
@@ -76,6 +76,14 @@ const AppRoutes: React.FC = () => {
 };
 
 function App() { 
+
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+
+  useEffect(() => {
+    // 2. Apply the theme attribute to the root HTML element
+    document.documentElement.setAttribute('data-bs-theme', theme);
+  }, [theme]);
+  
   return (
     <Router>      
       <UIProvider>

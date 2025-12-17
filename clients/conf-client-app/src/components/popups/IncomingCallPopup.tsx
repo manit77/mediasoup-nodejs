@@ -13,7 +13,6 @@ const IncomingCallPopup: React.FC = () => {
     const ui = useUI();
     const audioRef = useRef<HTMLAudioElement>(null);
 
-
     useEffect(() => {
         if (isCallActive) {
             console.log("navigate to on-call");

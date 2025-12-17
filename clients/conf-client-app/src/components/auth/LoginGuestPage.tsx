@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
-import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
+import { Form, Button, Container, Card, Alert, Spinner, Badge } from 'react-bootstrap';
 import { generateRandomDisplayName, getQueryParams } from '../../utils/utils';
 import { getConferenceConfig } from '../../services/ConferenceConfig';
 import { ClientConfig } from '@conf/conf-models';
+import { Person, KeyFill, DoorOpenFill, ExclamationOctagon } from 'react-bootstrap-icons';
+
 
 const LoginGuestPage: React.FC = () => {
 
@@ -37,7 +39,7 @@ const LoginGuestPage: React.FC = () => {
         let _participantGroupName = "";
         let _conferenceGroup = "";
 
-       _participantGroup = query.participantGroup || clientData.participantGroup;
+        _participantGroup = query.participantGroup || clientData.participantGroup;
         setParticipantGroup(_participantGroup);
 
         _participantGroupName = query.participantGroupName || clientData.participantGroupName;
@@ -179,55 +181,94 @@ const LoginGuestPage: React.FC = () => {
     };
 
     return (
-        <Container className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
-            <h1>{participantGroupName}</h1>
-            <Card style={{ width: '400px', borderColor: '#007bff' }}>
-                {
-                    configError ? (
-                        <Card.Body>
-                            <Card.Title className="card-title-bg-orange text-center mb-4">{configError}</Card.Title>
-                        </Card.Body>
-                    )
-                        :
-                        (
-                            <Card.Body>
-                                <Card.Title className="text-center mb-4">Login as Guest</Card.Title>
-                                {error && <Alert variant="danger">{error}</Alert>}
-                                <Form onSubmit={handleSubmitGuest}>
-                                    <Form.Group className="mb-3" controlId="username">
-                                        <Form.Label>Username</Form.Label>
+        <Container className="d-flex flex-column align-items-center justify-content-center bg-body text-body" style={{ minHeight: '100vh' }}>
+            <div className="text-center mb-4">
+                <h1 className="fw-bold text-primary display-5">{participantGroupName}</h1>               
+            </div>
+
+            <Card className="shadow-lg border-0" style={{ width: '400px', overflow: 'hidden' }}>
+                {/* Blue Gradient Accent Bar for Guests */}
+                <div style={{ height: '4px', background: 'linear-gradient(90deg, #007bff 0%, #00d4ff 100%)' }}></div>
+
+                <Card.Body className="p-4">
+                    {configError ? (
+                        <div className="text-center py-3">
+                            <ExclamationOctagon size={48} className="text-danger mb-3" />
+                            <h5 className="text-danger">{configError}</h5>
+                            <p className="small text-muted">Please contact the administrator.</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="text-center mb-4">
+                                <div className="bg-primary-subtle d-inline-block p-3 rounded-circle mb-3">
+                                    <DoorOpenFill size={32} className="text-primary" />
+                                </div>
+                                <Card.Title className="h4 fw-bold">Guest Login</Card.Title>                               
+                            </div>
+
+                            {error && (
+                                <Alert variant="danger" className="py-2 small">
+                                    {error}
+                                </Alert>
+                            )}
+
+                            <Form onSubmit={handleSubmitGuest}>
+                                <Form.Group className="mb-3" controlId="username">
+                                    <Form.Label className="small fw-bold text-muted">Your Display Name</Form.Label>
+                                    <div className="input-group">
+                                        <span className="input-group-text bg-transparent">
+                                            <Person className="text-muted" />
+                                        </span>
                                         <Form.Control
                                             type="text"
                                             value={userName}
                                             onChange={(e) => setUserName(e.target.value)}
-                                            placeholder="Enter your user name"
+                                            placeholder="e.g. John Doe"
                                             required
                                             disabled={loading || !allowEntry}
-                                            style={{ background: !allowEntry ? "#c0c0c0" : "" }}
+                                            className={!allowEntry ? "bg-body-secondary" : ""}
                                         />
+                                    </div>
+                                </Form.Group>
+
+                                {requirePassword && (
+                                    <Form.Group className="mb-4" controlId="password">
+                                        <Form.Label className="small fw-bold text-muted">Room Password</Form.Label>
+                                        <div className="input-group">
+                                            <span className="input-group-text bg-transparent">
+                                                <KeyFill className="text-muted" />
+                                            </span>
+                                            <Form.Control
+                                                type="password"
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                placeholder="Enter password"
+                                                required
+                                                disabled={loading || !allowEntry}
+                                                className={!allowEntry ? "bg-body-secondary" : ""}
+                                            />
+                                        </div>
                                     </Form.Group>
-                                    {
-                                        requirePassword ? (
-                                            <Form.Group className="mb-3" controlId="password">
-                                                <Form.Label>Password</Form.Label>
-                                                <Form.Control
-                                                    type="Password"
-                                                    onChange={(e) => setPassword(e.target.value)}
-                                                    placeholder="Enter your password"
-                                                    required
-                                                    disabled={loading || !allowEntry}
-                                                    style={{ background: !allowEntry ? "#c0c0c0" : "" }}
-                                                />
-                                            </Form.Group>
-                                        ) : (null)
-                                    }
-                                    <Button variant="primary" type="submit" className="w-100" disabled={loading}>
-                                        {loading ? 'Logging in...' : 'Login'}
-                                    </Button>
-                                </Form>
-                            </Card.Body>
-                        )
-                }
+                                )}
+
+                                <Button
+                                    variant={"primary"}
+                                    type="submit"
+                                    className="w-100 py-2 fw-bold shadow-sm mt-2"
+                                    disabled={loading}
+                                >
+                                    {loading ? (
+                                        <><Spinner animation="border" size="sm" className="me-2" /> Waiting...</>
+                                    ) : <>Login</>}
+                                </Button>
+                            </Form>
+                        </>
+                    )}
+                </Card.Body>
+
+                {/* Footer for extra context */}
+                <div className="bg-body-tertiary p-3 border-top text-center">
+                    <small className="text-muted d-block mb-1">By joining, you agree to the room terms.</small>                    
+                </div>
             </Card>
         </Container>
     );

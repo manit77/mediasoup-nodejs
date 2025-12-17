@@ -28,7 +28,7 @@ const AuthenticatedLayout: React.FC = () => {
 
   return (
 
-    <div className="d-flex flex-column bg-light" style={{ minHeight: "100%", height: "100dvh" }}>
+    <div className="d-flex flex-column bg-body" style={{ minHeight: "100%", height: "100dvh" }}>
       <TopMenu onShowSettings={() => ui.setIsShowSettings(true)} />   
       <div
         className="
