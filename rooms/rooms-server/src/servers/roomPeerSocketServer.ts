@@ -7,7 +7,8 @@ import {
     RegisterPeerMsg,
     TerminatePeerMsg,
     UnauthorizedMsg,
-    AuthUserRoles
+    AuthUserRoles,
+    payloadTypeSDP
 } from "@rooms/rooms-models";
 import { RoomServer } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
@@ -40,6 +41,11 @@ defaultPeerSocketServerSecurityMap[payloadTypeClient.roomNewToken] = [AuthUserRo
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomTerminate] = [AuthUserRoles.admin, AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.terminatePeer] = [AuthUserRoles.admin, AuthUserRoles.user];
 defaultPeerSocketServerSecurityMap[payloadTypeClient.roomPong] = [];
+
+defaultPeerSocketServerSecurityMap[payloadTypeSDP.roomNewProducerSDP] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeSDP.roomConsumeSDP] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeSDP.roomOfferSDP] = [];
+defaultPeerSocketServerSecurityMap[payloadTypeSDP.roomAnswerSDP] = [];
 
 export class SocketConnection {
     peerId: string;

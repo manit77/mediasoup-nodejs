@@ -1,6 +1,8 @@
 import React from 'react';
 import { Modal, Button } from 'react-bootstrap';
 import PropTypes from 'prop-types';
+import styles from './ConfirmPopUp.module.css';
+import { ExclamationTriangleFill } from 'react-bootstrap-icons';
 
 const ConfirmPopUp = ({ show, onHide, onConfirm, title, message }) => {
     return (
@@ -10,17 +12,24 @@ const ConfirmPopUp = ({ show, onHide, onConfirm, title, message }) => {
             centered
             backdrop="static"
             keyboard={false}
-            aria-labelledby="confirm-modal-title"
+            contentClassName={styles.modalContent} // Applies style to the inner modal box
         >
-            <Modal.Header closeButton>
-                <Modal.Title id="confirm-modal-title">{title}</Modal.Title>
+            <Modal.Header className={styles.header} closeVariant="white" closeButton>
+                <Modal.Title className={styles.title} id="confirm-modal-title">
+                    <ExclamationTriangleFill className="text-warning me-2" size={22} />
+                    {title}
+                </Modal.Title>
             </Modal.Header>
-            <Modal.Body>{message}</Modal.Body>
-            <Modal.Footer>
-                <Button variant="secondary" onClick={onHide}>
+
+            <Modal.Body className={styles.body}>
+                {message}
+            </Modal.Body>
+
+            <Modal.Footer className={styles.footer}>
+                <Button className={styles.btnCancel} onClick={onHide}>
                     Cancel
                 </Button>
-                <Button variant="danger" onClick={onConfirm}>
+                <Button className={styles.btnConfirm} onClick={onConfirm}>
                     Confirm
                 </Button>
             </Modal.Footer>

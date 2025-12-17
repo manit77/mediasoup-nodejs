@@ -1,9 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Button, Form, Tab, Row, Col, Nav } from 'react-bootstrap';
 import { useCall } from '../../hooks/useCall';
-import { FilePersonFill } from 'react-bootstrap-icons';
-import { useUI } from '../../hooks/useUI';
+import {
+    Mic, CameraVideo, PersonVideo,
+    GearFill, Cpu, CheckCircleFill,
+    ExclamationCircle, FilePersonFill,
+    InfoCircle
+} from 'react-bootstrap-icons'; import { useUI } from '../../hooks/useUI';
 import { getBrowserUserMedia } from '@conf/conf-client';
+
 
 const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ show, handleClose }) => {
     const {
@@ -58,11 +63,11 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                 // Request full mic+camera permission first
                 const tempStream = await getBrowserUserMedia({ audio: true, video: true });
                 tempStream.getTracks().forEach(track => track.stop());
-                
+
                 await getMediaDevices();
                 setAudioId(selectedDevices.audioInId);
                 setVideoId(selectedDevices.videoId);
-                
+
                 startAudioMeter(selectedDevices.audioInId);
             } catch (err) {
                 console.error("Permission or device error:", err);
@@ -73,18 +78,28 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         initMedia();
     }, [show, selectedDevices]);
 
-    const handleDeviceChange = (type: 'video' | 'audioIn' | 'audioOut', deviceId: string) => {
+    const handleDeviceChange = (type: 'video' | 'audioIn' | 'audioOut', deviceId: string, deviceName: string) => {
+        console.log(`handleDeviceChange type=${type} deviceId=${deviceId} deviceName=${deviceName}`);
+
         if (type === "video") {
+
             setVideoId(deviceId);
             selectedDevices.videoId = deviceId;
+            selectedDevices.videoLabel = deviceName;
+
         } else if (type === "audioIn") {
+
             setAudioId(deviceId);
             selectedDevices.audioInId = deviceId;
+            selectedDevices.audioInLabel = deviceName
+
             stopAudioMeter();
             startAudioMeter(deviceId); // restart meter with new mic
+
         } else {
             //setSpeakerId(deviceId);
             selectedDevices.audioOutId = deviceId;
+            selectedDevices.audioOutLabel = deviceName;
         }
     };
 
@@ -193,113 +208,158 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
     }, [showingPreview]);
 
     return (
-        <Modal show={show} onHide={handleClose} size="lg">
-            <Modal.Header closeButton>
-                <Modal.Title>Settings</Modal.Title>
+        <Modal show={show} onHide={handleClose} size="lg" centered shadow>
+            <Modal.Header closeButton className="bg-body">
+                <Modal.Title className="d-flex align-items-center text-secondary">
+                    <GearFill className="me-2 text-primary" size={20} />
+                    <span>Settings</span>
+                </Modal.Title>
             </Modal.Header>
-            <Modal.Body>
+
+            <Modal.Body className="p-0"> {/* Remove padding to let sidebar span full height */}
                 <Tab.Container id="settings-tabs" defaultActiveKey="devices">
-                    <Row>
-                        <Col sm={3}>
-                            <Nav variant="pills" className="flex-column">
+                    <Row className="g-0">
+                        {/* Sidebar Navigation */}
+                        <Col sm={4} className="bg-body border-end p-3" style={{ minHeight: '450px' }}>
+                            <Nav variant="pills" className="flex-column gap-2">
                                 <Nav.Item>
-                                    <Nav.Link eventKey="devices">Media Devices</Nav.Link>
+                                    <Nav.Link eventKey="devices" className="d-flex align-items-center px-3 py-2">
+                                        <Cpu className="me-2" /> Media Devices
+                                    </Nav.Link>
                                 </Nav.Item>
+                                {/* Future expansion tabs could go here */}
                             </Nav>
+                            <div className="mt-auto pt-5 text-center text-muted small px-3">
+                                <InfoCircle className="me-1" />
+                                Settings are applied to your current session.
+                            </div>
                         </Col>
-                        <Col sm={9}>
+
+                        {/* Content Area */}
+                        <Col sm={8} className="p-4">
                             <Tab.Content>
                                 <Tab.Pane eventKey="devices">
-                                    <h5>Audio</h5>
-                                    {availableDevices.audioIn.length > 0 ? (
-                                        <Form.Select
-                                            id="ctlMic"
-                                            title='Select Microphone'
-                                            aria-label="Select Microphone"
-                                            value={audioId || ""}
-                                            onChange={(e) => handleDeviceChange('audioIn', e.target.value)}
-                                            className="mb-3"
-                                        >
-                                            {availableDevices.audioIn.map(device => (
-                                                <option key={device.id} value={device.id}>{device.label}</option>
-                                            ))}
-                                        </Form.Select>
-                                    ) : <p>No microphones found.</p>}
+                                    {/* Audio Section */}
+                                    <div className="mb-4">
+                                        <h6 className="text-uppercase text-muted fw-bold small mb-3">
+                                            <Mic className="me-2" /> Audio Input
+                                        </h6>
+                                        {availableDevices.audioIn.length > 0 ? (
+                                            <Form.Select
+                                                id="ctlMic"
+                                                value={audioId || ""}
+                                                onChange={(e) => handleDeviceChange('audioIn', e.target.value, e.target.selectedOptions[0].text)}
+                                                className="mb-3 shadow-sm border-primary-subtle"
+                                            >
+                                                {availableDevices.audioIn.map(device => (
+                                                    <option key={device.id} value={device.id}>{device.label}</option>
+                                                ))}
+                                            </Form.Select>
+                                        ) : (
+                                            <div className="alert alert-warning py-2 small">
+                                                <ExclamationCircle className="me-2" /> No microphones detected.
+                                            </div>
+                                        )}
 
-                                    <div className="d-flex align-items-center mb-3" style={{ gap: '10px' }}>
-                                        <div className="audio-meter flex-grow-1" style={{
-                                            height: "10px",
-                                            background: "#ddd",
-                                            borderRadius: "4px",
-                                            overflow: "hidden",
-                                            position: "relative"
-                                        }}>
-                                            <div
-                                                ref={barRef}
-                                                style={{
-                                                    width: `0%`,
-                                                    height: "100%",
-                                                    background: "#28a745",
-                                                    transition: "width 50ms linear"
-                                                }}
+                                        {/* Modernized Audio Meter */}
+                                        <div className="d-flex align-items-center bg-body p-2 rounded border" style={{ gap: '12px' }}>
+                                            <div className="audio-meter flex-grow-1" style={{
+                                                height: "8px",
+                                                background: "#e9ecef",
+                                                borderRadius: "10px",
+                                                overflow: "hidden"
+                                            }}>
+                                                <div
+                                                    ref={barRef}
+                                                    style={{
+                                                        width: `${audioLevel * 100}%`,
+                                                        height: "100%",
+                                                        background: audioLevel > 0.8 ? "#dc3545" : "#0d6efd", // Turns red if peaking
+                                                        transition: "width 50ms ease-out",
+                                                        boxShadow: "0 0 8px rgba(13, 110, 253, 0.5)"
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="small fw-bold text-primary" style={{ minWidth: "35px" }}>
+                                                {Math.round(audioLevel * 100)}%
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <hr className="my-4" />
+
+                                    {/* Video Section */}
+                                    <div className="mb-4">
+                                        <div className="d-flex justify-content-between align-items-center mb-3">
+                                            <h6 className="text-uppercase text-muted fw-bold small mb-0">
+                                                <CameraVideo className="me-2" /> Video Input
+                                            </h6>
+                                            {showingPreview && (
+                                                <span className="badge rounded-pill bg-danger d-flex align-items-center">
+                                                    <span className="me-1" style={{ height: '6px', width: '6px', backgroundColor: 'white', borderRadius: '50%', display: 'inline-block' }}></span>
+                                                    LIVE PREVIEW
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {availableDevices.video.length > 0 ? (
+                                            <Form.Select
+                                                id="ctlCam"
+                                                value={videoId || ""}
+                                                onChange={(e) => handleDeviceChange('video', e.target.value, e.target.selectedOptions[0].text)}
+                                                className="mb-3 shadow-sm border-primary-subtle"
+                                            >
+                                                {availableDevices.video.map(device => (
+                                                    <option key={device.id} value={device.id}>{device.label}</option>
+                                                ))}
+                                            </Form.Select>
+                                        ) : (
+                                            <div className="alert alert-warning py-2 small">
+                                                <ExclamationCircle className="me-2" /> No cameras detected.
+                                            </div>
+                                        )}
+
+                                        {/* Video Preview Area */}
+                                        <div className="position-relative bg-dark rounded overflow-hidden shadow" style={{ maxHeight: "200px" }}>
+                                            <video
+                                                ref={videoRef}
+                                                autoPlay
+                                                playsInline
+                                                muted
+                                                className="w-100 h-auto d-block"
+                                                style={{ transform: 'scaleX(-1)', maxHeight: "200px" }} // Mirror the preview for better user feel
                                             />
+
+                                            {!showingPreview && (
+                                                <div className="position-absolute top-50 start-50 translate-middle text-center text-white-50 w-100">
+                                                    <PersonVideo size={48} className="mb-2 opacity-25 mx-auto" />
+                                                    <p className="small m-0">Camera preview is off</p>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        <div style={{
-                                            minWidth: "40px",
-                                            textAlign: "right",
-                                            fontFamily: "monospace",
-                                            fontSize: "0.9rem"
-                                        }}>
-                                            {Math.round(audioLevel * 100)}%
+                                        <div className="mt-3 text-end">
+                                            <Button
+                                                variant={showingPreview ? "outline-danger" : "outline-primary"}
+                                                size="sm"
+                                                onClick={previewClick}
+                                                className="px-4"
+                                            >
+                                                <FilePersonFill className="me-1" />
+                                                {showingPreview ? 'Stop Preview' : 'Test Camera'}
+                                            </Button>
                                         </div>
                                     </div>
-
-
-                                    <h5>Video</h5>
-                                    {availableDevices.video.length > 0 ? (
-                                        <Form.Select
-                                            id="ctlCam"
-                                            title="Select Camera"
-                                            aria-label="Select Camera"
-                                            value={videoId || ""}
-                                            onChange={(e) => handleDeviceChange('video', e.target.value)}
-                                            className="mb-3"
-                                        >
-                                            {availableDevices.video.map(device => (
-                                                <option key={device.id} value={device.id}>{device.label}</option>
-                                            ))}
-                                        </Form.Select>
-                                    ) : <p>No cameras found.</p>}
-
-                                    <h5>Preview</h5>
-                                    <div className="d-flex gap-2 mb-3">
-                                        <Button
-                                            variant="outline-secondary"
-                                            onClick={previewClick}
-                                            className="d-flex align-items-center"
-                                        >
-                                            <FilePersonFill className="me-1" /> {showingPreview ? 'Stop Preview' : 'Preview Video'}
-                                        </Button>
-                                    </div>
-
-                                    <video
-                                        ref={videoRef}
-                                        autoPlay
-                                        playsInline
-                                        muted
-                                        className="w-100 h-auto rounded shadow-sm"
-                                        style={{ background: "#000000" }}
-                                    />
                                 </Tab.Pane>
                             </Tab.Content>
                         </Col>
                     </Row>
                 </Tab.Container>
             </Modal.Body>
-            <Modal.Footer>
-                <Button variant="secondary" onClick={closeButtonClick}>
-                    Apply
+
+            <Modal.Footer className="bg-body border-top p-3">
+                <Button variant="primary" onClick={closeButtonClick} className="px-5 shadow-sm">
+                    <CheckCircleFill className="me-2" /> Apply Changes
                 </Button>
             </Modal.Footer>
         </Modal>

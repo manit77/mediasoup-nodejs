@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAPI } from '../../hooks/useAPI';
 import { useUI } from '../../hooks/useUI';
-import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
+import { Form, Button, Container, Card, Alert, Spinner } from 'react-bootstrap';
+import { PersonCircle, LockFill, ShieldLockFill, InfoCircle, ExclamationTriangleFill } from 'react-bootstrap-icons';
 import { getQueryParams } from '../../utils/utils';
 import { getConferenceConfig } from '../../services/ConferenceConfig';
 import { ClientConfig } from '@conf/conf-models';
@@ -138,48 +139,102 @@ const LoginPage: React.FC = () => {
     };
 
     return (
-        <Container className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
-            <h1>{participantGroupName}</h1>
-            <Card style={{ width: '400px', borderColor: '#ff9800' }}>
-                <Card.Body>
-                    {configError && (<Card.Title className="card-title-bg-orange text-center mb-4">{configError}</Card.Title>)}
-                    {!configError && (
+        <Container className="d-flex flex-column align-items-center justify-content-center bg-body text-body" style={{ minHeight: '100vh' }}>
+            {/* Brand / Group Name */}
+            <div className="text-center mb-4">
+                <h1 className="fw-bold text-primary display-5">{participantGroupName}</h1>
+                <p className="text-muted">Secure Conference Access</p>
+            </div>
+
+            <Card className="shadow-lg border-0" style={{ width: '400px', overflow: 'hidden' }}>
+                {/* Decorative Top Bar (Replaces the solid orange header) */}
+                <div style={{ height: '4px', background: 'linear-gradient(90deg, #ff9800 0%, #ff5722 100%)' }}></div>
+
+                <Card.Body className="p-4">
+                    {configError ? (
+                        <Alert variant="warning" className="d-flex align-items-center">
+                            <ExclamationTriangleFill className="me-2" />
+                            <div>{configError}</div>
+                        </Alert>
+                    ) : (
                         <>
-                            {error && <Alert variant="danger">{error}</Alert>}
-                            <Card.Title className="card-title-bg-orange text-center mb-4">Login as Admin</Card.Title>
+                            <div className="text-center mb-4">
+                                <div className="bg-primary-subtle d-inline-block p-3 rounded-circle mb-3">
+                                    <ShieldLockFill size={32} className="text-primary" />
+                                </div>
+                                <Card.Title className="h4 fw-bold">Admin Login</Card.Title>
+                                <Card.Subtitle className="text-muted small">Enter your credentials to manage the room</Card.Subtitle>
+                            </div>
+
+                            {error && (
+                                <Alert variant="danger" className="py-2 small d-flex align-items-center">
+                                    <InfoCircle className="me-2" /> {error}
+                                </Alert>
+                            )}
+
                             <Form onSubmit={handleSubmitAdmin}>
                                 <Form.Group className="mb-3" controlId="username">
-                                    <Form.Control
-                                        type="text"
-                                        value={username}
-                                        onChange={(e) => setUsername(e.target.value)}
-                                        placeholder="Enter your username"
-                                        required
-                                        disabled={loading}
-                                    />
+                                    <Form.Label className="small fw-bold text-muted">Username</Form.Label>
+                                    <div className="input-group">
+                                        <span className="input-group-text bg-transparent border-end-0">
+                                            <PersonCircle className="text-muted" />
+                                        </span>
+                                        <Form.Control
+                                            type="text"
+                                            className="border-start-0 ps-0"
+                                            value={username}
+                                            onChange={(e) => setUsername(e.target.value)}
+                                            placeholder=""
+                                            required
+                                            disabled={loading}
+                                        />
+                                    </div>
                                 </Form.Group>
-                                <Form.Group className="mb-3" controlId="password">
-                                    <Form.Control
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="Enter your passsword"
-                                        required
-                                        disabled={loading}
-                                    />
+
+                                <Form.Group className="mb-4" controlId="password">
+                                    <Form.Label className="small fw-bold text-muted">Password</Form.Label>
+                                    <div className="input-group">
+                                        <span className="input-group-text bg-transparent border-end-0">
+                                            <LockFill className="text-muted" />
+                                        </span>
+                                        <Form.Control
+                                            type="password"
+                                            className="border-start-0 ps-0"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            placeholder=""
+                                            required
+                                            disabled={loading}
+                                        />
+                                    </div>
                                 </Form.Group>
-                                <Button variant="primary" type="submit" className="w-100" disabled={loading}>
-                                    {loading ? 'Logging in...' : 'Login'}
+
+                                <Button
+                                    variant="primary"
+                                    type="submit"
+                                    className="w-100 py-2 fw-bold shadow-sm"
+                                    disabled={loading}
+                                >
+                                    {loading ? (
+                                        <><Spinner as="span" animation="border" size="sm" role="status" className="me-2" /> Logging in...</>
+                                    ) : 'Sign In'}
                                 </Button>
-                                <small>version: {config.version}</small> <small>commit: {config.commit}</small>
                             </Form>
                         </>
                     )}
-
                 </Card.Body>
 
+                {/* Footer Info */}
+                <div className="bg-body p-2 border-top d-flex justify-content-between px-3" style={{ fontSize: '0.7rem' }}>
+                    <span className="text-muted">v{config.version}</span>
+                    <span className="text-muted">build: {config.commit?.substring(0, 7)}</span>
+                </div>
             </Card>
 
+            {/* Optional: Help link */}
+            <p className="mt-4 text-muted small">
+                {/* Need help? <a href="#" className="text-decoration-none text-primary">Contact Support</a> */}
+            </p>
         </Container>
     );
 };

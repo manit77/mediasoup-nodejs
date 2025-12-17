@@ -7,6 +7,13 @@ import { useUI } from '../../hooks/useUI';
 import { ConferenceScheduledInfo, GetUserMediaConfig } from '@conf/conf-models';
 import ThrottledButton from '../layout/ThrottledButton';
 import { getBrowserUserMedia } from '@conf/conf-client';
+import {
+    CameraVideo, CameraVideoOff,
+    Mic, MicMute,
+    Gear, DoorOpen,
+    ShieldLock, InfoCircle,
+    ExclamationTriangle
+} from 'react-bootstrap-icons';
 
 
 interface JoinRoomPopUpProps {
@@ -18,7 +25,7 @@ interface JoinRoomPopUpProps {
 const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show, onClose }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, getLocalMedia, isWaiting } = useCall();
+    const { localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, availableDevices, selectedDevices, setSelectedDevices, getMediaDevices, getLocalMedia, isWaiting } = useCall();
     const navigate = useNavigate();
 
     const [conferenceCode, setConferenceCode] = useState<string>("");
@@ -28,6 +35,9 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
     const [cameraEnabled, setCameraEnabled] = useState<boolean>(true); // Default to true
     const [showMicOption, setShowMicOption] = useState<boolean>(true); // Default to true
     const [showCameraOption, setShowCameraOption] = useState<boolean>(true); // Default to true
+
+    const [micName, setMicName] = useState<string>(selectedDevices.audioInLabel);
+    const [cameraName, setCameraName] = useState<string>(selectedDevices.videoLabel);
 
     useEffect(() => {
 
@@ -92,12 +102,23 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             localParticipant.tracksInfo.isVideoEnabled = false;
         }
 
-        //get the stream here for browser permissions issues
-        //certain browsers tie permissions to a click
-       getBrowserUserMedia(getMediaConstraints(true, true));
+        let __getDevices = async () => {
+            //get the stream here for browser permissions issues
+            //certain browsers tie permissions to a click
+            let tempStream = await getBrowserUserMedia(getMediaConstraints(true, true));
+
+            let devices = await getMediaDevices();
+
+        };
+
 
 
     }, [])
+
+    useEffect(() => {
+        setMicName(selectedDevices.audioInLabel);
+        setCameraName(selectedDevices.videoLabel);
+    }, [selectedDevices]);
 
     // useEffect(() => {
 
@@ -170,90 +191,138 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
         onClose();
     };
 
+    const handleSettingsClick = () => {
+        ui.setIsShowSettings(true);
+    };
+
     useEffect(() => {
         console.log(`JoinRoomPopUpProps conferenceScheduled`, conferenceScheduled);
     }, [conferenceScheduled]);
 
     return (
-        <Modal show={show} centered backdrop="static" keyboard={false} onHide={onClose}>
-            <Modal.Header closeButton>
-                <Modal.Title>
-                    Join Conference Room
+        <Modal show={show} centered backdrop="static" keyboard={false} onHide={onClose} size="lg">
+            <Modal.Header closeButton className="bg-body">
+                <Modal.Title className="d-flex align-items-center justify-content-between w-100">
+                    <div className="d-flex align-items-center">
+                        <DoorOpen className="me-2 text-primary" size={24} />
+                        <span>Join Conference Room</span>
+                    </div>
+                    <Button variant="outline-secondary" size="sm" onClick={handleSettingsClick} disabled={isWaiting}>
+                        <Gear className="me-1" size={14} /> Settings
+                    </Button>
                 </Modal.Title>
             </Modal.Header>
+
             <Modal.Body>
                 <Form>
-                    <Form.Group className="mb-3" controlId="roomName">
-                        <Form.Label>Conference Room Name:</Form.Label> {conferenceScheduled.name}
-                    </Form.Group>
-                    {
-                        requireConfCode ? (
-                            <Form.Group className="mb-3" controlId="conferenceCode">
-                                <Form.Label>Enter Conference Code:</Form.Label>
-                                <Form.Control
-                                    type="text"
-                                    value={conferenceCode}
-                                    onChange={(e) => setConferenceCode(e.target.value)}
-                                    placeholder="e.g., 12345"
-                                    required
-                                    disabled={isWaiting}
-                                />
-                            </Form.Group>
-                        ) : null
-                    }
+                    {/* Room Info Section */}
+                    <div className="mb-4 p-3 bg-body rounded border-start border-primary border-4">
+                        <small className="text-uppercase text-muted fw-bold">Room Name</small>
+                        <h5 className="mb-0">{conferenceScheduled.name}</h5>
+                    </div>
 
-                    {showMicOption ? (
-                        <Form.Group className="mb-3" controlId="micEnabled">
-                            <Form.Check
-                                type="checkbox"
-                                label="Join with Microphone Enabled"
-                                checked={micEnabled}
-                                onChange={(e) => toggleMic(e.target.checked)}
+                    {requireConfCode && (
+                        <Form.Group className="mb-4" controlId="conferenceCode">
+                            <Form.Label className="fw-bold">
+                                <ShieldLock className="me-2" />Access Code
+                            </Form.Label>
+                            <Form.Control
+                                type="text"
+                                className="form-control-lg"
+                                value={conferenceCode}
+                                onChange={(e) => setConferenceCode(e.target.value)}
+                                placeholder="Enter 5-digit code"
+                                required
                                 disabled={isWaiting}
                             />
                         </Form.Group>
-                    ) : null}
+                    )}
 
+                    <hr />
 
-                    {showCameraOption ? (
-                        <Form.Group className="mb-3" controlId="cameraEnabled">
-                            <Form.Check
-                                type="checkbox"
-                                label="Join with Camera Enabled"
-                                checked={cameraEnabled}
-                                onChange={(e) => toggleCamera(e.target.checked)}
-                                disabled={isWaiting}
-                            />
-                        </Form.Group>
-                    ) : null}
-
-                    {/* {
-                        api.isAdmin() || api.isUser() ? ( */}
                     <div className="row">
-                        <div className="col-md-6">
-                            {/* <strong>Local Audio Enabled:</strong> {localParticipant.tracksInfo.isAudioEnabled.toString()}  <br /> */}
-                            <strong>Guests Allow Camera:</strong> {conferenceScheduled.config.guestsAllowCamera.toString()}
+                        {/* Audio Column */}
+                        {showMicOption && (
+                            <div className="col-md-6 mb-3">
+                                <Form.Group controlId="ctlMicEnabled">
+                                    <Form.Check
+                                        type="switch" // Switch looks more modern than checkbox
+                                        id="mic-switch"
+                                        label={micEnabled ? <span><Mic className="me-1" /> Mic On</span> : <span><MicMute className="me-1" /> Mic Off</span>}
+                                        checked={micEnabled}
+                                        onChange={(e) => toggleMic(e.target.checked)}
+                                        disabled={isWaiting}
+                                        className="mb-2"
+                                    />
+                                </Form.Group>
+                                <div className={`p-2 rounded small ${!micName ? 'bg-danger-subtle text-danger' : 'bg-body text-muted border'}`}>
+                                    {!micName ? (
+                                        <><ExclamationTriangle className="me-1" /> No Mic Detected</>
+                                    ) : (
+                                        <><Mic size={12} className="me-1" /> {micName}</>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Video Column */}
+                        {showCameraOption && (
+                            <div className="col-md-6 mb-3">
+                                <Form.Group controlId="cameraEnabled">
+                                    <Form.Check
+                                        type="switch"
+                                        id="camera-switch"
+                                        label={cameraEnabled ? <span><CameraVideo className="me-1" /> Video On</span> : <span><CameraVideoOff className="me-1" /> Video Off</span>}
+                                        checked={cameraEnabled && !!cameraName}
+                                        onChange={(e) => toggleCamera(e.target.checked)}
+                                        disabled={isWaiting || !cameraName}
+                                        className="mb-2"
+                                    />
+                                </Form.Group>
+                                <div className={`p-2 rounded small ${!cameraName ? 'bg-danger-subtle text-danger' : 'bg-body text-muted border'}`}>
+                                    {!cameraName ? (
+                                        <><ExclamationTriangle className="me-1" /> No Camera Detected</>
+                                    ) : (
+                                        <><CameraVideo size={12} className="me-1" /> {cameraName}</>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Guest Permissions Info */}
+                    <div className="mt-4 p-3 border rounded shadow-sm bg-body">
+                        <div className="d-flex align-items-center mb-2">
+                            <InfoCircle className="text-info me-2" />
+                            <span className="fw-bold small text-uppercase text-muted">Room Permissions</span>
                         </div>
-                        <div className="col-md-6">
-                            {/* <strong>Local video Enabled</strong>: {localParticipant.tracksInfo.isVideoEnabled.toString()}  <br /> */}
-                            <strong>Guests Allow Mic:</strong> {conferenceScheduled.config.guestsAllowMic.toString()}
+                        <div className="row g-0 text-center small">
+                            <div className="col border-end">
+                                <div className="text-muted">Guest Camera</div>
+                                <span className={conferenceScheduled.config.guestsAllowCamera ? "text-success" : "text-danger"}>
+                                    {conferenceScheduled.config.guestsAllowCamera ? "Allowed" : "Blocked"}
+                                </span>
+                            </div>
+                            <div className="col">
+                                <div className="text-muted">Guest Mic</div>
+                                <span className={conferenceScheduled.config.guestsAllowMic ? "text-success" : "text-danger"}>
+                                    {conferenceScheduled.config.guestsAllowMic ? "Allowed" : "Blocked"}
+                                </span>
+                            </div>
                         </div>
                     </div>
-                    {/* ) : null
-                    } */}
 
-                    <div className="d-grid gap-2 mt-4"> {/* Added margin-top for spacing */}
-                        <ThrottledButton onClick={handleJoinConf} variant="primary" disabled={isWaiting}>
-                            {isWaiting ? 'Joining...' : 'Join Conference'}
+                    <div className="d-grid gap-2 mt-4">
+                        <ThrottledButton onClick={handleJoinConf} variant="primary" size="lg" disabled={isWaiting}>
+                            {isWaiting ? 'Connecting...' : 'Enter Meeting Room'}
                         </ThrottledButton>
                     </div>
                 </Form>
             </Modal.Body>
-            <Modal.Footer>
-                {/* Only one primary action button is usually needed for form submission.
-                    If you want a separate cancel button, it goes here. */}
-                <Button variant="secondary" onClick={handleCancelClick} disabled={isWaiting}>
-                    Cancel
+
+            <Modal.Footer className="border-0 pt-0">
+                <Button variant="link" className="text-decoration-none text-muted" onClick={handleCancelClick} disabled={isWaiting}>
+                    Cancel and Exit
                 </Button>
             </Modal.Footer>
         </Modal>

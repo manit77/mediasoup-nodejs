@@ -16,6 +16,7 @@ export class Peer {
     room?: Room;
     tracksInfo: PeerTracksInfo = { isAudioEnabled: false, isVideoEnabled: false, isAudioMuted: false, isVideoMuted: false };
     dateCreated = new Date();
+    clientType : "sdp" | "mediasoup" = "mediasoup";
 
     constructor() {
 

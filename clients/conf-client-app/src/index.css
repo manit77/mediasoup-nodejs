@@ -1,126 +1,78 @@
+/* Ensure the root respects the theme colors */
 html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
   
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;  
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
-}
-
-.card-title-bg-orange {
-    background-color: #ff9800;
-    padding: 5px;
-}
-
+/* Update Nav Bar to use variables instead of hardcoded Blue */
 .nav-bar {
-  background-color: #0B5ED7;  
+  background-color: var(--bs-primary); /* Uses Bootstrap primary, which adjusts */
 }
 
-/* App.css */
-:root, .navbar {
-  --bs-navbar-brand-color: #ffffff !important; /* White for testing */
-}
-:root {
-  --bs-border-color: #000000;
+/* Use theme-aware variables for Navbar brand */
+.navbar-brand {
+  color: var(--bs-navbar-active-color) !important;
 }
 
-
+/* List Items: Use Subtle background instead of light gray */
 .list-group-item {
   border-radius: 0.5rem;
-  /* margin-bottom: 0.5rem; */
   padding: 0.5rem;
+  background-color: transparent;
+  color: inherit;
+  border-color: var(--bs-border-color);
   transition: background-color 0.2s ease;
 }
 
 .list-group-item:hover:not(.disabled) {
-  background-color: #f8f9fa;
+  background-color: var(--bs-tertiary-bg); /* Adjusts perfectly in dark mode */
 }
 
+/* Semantic colors that switch based on theme */
 .fw-semibold {
-  color: #212529;
+  color: var(--bs-heading-color); /* Dark in light mode, White in dark mode */
 }
 
 .description {
   font-size: 0.9rem;
-  color: #6c757d;
+  color: var(--bs-secondary-color); /* Grey that adjusts contrast */
   line-height: 1.4;
 }
 
-.badge {
-  font-size: 0.8rem;
-  padding: 0.4rem 0.8rem;
-}
-
-.badge svg {
-  vertical-align: text-bottom;
-}
-
- .call-top-menu {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1030; /* Higher than video but lower than modals/popups */
-  height: 56px; /* default height of Bootstrap Navbar */
-}
-
-.call-screen-content {
-  padding-top: 56px; /* Matches fixed Navbar height */
-}
-
+/* Call Screens */
 .remote-video-container {
   width: 100%;
   height: calc(100vh - 56px);
-  max-width: 100%;
-  max-height: calc(100vh - 56px);
+  background-color: #000; /* Video containers usually stay black */
   overflow: hidden;
 }
-.remote-video-container .participant-preview {
-  margin: 0;
-  border: none;
-}
-.remote-video-container video {
-  width: 100%;
-  height: calc(100% - 32px);
-  object-fit: contain;
-}
-.remote-video-container .video-off-overlay {
-  width: 100%;
-  height: calc(100% - 32px);
-}
-.remote-video-container .participant-overlay {
-  height: 32px;
-}
-.local-pip-container {
-  width: 200px;
-  height: 150px;
-  overflow: hidden;
-}
-.local-pip-container .participant-preview {
-  margin: 0;
-  border: none;
-}
-.local-pip-container video {
-  width: 100%;
-  height: calc(100% - 32px);
-  object-fit: contain;
-}
-.local-pip-container .video-off-overlay {
-  width: 100%;
-  height: calc(100% - 32px);
-}
-.local-pip-container .participant-overlay {
-  height: 32px;
+
+/* Modernized Borders for Dark Mode */
+:root {
+  /* Only override if you want a specific custom border color globally */
+  /* --bs-border-color: var(--bs-border-color-translucent); */
 }
 
 .text-warn {
-    color: #fd7e14 !important; /* Bootstrap's orange-500 */
+    color: var(--bs-warning) !important; /* Uses Bootstrap's theme-aware warning color */
+}
+
+@keyframes metal-drift {
+  0% { background-position: 0 0, 0 0, 0 0, 0 0, 0 0; }
+  100% { background-position: 200px 0, 100px 0, 0 0, 0 0, 0 0; }
+}
+
+@keyframes shine-sweep {
+  0% { transform: translateX(-200%); }
+  100% { transform: translateX(200%); }
 }

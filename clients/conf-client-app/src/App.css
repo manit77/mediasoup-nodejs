@@ -1,42 +1,23 @@
-.App {
-  text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
+/* Use Bootstrap variables instead of hardcoded colors */
 .App-header {
-  background-color: #282c34;
+  background-color: var(--bs-body-bg); /* Automatically dark in dark mode */
+  color: var(--bs-body-color);         /* Automatically light in dark mode */
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: calc(10px + 2vmin);
-  color: white;
 }
 
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
+/* Ensure your full-height containers respect the theme background */
 .full-height {
   height: calc(var(--vh, 1vh) * 100);
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+}
+
+/* Optional: Smooth transition when switching themes */
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

@@ -4,7 +4,7 @@ import {
   ConnectConsumerTransportMsg, ConnectProducerTransportMsg,
   CreateConsumerTransportMsg, CreateProducerTransportMsg,
   ErrorMsg, IMsg, OkMsg, payloadTypeClient, payloadTypeServer, ProducerTransportConnectedMsg, CreateProducerTransportResultMsg,
-  RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeProducerMsg, roomConsumeProducerResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
+  RegisterPeerMsg, RegisterPeerResultMsg, RoomClosedMsg, RoomConfig, RoomConsumeProducerMsg, RoomConsumeProducerResultMsg, RoomJoinMsg, RoomJoinResultMsg, RoomLeaveMsg,
   RoomNewMsg, RoomNewPeerMsg, RoomNewProducerMsg, RoomNewResultMsg, RoomNewTokenMsg, RoomNewTokenResultMsg, RoomPeerLeftMsg,
   PeerMuteTracksMsg,
   PeerTracksInfoMsg,
@@ -225,9 +225,14 @@ export class RoomsClient {
     username: string,
     trackingId: string,
     displayName: string,
-    timeoutSecs: number
+    timeoutSecs: number,
+    clientType?: "sdp" | "mediasoup"
   }): Promise<IMsg> => {
     console.log("waitForRegister");
+
+    if (!args.clientType) {
+      args.clientType = "mediasoup"
+    }
 
     return new Promise<IMsg>((resolve, reject) => {
 
@@ -279,7 +284,7 @@ export class RoomsClient {
           reject("failed to register");
         }, (args.timeoutSecs ?? 30) * 1000);
 
-        let registerSent = this.register({ username: args.username, authToken: args.authToken, trackingId: args.trackingId, displayName: args.displayName });
+        let registerSent = this.register({ ...args });
 
         if (!registerSent) {
           this.ws.removeEventHandler("onmessage", _onmessage);
@@ -476,8 +481,12 @@ export class RoomsClient {
     this.localPeer.authToken = authToken;
   }
 
-  register = (args: { authToken: string, username: string, trackingId: string, displayName: string }) => {
+  register = (args: { authToken: string, username: string, trackingId: string, displayName: string, clientType?: "sdp" | "mediasoup" }) => {
     console.log(`-- register username: ${args.username}, trackingId: ${args.trackingId}, displayName: ${args.displayName}`);
+
+    if (!args.clientType) {
+      args.clientType = "mediasoup";
+    }
 
     if (this.localPeer.peerId) {
       console.error(`-- register, already registered. ${this.localPeer.peerId}`);
@@ -509,7 +518,8 @@ export class RoomsClient {
       username: args.username,
       authToken: args.authToken,
       displayName: this.localPeer.displayName,
-      peerTrackingId: args.trackingId
+      peerTrackingId: args.trackingId,
+      clientType: args.clientType
     }
 
     this.send(msg);
@@ -1449,7 +1459,7 @@ export class RoomsClient {
 
   };
 
-  private onConsumed = async (msgIn: roomConsumeProducerResultMsg) => {
+  private onConsumed = async (msgIn: RoomConsumeProducerResultMsg) => {
     console.log("onConsumed() " + msgIn.data?.kind);
 
     let peer = this.localRoom.peers.get(msgIn.data.peerId);

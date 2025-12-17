@@ -63,7 +63,7 @@ interface CallContextType {
     startScreenShare: () => Promise<boolean>;
     stopScreenShare: () => void;
 
-    getMediaDevices: () => Promise<void>;
+    getMediaDevices: () => Promise<SelectedDevices>;
     switchDevicesOnCall: () => Promise<void>;//, isAudioEnabled: boolean, isVideoEnabled: boolean) => Promise<void>;
 
     disconnect: () => void;
@@ -168,9 +168,14 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 selectedDevices.audioOutLabel = audioOut[0].label;
             }
 
+            return selectedDevices;
+
         } catch (error) {
             console.error('Error enumerating devices:', error);
         }
+
+        return null;
+
     }, [selectedDevices]);
 
     const getMediaConstraints = useCallback((getAudio: boolean, getVideo: boolean): MediaStreamConstraints => {
@@ -373,8 +378,14 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     initState();
 
                     let reason = (msgIn as LoggedOffMsg).data.reason ?? "you have logged off by the server";
-                    ui.showPopUp(reason, "error");
-                    api.logout();
+                    ui.showPopUp(reason, "error", 0, () => {
+                        console.warn("popup clicked");
+                        api.logout();
+                    });
+
+                    //api.logout();
+                    conferenceClient.disconnect();
+                    setIsConnected(false);
 
                     break;
                 }
@@ -410,7 +421,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 case EventTypes.participantNewTrack: {
                     console.warn('CallContext: onParticipantTrack', msgIn);
 
-                    let msg = msgIn as EventParticpantNewTrackMsg;                    
+                    let msg = msgIn as EventParticpantNewTrackMsg;
 
                     if (!msg.data.track) {
                         console.error("CallContext: no track");
@@ -450,7 +461,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                     break;
                 }
-                case EventTypes.inviteCancelled:{
+                case EventTypes.inviteCancelled: {
                     console.log(`CallContext: call was cancelled.`);
 
                     ui.showToast("call was cancelled.", "warning");
@@ -574,6 +585,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             ui.showToast(`invite sent`);
             inviteMsg.data.displayName = participantInfo.displayName;
+            inviteMsg.data.withAudio = joinMediaConfig.isAudioEnabled;
+            inviteMsg.data.withVideo = joinMediaConfig.isVideoEnabled;
+
             setInviteInfoSend(inviteMsg);
 
             console.log(`Call initiated to ${participantInfo.displayName}`);
@@ -633,7 +647,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCallParticipants(new Map());
         setIsScreenSharing(false);
         setPresenter(null);
-        
+
     }, []);
 
     const terminateCurrentConference = useCallback(() => {

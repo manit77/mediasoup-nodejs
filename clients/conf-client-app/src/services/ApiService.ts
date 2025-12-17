@@ -9,7 +9,7 @@ export interface LoginResponse {
 }
 
 class ApiService {
-    clientConfig  = new ClientConfig();
+    clientConfig = new ClientConfig();
     conferenceAPIClient: ConferenceAPIClient;
     conferencesScheduled: ConferenceScheduledInfo[] = [];
     participantsOnline: ParticipantInfo[] = [];
@@ -18,19 +18,20 @@ class ApiService {
 
     onConferencesReceived = (conferences: ConferenceScheduledInfo[]) => { };
     onParticipantsOnlineReceived = (participants: ParticipantInfo[]) => { };
+    onError = (error: string) => { console.error(error) };
 
     init(config: ConferenceClientConfig) {
-        this.conferenceAPIClient = new ConferenceAPIClient(config);        
+        this.conferenceAPIClient = new ConferenceAPIClient(config);
     }
 
-    dispose() {
+    dispose = () => {
         if (this.startFetchGetParticipantsOnlineTimerId) {
             clearInterval(this.startFetchGetParticipantsOnlineTimerId);
         }
         if (this.startFetchConferencesScheduledTimerId) {
             clearInterval(this.startFetchConferencesScheduledTimerId);
         }
-    }
+    };
 
     login = async (username: string, password: string, clientData: {}): Promise<LoginResponse | null> => {
 
@@ -45,16 +46,15 @@ class ApiService {
             }
 
             let loginResult = await this.conferenceAPIClient.login(username, password, clientData);
-            if(!loginResult) {
-                 console.error(`login failed to get response from server.`);
+            if (!loginResult) {
+                this.onError(`login failed to get response from server.`);
                 return {
                     error: `login failed to get response from server.`
                 } as LoginResponse;
-                return;
             }
 
             if (loginResult.error) {
-                console.error(`login failed: ${loginResult.error}`);
+                this.onError(`login failed: ${loginResult.error}`);
                 return {
                     error: loginResult.error
                 } as LoginResponse;
@@ -81,7 +81,7 @@ class ApiService {
 
             return result;
         } catch (err) {
-            console.error(err);
+            this.onError(err);
         }
         return null;
     };
@@ -101,7 +101,7 @@ class ApiService {
             console.log(`loginResult`, loginResult);
 
             if (loginResult.error) {
-                console.error(`login guest failed: ${loginResult.error}`);
+                this.onError(`login guest failed: ${loginResult.error}`);
                 return {
                     error: loginResult.error
                 } as LoginResponse;
@@ -132,7 +132,7 @@ class ApiService {
 
             return result;
         } catch (err) {
-            console.error(err);
+            this.onError(err);
             return null;
         }
     };
@@ -152,7 +152,7 @@ class ApiService {
                 const user = JSON.parse(storedUser) as User;
                 return user;
             } catch (error) {
-                console.error("Failed to parse stored user", error);
+                this.onError("Failed to parse stored user");
             }
         }
         return null;
@@ -164,7 +164,7 @@ class ApiService {
             try {
                 return JSON.parse(str);
             } catch (error) {
-                console.error("Failed to parse client data", error);
+                this.onError(error);
             }
         }
         return null;
@@ -177,11 +177,11 @@ class ApiService {
     async fetchClientConfig(clientData: any): Promise<GetClientConfigResultMsg> {
         let result = await this.conferenceAPIClient.getClientConfig(clientData);
 
-        console.warn("fetchClientConfig", result);        
+        console.warn("fetchClientConfig", result);
         let error = getMsgErorr(result);
-        if(error) {
-            console.error(error);
-            return;            
+        if (error) {
+            this.onError(error);
+            return;
         }
 
         this.clientConfig = result.data.config;
@@ -193,15 +193,19 @@ class ApiService {
             //console.log("ApiService fetchConferencesScheduled, clientData:", this.getClientData());
 
             if (!this.conferenceAPIClient) {
-                console.error(`conferenceAPIClient not initialized.`);
+                this.onError("conferenceAPIClient not initialized");
                 return;
             }
 
             let user = this.getUser();
+            if (!user?.authToken) {
+                this.onError("user is not authenticated.");
+                return;
+            }
             let result = await this.conferenceAPIClient.getParticipantsOnline(user.authToken, user.username, this.getClientData());
 
             if (result.error) {
-                console.error(`ERROR:`, result.error);
+                this.onError(result.error);
                 return this.participantsOnline;
             }
 
@@ -210,7 +214,7 @@ class ApiService {
 
             return this.participantsOnline;
         } catch (err) {
-            console.error(err);
+            this.onError(err);
             return [];
         }
     }
@@ -234,16 +238,22 @@ class ApiService {
             //console.log("ApiService fetchConferencesScheduled, clientData:", this.getClientData());
 
             if (!this.conferenceAPIClient) {
-                console.error(`conferenceAPIClient not initialized.`);
+                this.onError(`conferenceAPIClient not initialized.`);
                 return;
             }
 
             let user = this.getUser();
+
+            if (!user?.authToken) {
+                this.onError("user is not authenticated.");
+                return;
+            }
+
             //get rooms from API
             let result = await this.conferenceAPIClient.getConferencesScheduled(user.authToken, this.getClientData());
 
             if (isMsgErorr(result)) {
-                console.error(`ERROR:`, result?.error ?? "unknown");
+                this.onError(result?.error ?? "unknown");
                 return this.conferencesScheduled;
             }
 
@@ -252,7 +262,7 @@ class ApiService {
 
             return this.conferencesScheduled;
         } catch (err) {
-            console.error(err);
+            this.onError(err);
             return [];
         }
     };

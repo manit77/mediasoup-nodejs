@@ -249,6 +249,8 @@ export class InviteMsg extends BaseMsg {
         conferenceName?: string,
         conferenceExternalId?: string,
         conferenceType?: conferenceType,
+        withAudio? : boolean,
+        withVideo?: boolean
     } = {};
 }
 

@@ -1,0 +1,93 @@
+/* CallTopMenu.module.css */
+
+.glassNav {
+    background: rgba(15, 15, 15, 0.85) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: background 0.3s ease;
+}
+
+.brandText {
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: -0.02em;
+}
+
+.statusIndicator {
+    width: 8px;
+    height: 8px;
+    background-color: #2ecc71;
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(46, 204, 113, 0.6);
+}
+
+.controlBtn {
+    border-radius: 10px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.controlBtn:hover {
+    transform: translateY(-1px);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.pulseRed {
+    animation: pulse 2s infinite;
+    background-color: #dc3545 !important;
+    border: none;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.5); }
+    70% { box-shadow: 0 0 0 8px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+
+/* Customizing the Bootstrap Dropdown Menu */
+.dropdownMenu {
+    background-color: #1a1a1a !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+    margin-top: 10px !important;
+}
+
+/* The 'Close' or 'End for All' button - Bold and Urgent */
+.btnEndAll {
+    background-color: #dc3545 !important;
+    border: none !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+}
+
+.btnEndAll:hover {
+    background-color: #bb2d3b !important;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 15px rgba(220, 53, 69, 0.3);
+}
+
+/* The 'Leave' button - Subtle and Sleek */
+.btnLeave {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #f8f9fa !important;
+}
+
+.btnLeave:hover {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    color: #ffffff !important;
+}
+
+/* Red icon for the Leave button to keep the 'exit' intent clear */
+.leaveIcon {
+    color: #ff6b6b;
+}
