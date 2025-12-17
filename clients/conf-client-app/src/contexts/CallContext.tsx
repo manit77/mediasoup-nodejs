@@ -63,7 +63,7 @@ interface CallContextType {
     startScreenShare: () => Promise<boolean>;
     stopScreenShare: () => void;
 
-    getMediaDevices: () => Promise<void>;
+    getMediaDevices: () => Promise<SelectedDevices>;
     switchDevicesOnCall: () => Promise<void>;//, isAudioEnabled: boolean, isVideoEnabled: boolean) => Promise<void>;
 
     disconnect: () => void;
@@ -168,9 +168,14 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 selectedDevices.audioOutLabel = audioOut[0].label;
             }
 
+            return selectedDevices;
+
         } catch (error) {
             console.error('Error enumerating devices:', error);
         }
+
+        return null;
+
     }, [selectedDevices]);
 
     const getMediaConstraints = useCallback((getAudio: boolean, getVideo: boolean): MediaStreamConstraints => {

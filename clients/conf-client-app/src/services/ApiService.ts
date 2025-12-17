@@ -24,14 +24,14 @@ class ApiService {
         this.conferenceAPIClient = new ConferenceAPIClient(config);
     }
 
-    dispose() {
+    dispose = () => {
         if (this.startFetchGetParticipantsOnlineTimerId) {
             clearInterval(this.startFetchGetParticipantsOnlineTimerId);
         }
         if (this.startFetchConferencesScheduledTimerId) {
             clearInterval(this.startFetchConferencesScheduledTimerId);
         }
-    }
+    };
 
     login = async (username: string, password: string, clientData: {}): Promise<LoginResponse | null> => {
 

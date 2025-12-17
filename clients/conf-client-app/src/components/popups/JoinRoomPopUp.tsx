@@ -18,7 +18,7 @@ interface JoinRoomPopUpProps {
 const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show, onClose }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, getLocalMedia, isWaiting } = useCall();
+    const { localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, availableDevices, selectedDevices, setSelectedDevices, getMediaDevices, getLocalMedia, isWaiting } = useCall();
     const navigate = useNavigate();
 
     const [conferenceCode, setConferenceCode] = useState<string>("");
@@ -28,6 +28,9 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
     const [cameraEnabled, setCameraEnabled] = useState<boolean>(true); // Default to true
     const [showMicOption, setShowMicOption] = useState<boolean>(true); // Default to true
     const [showCameraOption, setShowCameraOption] = useState<boolean>(true); // Default to true
+
+    const [micName, setMicName] = useState<string>(selectedDevices.audioInLabel);
+    const [cameraName, setCameraName] = useState<string>(selectedDevices.videoLabel);
 
     useEffect(() => {
 
@@ -92,12 +95,23 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             localParticipant.tracksInfo.isVideoEnabled = false;
         }
 
-        //get the stream here for browser permissions issues
-        //certain browsers tie permissions to a click
-       getBrowserUserMedia(getMediaConstraints(true, true));
+        let __getDevices = async () => {
+            //get the stream here for browser permissions issues
+            //certain browsers tie permissions to a click
+            let tempStream = await getBrowserUserMedia(getMediaConstraints(true, true));
+
+            let devices = await getMediaDevices();
+
+        };
+
 
 
     }, [])
+
+    useEffect(() => {
+        setMicName(selectedDevices.audioInLabel);
+        setCameraName(selectedDevices.videoLabel);
+    }, [selectedDevices]);
 
     // useEffect(() => {
 
@@ -170,6 +184,10 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
         onClose();
     };
 
+    const handleSettingsClick = () => {
+        ui.setIsShowSettings(true);
+    };
+
     useEffect(() => {
         console.log(`JoinRoomPopUpProps conferenceScheduled`, conferenceScheduled);
     }, [conferenceScheduled]);
@@ -185,6 +203,9 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                 <Form>
                     <Form.Group className="mb-3" controlId="roomName">
                         <Form.Label>Conference Room Name:</Form.Label> {conferenceScheduled.name}
+                        <Button variant="secondary" onClick={handleSettingsClick} disabled={isWaiting}>
+                            Device Settings
+                        </Button>
                     </Form.Group>
                     {
                         requireConfCode ? (
@@ -203,28 +224,40 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                     }
 
                     {showMicOption ? (
-                        <Form.Group className="mb-3" controlId="micEnabled">
-                            <Form.Check
-                                type="checkbox"
-                                label="Join with Microphone Enabled"
-                                checked={micEnabled}
-                                onChange={(e) => toggleMic(e.target.checked)}
-                                disabled={isWaiting}
-                            />
-                        </Form.Group>
+                        <>
+                            <Form.Group className="mb-3" controlId="ctlMicEnabled">
+                                <Form.Check
+                                    id="ctlMicEnabled"
+                                    type="checkbox"
+                                    label="Join with Microphone Enabled"
+                                    checked={micEnabled}
+                                    onChange={(e) => toggleMic(e.target.checked)}
+                                    disabled={isWaiting}
+                                />
+                            </Form.Group>
+
+                            <Form.Group className="mb-3" controlId="ctlMicList">
+                                {micName ?? "ERROR: mic not found"}
+                            </Form.Group>
+                        </>
                     ) : null}
 
 
                     {showCameraOption ? (
-                        <Form.Group className="mb-3" controlId="cameraEnabled">
-                            <Form.Check
-                                type="checkbox"
-                                label="Join with Camera Enabled"
-                                checked={cameraEnabled}
-                                onChange={(e) => toggleCamera(e.target.checked)}
-                                disabled={isWaiting}
-                            />
-                        </Form.Group>
+                        <>
+                            <Form.Group className="mb-3" controlId="cameraEnabled">
+                                <Form.Check
+                                    type="checkbox"
+                                    label="Join with Camera Enabled"
+                                    checked={cameraEnabled}
+                                    onChange={(e) => toggleCamera(e.target.checked)}
+                                    disabled={isWaiting}
+                                />
+                            </Form.Group>
+                            <Form.Group className="mb-3" controlId="ctlMicList">
+                                {cameraName ?? "ERROR: no camera found."}
+                            </Form.Group>
+                        </>
                     ) : null}
 
                     {/* {

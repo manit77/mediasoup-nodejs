@@ -2,6 +2,7 @@ import React, { createContext, useState, useRef, useCallback, useMemo } from 're
 import { Modal, Button } from 'react-bootstrap';
 import { CheckCircleFill, ExclamationCircleFill, ExclamationTriangleFill } from 'react-bootstrap-icons';
 import "./UIContext.css";
+import SettingsPopup from '../components/popups/SettingsPopup';
 
 export type AlertType = 'normal' | 'error' | 'warning';
 
@@ -9,9 +10,11 @@ export interface UIContextType {
   hidePopUp: () => void;
   showPopUp: (message: string, type?: AlertType, durationSec?: number, okFunc?: () => void) => void;
   showToast: (message: string, type?: AlertType, durationSec?: number) => void;
+  isShowSettings: boolean;
+  setIsShowSettings: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export const UIContext = createContext<UIContextType | undefined>(undefined);
+export const UIContext = createContext<UIContextType>(undefined);
 
 interface Toast {
   id: number;
@@ -71,13 +74,15 @@ const PopupMessage: React.FC<PopupMessageProps> = ({ show, message, handleClose,
 export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
   const [popup, setPopup] = useState<{ message: string; type: AlertType } | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [isShowSettings, setIsShowSettings] = useState(false);
+
   const toastIdRef = useRef(0);
   let popUpOnCloseFunc: () => void = null;
 
   const hidePopUp = useCallback(() => {
 
     setPopup(null);
-    
+
     if (popUpOnCloseFunc) {
       popUpOnCloseFunc();
     }
@@ -100,21 +105,22 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
   const showToast = useCallback((message: string, type: AlertType = 'normal', durationSec: number = 5) => {
 
     const id = toastIdRef.current++;
-    
+
     setToasts((prev) => [...prev, { id, message, type }]);
-    
+
     if (durationSec > 0) {
       setTimeout(() => { setToasts((prev) => prev.filter((t) => t.id !== id)); }, durationSec * 1000);
     }
 
   }, []);
 
-  const contextValue = useMemo(() => ({ showPopUp, showToast, hidePopUp }), [showPopUp, showToast, hidePopUp]);
+  const contextValue = useMemo(() => ({ showPopUp, showToast, hidePopUp, isShowSettings, setIsShowSettings}), [showPopUp, showToast, hidePopUp, isShowSettings, setIsShowSettings]);
 
   return (
     <UIContext.Provider value={contextValue}>
       {children}
       <PopupMessage show={popup !== null} handleClose={hidePopUp} message={popup?.message} type={popup?.type} />
+     
       <div className="toast-container">
         {toasts.map((toast) => (
           <div

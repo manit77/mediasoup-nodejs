@@ -73,18 +73,28 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         initMedia();
     }, [show, selectedDevices]);
 
-    const handleDeviceChange = (type: 'video' | 'audioIn' | 'audioOut', deviceId: string) => {
+    const handleDeviceChange = (type: 'video' | 'audioIn' | 'audioOut', deviceId: string, deviceName: string) => {
+        console.log(`handleDeviceChange type=${type} deviceId=${deviceId} deviceName=${deviceName}`);
+
         if (type === "video") {
+            
             setVideoId(deviceId);
             selectedDevices.videoId = deviceId;
+            selectedDevices.videoLabel = deviceName;
+
         } else if (type === "audioIn") {
+            
             setAudioId(deviceId);
             selectedDevices.audioInId = deviceId;
+            selectedDevices.audioInLabel = deviceName
+            
             stopAudioMeter();
             startAudioMeter(deviceId); // restart meter with new mic
+
         } else {
             //setSpeakerId(deviceId);
             selectedDevices.audioOutId = deviceId;
+            selectedDevices.audioOutLabel = deviceName;
         }
     };
 
@@ -217,7 +227,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                             title='Select Microphone'
                                             aria-label="Select Microphone"
                                             value={audioId || ""}
-                                            onChange={(e) => handleDeviceChange('audioIn', e.target.value)}
+                                            onChange={(e) => handleDeviceChange('audioIn', e.target.value, e.target.selectedOptions[0].text)}
                                             className="mb-3"
                                         >
                                             {availableDevices.audioIn.map(device => (
@@ -263,7 +273,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                             title="Select Camera"
                                             aria-label="Select Camera"
                                             value={videoId || ""}
-                                            onChange={(e) => handleDeviceChange('video', e.target.value)}
+                                            onChange={(e) => handleDeviceChange('video', e.target.value, e.target.selectedOptions[0].text)}
                                             className="mb-3"
                                         >
                                             {availableDevices.video.map(device => (
