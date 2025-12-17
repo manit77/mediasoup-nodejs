@@ -1,7 +1,6 @@
 import * as MsSdpUtils from "mediasoup-client/handlers/sdp/commonUtils";
 import { RemoteSdp } from "mediasoup-client/handlers/sdp/RemoteSdp";
 import type { IceCandidate as ClientIceCandidate } from "mediasoup-client/types";
-
 import {
     Consumer,
     MediaKind,
@@ -10,17 +9,11 @@ import {
     RtpParameters,
     WebRtcTransport,
 } from "mediasoup/types";
-
 import * as SdpTransform from "sdp-transform";
 import type { MediaDescription } from "sdp-transform";
 import { randomUUID } from "node:crypto";
-import debug from "debug";
-
 import * as BrowserRtpCapabilities from "./BrowserRtpCapabilities.js";
 import * as SdpUtils from "./SdpUtils.js";
-
-const logger = debug("mediasoup-sdp-bridge:SdpEndpoint");
-const loggerWarn = logger.extend("WARN");
 
 export class SdpEndpoint {
 
@@ -41,21 +34,18 @@ export class SdpEndpoint {
     }
     
     /**
-     * client >> offer >> server
+     * client >> add tracks >> [offer] >> server >> answer
      * client wants to publish tracks
      * @param sdpOffer 
      * @returns 
      */
     public async processOffer(sdpOffer: string): Promise<Producer[]> {
-
         console.warn("processOffer dtlsState", this.webRtcTransport.dtlsState);
 
         this.remoteSdp = sdpOffer;
         // Parse the SDP message text into an object.
         const remoteSdpObj = SdpTransform.parse(sdpOffer);
-
-        // sdp-transform bug #94: Type inconsistency in payloads
-        // https://github.com/clux/sdp-transform/issues/94
+       
         // Force "payloads" to be a string field.
         for (const media of remoteSdpObj.media) {
             media.payloads = `${media.payloads}`;
@@ -123,7 +113,7 @@ export class SdpEndpoint {
             this.producerOfferParams.push(rtpParameters);
             newProducers.push(producer);
 
-            logger(`[SdpEndpoint.processOffer] mediasoup Producer created, kind: ${producer.kind}, type: ${producer.type}, paused: ${producer.paused}`);
+            console.log(`mediasoup Producer created, kind: ${producer.kind}, type: ${producer.type}, paused: ${producer.paused}`);
             mediaKinds.add(mediaKind);
         }
 
@@ -131,19 +121,18 @@ export class SdpEndpoint {
     }
 
     /**
-     * server >> answer >> client
+     * server >> [answer] >> client
      * @returns 
      */
     public createAnswer(): string {
-
+        console.warn("createAnswer dtlsState", this.webRtcTransport.dtlsState);
+                
         const sdpBuilder: RemoteSdp = new RemoteSdp({
             iceParameters: this.webRtcTransport.iceParameters,
             iceCandidates: this.webRtcTransport.iceCandidates as ClientIceCandidate[],
             dtlsParameters: this.webRtcTransport.dtlsParameters,
             sctpParameters: this.webRtcTransport.sctpParameters,
-        });
-
-        logger("[SdpEndpoint.createAnswer] Make 'recvonly' SDP Answer");
+        });        
 
         let producersArr = [...this.producers.values()];
         for (let i = 0; i < this.producers.size; i++) {
@@ -167,6 +156,7 @@ export class SdpEndpoint {
     }
 
     /**
+     * server >> [offer] >> client
      * creates offer to send to client
      * client will receive tracks
      * @returns 
@@ -183,7 +173,6 @@ export class SdpEndpoint {
         // Make an MSID to be used for both "audio" and "video" kinds.
         const sendMsid = randomUUID().replace(/-/g, "").slice(0, 8);
 
-        logger("[SdpEndpoint.createOffer] Make 'sendonly' SDP Offer");
         let consumersArr = [...this.consumers.values()];
         for (let i = 0; i < this.consumers.size; i++) {
             const mid = consumersArr[i].rtpParameters.mid ?? "nomid";
@@ -206,16 +195,16 @@ export class SdpEndpoint {
     }
 
     /**
-     * server >> offer >> client >> answer >> server 
+     * server >> offer >> client >> [answer] >> server 
      * client receives new tracks
      * process the answer from the client
      * @param sdpAnswer 
      */
     public async processAnswer(sdpAnswer: string): Promise<void> {
-
         this.remoteSdp = sdpAnswer;
         const remoteSdpObj = SdpTransform.parse(sdpAnswer);
 
+        //connect only once
         if (["new", "failed", "closed"].includes(this.webRtcTransport.dtlsState)) {
             let dtlsParameters = MsSdpUtils.extractDtlsParameters({ sdpObject: remoteSdpObj });
             await this.webRtcTransport.connect({ dtlsParameters });
