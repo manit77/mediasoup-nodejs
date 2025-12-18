@@ -10,7 +10,9 @@ import {
     //NotRegisteredMsg,
     UnauthorizedMsg,
     TerminateConfMsg,
-    ConferenceConfig
+    ConferenceConfig,
+    JoinConferenceLobbyParams,
+    JoinConfLobbyResultMsg
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
@@ -1016,6 +1018,67 @@ export class ConferenceClient {
                 console.log(err);
                 _removeEvents();
                 reject("erorr on creating conference room");
+            }
+        });
+    }
+
+    waitJoinConferenceLobby(args: JoinConferenceLobbyParams) {
+        console.log(`waitJoinConferenceLobby trackingId: ${args.conferenceId}, conferenceCode: ${args.conferenceCode}`);
+
+        return new Promise<JoinConfResultMsg>((resolve, reject) => {
+
+            if (!this.isRegistered()) {
+                console.error(`connection not registered.`);
+                reject(`connection not registered.`);
+            }
+
+            if (!args.externalId) {
+                console.error("createArgs externalId is required.");
+                reject(`externalId is required.`);
+            }
+
+            let _onmessage: (event: any) => void;
+
+            let _removeEvents = () => {
+                if (_onmessage) {
+                    this.socket.removeEventHandler("onmessage", _onmessage);
+                }
+            }
+
+            try {
+                let timerid = setTimeout(() => {
+                    _removeEvents();
+                    reject("failed to join conference");
+                }, 5000);
+
+                _onmessage = (event: any) => {
+                    console.log("** onmessage", event.data);
+                    let msg = JSON.parse(event.data);
+
+                    if (msg.type == CallMessageType.joinConfLobbyResult) {
+                        clearTimeout(timerid);
+                        _removeEvents();
+
+                        let msgIn = msg as JoinConfLobbyResultMsg;
+
+                        if (msgIn.error) {
+                            console.log(msgIn.error);
+                            reject("failed to join conference");
+                            return;
+                        }
+                        resolve(msgIn);
+                    }
+                };
+
+                this.socket.addEventHandler("onmessage", _onmessage);
+                // if (!this.joinConferenceRoomLobby(args)) {
+                //     reject(`failed to send joinConferenceRoomLobby`);
+                // }
+
+            } catch (err: any) {
+                console.log(err);
+                _removeEvents();
+                reject("failed to join room lobby");
             }
         });
     }

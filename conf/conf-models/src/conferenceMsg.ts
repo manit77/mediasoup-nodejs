@@ -17,6 +17,8 @@ export const CallMessageType = {
     createConfResult: "createConfResult",
     joinConf: "joinConf",
     joinConfResult: "joinConfResult",
+    joinConfLobby: "joinConfLobby",
+    joinConfLobbyResult: "joinConfLobbyResult",
     terminateConf: "terminateConf",
 
     invite: "invite", //invite to join room
@@ -70,7 +72,7 @@ export function isMsgErorr(msg: IMsg) {
     }
 
     //msg must contain a type
-    if(!msg.type) {
+    if (!msg.type) {
         return true;
     }
 
@@ -85,7 +87,7 @@ export function getMsgErorr(msg: IMsg) {
         return "unknown";
     }
 
-    if(!msg.type) {
+    if (!msg.type) {
         return "invalid msg type";
     }
 
@@ -223,12 +225,32 @@ export class JoinConfMsg extends BaseMsg {
     data?: {
         conferenceId?: string,
         conferenceCode?: string,
-        externalId?: string
+        externalId?: string,
+        ticket?: string
     } = {
             conferenceId: "",
             conferenceCode: "",
-            externalId: ""
+            externalId: "",
+            ticket: ""
         }
+}
+
+export class JoinConfLobbyMsg extends BaseMsg {
+    type = CallMessageType.joinConfLobby;
+    data?: {
+        conferenceId?: string,
+        conferenceCode?: string,
+        externalId?: string
+    } = {};
+}
+
+export class JoinConfLobbyResultMsg extends BaseMsg {
+    type = CallMessageType.joinConfLobbyResult;
+    data?: {
+        conferenceId?: string,
+        ticket?: string,
+        error?: string,
+    } = {};
 }
 
 export class JoinConfResultMsg extends BaseMsg {
@@ -249,7 +271,7 @@ export class InviteMsg extends BaseMsg {
         conferenceName?: string,
         conferenceExternalId?: string,
         conferenceType?: conferenceType,
-        withAudio? : boolean,
+        withAudio?: boolean,
         withVideo?: boolean
     } = {};
 }

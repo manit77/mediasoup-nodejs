@@ -48,7 +48,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { config } = useConfig();
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceScheduledInfo[]>(apiService.conferencesScheduled);
     const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>(apiService.participantsOnline);
@@ -174,6 +174,8 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 
     useEffect(() => {
+        setIsLoading(true);
+
         const user = apiService.getUser();
         const loggedIn = Boolean(user);
         setIsAuthenticated(loggedIn);
@@ -181,6 +183,8 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (loggedIn) {
             setUpConnections();
         }
+        setIsLoading(false);
+
     }, [isAuthenticated]);
 
     const value = useMemo(() => ({

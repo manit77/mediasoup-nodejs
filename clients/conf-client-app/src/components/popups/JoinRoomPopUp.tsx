@@ -314,7 +314,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
                     <div className="d-grid gap-2 mt-4">
                         <ThrottledButton onClick={handleJoinConf} variant="primary" size="lg" disabled={isWaiting}>
-                            {isWaiting ? 'Connecting...' : 'Enter Meeting Room'}
+                            {isWaiting ? 'Connecting...' : 'Enter Room'}
                         </ThrottledButton>
                     </div>
                 </Form>
@@ -322,7 +322,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
             <Modal.Footer className="border-0 pt-0">
                 <Button variant="link" className="text-decoration-none text-muted" onClick={handleCancelClick} disabled={isWaiting}>
-                    Cancel and Exit
+                    Cancel
                 </Button>
             </Modal.Footer>
         </Modal>

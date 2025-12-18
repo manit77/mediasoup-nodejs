@@ -7,6 +7,7 @@ import { useAPI } from "../../hooks/useAPI";
 import { useCall } from "../../hooks/useCall";
 import { useUI } from "../../hooks/useUI";
 import ThrottledButton from "../layout/ThrottledButton";
+import styles from './ParticipantVideoPreview.module.css';
 
 interface ParticipantVideoPreviewProps {
     participant: Participant;
@@ -278,100 +279,47 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
 
     return (
         <Card
-            onClick={() => {
-                //toggleFullscreen(videoContainerRef.current); 
-            }}
-            //onClick={() => { onClick(participant); }}
-            className={`participant-preview`}
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                background: '#333',
-                minHeight: "160px",
-                ...style,
-            }}
+            className={`${styles.participantCard} participant-preview`}
+            style={style} // Keep external style prop for dynamic positioning
         >
             {/* Video section */}
-            <div
-                style={{
-                    flex: 1,
-                    position: 'relative',
-                    width: '100%',
-                    overflow: 'hidden',
-                    justifyContent: "center",
-                }}
-            >
+            <div className={styles.videoSection}>
                 <div
                     ref={videoContainerRef}
-                    style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                    }}
+                    className={styles.videoContainer}
                 />
 
                 {!videoEnabled && (
-                    <div
-                        className="d-flex align-items-center justify-content-center"
-                        style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            background: '#444',
-                        }}
-                    >
+                    <div className={styles.videoOffPlaceholder}>
                         {participant === localParticipant ? "your" : `${participant.displayName}'s`} video is off
-                        <CameraVideoOffFill size={30} />
+                        <CameraVideoOffFill size={30} className="ms-2" />
                     </div>
                 )}
             </div>
 
             {/* Name + controls below video */}
-            <div
-                className="bg-dark bg-opacity-50 text-white px-2 py-1"
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '5px',
-                    whiteSpace: 'nowrap',      // prevent wrapping
-                    overflow: 'hidden',        // hide overflow
-                }}
-            >
-                <small
-                    style={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        flexShrink: 1, // allow name to shrink instead of wrapping
-                    }}
-                >
+            <div className={styles.controlsBar}>
+                <small className={styles.nameText}>
                     {participant.displayName}{" "}
                     {localParticipant.participantId === participant.participantId && '(You)'}
                 </small>
-                <div style={{ flexShrink: 0 }}> {/* keep buttons together */}
+                
+                <div className={styles.buttonGroup}>
                     <ThrottledButton
                         onClick={onAudioClick}
-                        style={{ backgroundColor: '#444', borderColor: '#444', margin: '3px' }}
+                        className={`${styles.throttledBtn} ${styles.audioBtn}`}
                     >
                         {audioEnabled ? <MicFill color="lightgreen" /> : <MicMuteFill color="red" />}
                     </ThrottledButton>
+                    
                     <ThrottledButton
                         onClick={onVideoClick}
-                        style={{ backgroundColor: '#444', borderColor: '#444' }}
+                        className={styles.throttledBtn}
                     >
                         {videoEnabled ? <CameraVideoFill color="lightgreen" /> : <CameraVideoOffFill color="red" />}
                     </ThrottledButton>
                 </div>
             </div>
-
         </Card>
 
     );

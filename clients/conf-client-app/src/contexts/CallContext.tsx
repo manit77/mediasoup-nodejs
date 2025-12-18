@@ -1,5 +1,5 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
-import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, GetUserMediaConfig, InviteMsg, JoinConferenceParams, LoggedOffMsg, ParticipantInfo } from '@conf/conf-models';
+import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, GetUserMediaConfig, InviteMsg, JoinConferenceLobbyParams, JoinConferenceParams, LoggedOffMsg, ParticipantInfo } from '@conf/conf-models';
 import { Conference, Device, getBrowserDisplayMedia, getBrowserUserMedia, Participant, SelectedDevices } from '@conf/conf-client';
 import { useUI } from '../hooks/useUI';
 import { useAPI } from '../hooks/useAPI';
@@ -46,6 +46,7 @@ interface CallContextType {
     createConference: (externalId: string, roomName: string) => void;
     joinConference: (conferenceCode: string, scheduled: ConferenceScheduledInfo, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
     createOrJoinConference: (externalId: string, conferenceCode: string, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
+    joinConferenceLobby: (conferenceId: string, conferenceCode: string) => Promise<void>;
 
     sendInvite: (participantInfo: ParticipantInfo, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
     acceptInvite: (joinMediaConfig: GetUserMediaConfig) => Promise<void>;
@@ -683,6 +684,29 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [ui]);
 
+    const joinConferenceLobby = useCallback(async (conferenceId: string, conferenceCode: string) => {
+        console.log("CallContext: joinConferenceLobby");
+        let clientData = api.getCurrentUser()?.clientData ?? {};
+
+        if (!await waitTryRegister()) {
+            console.error('wait for registration failed.');
+            return;
+        }
+
+        let joinArgs: JoinConferenceLobbyParams = {
+            clientData: clientData,
+            conferenceId: conferenceId,
+            conferenceCode: conferenceCode,
+            externalId: "",
+        };
+       
+        if (await conferenceClient.waitJoinConferenceLobby(joinArgs)) {
+            ui.showToast("joining conference lobby");
+        } else {
+            ui.showPopUp("join conference lobby failed.");
+        }
+    }, [api, ui]);
+
     const joinConference = useCallback(async (conferenceCode: string, scheduled: ConferenceScheduledInfo, joinMediaConfig: GetUserMediaConfig) => {
         console.log("CallContext: joinConference");
 
@@ -1040,6 +1064,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             createConference,
             joinConference,
             createOrJoinConference,
+            joinConferenceLobby,
 
             sendInvite,
             acceptInvite,
