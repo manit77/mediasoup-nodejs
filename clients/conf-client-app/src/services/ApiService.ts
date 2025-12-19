@@ -249,7 +249,7 @@ class ApiService {
                 return;
             }
 
-            //get rooms from API
+            //get conference rooms from API
             let result = await this.conferenceAPIClient.getConferencesScheduled(user.authToken, this.getClientData());
 
             if (isMsgErorr(result)) {
@@ -264,6 +264,36 @@ class ApiService {
         } catch (err) {
             this.onError(err);
             return [];
+        }
+    };
+
+    fetchConferenceScheduled = async (trackingId: string): Promise<ConferenceScheduledInfo> => {
+        try {
+            console.log("ApiService fetchConferenceScheduled, clientData:", this.getClientData());
+
+            if (!this.conferenceAPIClient) {
+                this.onError(`conferenceAPIClient not initialized.`);
+                return;
+            }
+
+            let user = this.getUser();
+
+            if (!user?.authToken) {
+                this.onError("user is not authenticated.");
+                return;
+            }
+            
+            let result = await this.conferenceAPIClient.getConferenceScheduled(user.authToken, trackingId, this.getClientData());
+
+            if (isMsgErorr(result)) {
+                this.onError(result?.error ?? "unknown");
+                return null
+            }
+
+            return result.data.conference
+        } catch (err) {
+            this.onError(err);
+            return null;
         }
     };
 

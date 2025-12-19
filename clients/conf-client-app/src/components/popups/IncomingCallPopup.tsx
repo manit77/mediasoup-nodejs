@@ -4,7 +4,7 @@ import { useCall } from '../../hooks/useCall';
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../hooks/useUI';
 import { GetUserMediaConfig } from '@conf/conf-models';
-import ThrottledButton from '../layout/ThrottledButton';
+import ThrottledButton from '../ui/ThrottledButton';
 import { getConferenceConfig } from '../../services/ConferenceConfig';
 import { TelephoneInboundFill, CameraVideoFill, MicFill, XCircleFill } from 'react-bootstrap-icons';
 

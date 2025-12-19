@@ -29,10 +29,17 @@ const LoginGuestPage: React.FC = () => {
     const [configError, setConfigError] = useState("");
     const [postData, setPostData] = useState<any>(null);
 
-
     useEffect(() => {
         console.log("getQueryParams:", getQueryParams());
+
         let query = getQueryParams() ?? {};
+
+        //reset login state if query params exist
+        if (Object.keys(query).length > 0) {
+            api.logout();
+            api.clearClientData();
+        }
+
         let clientData: any = api.getClientData() ?? {};
 
         let _participantGroup = "";
@@ -183,7 +190,7 @@ const LoginGuestPage: React.FC = () => {
     return (
         <Container className="d-flex flex-column align-items-center justify-content-center bg-body text-body" style={{ minHeight: '100vh' }}>
             <div className="text-center mb-4">
-                <h1 className="fw-bold text-primary display-5">{participantGroupName}</h1>               
+                <h1 className="fw-bold text-primary display-5">{participantGroupName}</h1>
             </div>
 
             <Card className="shadow-lg border-0" style={{ width: '400px', overflow: 'hidden' }}>
@@ -203,7 +210,7 @@ const LoginGuestPage: React.FC = () => {
                                 <div className="bg-primary-subtle d-inline-block p-3 rounded-circle mb-3">
                                     <DoorOpenFill size={32} className="text-primary" />
                                 </div>
-                                <Card.Title className="h4 fw-bold">Guest Login</Card.Title>                               
+                                <Card.Title className="h4 fw-bold">Guest Login</Card.Title>
                             </div>
 
                             {error && (
@@ -214,7 +221,7 @@ const LoginGuestPage: React.FC = () => {
 
                             <Form onSubmit={handleSubmitGuest}>
                                 <Form.Group className="mb-3" controlId="username">
-                                    <Form.Label className="small fw-bold text-muted">Your Display Name</Form.Label>
+                                    <Form.Label className="small fw-bold text-muted">Username</Form.Label>
                                     <div className="input-group">
                                         <span className="input-group-text bg-transparent">
                                             <Person className="text-muted" />
@@ -223,7 +230,7 @@ const LoginGuestPage: React.FC = () => {
                                             type="text"
                                             value={userName}
                                             onChange={(e) => setUserName(e.target.value)}
-                                            placeholder="e.g. John Doe"
+                                            placeholder=""
                                             required
                                             disabled={loading || !allowEntry}
                                             className={!allowEntry ? "bg-body-secondary" : ""}
@@ -267,7 +274,7 @@ const LoginGuestPage: React.FC = () => {
 
                 {/* Footer for extra context */}
                 <div className="bg-body-tertiary p-3 border-top text-center">
-                    <small className="text-muted d-block mb-1">By joining, you agree to the room terms.</small>                    
+                    <small className="text-muted d-block mb-1">By joining, you agree to the room terms.</small>
                 </div>
             </Card>
         </Container>

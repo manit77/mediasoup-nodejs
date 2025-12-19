@@ -6,7 +6,7 @@ import { conferenceClient } from "../../contexts/CallContext";
 import { useAPI } from "../../hooks/useAPI";
 import { useCall } from "../../hooks/useCall";
 import { useUI } from "../../hooks/useUI";
-import ThrottledButton from "../layout/ThrottledButton";
+import ThrottledButton from "../ui/ThrottledButton";
 import styles from './ParticipantVideoPreview.module.css';
 
 interface ParticipantVideoPreviewProps {

@@ -12,7 +12,7 @@ import { useLocation } from 'react-router-dom';
 import { getConferenceClient } from './services/ConferenceService';
 import LoginGuestPage from './components/auth/LoginGuestPage';
 import LogoutPage from './components/auth/LogoutPage';
-import RoomLobby from './components/call/RoomLobby';
+import RoomLobby from './components/layout/RoomLobby';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAPI();
@@ -48,7 +48,7 @@ const AppRoutes: React.FC = () => {
           ) : (
             <>
               <Route path="/app" element={<AuthenticatedLayout />} />
-              <Route path="/lobby/:roomId" element={<RoomLobby />} />
+              <Route path="/lobby/:trackingId" element={<RoomLobby />} />
               <Route path="/" element={<Navigate to="/app" replace />} />
             </>
           )}

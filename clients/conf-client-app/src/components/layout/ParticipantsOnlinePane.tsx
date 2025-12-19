@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useCall } from '../../hooks/useCall';
 import { GetUserMediaConfig, ParticipantInfo } from '@conf/conf-models';
-import ThrottledButton from './ThrottledButton';
+import ThrottledButton from '../ui/ThrottledButton';
 import { useUI } from '../../hooks/useUI';
 import { useAPI } from '../../hooks/useAPI';
 import { ArrowRepeat, MicFill, CameraVideoFill, CircleFill, Circle, PersonCircle } from 'react-bootstrap-icons';
@@ -135,7 +135,7 @@ const ParticipantsOnlinePane: React.FC = () => {
                                             style={{ width: "40px", height: "40px" }}
                                         >
                                             <MicFill size={18} />
-                                        </ThrottledButton>
+                                        </ThrottledButton> 
 
                                         <ThrottledButton
                                             variant="link"

@@ -29,6 +29,7 @@ interface APIContextType {
     login: (username: string, password: string, clientData: {}) => Promise<LoginResponse>;
     logout: () => {};
     fetchConferencesScheduled: () => Promise<ConferenceScheduledInfo[]>;
+    fetchConferenceScheduled: (trackingId: string) => Promise<ConferenceScheduledInfo>;
     getCurrentUser: () => User | null;
     conferencesScheduled: ConferenceScheduledInfo[];
 
@@ -117,6 +118,10 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return apiService.fetchConferencesScheduled();
     }, []);
 
+    const fetchConferenceScheduled = useCallback(async (trackingId: string) => {
+        return apiService.fetchConferenceScheduled(trackingId);
+    }, []);
+
     const fetchParticipantsOnline = useCallback(async () => {
         return apiService.fetchParticipantsOnline();
     }, []);
@@ -200,6 +205,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         logout,
 
         fetchConferencesScheduled,
+        fetchConferenceScheduled,
         setConferencesScheduled,
 
         participantsOnline,
@@ -226,6 +232,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         logout,
 
         fetchConferencesScheduled,
+        fetchConferenceScheduled,
         fetchParticipantsOnline,
 
         getClientData,
