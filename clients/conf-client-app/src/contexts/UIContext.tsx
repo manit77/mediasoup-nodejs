@@ -2,8 +2,6 @@ import React, { createContext, useState, useRef, useCallback, useMemo } from 're
 import { Modal, Button } from 'react-bootstrap';
 import { CheckCircleFill, ExclamationCircleFill, ExclamationTriangleFill } from 'react-bootstrap-icons';
 import "./UIContext.css";
-import SettingsPopup from '../components/popups/SettingsPopup';
-
 export type AlertType = 'normal' | 'error' | 'warning';
 
 export interface UIContextType {

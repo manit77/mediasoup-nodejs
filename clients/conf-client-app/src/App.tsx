@@ -1,18 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { APIProvider } from './contexts/APIContext';
-import { CallProvider } from './contexts/CallContext';
-import LoginPage from './components/auth/LoginPage';
-import AuthenticatedLayout from './components/layout/AuthenticatedLayout';
-import OnCallScreen from './components/call/OnCallScreen';
-import { useAPI } from './hooks/useAPI';
-import { useCall } from './hooks/useCall';
-import { UIProvider } from './contexts/UIContext';
+import { APIProvider } from '@client/contexts/APIContext';
+import { CallProvider } from '@client/contexts/CallContext';
+import LoginPage from '@client/components/layout/auth/LoginPage';
+import AuthenticatedLayout from './components/layout/home/AuthenticatedLayout';
+import OnCallScreen from '@client/components/layout/call/OnCallScreen';
+import { useAPI } from '@client/hooks/useAPI';
+import { useCall } from '@client/hooks/useCall';
+import { UIProvider } from '@client/contexts/UIContext';
 import { useLocation } from 'react-router-dom';
-import { getConferenceClient } from './services/ConferenceService';
-import LoginGuestPage from './components/auth/LoginGuestPage';
-import LogoutPage from './components/auth/LogoutPage';
-import RoomLobby from './components/layout/RoomLobby';
+import LoginGuestPage from '@client/components/layout/auth/LoginGuestPage';
+import LogoutPage from '@client/components/layout/auth/LogoutPage';
+import RoomLobby from '@client/components/layout/lobby/RoomLobby';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAPI();

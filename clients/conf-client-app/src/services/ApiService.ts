@@ -1,4 +1,4 @@
-import { User } from '../types';
+import { User } from '@client/types';
 import { ConferenceAPIClient } from '@conf/conf-client';
 import { ConferenceClientConfig } from '@conf/conf-client/src/models';
 import { ClientConfig, ConferenceScheduledInfo, GetClientConfigResultMsg, getMsgErorr, IMsg, isMsgErorr, ParticipantInfo } from '@conf/conf-models';

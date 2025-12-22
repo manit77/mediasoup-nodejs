@@ -1,21 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Button, Form } from 'react-bootstrap';
-import { useCall } from '../../hooks/useCall';
+import { Modal, Button } from 'react-bootstrap';
+import { useCall } from '@client/hooks/useCall';
 import { useNavigate } from 'react-router-dom';
-import { useAPI } from '../../hooks/useAPI';
-import { useUI } from '../../hooks/useUI';
+import { useAPI } from '@client/hooks/useAPI';
+import { useUI } from '@client/hooks/useUI';
 import { ConferenceScheduledInfo, GetUserMediaConfig } from '@conf/conf-models';
-import ThrottledButton from '../ui/ThrottledButton';
 import { getBrowserUserMedia } from '@conf/conf-client';
-import {
-    CameraVideo, CameraVideoOff,
-    Mic, MicMute,
-    Gear, DoorOpen,
-    ShieldLock, InfoCircle,
-    ExclamationTriangle
-} from 'react-bootstrap-icons';
-import RoomLobby from '../layout/RoomLobby';
-
+import RoomLobby from '@client/components/layout/lobby/RoomLobby';
 
 interface JoinRoomPopUpProps {
     conferenceScheduled: ConferenceScheduledInfo;

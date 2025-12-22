@@ -1,15 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Button, Form, Tab, Row, Col, Nav } from 'react-bootstrap';
-import { useCall } from '../../hooks/useCall';
+import { useCall } from '@client/hooks/useCall';
 import {
     Mic, CameraVideo, PersonVideo,
     GearFill, Cpu, CheckCircleFill,
     ExclamationCircle, FilePersonFill,
     InfoCircle
-} from 'react-bootstrap-icons'; import { useUI } from '../../hooks/useUI';
-import { getBrowserUserMedia } from '@conf/conf-client';
-import '../../css/modal.css';
-import '../../css/buttons.css';
+} from 'react-bootstrap-icons'; import { useUI } from '@client/hooks/useUI';
+import '@client/css/modal.css';
+import '@client/css/buttons.css';
 
 
 const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ show, handleClose }) => {

@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import TopMenu from './TopMenu';
 import ContactsPane from './ParticipantsOnlinePane';
-import SettingsPopup from '../popups/SettingsPopup';
-import { useCall } from '../../hooks/useCall';
-import { useUI } from '../../hooks/useUI';
+import SettingsPopup from '@client/components/popups/SettingsPopup';
+import { useCall } from '@client/hooks/useCall';
+import { useUI } from '@client/hooks/useUI';
 import RoomsPane from './RoomsPane';
-import IncomingCallPopup from '../popups/IncomingCallPopup';
-import CallingPopup from '../popups/CallingPopup';
-import { useAPI } from '../../hooks/useAPI';
+import IncomingCallPopup from '@client/components/popups/IncomingCallPopup';
+import CallingPopup from '@client/components/popups/CallingPopup';
+import { useAPI } from '@client/hooks/useAPI';
 import { useNavigate } from 'react-router-dom';
 
 const AuthenticatedLayout: React.FC = () => {

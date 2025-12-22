@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ListGroup, Badge, Button, Spinner } from 'react-bootstrap';
-import { useCall } from '../../hooks/useCall';
-import { useAPI } from '../../hooks/useAPI';
-import { useUI } from '../../hooks/useUI';
+import { useCall } from '@client/hooks/useCall';
+import { useAPI } from '@client/hooks/useAPI';
+import { useUI } from '@client/hooks/useUI';
 import { ArrowRepeat, ChevronRight, Circle, CircleFill, DoorOpenFill } from 'react-bootstrap-icons';
-import JoinRoomPopUp from '../popups/JoinRoomPopUp';
+import JoinRoomPopUp from '../../popups/JoinRoomPopUp';
 import { ConferenceScheduledInfo, conferenceLayout } from '@conf/conf-models';
 
 const RoomsPane: React.FC = () => {
@@ -130,23 +130,29 @@ const RoomsPane: React.FC = () => {
                 className="d-flex justify-content-between align-items-center px-3 py-3 border-bottom bg-body"
                 style={{ transition: 'all 0.2s ease' }}
               >
-                {/* Room Icon & Info */}
-                <div className="d-flex align-items-center">
-                  <div className={`rounded-3 p-3 me-3 d-flex align-items-center justify-content-center ${isActive ? 'bg-success-subtle text-success' : 'bg-light text-muted opacity-50'}`}
+                {/* 1. Added 'min-width: 0' to allow this container to shrink */}
+                <div className="d-flex align-items-center" style={{ minWidth: 0 }}>
+
+                  {/* Icon - Fixed size, prevent shrinking */}
+                  <div className={`rounded-3 p-3 me-3 d-flex align-items-center justify-content-center flex-shrink-0 ${isActive ? 'bg-success-subtle text-success' : 'bg-light text-muted opacity-50'}`}
                     style={{ width: '52px', height: '52px' }}>
                     <DoorOpenFill size={24} />
                   </div>
 
-                  <div className="d-flex flex-column">
-                    <span className="fw-bold text-body fs-6">{schedule.name}</span>
-                    <span className="text-muted small text-truncate" style={{ maxWidth: '250px' }}>
+                  {/* 2. Added 'min-width: 0' to the text wrapper as well */}
+                  <div className="d-flex flex-column" style={{ minWidth: 0 }}>
+                    {/* 3. Added 'text-truncate' to the Name as well */}
+                    <span className="fw-bold text-body fs-6 text-truncate">
+                      {schedule.name}
+                    </span>
+                    <span className="text-muted small text-truncate">
                       {schedule.description || "No description provided."}
                     </span>
                   </div>
                 </div>
 
-                {/* Status & Entry Action */}
-                <div className="d-flex align-items-center">
+                {/* 4. Added 'flex-shrink-0' and 'ms-3' to protect the status area */}
+                <div className="d-flex align-items-center flex-shrink-0 ms-3">
                   <Badge
                     pill
                     bg={isActive ? 'success-subtle' : 'secondary-subtle'}
@@ -160,7 +166,6 @@ const RoomsPane: React.FC = () => {
                     )}
                   </Badge>
 
-                  {/* Subtle "Go" arrow to indicate clickability */}
                   <ChevronRight className="text-muted opacity-50" size={18} />
                 </div>
               </ListGroup.Item>

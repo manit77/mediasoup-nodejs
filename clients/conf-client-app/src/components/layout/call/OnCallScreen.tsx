@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Container } from 'react-bootstrap';
 import CallTopMenu from './CallTopMenu';
 import ParticipantsPane from './ParticipantsPane';
 import PresenterVideo from './PresenterVideo';
-import SettingsPopup from '../popups/SettingsPopup';
-import { useCall } from '../../hooks/useCall';
+import SettingsPopup from '@client/components/popups/SettingsPopup';
+import { useCall } from '@client/hooks/useCall';
 import { Navigate } from 'react-router-dom';
 import { Participant } from '@conf/conf-client';
-import { ParticipantVideoPreview } from './ParticipantVideoPreview';
 import { conferenceLayout } from '@conf/conf-models';
 
 const OnCallScreen: React.FC = () => {

@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAPI } from '../../hooks/useAPI';
-import { useUI } from '../../hooks/useUI';
-import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
-import { getQueryParams } from '../../utils/utils';
-import { getConferenceConfig } from '../../services/ConferenceConfig';
+import { useAPI } from '@client/hooks/useAPI';
+import { useUI } from '@client/hooks/useUI';
+import { Container, Card } from 'react-bootstrap';
+import { getConferenceConfig } from '@client/services/ConferenceConfig';
 
 const LogoutPage: React.FC = () => {
     const [username, setUsername] = useState("");

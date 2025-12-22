@@ -1,20 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Button, Badge, ListGroup } from 'react-bootstrap';
-import { useCall } from '../../hooks/useCall';
-import { useNavigate } from 'react-router-dom';
-import { useUI } from '../../hooks/useUI';
+import { Modal, Button, ListGroup } from 'react-bootstrap';
+import { useCall } from '@client/hooks/useCall';
 import { GetUserMediaConfig, ParticipantInfo } from '@conf/conf-models';
-import ThrottledButton from '../ui/ThrottledButton';
-import { getConferenceConfig } from '../../services/ConferenceConfig';
-import { TelephoneInboundFill, CameraVideoFill, MicFill, XCircleFill, PersonCircle, PersonPlus, PersonPlusFill } from 'react-bootstrap-icons';
-import ParticipantsOnlinePane from '../layout/ParticipantsOnlinePane';
-import { useAPI } from '../../hooks/useAPI';
+import ThrottledButton from '@client/components/ui/ThrottledButton';
+import { XCircleFill, PersonCircle, PersonPlus, PersonPlusFill } from 'react-bootstrap-icons';
+import { useAPI } from '@client/hooks/useAPI';
 
 const InviteParticipantsModal: React.FC<{ show: boolean, onClose: () => void }> = ({ show, onClose }) => {
-    const { isCallActive, inviteInfoReceived, localParticipant, getMediaConstraints, callParticipants, sendInviteConf, conference } = useCall();
-    const navigate = useNavigate();
-    const ui = useUI();
-    const audioRef = useRef<HTMLAudioElement>(null);
+    const { isCallActive, inviteInfoReceived, callParticipants, sendInviteConf } = useCall();
     const api = useAPI();
 
     const [inviteList, setInviteList] = useState<ParticipantInfo[]>([]);
@@ -54,9 +47,7 @@ const InviteParticipantsModal: React.FC<{ show: boolean, onClose: () => void }> 
     };
 
     return (
-        <>
-            <audio ref={audioRef} src="/ring.wav" loop />
-
+        <>           
             <Modal show={show} centered backdrop="static" keyboard={false} onHide={onClose} size="lg">
                 <Modal.Header closeButton className="bg-body">
                     <Modal.Title className="d-flex align-items-center text-secondary">
@@ -81,8 +72,7 @@ const InviteParticipantsModal: React.FC<{ show: boolean, onClose: () => void }> 
                                         key={participantInfo.participantId}
                                         className="d-flex justify-content-between align-items-center px-3 py-3 border-bottom bg-body"
                                         style={{ transition: 'all 0.2s ease' }}
-                                    >
-                                        {/* Avatar & Name Section */}
+                                    >                                      
                                         <div className="d-flex align-items-center">
                                             <div className="position-relative me-3">
                                                 <PersonCircle size={36} className="text-secondary opacity-50" />
@@ -101,13 +91,11 @@ const InviteParticipantsModal: React.FC<{ show: boolean, onClose: () => void }> 
                                                     {participantInfo.status}
                                                 </div>
                                             </div>
-                                        </div>
-
-                                        {/* Call Actions */}
+                                        </div>                                       
                                         <div className="d-flex align-items-center gap-2">                                            
                                                 <ThrottledButton                                                    
                                                     className={`submit-btn ${isCallActive || !isOnline ? 'text-muted' : 'text-success'}`}
-                                                    onClick={(event) => {
+                                                    onClick={(event: any) => {
                                                         event.stopPropagation();
                                                         sendInviteClick(participantInfo);
                                                     }}                                                    

@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Navbar, Nav, Button, Container, Dropdown } from 'react-bootstrap';
-import { BoxArrowRight, GearFill, ShareFill, PersonPlusFill, DisplayFill, XSquareFill, CameraVideoOffFill, CameraVideoFill, ProjectorFill, Easel, ThreeDotsVertical } from 'react-bootstrap-icons';
-import { useCall } from '../../hooks/useCall';
+import { BoxArrowRight, GearFill, PersonPlusFill, DisplayFill, XSquareFill, CameraVideoFill, Easel, ThreeDotsVertical } from 'react-bootstrap-icons';
+import { useCall } from '@client/hooks/useCall';
 import { useNavigate } from 'react-router-dom';
-import { useAPI } from '../../hooks/useAPI';
-import ConfirmPopUp from '../popups/ConfirmPopUp';
+import { useAPI } from '@client/hooks/useAPI';
+import ConfirmPopUp from '@client/components/popups/ConfirmPopUp';
 import styles from './CallTopMenu.module.css'; // Import the styles
-import '../../css/modal.css';
-import '../../css/buttons.css';
+import '@client/css/modal.css';
+import '@client/css/buttons.css';
 
 import InviteParticipantsModal from './InviteParticipantsModal';
 

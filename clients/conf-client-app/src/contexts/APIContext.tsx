@@ -6,9 +6,8 @@ import React, {
     useCallback,
     useMemo
 } from 'react';
-
-import { apiService, LoginResponse } from '../services/ApiService';
-import { useConfig } from '../hooks/useConfig';
+import { apiService, LoginResponse } from '@client/services/ApiService';
+import { useConfig } from '@client/hooks/useConfig';
 
 import {
     ClientConfig,
@@ -17,8 +16,8 @@ import {
     ParticipantInfo
 } from '@conf/conf-models';
 
-import { User } from '../types';
-import { getConferenceClient } from '../services/ConferenceService';
+import { User } from '@client/types';
+import { getConferenceClient } from '@client/services/ConferenceService';
 
 interface APIContextType {
     isAuthenticated: boolean;

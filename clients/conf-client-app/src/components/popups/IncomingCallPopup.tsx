@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Modal, Button, Badge } from 'react-bootstrap';
-import { useCall } from '../../hooks/useCall';
+import { useCall } from '@client/hooks/useCall';
 import { useNavigate } from 'react-router-dom';
-import { useUI } from '../../hooks/useUI';
+import { useUI } from '@client/hooks/useUI';
 import { GetUserMediaConfig } from '@conf/conf-models';
-import ThrottledButton from '../ui/ThrottledButton';
-import { getConferenceConfig } from '../../services/ConferenceConfig';
+import ThrottledButton from '@client/components/ui/ThrottledButton';
+import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { TelephoneInboundFill, CameraVideoFill, MicFill, XCircleFill } from 'react-bootstrap-icons';
 
 

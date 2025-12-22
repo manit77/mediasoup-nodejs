@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAPI } from '../../hooks/useAPI';
-import { useUI } from '../../hooks/useUI';
+import { useAPI } from '@client/hooks/useAPI';
+import { useUI } from '@client/hooks/useUI';
 import { Form, Button, Container, Card, Alert, Spinner, Badge } from 'react-bootstrap';
-import { generateRandomDisplayName, getQueryParams } from '../../utils/utils';
-import { getConferenceConfig } from '../../services/ConferenceConfig';
+import { generateRandomDisplayName, getQueryParams } from '@client/utils/utils';
+import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { ClientConfig } from '@conf/conf-models';
 import { Person, KeyFill, DoorOpenFill, ExclamationOctagon } from 'react-bootstrap-icons';
 

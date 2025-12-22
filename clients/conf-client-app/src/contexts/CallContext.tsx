@@ -1,12 +1,12 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, GetUserMediaConfig, InviteMsg, JoinConferenceLobbyParams, JoinConferenceParams, LoggedOffMsg, ParticipantInfo } from '@conf/conf-models';
 import { Conference, Device, getBrowserDisplayMedia, getBrowserUserMedia, Participant, SelectedDevices } from '@conf/conf-client';
-import { useUI } from '../hooks/useUI';
-import { useAPI } from '../hooks/useAPI';
-import { useConfig } from '../hooks/useConfig';
+import { useUI } from '@client/hooks/useUI';
+import { useAPI } from '@client/hooks/useAPI';
+import { useConfig } from '@client/hooks/useConfig';
 import { IMsg } from '@rooms/rooms-models';
 import { EventParticpantNewTrackMsg, EventTypes } from '@conf/conf-client';
-import { getConferenceClient } from '../services/ConferenceService';
+import { getConferenceClient } from '@client/services/ConferenceService';
 
 export const conferenceClient = getConferenceClient();
 

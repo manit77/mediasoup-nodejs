@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Navbar, Nav, NavDropdown, Container } from 'react-bootstrap';
-import { useAPI } from '../../hooks/useAPI';
+import { useAPI } from '@client/hooks/useAPI';
 import { useNavigate } from 'react-router-dom';
 import { BoxArrowRight, CircleFill, Gear, Person, PersonGear } from 'react-bootstrap-icons';
-import { objectToQueryString } from '../../utils/utils';
+import { objectToQueryString } from '@client/utils/utils';
 import { flushSync } from 'react-dom';
-import { useCall } from '../../hooks/useCall';
-import { getConferenceConfig } from '../../services/ConferenceConfig';
+import { useCall } from '@client/hooks/useCall';
+import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { ConferenceClientConfig } from '@conf/conf-client';
 
 interface TopMenuProps {
