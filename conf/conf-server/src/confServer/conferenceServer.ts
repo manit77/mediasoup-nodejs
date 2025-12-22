@@ -29,7 +29,7 @@ import {
     ConferencePongMsg,
     JoinLobbyMsg,
     LeaveLobbyMsg,
-    BaseMsg
+    BaseMsg    
 } from '@conf/conf-models';
 import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
@@ -134,7 +134,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
                     break;
                 case CallMessageType.inviteCancelled:
                     resultMsg = await this.onInviteCancelled(participant, msgIn);
-                    break;
+                    break;                
                 case CallMessageType.reject:
                     resultMsg = await this.onReject(participant, msgIn);
                     break;
@@ -490,17 +490,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         return msg;
     }
-
-    // getParticipantByConn(connection: SocketConnection) {
-    //     // Check active participants first
-    //     for (const [key, participant] of this.participants.entries()) {
-    //         if (participant.connection == connection) {
-    //             return participant;
-    //         }
-    //     }
-    //     return null;
-    // }
-
+  
     getParticipant(participantId: string) {
         // Check active participants first
         for (const [key, participant] of this.participants.entries()) {
@@ -509,11 +499,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             }
         }
         return null;
-    }
-
-    // getParticipantsExceptConn(conn: SocketConnection) {
-    //     return [...this.participants.values()].filter(p => p.connection !== conn);
-    // }
+    }  
 
     getParticipantsExceptPart(part: Participant) {
         return [...this.participants.values()].filter(p => p.participantGroup === part.participantGroup && p.participantId !== part.participantId);
@@ -521,7 +507,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     getParticipants(participantGroup: string) {
         return [...this.participants.values()].filter(p => p.participantGroup === participantGroup);
-    }
+    }    
 
     /**
      * invite a peer to a p2p call
@@ -533,13 +519,16 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         consoleLog("onInvite");
         msgIn = fill(msgIn, new InviteMsg());
 
+        if(msgIn.data.conferenceType === "room") {
+            return this.onInviteConf(participant, msgIn);
+        }
+
         if (participant.conference) {
             consoleError("caller already in a conference room.");
 
             let errorMsg = new InviteResultMsg();
-            errorMsg.data.conferenceId = participant.conference.id;
+            errorMsg.data.participantId = msgIn.data.participantId
             errorMsg.error = "already in a conference room.";
-
             return errorMsg;
         }
 
@@ -548,6 +537,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError("remote participant not found.");
 
             let errorMsg = new InviteResultMsg();
+            errorMsg.data.participantId = msgIn.data.participantId
             errorMsg.error = "remote party not found.";
 
             return errorMsg;
@@ -557,6 +547,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`receiver is in another conference room. ${remote.conference.id}`);
 
             let errorMsg = new InviteResultMsg();
+            errorMsg.data.participantId = msgIn.data.participantId
             errorMsg.error = "remote party is on another call.";
 
             return errorMsg;
@@ -566,6 +557,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`not in the same participant group.`);
 
             let errorMsg = new InviteResultMsg();
+            errorMsg.data.participantId = msgIn.data.participantId
             errorMsg.error = "invalid participantId.";
 
             return errorMsg;
@@ -575,21 +567,24 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError(`cannot invite self`);
 
             let errorMsg = new InviteResultMsg();
+            errorMsg.data.participantId = msgIn.data.participantId
             errorMsg.error = "invalid participantId.";
 
             return errorMsg;
         }
 
-        let conference = this.getOrCreateConference({
+        let conference: Conference;
+        conference = this.getOrCreateConference({
             participantGroup: participant.participantGroup,
             roomName: `call with ${participant.displayName} and ${remote.displayName}`,
             confType: "p2p",
-            minParticipants: 2, //close the roomm if both particpants are not in the room within 1 minute 
+            minParticipants: 2, //close the room if both participants are not in the room within 1 minute
             minParticipantsTimeoutSec: 60
         });
+
         conference.addParticipant(participant);
 
-        //forward the call to the receiver
+        //forward the invite to the receiver
         let msg = new InviteMsg();
         msg.data.participantId = participant.participantId;
         msg.data.displayName = participant.displayName;
@@ -603,7 +598,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             conference.close("remote peer not available");
 
             let errorMsg = new InviteResultMsg();
-            //send InviteResult back to the caller
+            errorMsg.data.participantId = msgIn.data.participantId;
             errorMsg.data.conferenceId = conference.id;
             errorMsg.error = "invite failed.";
 
@@ -620,7 +615,102 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         inviteResultMsg.data.conferenceType = conference.confType;
 
         return inviteResultMsg;
+    }
 
+    private async onInviteConf(participant: Participant, msgIn: InviteMsg) {
+        consoleLog("onInviteConf");
+
+        if (!participant.conference || participant.conference.id !== msgIn.data.conferenceId) {
+            consoleError("caller is not in a conference room.");
+
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.conferenceType = "room";
+            errorMsg.data.participantId = participant.participantId;
+            errorMsg.data.conferenceId = participant.conference.id;
+            errorMsg.error = "caller is not in a conference room.";
+            return errorMsg;
+        }
+
+        let remote = this.getParticipant(msgIn.data.participantId);
+        if (!remote) {
+            consoleError("remote participant not found.");
+
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.conferenceType = "room";
+            errorMsg.data.participantId = participant.participantId;
+            errorMsg.data.conferenceId = participant.conference.id;
+            errorMsg.error = "remote party not found.";
+
+            return errorMsg;
+        }
+
+        if (remote.conference) {
+            consoleError(`receiver is in another conference room. ${remote.conference.id}`);
+
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.conferenceType = "room";
+            errorMsg.data.participantId = participant.participantId;
+            errorMsg.data.conferenceId = participant.conference.id;
+            errorMsg.error = "remote party is on another call.";
+
+            return errorMsg;
+        }
+
+        if (participant.participantGroup !== remote.participantGroup) {
+            consoleError(`not in the same participant group.`);
+
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.conferenceType = "room";
+            errorMsg.data.participantId = participant.participantId;
+            errorMsg.data.conferenceId = participant.conference.id;
+            errorMsg.error = "invalid participantId.";
+
+            return errorMsg;
+        }
+
+        if (participant.participantId === msgIn.data.participantId) {
+            consoleError(`cannot invite self`);
+
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.conferenceType = "room";
+            errorMsg.data.participantId = participant.participantId;
+            errorMsg.data.conferenceId = participant.conference.id;
+            errorMsg.error = "invalid participantId.";
+
+            return errorMsg;
+        }
+
+        let conference: Conference = this.conferences.get(msgIn.data.conferenceId);
+        if (!conference) {
+            consoleError("conference room not found.");
+            let errorMsg = new InviteResultMsg();
+            errorMsg.data.conferenceType = "room";
+            errorMsg.data.conferenceId = msgIn.data.conferenceId;
+            errorMsg.error = "conference room not found.";
+            return errorMsg;
+        }
+
+        //forward the invite to the receiver
+        let msg = new InviteMsg();
+        msg.data.participantId = participant.participantId;
+        msg.data.displayName = participant.displayName;
+        msg.data.conferenceId = conference.id;
+        msg.data.conferenceName = conference.roomName;
+        msg.data.conferenceExternalId = conference.externalId;
+        msg.data.conferenceType = conference.confType;
+
+        if (!this.send(remote, msg)) {
+            consoleError("failed to send invite to receiver");
+            conference.close("remote peer not available");
+
+            let errorMsg = new InviteResultMsg();            
+            errorMsg.data.conferenceType = "room";
+            errorMsg.data.participantId = participant.participantId;
+            errorMsg.data.conferenceId = participant.conference.id;
+            errorMsg.error = "invite failed.";
+
+            return errorMsg;
+        }
     }
 
     private async onInviteCancelled(participant: Participant, msgIn: InviteCancelledMsg) {
@@ -648,7 +738,6 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             consoleError("closing conference room");
             conf.close("invite cancelled");
         }
-
 
         let msg = new InviteCancelledMsg();
         msg.data.conferenceId = conf.id;
@@ -692,13 +781,12 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         if (conf !== remoteParticipant.conference) {
             consoleError("not the same confererence room");
             return;
-        }
-
-        //send the reject to the client
-        this.send(remoteParticipant, msgIn);
+        }       
 
         //the room was p2p, remove the particpant
         if (conf.confType == "p2p") {
+             //send the reject to the client
+            this.send(remoteParticipant, msgIn);
             conf.removeParticipant(remoteParticipant.participantId);
         }
 

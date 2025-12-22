@@ -105,9 +105,11 @@ const PresenterVideo: React.FC<{ presenter: Participant }> = ({ presenter }) => 
     const toggleFullscreen = (ele: HTMLElement | any) => {
         console.log(ele);
         if (!document.fullscreenElement) {
-            ele.requestFullscreen().catch((err) => {
-                console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-            });
+            if(ele.requestFullscreen) {
+                ele.requestFullscreen().catch((err) => {
+                    console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                });
+            }
         } else {
             document.exitFullscreen();
         }

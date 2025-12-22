@@ -267,15 +267,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
             const isAudioEnabled = participant.stream.getAudioTracks()[0]?.enabled ?? false;
             muteParticipantTrack(participant.participantId, !isAudioEnabled, !newEnabled);
         }
-    }, []);
-
-    const toggleFullscreen = (ele: HTMLElement) => {
-        if (!document.fullscreenElement) {
-            ele.requestFullscreen();
-        } else {
-            document.exitFullscreen();
-        }
-    };
+    }, []);  
 
     return (
         <Card

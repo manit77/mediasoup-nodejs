@@ -12,7 +12,7 @@ import {
     TerminateConfMsg,
     ConferenceConfig,
     JoinConferenceLobbyParams,
-    JoinConfLobbyResultMsg
+    JoinConfLobbyResultMsg,    
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
@@ -388,7 +388,7 @@ export class ConferenceClient {
                 break;
             case CallMessageType.invite:
                 await this.onInviteReceived(message);
-                break;
+                break;            
             case CallMessageType.reject:
                 await this.onRejectReceived(message);
                 break;
@@ -900,6 +900,8 @@ export class ConferenceClient {
         this.callState = "calling";
         let inviteMsg = new InviteMsg();
         inviteMsg.data.participantId = participantId;
+        inviteMsg.data.conferenceType = "p2p";
+
         if (!this.sendToServer(inviteMsg)) {
             console.error(`failed to send inviteSendMsg`);
             this.resetConferenceRoom();
@@ -925,11 +927,35 @@ export class ConferenceClient {
 
         const callMsg = new InviteCancelledMsg();
         callMsg.data.participantId = invite.data.participantId;
-        callMsg.data.conferenceId = invite.data.conferenceId;
+        callMsg.data.conferenceId = invite.data.conferenceId;        
         this.sendToServer(callMsg);
 
         this.resetConferenceRoom();
         this.resetLocalTracks();
+    }
+
+    sendInviteConf(participantId: string, args: JoinConferenceParams): InviteMsg {
+        console.log(`sendInvite() ${participantId}`, args);
+
+        if (!this.isRegistered()) {
+            console.error(`connection not registered.`);
+            return null;
+        }
+
+        if (!participantId) {
+            console.error(`participantId is required.`);
+            return null;
+        }
+
+        let inviteMsg = new InviteMsg();
+        inviteMsg.data.participantId = participantId;
+        inviteMsg.data.conferenceId = args.conferenceId;
+        inviteMsg.data.conferenceType = "room";
+
+        if (!this.sendToServer(inviteMsg)) {
+            return null;
+        }
+        return inviteMsg;
     }
 
     createConferenceRoom(args: CreateConferenceParams): boolean {
@@ -944,7 +970,7 @@ export class ConferenceClient {
         //     console.error(`no configs`);
         //     return false;
         // }
-        
+
         const msg = new CreateConfMsg();
         msg.data.conferenceExternalId = args.externalId;
         msg.data.roomName = args.roomName;
@@ -1354,6 +1380,7 @@ export class ConferenceClient {
 
         await this.onEvent(EventTypes.inviteReceived, message);
     }
+    
 
     /**
      * remote participant cancelled the invite
@@ -1478,7 +1505,7 @@ export class ConferenceClient {
         let msg = new RejectMsg();
         msg.data.conferenceId = message.data.conferenceId;
         msg.data.fromParticipantId = this.localParticipant.participantId;
-        msg.data.toParticipantId = message.data.participantId;
+        msg.data.toParticipantId = message.data.participantId;        
         this.sendToServer(msg);
 
         this.resetConferenceRoom();

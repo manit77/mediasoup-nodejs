@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Navbar, Nav, Button, Container, Dropdown } from 'react-bootstrap';
-import { BoxArrowRight, GearFill, ShareFill, PersonPlusFill, DisplayFill, XSquareFill, CameraVideoOffFill, CameraVideoFill, ProjectorFill, Easel } from 'react-bootstrap-icons';
+import { BoxArrowRight, GearFill, ShareFill, PersonPlusFill, DisplayFill, XSquareFill, CameraVideoOffFill, CameraVideoFill, ProjectorFill, Easel, ThreeDotsVertical } from 'react-bootstrap-icons';
 import { useCall } from '../../hooks/useCall';
 import { useNavigate } from 'react-router-dom';
 import { useAPI } from '../../hooks/useAPI';
 import ConfirmPopUp from '../popups/ConfirmPopUp';
 import styles from './CallTopMenu.module.css'; // Import the styles
+import '../../css/modal.css';
+import '../../css/buttons.css';
+
+import InviteParticipantsModal from './InviteParticipantsModal';
 
 interface CallTopMenuProps {
     onShowSettings: () => void;
@@ -13,13 +17,14 @@ interface CallTopMenuProps {
 
 const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
     const { presenter, conference, leaveCurrentConference, terminateCurrentConference, startScreenShare, stopScreenShare, isScreenSharing, localParticipant, startPresentingCamera, stopPresentingCamera } = useCall();
-    const { isUser, getCurrentUser } = useAPI();
+    const { isUser, getCurrentUser, isAdmin } = useAPI();
     const navigate = useNavigate();
     const [isPresenting, setIsPresenting] = useState(false);
     const [allowScreenShare, setAllowScreenShare] = useState(false);
     const [allowPresentation, setAllowPresentation] = useState(false);
     const [allowTerminateConf, setAllowTerminateConf] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [showInviteModal, setShowInviteModal] = useState(false);
 
     const handleOpenModal = () => setShowConfirmModal(true);
     const handleCloseModal = () => setShowConfirmModal(false);
@@ -121,32 +126,34 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
 
     return (
         <>
-            <Navbar fixed="top" className={`${styles.glassNav} px-4 py-2 border-bottom border-secondary border-opacity-25`}>
-                <Container fluid className="d-flex align-items-center justify-content-between">
+            <Navbar fixed="top" className={`${styles.glassNav} px-2 px-md-4 py-2 border-bottom border-secondary border-opacity-25`}>
+                <Container fluid className="d-flex align-items-center justify-content-between px-0">
 
-                    {/* Brand Section */}
+                    {/* Brand Section - Smaller font/margin on mobile */}
                     <div className="d-flex align-items-center">
                         <div className={styles.statusIndicator} title="Live" />
-                        <Navbar.Brand className={`${styles.brandText} ms-3 mb-0`}>
+                        <Navbar.Brand className={`${styles.brandText} ms-2 ms-md-3 mb-0 fs-6 fs-md-5`}>
                             {conference.conferenceName}
                         </Navbar.Brand>
                     </div>
 
-                    <Nav className="d-flex align-items-center gap-2">
+                    <Nav className="d-flex align-items-center gap-1 gap-md-2">
+                        
+                        {/* 1. Presentation Controls (Primary Action) */}
                         {allowPresentation && (
                             isPresenting ? (
                                 <Button
-                                    className={`${styles.controlBtn} ${styles.pulseRed} text-white`}
+                                    className={`menu-btn ${styles.pulseRed} text-white px-2 px-md-3`}
                                     onClick={handleStopPresenting}
                                 >
-                                    <Easel size={18} className="me-2" />
-                                    <span className="d-none d-md-inline">Stop Sharing</span>
+                                    <Easel size={18} />
+                                    <span className="d-none d-lg-inline ms-2">Stop</span>
                                 </Button>
                             ) : (
                                 <Dropdown align="end">
-                                    <Dropdown.Toggle className={styles.controlBtn} variant="dark">
-                                        <Easel size={18} className="me-2" />
-                                        <span className="d-none d-md-inline">Present</span>
+                                    <Dropdown.Toggle className={'menu-btn px-2 px-md-3'} variant="dark">
+                                        <Easel size={18} />
+                                        <span className="d-none d-lg-inline ms-2">Present</span>
                                     </Dropdown.Toggle>
                                     <Dropdown.Menu variant="dark" className={styles.dropdownMenu}>
                                         <Dropdown.Item onClick={handleCameraPresenting}>
@@ -162,29 +169,62 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                             )
                         )}
 
-                        <Button variant="link" className={`${styles.controlBtn} text-white border-0`} onClick={onShowSettings}>
-                            <GearFill size={18} />
-                        </Button>
+                        {/* 2. Desktop-only Buttons (Hidden on Mobile) */}
+                        <div className="d-none d-md-flex gap-2">
+                            {isAdmin && (
+                                <Button className="menu-btn text-white border-0" onClick={() => setShowInviteModal(true)}>
+                                    <PersonPlusFill size={18} />
+                                    <span className="d-none d-lg-inline ms-2">Invite</span>
+                                </Button>                                
+                            )}
+                            <Button variant="link" className="menu-btn text-white border-0" onClick={onShowSettings}>
+                                <GearFill size={18} />
+                            </Button>
+                        </div>
 
-                        <div className="vr mx-2 text-secondary opacity-25" style={{ height: '20px' }} />
+                        {/* 3. Mobile "More" Menu (Visible only on Mobile) */}
+                        <div className="d-block d-md-none">
+                            <Dropdown align="end">
+                                <Dropdown.Toggle variant="link" className="menu-btn text-white border-0 px-2">
+                                    <ThreeDotsVertical size={20} />
+                                </Dropdown.Toggle>
+                                <Dropdown.Menu variant="dark">
+                                    {isAdmin && (
+                                        <Dropdown.Item onClick={() => setShowInviteModal(true)}>
+                                            <PersonPlusFill className="me-2" /> Invite
+                                        </Dropdown.Item>
+                                    )}
+                                    <Dropdown.Item onClick={onShowSettings}>
+                                        <GearFill className="me-2" /> Settings
+                                    </Dropdown.Item>
+                                </Dropdown.Menu>
+                            </Dropdown>
+                        </div>
 
-                        {/* End for All / Close Button - The Dramatic One */}
-                        <Button
-                            className={`${styles.controlBtn} ${styles.btnEndAll} px-4 fw-bold`}
-                            onClick={() => setShowConfirmModal(true)}
-                        >
-                            <XSquareFill size={18} className="me-sm-2" />
-                            <span className="d-none d-sm-inline">End for All</span>
-                        </Button>
+                        <div className="vr mx-1 mx-md-2 text-secondary opacity-25" style={{ height: '20px' }} />
 
-                        {/* Leave Button - The Subtle One */}
-                        <Button
-                            className={`${styles.controlBtn} ${styles.btnLeave} px-4`}
-                            onClick={handleExitCall}
-                        >
-                            <BoxArrowRight size={18} className={`${styles.leaveIcon} me-sm-2`} />
-                            <span className="d-none d-sm-inline">Leave</span>
-                        </Button>
+                        {/* 4. Exit Actions - Aggressive text hiding on mobile */}
+                        <div className="d-flex gap-1">
+                            {allowTerminateConf && (
+                                <Button
+                                    className={`menu-btn ${styles.btnEndAll} px-2 px-md-3 fw-bold`}
+                                    onClick={() => setShowConfirmModal(true)}
+                                    title="End for All"
+                                >
+                                    <XSquareFill size={18} />
+                                    <span className="d-none d-xl-inline ms-2">End for All</span>
+                                </Button>
+                            )}
+
+                            <Button
+                                className={`menu-btn ${styles.btnLeave} px-2 px-md-3`}
+                                onClick={handleExitCall}
+                                title="Leave"
+                            >
+                                <BoxArrowRight size={18} className={styles.leaveIcon} />
+                                <span className="d-none d-xl-inline ms-2">Leave</span>
+                            </Button>
+                        </div>
 
                     </Nav>
                 </Container>
@@ -196,6 +236,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                 title="End Conference"
                 message="Are you sure you want to end the conference for all participants?"
             />
+            {showInviteModal && <InviteParticipantsModal show={showInviteModal} onClose={() => setShowInviteModal(false)} />}
         </>
     );
 };

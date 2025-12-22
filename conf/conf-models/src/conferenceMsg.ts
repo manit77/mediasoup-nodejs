@@ -21,9 +21,10 @@ export const CallMessageType = {
     joinConfLobbyResult: "joinConfLobbyResult",
     terminateConf: "terminateConf",
 
-    invite: "invite", //invite to join room
+    invite: "invite", //invite to join  
     inviteCancelled: "inviteCancelled", //invite cancelled
     inviteResult: "inviteResult", //result of the invite, the other participant could reject it
+    inviteConfResult: "inviteConfResult",
 
     reject: "reject", //the receiver rejects
     accept: "accept", //participant requests to join the conference room
@@ -272,7 +273,7 @@ export class InviteMsg extends BaseMsg {
         conferenceExternalId?: string,
         conferenceType?: conferenceType,
         withAudio?: boolean,
-        withVideo?: boolean
+        withVideo?: boolean,
     } = {};
 }
 
@@ -293,7 +294,6 @@ export class InviteResultMsg extends BaseMsg {
         conferenceName?: string,
         conferenceExternalId?: string,
         conferenceType?: conferenceType,
-
     } = {};
 }
 
