@@ -36,13 +36,6 @@ export interface CreateConferenceParams {
     config: ConferenceConfig,
 }
 
-export interface JoinConferenceLobbyParams {
-    conferenceId: string,
-    conferenceCode: string,   
-    externalId: string,    
-    clientData: {},
-}
-
 export interface JoinConferenceParams {
     conferenceId: string,
     conferenceCode: string,

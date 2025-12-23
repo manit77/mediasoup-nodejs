@@ -1,9 +1,10 @@
 import { AuthUserRoles } from "@rooms/rooms-models";
-import { AuthUserTokenPayload } from "../models/tokenPayloads.js";
+import { AuthClaims, AuthUserTokenPayload } from "../models/tokenPayloads.js";
 import { jwtSign } from "./jwtUtil.js";
 import * as readline from 'readline';
 import { RoomServerConfig } from "../roomServer/models.js";
 import { getENV } from "./env.js";
+import { getClaimsByRole } from "../roomServer/utils.js";
 
 let config: RoomServerConfig = await getENV() as any;
 
@@ -14,8 +15,8 @@ const rl = readline.createInterface({
 
 const secretKey = config.room_secret_key;
 
-if (!secretKey) {    
-    console.error("no env variable set for room_secret_key: export room_secret_key=your-secure-secret-key");
+if (!secretKey) {
+  console.error("no env variable set for room_secret_key: export room_secret_key=your-secure-secret-key");
 }
 
 function generateToken(type: string, role: AuthUserRoles, username: string): string {
@@ -23,9 +24,11 @@ function generateToken(type: string, role: AuthUserRoles, username: string): str
     username: username,
     type: type,
     role: role,
-
+    claims: []
   };
-  
+
+  payload.claims = getClaimsByRole(role);
+
   return jwtSign(secretKey, payload);
 }
 
@@ -44,7 +47,7 @@ function promptUser(): void {
       case '2':
         console.log('User Token:', generateToken("service", AuthUserRoles.user, "user"));
         promptUser();
-        break;     
+        break;
       case '4':
         console.log('Exiting...');
         rl.close();

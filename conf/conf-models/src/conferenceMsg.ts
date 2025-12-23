@@ -16,9 +16,7 @@ export const CallMessageType = {
     createConf: "createConf",
     createConfResult: "createConfResult",
     joinConf: "joinConf",
-    joinConfResult: "joinConfResult",
-    joinConfLobby: "joinConfLobby",
-    joinConfLobbyResult: "joinConfLobbyResult",
+    joinConfResult: "joinConfResult",   
     terminateConf: "terminateConf",
 
     invite: "invite", //invite to join  
@@ -226,32 +224,12 @@ export class JoinConfMsg extends BaseMsg {
     data?: {
         conferenceId?: string,
         conferenceCode?: string,
-        externalId?: string,
-        ticket?: string
+        externalId?: string,       
     } = {
             conferenceId: "",
             conferenceCode: "",
-            externalId: "",
-            ticket: ""
+            externalId: "",           
         }
-}
-
-export class JoinConfLobbyMsg extends BaseMsg {
-    type = CallMessageType.joinConfLobby;
-    data?: {
-        conferenceId?: string,
-        conferenceCode?: string,
-        externalId?: string
-    } = {};
-}
-
-export class JoinConfLobbyResultMsg extends BaseMsg {
-    type = CallMessageType.joinConfLobbyResult;
-    data?: {
-        conferenceId?: string,
-        ticket?: string,
-        error?: string,
-    } = {};
 }
 
 export class JoinConfResultMsg extends BaseMsg {
@@ -274,6 +252,7 @@ export class InviteMsg extends BaseMsg {
         conferenceType?: conferenceType,
         withAudio?: boolean,
         withVideo?: boolean,
+        roomToken?: string,
     } = {};
 }
 
@@ -372,24 +351,6 @@ export class PresenterInfoMsg extends BaseMsg {
     data?: {
         participantId?: string,
         status?: "on" | "off"
-    } = {};
-}
-
-export class JoinLobbyMsg extends BaseMsg {
-    type = CallMessageType.joinLobby;
-    data?: {
-        participantId?: string,
-        conferenceExternalId?: string,
-        conferenceId?: string
-    } = {};
-}
-
-export class LeaveLobbyMsg extends BaseMsg {
-    type = CallMessageType.leaveLobby;
-    data?: {
-        participantId?: string,
-        conferenceExternalId?: string,
-        conferenceId?: string
     } = {};
 }
 

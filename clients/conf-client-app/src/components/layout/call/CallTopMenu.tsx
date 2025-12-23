@@ -236,7 +236,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                 title="End Conference"
                 message="Are you sure you want to end the conference for all participants?"
             />
-            {showInviteModal && <InviteParticipantsModal show={showInviteModal} onClose={() => setShowInviteModal(false)} />}
+            {showInviteModal && <InviteParticipantsModal conference={conference} show={showInviteModal} onClose={() => setShowInviteModal(false)} />}
         </>
     );
 };

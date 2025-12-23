@@ -14,6 +14,10 @@ export const payloadTypeClient = {
 
     roomNewToken: "roomNewToken",
     roomNewTokenResult: "roomNewTokenResult",
+
+    roomGetAccessToken: "roomGetAccessToken",
+    roomGetAccessTokenResult: "roomGetAccessTokenResult",
+
     roomNew: "roomNew",
     roomJoin: "roomJoin",
     roomLeave: "roomLeave",
@@ -28,7 +32,7 @@ export const payloadTypeClient = {
     roomProduceStream: "roomProduceStream",
     roomCloseProducer: "roomCloseProducer",
     roomConsumeProducer: "roomConsumeProducer",
-    
+
 
     peerTracksInfo: "peerTracksInfo",
     peerMuteTracks: "peerMuteTracks",
@@ -91,9 +95,15 @@ export class BaseMsg implements IMsg {
 }
 
 export enum AuthUserRoles {
-    admin = "admin"
+    service = "service"
+    , admin = "admin"
     , user = "user"
     , guest = "guest"
+}
+
+export enum AuthClaims {
+    createRoom = "createRoom",
+    joinRoom = "joinRoom"
 }
 
 export class ErrorMsg extends BaseMsg {
@@ -163,8 +173,7 @@ export class PeerTerminatedMsg extends BaseMsg {
 
 export class CreateProducerTransportMsg extends BaseMsg {
     type = payloadTypeClient.createProducerTransport;
-    data: {
-        //authToken?: string,
+    data: {      
         roomId?: string,
     } = {}
 }
@@ -185,17 +194,16 @@ export class CreateProducerTransportResultMsg extends BaseMsg {
 export class ProducerTransportConnectedMsg extends BaseMsg {
     type = payloadTypeServer.producerTransportConnected;
     data: {
-        roomId?: string,       
+        roomId?: string,
     } = {};
 }
 
 export class ConnectProducerTransportMsg extends BaseMsg {
     type = payloadTypeClient.connectProducerTransport;
     data: {
-        transportId?: string,
-        authToken?: string,
+        transportId?: string,    
         roomId?: string,
-        dtlsParameters?: any,        
+        dtlsParameters?: any,
     } = {}
 }
 
@@ -230,8 +238,7 @@ export class ConsumerTransportConnectedMsg extends BaseMsg {
 export class ConnectConsumerTransportMsg extends BaseMsg {
     type = payloadTypeClient.connectConsumerTransport;
     data: {
-        transportId?: string,
-        authToken?: string,
+        transportId?: string,      
         roomId?: string,
         dtlsParameters?: any
     } = {};
@@ -239,8 +246,7 @@ export class ConnectConsumerTransportMsg extends BaseMsg {
 
 export class RoomNewMsg extends BaseMsg {
     type = payloadTypeClient.roomNew;
-    data: {
-        authToken?: string,
+    data: {     
         peerId?: string,
         roomId?: string,
         roomToken?: string,
@@ -264,19 +270,18 @@ export class AuthUserNewTokenMsg extends BaseMsg {
 
 export class AuthUserNewTokenResultMsg extends BaseMsg {
     type = payloadTypeServer.authUserNewTokenResult;
-    data: {
-        authToken?: string,
+    data: {      
         expiresIn?: number,
-        role?: AuthUserRoles;
+        role?: AuthUserRoles,
+        authToken?: string,
     } = {
         }
 }
 
 export class RoomNewTokenMsg extends BaseMsg {
     type = payloadTypeClient.roomNewToken;
-    data: {
-        authToken?: string,
-        expiresInMin?: number
+    data: {      
+        expiresInMin?: number,
     } = {}
 }
 
@@ -284,7 +289,23 @@ export class RoomNewTokenResultMsg extends BaseMsg {
     type = payloadTypeClient.roomNewTokenResult;
     data: {
         roomId?: string,
-        roomToken?: string
+        roomToken?: string,       
+    } = {}
+}
+
+export class RoomGetAccessTokenMsg extends BaseMsg {
+    type = payloadTypeClient.roomGetAccessToken;
+    data: {      
+        roomId: string,
+        expiresInMin?: number,
+    } = { roomId: "" }
+}
+
+export class RoomGetAccessTokenResultMsg extends BaseMsg {
+    type = payloadTypeClient.roomGetAccessTokenResult;
+    data: {
+        roomId?: string,
+        roomToken?: string,
     } = {}
 }
 
@@ -317,8 +338,7 @@ export class RoomLeaveMsg extends BaseMsg {
     data: {
         authToken?: string,
         peerId?: string,
-        roomId?: string,
-        roomToken?: string
+        roomId?: string
     } = {}
 }
 
@@ -430,7 +450,7 @@ export class RoomProduceStreamMsg extends BaseMsg {
     data: {
         roomId?: string,
         kind?: "audio" | "video",
-        rtpParameters?: any,        
+        rtpParameters?: any,
     } = {};
 }
 
@@ -438,7 +458,7 @@ export class RoomProduceStreamResultMsg extends BaseMsg {
     type = payloadTypeServer.roomProduceStreamResult;
     data: {
         roomId?: string,
-        kind?: "audio" | "video",        
+        kind?: "audio" | "video",
     } = {};
 }
 
@@ -460,7 +480,7 @@ export class RoomConsumeProducerResultMsg extends BaseMsg {
         consumerId?: string,
         producerId?: string,
         kind?: "audio" | "video",
-        rtpParameters?: any,      
+        rtpParameters?: any,
     } = {};
 }
 
@@ -506,6 +526,7 @@ export enum RoomServerAPIRoutes {
     newAuthUserToken = "/newAuthUserToken",
     newRoomToken = "/newRoomToken",
     newRoom = "/newRoom",
+    getRoomAccessToken = "/getRoomAccessToken",
     getRoomStatus = "/getRoomStatus",
     terminateRoom = "/terminateRoom",
     recCallBack = "/recCallBack",

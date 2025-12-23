@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Button, ListGroup } from 'react-bootstrap';
 import { useCall } from '@client/hooks/useCall';
-import { GetUserMediaConfig, ParticipantInfo } from '@conf/conf-models';
+import { ConferenceScheduledInfo, GetUserMediaConfig, ParticipantInfo } from '@conf/conf-models';
 import ThrottledButton from '@client/components/ui/ThrottledButton';
 import { XCircleFill, PersonCircle, PersonPlus, PersonPlusFill } from 'react-bootstrap-icons';
 import { useAPI } from '@client/hooks/useAPI';
+import { Conference } from '@conf-client/models';
 
-const InviteParticipantsModal: React.FC<{ show: boolean, onClose: () => void }> = ({ show, onClose }) => {
+const InviteParticipantsModal: React.FC<{ conference: Conference | null, show: boolean, onClose: () => void }> = ({ conference, show, onClose }) => {
     const { isCallActive, inviteInfoReceived, callParticipants, sendInviteConf } = useCall();
     const api = useAPI();
 
@@ -38,16 +39,20 @@ const InviteParticipantsModal: React.FC<{ show: boolean, onClose: () => void }> 
 
     const sendInviteClick = async (participant: ParticipantInfo) => {
 
-        let audioCall: boolean = true, videoCall: boolean = true;
-
         let getUserMediaConfig = new GetUserMediaConfig();
-        getUserMediaConfig.isAudioEnabled = audioCall
-        getUserMediaConfig.isVideoEnabled = videoCall;
+        if (api.isAdmin() || api.isUser()) {
+            getUserMediaConfig.isAudioEnabled = true;
+            getUserMediaConfig.isVideoEnabled = true;
+        } else {
+            getUserMediaConfig.isAudioEnabled = conference.conferenceConfig.guestsAllowMic;
+            getUserMediaConfig.isVideoEnabled = conference.conferenceConfig.guestsAllowCamera;
+        }
+
         sendInviteConf(participant, getUserMediaConfig);
     };
 
     return (
-        <>           
+        <>
             <Modal show={show} centered backdrop="static" keyboard={false} onHide={onClose} size="lg">
                 <Modal.Header closeButton className="bg-body">
                     <Modal.Title className="d-flex align-items-center text-secondary">
@@ -72,7 +77,7 @@ const InviteParticipantsModal: React.FC<{ show: boolean, onClose: () => void }> 
                                         key={participantInfo.participantId}
                                         className="d-flex justify-content-between align-items-center px-3 py-3 border-bottom bg-body"
                                         style={{ transition: 'all 0.2s ease' }}
-                                    >                                      
+                                    >
                                         <div className="d-flex align-items-center">
                                             <div className="position-relative me-3">
                                                 <PersonCircle size={36} className="text-secondary opacity-50" />
@@ -91,17 +96,17 @@ const InviteParticipantsModal: React.FC<{ show: boolean, onClose: () => void }> 
                                                     {participantInfo.status}
                                                 </div>
                                             </div>
-                                        </div>                                       
-                                        <div className="d-flex align-items-center gap-2">                                            
-                                                <ThrottledButton                                                    
-                                                    className={`submit-btn ${isCallActive || !isOnline ? 'text-muted' : 'text-success'}`}
-                                                    onClick={(event: any) => {
-                                                        event.stopPropagation();
-                                                        sendInviteClick(participantInfo);
-                                                    }}                                                    
-                                                    >
-                                                    <PersonPlus size={18} /> <span className='p-1'>Invite</span>
-                                                </ThrottledButton>
+                                        </div>
+                                        <div className="d-flex align-items-center gap-2">
+                                            <ThrottledButton
+                                                className={`submit-btn ${isCallActive || !isOnline ? 'text-muted' : 'text-success'}`}
+                                                onClick={(event: any) => {
+                                                    event.stopPropagation();
+                                                    sendInviteClick(participantInfo);
+                                                }}
+                                            >
+                                                <PersonPlus size={18} /> <span className='p-1'>Invite</span>
+                                            </ThrottledButton>
                                         </div>
                                     </ListGroup.Item>
                                 );

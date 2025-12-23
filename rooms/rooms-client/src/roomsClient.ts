@@ -690,8 +690,7 @@ export class RoomsClient {
     console.log(`roomNewToken`);
 
     let msg = new RoomNewTokenMsg();
-    msg.data = {
-      authToken: this.localPeer.authToken,
+    msg.data = {     
       expiresInMin: expiresInMin
     };
 
@@ -709,8 +708,7 @@ export class RoomsClient {
     config.closeRoomOnPeerCount = 0; //close the room when there are zero participants
 
     let msg = new RoomNewMsg();
-    msg.data = {
-      authToken: this.localPeer.authToken,
+    msg.data = {      
       peerId: this.localPeer.peerId,
       roomId: this.localRoom.roomId,
       roomToken: this.localPeer.roomToken,
@@ -741,8 +739,7 @@ export class RoomsClient {
 
     let msg = new RoomLeaveMsg();
     msg.data = {
-      roomId: this.localRoom.roomId,
-      roomToken: ""
+      roomId: this.localRoom.roomId,      
     };
 
     this.roomClose();

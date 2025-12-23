@@ -10,9 +10,7 @@ import {
     //NotRegisteredMsg,
     UnauthorizedMsg,
     TerminateConfMsg,
-    ConferenceConfig,
-    JoinConferenceLobbyParams,
-    JoinConfLobbyResultMsg,    
+    ConferenceConfig,  
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
@@ -388,7 +386,7 @@ export class ConferenceClient {
                 break;
             case CallMessageType.invite:
                 await this.onInviteReceived(message);
-                break;            
+                break;
             case CallMessageType.reject:
                 await this.onRejectReceived(message);
                 break;
@@ -927,7 +925,7 @@ export class ConferenceClient {
 
         const callMsg = new InviteCancelledMsg();
         callMsg.data.participantId = invite.data.participantId;
-        callMsg.data.conferenceId = invite.data.conferenceId;        
+        callMsg.data.conferenceId = invite.data.conferenceId;
         this.sendToServer(callMsg);
 
         this.resetConferenceRoom();
@@ -950,6 +948,8 @@ export class ConferenceClient {
         let inviteMsg = new InviteMsg();
         inviteMsg.data.participantId = participantId;
         inviteMsg.data.conferenceId = args.conferenceId;
+        inviteMsg.data.withAudio = args.joinMediaConfig.isAudioEnabled;
+        inviteMsg.data.withVideo = args.joinMediaConfig.isVideoEnabled;
         inviteMsg.data.conferenceType = "room";
 
         if (!this.sendToServer(inviteMsg)) {
@@ -1047,68 +1047,7 @@ export class ConferenceClient {
             }
         });
     }
-
-    waitJoinConferenceLobby(args: JoinConferenceLobbyParams) {
-        console.log(`waitJoinConferenceLobby trackingId: ${args.conferenceId}, conferenceCode: ${args.conferenceCode}`);
-
-        return new Promise<JoinConfResultMsg>((resolve, reject) => {
-
-            if (!this.isRegistered()) {
-                console.error(`connection not registered.`);
-                reject(`connection not registered.`);
-            }
-
-            if (!args.externalId) {
-                console.error("createArgs externalId is required.");
-                reject(`externalId is required.`);
-            }
-
-            let _onmessage: (event: any) => void;
-
-            let _removeEvents = () => {
-                if (_onmessage) {
-                    this.socket.removeEventHandler("onmessage", _onmessage);
-                }
-            }
-
-            try {
-                let timerid = setTimeout(() => {
-                    _removeEvents();
-                    reject("failed to join conference");
-                }, 5000);
-
-                _onmessage = (event: any) => {
-                    console.log("** onmessage", event.data);
-                    let msg = JSON.parse(event.data);
-
-                    if (msg.type == CallMessageType.joinConfLobbyResult) {
-                        clearTimeout(timerid);
-                        _removeEvents();
-
-                        let msgIn = msg as JoinConfLobbyResultMsg;
-
-                        if (msgIn.error) {
-                            console.log(msgIn.error);
-                            reject("failed to join conference");
-                            return;
-                        }
-                        resolve(msgIn);
-                    }
-                };
-
-                this.socket.addEventHandler("onmessage", _onmessage);
-                // if (!this.joinConferenceRoomLobby(args)) {
-                //     reject(`failed to send joinConferenceRoomLobby`);
-                // }
-
-            } catch (err: any) {
-                console.log(err);
-                _removeEvents();
-                reject("failed to join room lobby");
-            }
-        });
-    }
-
+  
     waitJoinConferenceRoom(args: JoinConferenceParams) {
         console.log(`waitJoinConferenceRoom trackingId: ${args.conferenceId}, conferenceCode: ${args.conferenceCode}`);
 
@@ -1380,7 +1319,7 @@ export class ConferenceClient {
 
         await this.onEvent(EventTypes.inviteReceived, message);
     }
-    
+
 
     /**
      * remote participant cancelled the invite
@@ -1505,7 +1444,7 @@ export class ConferenceClient {
         let msg = new RejectMsg();
         msg.data.conferenceId = message.data.conferenceId;
         msg.data.fromParticipantId = this.localParticipant.participantId;
-        msg.data.toParticipantId = message.data.participantId;        
+        msg.data.toParticipantId = message.data.participantId;
         this.sendToServer(msg);
 
         this.resetConferenceRoom();

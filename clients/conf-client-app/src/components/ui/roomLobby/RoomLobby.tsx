@@ -45,7 +45,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
 
     useEffect(() => {
         if (conferenceScheduled != null) {
-            setConference(conferenceScheduled || null);
+            setConference(conferenceScheduled);
             setIsComponentLoading(false);
         } else {
 
