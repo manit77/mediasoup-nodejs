@@ -3,7 +3,7 @@ import { Modal, Button, ListGroup } from 'react-bootstrap';
 import { useCall } from '@client/hooks/useCall';
 import { ConferenceScheduledInfo, GetUserMediaConfig, ParticipantInfo } from '@conf/conf-models';
 import ThrottledButton from '@client/components/ui/ThrottledButton';
-import { XCircleFill, PersonCircle, PersonPlus, PersonPlusFill } from 'react-bootstrap-icons';
+import { XCircleFill, PersonCircle, PersonPlus, PersonPlusFill, CheckLg } from 'react-bootstrap-icons';
 import { useAPI } from '@client/hooks/useAPI';
 import { Conference } from '@conf-client/models';
 
@@ -12,6 +12,7 @@ const InviteParticipantsModal: React.FC<{ conference: Conference | null, show: b
     const api = useAPI();
 
     const [inviteList, setInviteList] = useState<ParticipantInfo[]>([]);
+    const [invitedIds, setInvitedIds] = useState<string[]>([]);
 
     useEffect(() => {
         let fetchParticipants = async () => {
@@ -25,13 +26,15 @@ const InviteParticipantsModal: React.FC<{ conference: Conference | null, show: b
     }, []);
 
     useEffect(() => {
+        
+        const activeParticipantIds = [...callParticipants.values()].map(p => p.participantId);        
+        const filtered = api.participantsOnline.filter(
+            onlineParticipant => !activeParticipantIds.includes(onlineParticipant.participantId)
+        );
+        setInviteList(filtered);
+        
+    }, [api.participantsOnline, callParticipants]);
 
-        callParticipants.forEach(participant => {
-            let filtered = api.participantsOnline.filter(p => p.participantId !== participant.participantId);
-            setInviteList(filtered);
-        });
-
-    }, [api.participantsOnline]);
 
     useEffect(() => {
         console.log("updated inviteInfoReceived", inviteInfoReceived);
@@ -39,16 +42,14 @@ const InviteParticipantsModal: React.FC<{ conference: Conference | null, show: b
 
     const sendInviteClick = async (participant: ParticipantInfo) => {
 
+        //we don't know the role of the remote participant server will handle the logic of sending the audio and video
         let getUserMediaConfig = new GetUserMediaConfig();
-        if (api.isAdmin() || api.isUser()) {
-            getUserMediaConfig.isAudioEnabled = true;
-            getUserMediaConfig.isVideoEnabled = true;
-        } else {
-            getUserMediaConfig.isAudioEnabled = conference.conferenceConfig.guestsAllowMic;
-            getUserMediaConfig.isVideoEnabled = conference.conferenceConfig.guestsAllowCamera;
-        }
-
+        getUserMediaConfig.isAudioEnabled = true;
+        getUserMediaConfig.isVideoEnabled = true;
         sendInviteConf(participant, getUserMediaConfig);
+
+        setInvitedIds(prev => [...prev, participant.participantId]);
+
     };
 
     return (
@@ -71,6 +72,7 @@ const InviteParticipantsModal: React.FC<{ conference: Conference | null, show: b
                             {inviteList.map((participantInfo) => {
                                 const isOnline = participantInfo.status === "online";
                                 const isBusy = participantInfo.status === "busy";
+                                const wasInvited = invitedIds.includes(participantInfo.participantId);
 
                                 return (
                                     <ListGroup.Item
@@ -105,7 +107,15 @@ const InviteParticipantsModal: React.FC<{ conference: Conference | null, show: b
                                                     sendInviteClick(participantInfo);
                                                 }}
                                             >
-                                                <PersonPlus size={18} /> <span className='p-1'>Invite</span>
+                                                {wasInvited ? (
+                                                    <>
+                                                        <CheckLg size={18} /> <span className='p-1'>Invited</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <PersonPlus size={18} /> <span className='p-1'>Invite</span>
+                                                    </>
+                                                )}
                                             </ThrottledButton>
                                         </div>
                                     </ListGroup.Item>

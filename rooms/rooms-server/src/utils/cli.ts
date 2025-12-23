@@ -24,36 +24,46 @@ function generateToken(type: string, role: AuthUserRoles, username: string): str
     username: username,
     type: type,
     role: role,
-    claims: []
+    claims: getClaimsByRole(role)
   };
 
-  payload.claims = getClaimsByRole(role);
+  console.log(payload);  
 
   return jwtSign(secretKey, payload);
 }
 
 function promptUser(): void {
   console.log('\nSelect an option:');
-  console.log('1. Generate Admin Token');
-  console.log('2. Generate User Token');
-  console.log('4. Exit');
+  console.log('1. Generate Service Token');
+  console.log('2. Generate Admin Token');
+  console.log('3. Generate User Token');
+  console.log('4. Generate Guest Token');
+  console.log('0. Exit');
 
   rl.question('Enter your choice (1-4): ', (choice) => {
     switch (choice) {
       case '1':
-        console.log('Admin Token:', generateToken("service", AuthUserRoles.admin, "admin"));
+        console.log('Service Token:', generateToken("service", AuthUserRoles.service, "service"));
         promptUser();
         break;
       case '2':
+        console.log('Admin Token:', generateToken("service", AuthUserRoles.admin, "admin"));
+        promptUser();
+        break;
+      case '3':
         console.log('User Token:', generateToken("service", AuthUserRoles.user, "user"));
         promptUser();
         break;
       case '4':
+        console.log('Guest Token:', generateToken("service", AuthUserRoles.guest, "guest"));
+        promptUser();
+        break;
+      case '0':
         console.log('Exiting...');
         rl.close();
         break;
       default:
-        console.log('Invalid choice. Please select 1, 2, 3, or 4.');
+        console.log('Invalid choice.');
         promptUser();
     }
   });

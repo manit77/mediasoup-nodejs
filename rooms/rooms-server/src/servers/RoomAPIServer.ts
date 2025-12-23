@@ -18,6 +18,7 @@ import * as roomUtils from "../roomServer/utils.js";
 import { RoomServerConfig } from '../roomServer/models.js';
 import { RecMsgTypes } from '../recording/recModels.js';
 import { AuthUserTokenPayload } from '../models/tokenPayloads.js';
+import { consoleError } from '../utils/utils.js';
 
 const DSTR = "RoomAPIServer";
 
@@ -38,6 +39,8 @@ defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoomToken] = [AuthUserRoles.
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoom] = [AuthUserRoles.service];
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.terminateRoom] = [AuthUserRoles.service];
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.getRoomStatus] = [AuthUserRoles.service];
+defaultHTTPServerSecurityMap[RoomServerAPIRoutes.getRoomAccessToken] = [AuthUserRoles.service];
+
 
 /**
  * these are admin functions of the room server
@@ -67,19 +70,19 @@ export class RoomAPIServer {
 
             //this requires admin access
             if (!authtoken) {
-                console.error(DSTR, "authToken required.");
+                consoleError(DSTR, "authToken required.");
                 return res.status(401).json({ error: 'Missing or invalid authToken' });
             }
 
             let payload = roomUtils.decodeAuthUserToken(this.config.room_secret_key, authtoken);
             if (!payload) {
-                console.error(DSTR, "invalid authToken.");
+                consoleError(DSTR, "invalid authToken.");
                 return res.status(401).json({ error: 'invalid authToken.' });
             }
 
             let secMap = this.securityMap[req.path];
             if (!secMap || (secMap.length > 0 && !secMap.includes(payload.role))) {
-                console.error(DSTR, "unauthorized authToken.");
+                consoleError(DSTR, "unauthorized authToken.");
                 return res.status(401).json({ error: 'unauthorized.' });
             }
 
@@ -87,7 +90,7 @@ export class RoomAPIServer {
 
             next();
         } catch (error) {
-            console.error(DSTR, error);
+            consoleError(DSTR, error);
             return res.status(401).json({ error: 'Invalid or expired token' });
         }
     };

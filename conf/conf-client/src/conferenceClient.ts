@@ -1381,6 +1381,8 @@ export class ConferenceClient {
 
         const acceptMsg = new AcceptMsg();
         acceptMsg.data.conferenceId = message.data.conferenceId;
+        acceptMsg.data.ticket = message.data.ticket;
+        
         if (!this.sendToServer(acceptMsg)) {
             console.error(`failed to send AcceptMsg`);
             return;

@@ -8,7 +8,6 @@ import ThrottledButton from '@client/components/ui/ThrottledButton';
 import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { TelephoneInboundFill, CameraVideoFill, MicFill, XCircleFill } from 'react-bootstrap-icons';
 
-
 const IncomingCallPopup: React.FC = () => {
     const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite, localParticipant, getMediaConstraints } = useCall();
     const navigate = useNavigate();
@@ -95,25 +94,40 @@ const IncomingCallPopup: React.FC = () => {
                     {/* Action Area */}
                     <div className="p-4 bg-body">
                         <div className="d-grid gap-3">
-                            {/* Primary Action: Video */}
-                            <Button
-                                variant="success"
-                                size="lg"
-                                className="py-3 fw-bold d-flex align-items-center justify-content-center shadow-sm"
-                                onClick={() => handleAccept(true, true)}
-                            >
-                                <CameraVideoFill className="me-2" size={20} /> Accept with Video
-                            </Button>
 
-                            {/* Secondary Action: Audio Only */}
-                            <ThrottledButton
-                                variant="outline-success"
-                                size="lg"
-                                className="py-2 d-flex align-items-center justify-content-center"
-                                onClick={() => handleAccept(true, false)}
-                            >
-                                <MicFill className="me-2" size={18} /> Audio Only
-                            </ThrottledButton>
+                            {inviteInfoReceived?.data?.withVideo && <>
+                                <ThrottledButton
+                                    variant="success"
+                                    size="lg"
+                                    className="py-3 fw-bold d-flex align-items-center justify-content-center shadow-sm"
+                                    onClick={() => handleAccept(true, true)}
+                                >
+                                    <CameraVideoFill className="me-2" size={20} /> Accept with Video
+                                </ThrottledButton>
+                            </>}
+                            {inviteInfoReceived.data.withAudio && (
+                                <Button
+                                    variant="outline-success"
+                                    size="lg"
+                                    className="py-2 d-flex align-items-center justify-content-center"
+                                    onClick={() => handleAccept(true, false)}
+                                >
+                                    <MicFill className="me-2" size={18} /> Audio Only
+                                </Button>
+                            )}
+
+                            {(!inviteInfoReceived?.data?.withAudio && !inviteInfoReceived?.data?.withVideo) && (<>
+                                <ThrottledButton
+                                    variant="outline-success"
+                                    size="lg"
+                                    className="py-2 d-flex align-items-center justify-content-center"
+                                    onClick={() => handleAccept(false, false)}
+                                >
+                                    <MicFill className="me-2" size={18} /> Answer
+                                </ThrottledButton>
+                            </>)}
+
+
 
                             <hr className="my-2" />
 

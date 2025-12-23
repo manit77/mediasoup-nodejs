@@ -16,7 +16,7 @@ export const CallMessageType = {
     createConf: "createConf",
     createConfResult: "createConfResult",
     joinConf: "joinConf",
-    joinConfResult: "joinConfResult",   
+    joinConfResult: "joinConfResult",
     terminateConf: "terminateConf",
 
     invite: "invite", //invite to join  
@@ -224,11 +224,11 @@ export class JoinConfMsg extends BaseMsg {
     data?: {
         conferenceId?: string,
         conferenceCode?: string,
-        externalId?: string,       
+        externalId?: string,
     } = {
             conferenceId: "",
             conferenceCode: "",
-            externalId: "",           
+            externalId: "",
         }
 }
 
@@ -251,7 +251,8 @@ export class InviteMsg extends BaseMsg {
         conferenceExternalId?: string,
         conferenceType?: conferenceType,
         withAudio?: boolean,
-        withVideo?: boolean
+        withVideo?: boolean,
+        ticket?: string,
     } = {};
 }
 
@@ -288,15 +289,14 @@ export class AcceptMsg extends BaseMsg {
     type = CallMessageType.accept;
     data?: {
         conferenceId?: string,
-
-    } = {};
+        ticket?: string,
+    } = { conferenceId: "", ticket: "" };
 }
 
 export class AcceptResultMsg extends BaseMsg {
     type = CallMessageType.acceptResult;
     data?: {
         conferenceId?: string,
-
     } = {};
 }
 

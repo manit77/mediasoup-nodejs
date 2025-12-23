@@ -45,7 +45,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
 
     useEffect(() => {
         if (conferenceScheduled != null) {
-            setConference(conferenceScheduled);
+            setConference(prev => conferenceScheduled);
             setIsComponentLoading(false);
         } else {
 
@@ -158,6 +158,10 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
 
     useEffect(() => {
 
+        if (!conference || !conference.externalId) {
+            return;
+        }
+
         if (conferencesOnline.length === 0) {
             setConference(prev => prev
                 ? { ...prev, conferenceId: "" }
@@ -166,11 +170,12 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
             return;
         }
 
-        let conf = conferencesOnline.find(conf => {
-            if (conf.externalId === conference?.externalId) {
+        let conf = conferencesOnline.find(c => {
+            if (c.externalId === conference?.externalId) {
                 return true;
             }
         });
+        
         if (conf) {
             setConference(conf);
         } else {
@@ -179,7 +184,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
                 : undefined
             );
         }
-    }, [conferencesOnline]);
+    }, [conferencesOnline, conference]);
 
     useEffect(() => {
         console.log(`isCallActive`, isCallActive);
@@ -262,7 +267,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
                                             className={`me-3 border ${conference?.conferenceId ? 'text-success border-success-subtle' : 'text-muted border-secondary-subtle'}`}
                                             style={{ fontWeight: '600' }}
                                         >
-                                            {conference?.conferenceId ? (
+                                            {!!conference.conferenceId ? (
                                                 <><CircleFill className="me-1" size={8} /> Active</>
                                             ) : (
                                                 <><Circle className="me-1" size={8} /> Offline</>

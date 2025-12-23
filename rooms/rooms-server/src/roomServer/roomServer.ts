@@ -1043,7 +1043,7 @@ export class RoomServer {
     }
 
     async onRoomGetAccessTokenMsg(msgIn: RoomGetAccessTokenMsg): Promise<RoomGetAccessTokenResultMsg> {
-        console.log("onRoomNewTokenMsg");
+        console.log("onRoomGetAccessTokenMsg");
 
         if (!msgIn.data.roomId) {
             consoleError("invalid roomId");

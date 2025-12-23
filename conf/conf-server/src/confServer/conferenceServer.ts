@@ -26,12 +26,12 @@ import {
     conferenceType,
     LoggedOffMsg,
     TerminateConfMsg,
-    ConferencePongMsg, 
+    ConferencePongMsg,
     BaseMsg
 } from '@conf/conf-models';
 import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
 import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
-import { jwtVerify } from '../utils/jwtUtil.js';
+import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
 import { AuthUserRoles, IMsg, OkMsg, payloadTypeServer, RoomConfig } from '@rooms/rooms-models';
 import express from 'express';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
@@ -584,6 +584,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.withAudio = msgIn.data.withAudio;
         msg.data.withVideo = msgIn.data.withVideo;
 
+        msg.data.ticket = jwtSign(this.config.conf_secret_key, { conferenceId: conference.id, participantId: remote.participantId });    
+
         if (!this.send(remote, msg)) {
             consoleError("failed to send invite to receiver");
             conference.close("remote peer not available");
@@ -689,9 +691,20 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.conferenceName = conference.roomName;
         msg.data.conferenceExternalId = conference.externalId;
         msg.data.conferenceType = conference.confType;
-        msg.data.withAudio = msgIn.data.withAudio;
-        msg.data.withVideo = msgIn.data.withVideo;
-       
+
+        //determine audio
+        let withAudio = msgIn.data.withAudio;
+        let withVideo = msgIn.data.withVideo;
+
+        if (remote.role == AuthUserRoles.guest) {
+            withAudio = conference.config.guestsRequireMic || (withAudio && conference.config.guestsAllowMic);
+            withVideo = conference.config.guestsRequireCamera || (withVideo && conference.config.guestsAllowCamera);
+        }
+
+        msg.data.withAudio = withAudio;
+        msg.data.withVideo = withVideo;
+        msg.data.ticket = jwtSign(this.config.conf_secret_key, { conferenceId: conference.id, participantId: remote.participantId });
+
         if (!this.send(remote, msg)) {
             consoleError("failed to send invite to receiver");
             conference.close("remote peer not available");
@@ -789,6 +802,23 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         consoleLog("onAccept()");
         msgIn = fill(msgIn, new AcceptMsg());
 
+        if (!msgIn.data.ticket) {
+            consoleError("ERROR: ticket is required.");
+            let msg = new AcceptResultMsg();
+            msg.data.conferenceId = msgIn.data.conferenceId;
+            msg.error = "ticket is required.";
+            return msg;
+        }
+
+        let ticketObj = jwtVerify(this.config.conf_secret_key, msgIn.data.ticket) as { conferenceId: string, participantId: string };
+        if (!ticketObj || ticketObj.conferenceId !== msgIn.data.conferenceId || ticketObj.participantId !== participant.participantId) {
+            consoleError("ERROR: invalid ticket.");
+            let msg = new AcceptResultMsg();
+            msg.data.conferenceId = msgIn.data.conferenceId;
+            msg.error = "invalid ticket.";
+            return msg;
+        }
+
         let conference = this.conferences.get(msgIn.data.conferenceId);
 
         if (!conference) {
@@ -819,15 +849,17 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return;
         }
 
-        //wait for ready state
         let timeoutid = setTimeout(() => {
             consoleError("timeout waiting to join conference.");
+
             let msg = new AcceptResultMsg();
             msg.data.conferenceId = msgIn.data.conferenceId;
             msg.error = "timeout, unable to join conference";
             this.send(participant, msg);
+
         }, 5000);
 
+        conference.onReadyListeners = [];
         conference.addOnReadyListener(() => {
             consoleLog(`conference room ready ${conference.id}`);
             conference.addParticipant(participant);
@@ -1096,11 +1128,18 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             errorMsg.error = "error creating conference for user.";
             this.send(participant, errorMsg);
             return null;
-        }       
+        }
 
         //get the room access token to join
         let accessTokenResult = await roomsAPI.getRoomAccessToken(conference.roomId, participant.participantId);
-        
+        if (!accessTokenResult) {
+            consoleError("failed to get room access token.");
+            let errorMsg = new InviteResultMsg();
+            errorMsg.error = "error creating room access token for user.";
+            this.send(participant, errorMsg);
+            return null;
+        }
+
         consoleLog("authUserTokenResult", authUserTokenResult);
 
         let msg = new ConferenceReadyMsg()
@@ -1317,7 +1356,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             //roomPong returned an error, room not found or not in room
         }
 
-    } 
+    }
 
     private alertLobbyConfReady(conference: Conference) {
         let waiting = this.lobbies.getParticipants(conference.externalId);
