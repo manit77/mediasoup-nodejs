@@ -11,7 +11,8 @@ import { UIProvider } from '@client/contexts/UIContext';
 import { useLocation } from 'react-router-dom';
 import LoginGuestPage from '@client/components/layout/auth/LoginGuestPage';
 import LogoutPage from '@client/components/layout/auth/LogoutPage';
-import RoomLobby from '@client/components/layout/lobby/RoomLobby';
+import Lobby from '@client/components/layout/lobby/Lobby'
+
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAPI();
@@ -47,7 +48,7 @@ const AppRoutes: React.FC = () => {
           ) : (
             <>
               <Route path="/app" element={<AuthenticatedLayout />} />
-              <Route path="/lobby/:trackingId" element={<RoomLobby />} />
+              <Route path="/lobby/:trackingId" element={<Lobby />} />
               <Route path="/" element={<Navigate to="/app" replace />} />
             </>
           )}
@@ -73,7 +74,7 @@ function App() {
       <UIProvider>
         <APIProvider>
           <CallProvider>
-            <AppRoutes />
+            <AppRoutes />            
           </CallProvider>
         </APIProvider>
       </UIProvider>

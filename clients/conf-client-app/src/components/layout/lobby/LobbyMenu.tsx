@@ -3,7 +3,6 @@ import { Navbar, Nav, NavDropdown, Container } from 'react-bootstrap';
 import { useAPI } from '@client/hooks/useAPI';
 import { useNavigate } from 'react-router-dom';
 import { BoxArrowRight, CircleFill, Gear, Person, PersonGear } from 'react-bootstrap-icons';
-import { objectToQueryString } from '@client/utils/utils';
 import { flushSync } from 'react-dom';
 import { useCall } from '@client/hooks/useCall';
 import { getConferenceConfig } from '@client/services/ConferenceConfig';
@@ -11,45 +10,19 @@ import { ConferenceClientConfig } from '@conf/conf-client';
 import SettingsPopup from '@client/components/popups/SettingsPopup';
 import { useUI } from '@client/hooks/useUI';
 
-interface TopMenuProps {
+interface LobbyMenuProps {
     onShowSettings: () => void;
 }
 
-const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
-    const { getCurrentUser, logout, getClientData } = useAPI();
-    const { disconnect, isConnected, isAuthenticated, isConnecting } = useCall();
-     const ui = useUI();
-    const navigate = useNavigate();
+const LobbyMenu: React.FC<LobbyMenuProps> = ({ onShowSettings }) => {
+    const { getCurrentUser } = useAPI();
+    const { isConnected, isAuthenticated, isConnecting } = useCall();
     const [config, setConfig] = useState<ConferenceClientConfig>(null);
+    const ui = useUI();
 
     useEffect(() => {
         setConfig(getConferenceConfig());
     }, []);
-
-    const handleLogout = async () => {
-        try {
-
-            let role = getCurrentUser()?.role;
-            let path = "/login";
-
-            if (role === "guest") {
-                path = "/loginGuest";
-            }
-
-            let clientData = getClientData();
-            console.log(`logout clientData:`, clientData);
-
-            flushSync(() => {
-                logout();
-                disconnect();
-            });
-
-            navigate(path, { replace: true });
-
-        } catch (error) {
-            console.error("Logout failed", error);
-        }
-    };
 
     const dynamicBackground = useMemo<React.CSSProperties>(() => {
         const dotSpacing = 12;
@@ -101,9 +74,8 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
             transform: 'translateZ(0)'
         };
     }, []);
-
-
-    return (<>
+    return (
+    <>
         <Navbar
             expand="lg"
             className="px-3 border-bottom border-secondary position-relative"
@@ -137,13 +109,11 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
 
                 <Navbar.Collapse id="basic-navbar-nav">
                     <Nav className="ms-auto d-flex align-items-center">
-
                         <div className="d-flex align-items-center px-3 py-1 me-3"
                             style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>
                             <Person className="me-2 text-info opacity-75" size={14} />
                             <span className="text-white-50" style={{ fontSize: '0.85rem' }}>{getCurrentUser()?.displayName}</span>
                         </div>
-
                         <Nav.Link
                             className="text-white opacity-75 hover-bright d-flex align-items-center px-3 transition-all"
                             onClick={onShowSettings}
@@ -151,21 +121,6 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
                         >
                             <Gear className="me-2" size={16} />
                             Settings
-                        </Nav.Link>
-
-                        <Nav.Link
-                            className="ms-lg-3 px-3 py-1 d-flex align-items-center logout-button transition-all"
-                            onClick={handleLogout}
-                            style={{
-                                fontSize: '0.85rem',
-                                color: 'rgba(255, 255, 255, 0.7)',
-                                border: '1px solid rgba(255, 255, 255, 0.15)',
-                                borderRadius: '4px',
-                                background: 'rgba(255, 255, 255, 0.03)'
-                            }}
-                        >
-                            <BoxArrowRight className="me-2" size={15} />
-                            Logout
                         </Nav.Link>
                     </Nav>
                 </Navbar.Collapse>
@@ -185,4 +140,4 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
     );
 };
 
-export default TopMenu;
+export default LobbyMenu;

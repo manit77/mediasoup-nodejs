@@ -6,7 +6,8 @@ import { useAPI } from '@client/hooks/useAPI';
 import { useUI } from '@client/hooks/useUI';
 import { ConferenceScheduledInfo, GetUserMediaConfig } from '@conf/conf-models';
 import { getBrowserUserMedia } from '@conf/conf-client';
-import RoomLobby from '@client/components/layout/lobby/RoomLobby';
+import RoomLobby from '@client/components/ui/roomLobby/RoomLobby';
+import { DoorOpen, Gear } from 'react-bootstrap-icons';
 
 interface JoinRoomPopUpProps {
     conferenceScheduled: ConferenceScheduledInfo;
@@ -112,17 +113,6 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
         setCameraName(selectedDevices.videoLabel);
     }, [selectedDevices]);
 
-    // useEffect(() => {
-
-    //     setMicEnabled(true);
-    //     setCameraEnabled(false);
-
-    //     localParticipant.tracksInfo.isAudioEnabled = true;
-    //     localParticipant.tracksInfo.isAudioEnabled = false;
-
-
-    // }, [localParticipant])
-
     useEffect(() => {
         console.log(`isCallActive`, isCallActive);
         if (isCallActive) {
@@ -193,6 +183,17 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
     return (
         <Modal show={show} centered backdrop="static" keyboard={false} onHide={onClose} size="lg">
+            <Modal.Header className="bg-body">
+                <Modal.Title className="d-flex align-items-center justify-content-between w-100">
+                    <div className="d-flex align-items-center">
+                        <DoorOpen className="me-2 text-primary" size={24} />
+                        <span>Conference Lobby</span>
+                    </div>
+                    <Button variant="outline-secondary" size="sm" onClick={handleSettingsClick} disabled={isWaiting}>
+                        <Gear className="me-1" size={14} /> Settings
+                    </Button>
+                </Modal.Title>
+            </Modal.Header>
             <Modal.Body>
                 <RoomLobby conferenceScheduled={conferenceScheduled} ></RoomLobby>
             </Modal.Body>

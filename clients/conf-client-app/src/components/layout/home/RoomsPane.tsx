@@ -68,13 +68,30 @@ const RoomsPane: React.FC = () => {
   // Function to handle showing the JoinRoomPopUp
   const handleShowJoinPopUp = (conference: ConferenceScheduledInfo) => {
 
-    if (isAdmin() || isUser() || conference.conferenceId) {
+    if (isAdmin() || isUser()) {
       setSelectedConferenceToJoin(conference);
       setShowJoinPopUp(true);
       return;
     } else {
-      console.log(`conference not started. guests cannot create a room.`);
-      ui.showToast(`conference ${conference.name} not started`);
+
+      if (conference.config.guestsInviteOnly) {
+        ui.showToast(`conference ${conference.name} is invite-only for guests.`);
+        return;
+      }
+
+      if (!conference.conferenceId) {
+        console.log(`conference not started. guests cannot create a room.`);
+        ui.showToast(`conference ${conference.name} not started`);
+        return;
+      }
+
+      if (!conference.config.guestsAllowed) {
+        ui.showToast(`conference ${conference.name} is not available for guests.`);
+        return;
+      }
+
+      setSelectedConferenceToJoin(conference);
+      setShowJoinPopUp(true);
     }
 
   };

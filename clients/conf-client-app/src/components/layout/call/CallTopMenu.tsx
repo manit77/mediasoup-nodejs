@@ -4,7 +4,7 @@ import { BoxArrowRight, GearFill, PersonPlusFill, DisplayFill, XSquareFill, Came
 import { useCall } from '@client/hooks/useCall';
 import { useNavigate } from 'react-router-dom';
 import { useAPI } from '@client/hooks/useAPI';
-import ConfirmPopUp from '@client/components/popups/ConfirmPopUp';
+import ConfirmPopUp from '@client/components/ui/ConfirmPopUp';
 import styles from './CallTopMenu.module.css'; // Import the styles
 import '@client/css/modal.css';
 import '@client/css/buttons.css';
@@ -170,8 +170,8 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                         )}
 
                         {/* 2. Desktop-only Buttons (Hidden on Mobile) */}
-                        <div className="d-none d-md-flex gap-2">
-                            {isAdmin && (
+                        <div className="d-none d-md-flex gap-2">                            
+                            {isAdmin() && (
                                 <Button className="menu-btn text-white border-0" onClick={() => setShowInviteModal(true)}>
                                     <PersonPlusFill size={18} />
                                     <span className="d-none d-lg-inline ms-2">Invite</span>
@@ -189,7 +189,7 @@ const CallTopMenu: React.FC<CallTopMenuProps> = ({ onShowSettings }) => {
                                     <ThreeDotsVertical size={20} />
                                 </Dropdown.Toggle>
                                 <Dropdown.Menu variant="dark">
-                                    {isAdmin && (
+                                    {isAdmin() && (
                                         <Dropdown.Item onClick={() => setShowInviteModal(true)}>
                                             <PersonPlusFill className="me-2" /> Invite
                                         </Dropdown.Item>
