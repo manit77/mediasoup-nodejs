@@ -23,7 +23,7 @@ import {
     RoomConsumeSDPResultMsg,
     RoomAnswerSDPMsg,
     RoomGetAccessTokenMsg,
-    RoomGetAccessTokenResultMsg,  
+    RoomGetAccessTokenResultMsg,
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
@@ -918,7 +918,7 @@ export class RoomServer {
     }
 
     async onRoomNewTokenMsg(msgIn: RoomNewTokenMsg): Promise<RoomNewTokenResultMsg> {
-        console.log("onRoomNewTokenMsg");
+        console.log("onRoomNewTokenMsg");        
 
         let msg = new RoomNewTokenResultMsg();
         let [payloadRoom, roomToken] = roomUtils.generateRoomToken(this.config.room_secret_key, roomUtils.GetRoomId(), msgIn.data.expiresInMin, [AuthClaims.createRoom]);
@@ -1032,7 +1032,7 @@ export class RoomServer {
         }
 
         //room access token      
-        let accessToken = roomUtils.generateRoomToken(this.config.room_secret_key, room.id, 0, [AuthClaims.joinRoom])[1];
+        let [, accessToken] = roomUtils.generateRoomToken(this.config.room_secret_key, room.id, 0, [AuthClaims.joinRoom]);
 
         let msg = new RoomNewResultMsg();
         msg.data.roomId = room.id;
@@ -1045,7 +1045,7 @@ export class RoomServer {
     async onRoomGetAccessTokenMsg(msgIn: RoomGetAccessTokenMsg): Promise<RoomGetAccessTokenResultMsg> {
         console.log("onRoomNewTokenMsg");
 
-        if(!msgIn.data.roomId) {
+        if (!msgIn.data.roomId) {
             consoleError("invalid roomId");
             return;
         }
@@ -1063,7 +1063,6 @@ export class RoomServer {
         return msg;
     }
 
-    
     roomTerminate(room: Room) {
         console.log("roomTerminate()");
 
@@ -1141,10 +1140,6 @@ export class RoomServer {
         return msgResult;
     }
 
-    onRoomGetLogsMsg(msg: RoomGetLogsMsg) {
-
-    }
-
     /**
      * join with an auth token
      * @param token 
@@ -1166,6 +1161,13 @@ export class RoomServer {
             return msgError;
         }
 
+        if (!msgIn.data.roomId) {
+            consoleError(`roomId required.`);
+            let msgError = new RoomJoinResultMsg();
+            msgError.error = "invalid roomId";
+            return msgError;
+        }
+
         if (!msgIn.data.roomToken) {
             consoleError(`roomToken required.`);
             let msgError = new RoomJoinResultMsg();
@@ -1173,10 +1175,11 @@ export class RoomServer {
             return msgError;
         }
 
-        if (!peer) {
-            consoleError(`peer not created.`);
+        let payload = roomUtils.validateRoomToken(this.config.room_secret_key, msgIn.data.roomToken);
+        if (!payload || payload.roomId !== msgIn.data.roomId || !payload.claims || !payload.claims.includes(AuthClaims.joinRoom)) {
+            consoleError(`invalid roomToken.`);
             let msgError = new RoomJoinResultMsg();
-            msgError.error = "peer not created";
+            msgError.error = "invalid room token";
             return msgError;
         }
 
@@ -1263,14 +1266,7 @@ export class RoomServer {
         }
 
         let room = peer.room;
-        room.removePeer(peer);
-
-        // let msg = new RoomPeerLeftMsg();
-        // msg.data = {
-        //     peerId: peer.id,
-        //     roomId: room.id
-        // }
-        // this.broadCastAll(room, msg);
+        room.removePeer(peer);        
 
         let roomLeaveResult = new RoomLeaveResultMsg();
         roomLeaveResult.data.roomId = room.id;

@@ -56,9 +56,10 @@ export class RoomsAPI {
         return await this.post(RoomServerAPIRoutes.newRoom, msgOut) as RoomNewResultMsg;
     }
 
-    async getRoomAccessToken(roomId: string): Promise<RoomNewTokenResultMsg> {
+    async getRoomAccessToken(roomId: string, peerTrackingId: string): Promise<RoomNewTokenResultMsg> {
         let msgOut = new RoomGetAccessTokenMsg();
         msgOut.data.roomId = roomId;
+        msgOut.data.peerTrackingId = peerTrackingId;
         return await this.post(RoomServerAPIRoutes.getRoomAccessToken, msgOut) as RoomNewTokenResultMsg;
     }
 

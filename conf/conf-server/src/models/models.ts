@@ -128,7 +128,7 @@ export class Conference {
     roomName: string;
     roomURI: string;
     roomId: string;
-    roomToken: string;
+//roomToken: string;
     roomRtpCapabilities: any;
     participants: Map<string, Participant> = new Map();
     status: conferenceStatus = "none";

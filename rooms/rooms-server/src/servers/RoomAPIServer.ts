@@ -11,7 +11,7 @@ import {
     RoomGetStatusMsg,
     RoomPongMsg,
     RoomGetAccessTokenMsg,
-    
+
 } from "@rooms/rooms-models";
 import { RoomServer } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
@@ -38,7 +38,6 @@ defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoomToken] = [AuthUserRoles.
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoom] = [AuthUserRoles.service];
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.terminateRoom] = [AuthUserRoles.service];
 defaultHTTPServerSecurityMap[RoomServerAPIRoutes.getRoomStatus] = [AuthUserRoles.service];
-
 
 /**
  * these are admin functions of the room server
@@ -101,7 +100,7 @@ export class RoomAPIServer {
         });
 
         /**
-         * Create a new auth user token for the peer
+         * Create a new auth user token for the peer to register
          */
         app.post(RoomServerAPIRoutes.newAuthUserToken, this.tokenCheck as any, async (req, res) => {
             console.log(RoomServerAPIRoutes.newAuthUserToken);
@@ -112,12 +111,12 @@ export class RoomAPIServer {
         });
 
         /**
-         * Create a new room token for the room
+         * Create a token to create a new room
          */
         app.post(RoomServerAPIRoutes.newRoomToken, this.tokenCheck as any, async (req, res) => {
             console.log(RoomServerAPIRoutes.newRoomToken);
 
-            let msgIn = req.body as RoomNewTokenMsg;                 
+            let msgIn = req.body as RoomNewTokenMsg;
             let resultMsg = await this.roomServer.inServiceMsg(msgIn);
             res.send(resultMsg);
         });
@@ -127,9 +126,9 @@ export class RoomAPIServer {
          */
         app.post(RoomServerAPIRoutes.newRoom, this.tokenCheck as any, async (req, res) => {
             console.log(RoomServerAPIRoutes.newRoom);
-            
-            let msgIn = req.body as RoomNewMsg;        
-            //creates a room without a peerId
+
+            let msgIn = req.body as RoomNewMsg;
+
             let resultMsg = await this.roomServer.inServiceMsg(msgIn);
             res.send(resultMsg);
         });
@@ -137,7 +136,7 @@ export class RoomAPIServer {
         app.post(RoomServerAPIRoutes.getRoomAccessToken, this.tokenCheck as any, async (req, res) => {
             console.log(RoomServerAPIRoutes.getRoomAccessToken);
 
-            let msgIn = req.body as RoomGetAccessTokenMsg;         
+            let msgIn = req.body as RoomGetAccessTokenMsg;
 
             //creates a room without a peerId
             let resultMsg = await this.roomServer.inServiceMsg(msgIn);

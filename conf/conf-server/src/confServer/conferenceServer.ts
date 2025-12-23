@@ -681,13 +681,6 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return errorMsg;
         }
 
-        let roomsAPI = new RoomsAPI(conference.roomURI, this.config.room_access_token);
-        let resultAccessToken = await roomsAPI.getRoomAccessToken(conference.roomId);
-        if(resultAccessToken.error || !resultAccessToken.data?.roomToken) {
-            consoleError("could not get room access token");
-            return;
-        }
-
         //forward the invite to the receiver
         let msg = new InviteMsg();
         msg.data.participantId = participant.participantId;
@@ -698,8 +691,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.conferenceType = conference.confType;
         msg.data.withAudio = msgIn.data.withAudio;
         msg.data.withVideo = msgIn.data.withVideo;
-        msg.data.roomToken = resultAccessToken.data.roomToken;
-
+       
         if (!this.send(remote, msg)) {
             consoleError("failed to send invite to receiver");
             conference.close("remote peer not available");
@@ -1104,8 +1096,11 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             errorMsg.error = "error creating conference for user.";
             this.send(participant, errorMsg);
             return null;
-        }
+        }       
 
+        //get the room access token to join
+        let accessTokenResult = await roomsAPI.getRoomAccessToken(conference.roomId, participant.participantId);
+        
         consoleLog("authUserTokenResult", authUserTokenResult);
 
         let msg = new ConferenceReadyMsg()
@@ -1123,7 +1118,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.conferenceConfig = conference.config;
 
         msg.data.roomId = conference.roomId;
-        msg.data.roomToken = conference.roomToken;
+        msg.data.roomToken = accessTokenResult.data.roomToken;
         msg.data.roomAuthToken = authUserTokenResult.data.authToken;
         msg.data.roomURI = conference.roomURI;
         msg.data.roomRtpCapabilities = conference.roomRtpCapabilities;
@@ -1165,7 +1160,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             conference.close("failed to init new room");
             return false;
         }
-        let roomToken = roomTokenResult.data.roomToken;
+        let roomCreateToken = roomTokenResult.data.roomToken;
         let roomId = roomTokenResult.data.roomId;
 
         let roomConfig = new RoomConfig();
@@ -1183,10 +1178,9 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         roomConfig.timeOutNoParticipantsSecs = 60; //when the room sits idle with zero peers
         roomConfig.guestsAllowMic = conference.config.guestsAllowMic;
         roomConfig.guestsAllowCamera = conference.config.guestsAllowCamera;
-
         roomConfig.isRecorded = conference.config.isRecorded;
 
-        let roomNewResult = await roomsAPI.newRoom(roomId, roomToken, conference.roomName, conference.id, roomConfig);
+        let roomNewResult = await roomsAPI.newRoom(roomId, roomCreateToken, conference.roomName, conference.id, roomConfig);
         if (!roomNewResult || roomNewResult?.error) {
             consoleError("failed to create new room");
 
@@ -1195,8 +1189,10 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return false;
         }
 
+        //let roomAccessToken = roomNewResult.data.roomToken;
+
         conference.roomId = roomId;
-        conference.roomToken = roomToken;
+        //conference.roomToken = roomAccessToken;
         conference.roomURI = roomURI;
         conference.roomRtpCapabilities = roomNewResult.data.roomRtpCapabilities;
         conference.startTimers();

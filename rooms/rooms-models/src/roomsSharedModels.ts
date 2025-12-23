@@ -173,7 +173,7 @@ export class PeerTerminatedMsg extends BaseMsg {
 
 export class CreateProducerTransportMsg extends BaseMsg {
     type = payloadTypeClient.createProducerTransport;
-    data: {      
+    data: {
         roomId?: string,
     } = {}
 }
@@ -201,7 +201,7 @@ export class ProducerTransportConnectedMsg extends BaseMsg {
 export class ConnectProducerTransportMsg extends BaseMsg {
     type = payloadTypeClient.connectProducerTransport;
     data: {
-        transportId?: string,    
+        transportId?: string,
         roomId?: string,
         dtlsParameters?: any,
     } = {}
@@ -238,7 +238,7 @@ export class ConsumerTransportConnectedMsg extends BaseMsg {
 export class ConnectConsumerTransportMsg extends BaseMsg {
     type = payloadTypeClient.connectConsumerTransport;
     data: {
-        transportId?: string,      
+        transportId?: string,
         roomId?: string,
         dtlsParameters?: any
     } = {};
@@ -246,7 +246,7 @@ export class ConnectConsumerTransportMsg extends BaseMsg {
 
 export class RoomNewMsg extends BaseMsg {
     type = payloadTypeClient.roomNew;
-    data: {     
+    data: {
         peerId?: string,
         roomId?: string,
         roomToken?: string,
@@ -270,7 +270,7 @@ export class AuthUserNewTokenMsg extends BaseMsg {
 
 export class AuthUserNewTokenResultMsg extends BaseMsg {
     type = payloadTypeServer.authUserNewTokenResult;
-    data: {      
+    data: {
         expiresIn?: number,
         role?: AuthUserRoles,
         authToken?: string,
@@ -280,7 +280,7 @@ export class AuthUserNewTokenResultMsg extends BaseMsg {
 
 export class RoomNewTokenMsg extends BaseMsg {
     type = payloadTypeClient.roomNewToken;
-    data: {      
+    data: {
         expiresInMin?: number,
     } = {}
 }
@@ -289,16 +289,17 @@ export class RoomNewTokenResultMsg extends BaseMsg {
     type = payloadTypeClient.roomNewTokenResult;
     data: {
         roomId?: string,
-        roomToken?: string,       
+        roomToken?: string,
     } = {}
 }
 
 export class RoomGetAccessTokenMsg extends BaseMsg {
     type = payloadTypeClient.roomGetAccessToken;
-    data: {      
+    data: {
         roomId: string,
+        peerTrackingId: string,
         expiresInMin?: number,
-    } = { roomId: "" }
+    } = { roomId: "", peerTrackingId: "" }
 }
 
 export class RoomGetAccessTokenResultMsg extends BaseMsg {
