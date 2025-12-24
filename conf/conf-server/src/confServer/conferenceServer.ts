@@ -29,25 +29,24 @@ import {
     ConferencePongMsg,
     BaseMsg
 } from '@conf/conf-models';
-import { Conference, IAuthPayload, Participant, SocketConnection } from '../models/models.js';
-import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
-import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
+import { IAuthPayload } from '#conf-server/models/payloads.js';
+import { Conference, Participant } from '#conf-server/models/conference.js';
+import { RoomsAPI } from '#conf-server/roomsAPI/roomsAPI.js';
+import { jwtSign, jwtVerify } from '#conf-server/utils/jwtUtil.js';
 import { AuthUserRoles, IMsg, OkMsg, payloadTypeServer, RoomConfig } from '@rooms/rooms-models';
 import express from 'express';
-import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
-import { getDemoSchedules } from '../demoData/demoData.js';
-import { AbstractEventHandler } from '../utils/evenHandler.js';
-import { consoleError, consoleLog, consoleWarn, copyWithDataParsing, fill, parseString, stringIsNullOrEmpty } from '../utils/utils.js';
+import { ThirdPartyAPI } from '#conf-server/thirdParty/thirdPartyAPI.js';
+import { getDemoSchedules } from '#conf-server/demoData/demoData.js';
+import { AbstractEventHandler } from '#conf-server/utils/evenHandler.js';
+import { consoleError, consoleLog, consoleWarn, copyWithDataParsing, fill, parseString, stringIsNullOrEmpty } from '#conf-server/utils/utils.js';
 import pkg_lodash from 'lodash';
 import { ConferenceServerConfig, ConferenceServerEventTypes } from './models.js';
-import { ConferenceLobby } from './conferenceLobby.js';
 const { clone } = pkg_lodash;
 
 export class ConferenceServer extends AbstractEventHandler<ConferenceServerEventTypes> {
 
     participants = new Map<string, Participant>();
     conferences = new Map<string, Conference>();
-    lobbies = new ConferenceLobby();
     config: ConferenceServerConfig;
     nextRoomURIIdx = 0;
     app: express.Express;
@@ -278,11 +277,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         };
 
         conference.onNewParticipant = (part: Participant) => {
-
-            //alert lobby when the first participant joins
-            if (conference.participants.size == 1) {
-                this.alertLobbyConfReady(conference);
-            }
+           
         }
 
         consoleLog(`conference created: ${conference.id} ${conference.roomName} `);
@@ -1085,10 +1080,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             msg.error = "unable to join conference";
             return msg;
         }
-
-        //if user is in the lobby
-        this.lobbies.removeParticipant(participant, conference.externalId);
-
+     
         if (!conference.addParticipant(participant)) {
             let errorMsg = new JoinConfResultMsg();
             errorMsg.error = "unable to add you to the conference.";
@@ -1356,13 +1348,6 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             //roomPong returned an error, room not found or not in room
         }
 
-    }
-
-    private alertLobbyConfReady(conference: Conference) {
-        let waiting = this.lobbies.getParticipants(conference.externalId);
-        for (let participant of waiting) {
-            this.sendConferenceReady(conference, participant);
-        }
     }
 
     private async onGetConferences(participant: Participant, msgIn: GetConferencesMsg) {

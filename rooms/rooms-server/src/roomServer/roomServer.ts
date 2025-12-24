@@ -23,7 +23,7 @@ import {
     RoomConsumeSDPResultMsg,
     RoomAnswerSDPMsg,
     RoomGetAccessTokenMsg,
-    RoomGetAccessTokenResultMsg,
+    RoomGetAccessTokenResultMsg, 
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
@@ -1266,8 +1266,8 @@ export class RoomServer {
         }
 
         let room = peer.room;
-        room.removePeer(peer);        
-
+        room.removePeer(peer);
+        
         let roomLeaveResult = new RoomLeaveResultMsg();
         roomLeaveResult.data.roomId = room.id;
         return roomLeaveResult;

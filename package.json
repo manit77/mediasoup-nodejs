@@ -8,6 +8,9 @@
     "conf/*",
     "clients/*"
   ],
+  "imports": {
+    "#conf-server/*": "./conf/conf-server/src/*.js"
+  },
   "scripts": {
     "build": "npm run --workspace=libs build && npm run --workspace=rooms build && npm run --workspace=conf build && npm run --workspace=clients build ",
     "package": "npm run --workspace=rooms/rooms-server package && npm run --workspace=conf/conf-server package",
