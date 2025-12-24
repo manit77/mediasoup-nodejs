@@ -1,10 +1,7 @@
 {
   "name": "@conf/conf-server",
   "version": "1.0.0",
-  "type": "module",
-  "imports": {
-    "#conf-server/*": "./src/*"
-  },
+  "type": "module",  
   "scripts": {
     "build": "tsc --build --force",
     "cp-rooms": "mkdir -p dist/node_modules/@rooms/rooms-models && cp -rf ../../rooms/rooms-models/dist/. dist/node_modules/@rooms/rooms-models",

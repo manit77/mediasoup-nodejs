@@ -29,16 +29,16 @@ import {
     ConferencePongMsg,
     BaseMsg
 } from '@conf/conf-models';
-import { IAuthPayload } from '#conf-server/models/payloads.js';
-import { Conference, Participant } from '#conf-server/models/conference.js';
-import { RoomsAPI } from '#conf-server/roomsAPI/roomsAPI.js';
-import { jwtSign, jwtVerify } from '#conf-server/utils/jwtUtil.js';
+import { IAuthPayload } from '../models/payloads.js';
+import { Conference, Participant } from '../models/conference.js';
+import { RoomsAPI } from '../roomsAPI/roomsAPI.js';
+import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
 import { AuthUserRoles, IMsg, OkMsg, payloadTypeServer, RoomConfig } from '@rooms/rooms-models';
 import express from 'express';
-import { ThirdPartyAPI } from '#conf-server/thirdParty/thirdPartyAPI.js';
-import { getDemoSchedules } from '#conf-server/demoData/demoData.js';
-import { AbstractEventHandler } from '#conf-server/utils/evenHandler.js';
-import { consoleError, consoleLog, consoleWarn, copyWithDataParsing, fill, parseString, stringIsNullOrEmpty } from '#conf-server/utils/utils.js';
+import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
+import { getDemoSchedules } from '../demoData/demoData.js';
+import { AbstractEventHandler } from '../utils/evenHandler.js';
+import { consoleError, consoleLog, consoleWarn, copyWithDataParsing, fill, parseString, stringIsNullOrEmpty } from '../utils/utils.js';
 import pkg_lodash from 'lodash';
 import { ConferenceServerConfig, ConferenceServerEventTypes } from './models.js';
 const { clone } = pkg_lodash;

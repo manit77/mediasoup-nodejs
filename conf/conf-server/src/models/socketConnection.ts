@@ -1,4 +1,4 @@
-import { consoleLog, consoleWarn } from "#conf-server/utils/utils.js";
+import { consoleLog, consoleWarn } from "../utils/utils.js";
 import { WebSocket } from 'ws';
 
 type onSocketTimeout = (conn: SocketConnection) => void;

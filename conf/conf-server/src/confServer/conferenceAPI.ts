@@ -4,14 +4,14 @@ import { apiGetScheduledConferencePost, apiGetScheduledConferenceResult, apiMsgT
     getMsgErorr, GetParticipantsResultMsg, isMsgErorr, LoginGuestMsg, LoginMsg, LoginResultMsg, 
     ParticipantRole, WebRoutes } from '@conf/conf-models';
 import { ConferenceServer } from './conferenceServer.js';
-import { IAuthPayload, } from '#conf-server/models/payloads.js';
-import { jwtSign, jwtVerify } from '#conf-server/utils/jwtUtil.js';
+import { IAuthPayload, } from '..//models/payloads.js';
+import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
 import { ErrorMsg, RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/rooms-models';
-import { ThirdPartyAPI } from '#conf-server/thirdParty/thirdPartyAPI.js';
+import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from '@conf/conf-models';
-import { getDemoSchedules } from '#conf-server/demoData/demoData.js';
+import { getDemoSchedules } from '../demoData/demoData.js';
 import { consoleError, fill, parseString } from '../utils/utils.js';
-import { CacheManager } from '#conf-server/utils/cacheManager.js';
+import { CacheManager } from '../utils/cacheManager.js';
 import { ConferenceServerConfig, defaultClientConfig } from './models.js';
 
 export class ConferenceAPI {

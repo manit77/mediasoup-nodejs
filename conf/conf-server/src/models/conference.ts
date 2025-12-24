@@ -1,6 +1,6 @@
 import { ConferenceConfig, conferenceType, ParticipantRole } from "@conf/conf-models";
 import { SocketConnection } from "./socketConnection.js";
-import { consoleLog, consoleWarn } from "#conf-server/utils/utils.js";
+import { consoleLog, consoleWarn } from "../utils/utils.js";
 import { AuthUserRoles } from "@rooms/rooms-models";
 
 /**
