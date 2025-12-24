@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAPI } from '../../hooks/useAPI';
-import { useUI } from '../../hooks/useUI';
+import { useAPI } from '@client/hooks/useAPI';
+import { useUI } from '@client/hooks/useUI';
 import { Form, Button, Container, Card, Alert, Spinner } from 'react-bootstrap';
 import { PersonCircle, LockFill, ShieldLockFill, InfoCircle, ExclamationTriangleFill } from 'react-bootstrap-icons';
-import { getQueryParams } from '../../utils/utils';
-import { getConferenceConfig } from '../../services/ConferenceConfig';
+import { getQueryParams } from '@client/utils/utils';
+import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { ClientConfig } from '@conf/conf-models';
 
 const LoginPage: React.FC = () => {
@@ -30,7 +30,15 @@ const LoginPage: React.FC = () => {
 
     useEffect(() => {
         console.log("getQueryParams:", getQueryParams());
+        
         let query = getQueryParams() ?? {};
+
+        //reset login state if query params exist
+        if (Object.keys(query).length > 0) {
+            api.logout();
+            api.clearClientData();
+        }
+
         let clientData: any = api.getClientData() ?? {};
 
         let _participantGroup = "";

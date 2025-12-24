@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Modal, Button, Spinner, Badge } from 'react-bootstrap';
-import { useCall } from '../../hooks/useCall';
+import { useCall } from '@client/hooks/useCall';
 import { CameraVideoFill, CameraVideoOffFill, MicFill, MicMuteFill, TelephoneOutboundFill, XCircleFill } from 'react-bootstrap-icons';
 
 const CallingPopup: React.FC = () => {

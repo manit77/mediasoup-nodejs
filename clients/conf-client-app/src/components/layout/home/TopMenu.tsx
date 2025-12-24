@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Navbar, Nav, NavDropdown, Container } from 'react-bootstrap';
-import { useAPI } from '../../hooks/useAPI';
+import { useAPI } from '@client/hooks/useAPI';
 import { useNavigate } from 'react-router-dom';
 import { BoxArrowRight, CircleFill, Gear, Person, PersonGear } from 'react-bootstrap-icons';
-import { objectToQueryString } from '../../utils/utils';
+import { objectToQueryString } from '@client/utils/utils';
 import { flushSync } from 'react-dom';
-import { useCall } from '../../hooks/useCall';
-import { getConferenceConfig } from '../../services/ConferenceConfig';
+import { useCall } from '@client/hooks/useCall';
+import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { ConferenceClientConfig } from '@conf/conf-client';
+import SettingsPopup from '@client/components/popups/SettingsPopup';
+import { useUI } from '@client/hooks/useUI';
 
 interface TopMenuProps {
     onShowSettings: () => void;
@@ -16,6 +18,7 @@ interface TopMenuProps {
 const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
     const { getCurrentUser, logout, getClientData } = useAPI();
     const { disconnect, isConnected, isAuthenticated, isConnecting } = useCall();
+     const ui = useUI();
     const navigate = useNavigate();
     const [config, setConfig] = useState<ConferenceClientConfig>(null);
 
@@ -100,7 +103,7 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
     }, []);
 
 
-    return (
+    return (<>
         <Navbar
             expand="lg"
             className="px-3 border-bottom border-secondary position-relative"
@@ -177,6 +180,8 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
                 mixBlendMode: 'soft-light',
             }} />
         </Navbar>
+        <SettingsPopup show={ui.isShowSettings} handleClose={() => ui.setIsShowSettings(false)} />
+    </>
     );
 };
 

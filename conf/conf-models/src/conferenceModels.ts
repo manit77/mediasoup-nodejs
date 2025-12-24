@@ -60,6 +60,7 @@ export class ConferenceConfig {
     guestsAllowDeviceControls: boolean = true; //guests can enabled disable devices
     guestsRequireMic: boolean = false;
     guestsRequireCamera : boolean = false;
+    guestsInviteOnly : boolean = false;
     isRecordable = false;
     isRecorded = false;
     isPrivate = false;

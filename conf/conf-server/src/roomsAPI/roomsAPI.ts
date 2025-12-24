@@ -10,6 +10,7 @@ import {
     IMsg,
     RoomGetStatusResultMsg,
     RoomGetStatusMsg,
+    RoomGetAccessTokenMsg,
 } from "@rooms/rooms-models";
 import https from "https"
 
@@ -33,53 +34,59 @@ export class RoomsAPI {
     }
 
     async newRoomToken(): Promise<RoomNewTokenResultMsg> {
-        let msgIn = new RoomNewTokenMsg();
-        return await this.post(RoomServerAPIRoutes.newRoomToken, msgIn) as RoomNewTokenResultMsg;
+        let msgOut = new RoomNewTokenMsg();
+        return await this.post(RoomServerAPIRoutes.newRoomToken, msgOut) as RoomNewTokenResultMsg;
     }
 
     async newAuthUserToken(username: string, role: AuthUserRoles) {
-        let msgIn = new AuthUserNewTokenMsg();
-        msgIn.data.username = username;
-        msgIn.data.expiresInMin = 0;
-        msgIn.data.role = role;
-        return await this.post(RoomServerAPIRoutes.newAuthUserToken, msgIn) as AuthUserNewTokenResultMsg;
+        let msgOut = new AuthUserNewTokenMsg();
+        msgOut.data.username = username;
+        msgOut.data.expiresInMin = 0;
+        msgOut.data.role = role;        
+        return await this.post(RoomServerAPIRoutes.newAuthUserToken, msgOut) as AuthUserNewTokenResultMsg;
     }
 
     async newRoom(roomId: string, roomToken: string, roomName: string, trackingId: string, config: RoomConfig) {
-        let msgIn = new RoomNewMsg();
-        msgIn.data.roomId = roomId;
-        msgIn.data.roomToken = roomToken;
-        msgIn.data.roomName = roomName;
-        msgIn.data.roomTrackingId = trackingId;
-        msgIn.data.roomConfig = config;
+        let msgOut = new RoomNewMsg();
+        msgOut.data.roomId = roomId;
+        msgOut.data.roomToken = roomToken;
+        msgOut.data.roomName = roomName;
+        msgOut.data.roomTrackingId = trackingId;
+        msgOut.data.roomConfig = config;
+        return await this.post(RoomServerAPIRoutes.newRoom, msgOut) as RoomNewResultMsg;
+    }
 
-        return await this.post(RoomServerAPIRoutes.newRoom, msgIn) as RoomNewResultMsg;
+    async getRoomAccessToken(roomId: string, peerTrackingId: string): Promise<RoomNewTokenResultMsg> {
+        let msgOut = new RoomGetAccessTokenMsg();
+        msgOut.data.roomId = roomId;
+        msgOut.data.peerTrackingId = peerTrackingId;
+        return await this.post(RoomServerAPIRoutes.getRoomAccessToken, msgOut) as RoomNewTokenResultMsg;
     }
 
     async leaveRoom(roomId: string, peerId: string) {
-        let msgIn = new RoomLeaveMsg();
-        msgIn.data.roomId = roomId;
-        msgIn.data.peerId = peerId;
-        return await this.post(RoomServerAPIRoutes.newRoom, msgIn) as RoomLeaveResultMsg;
+        let msgOut = new RoomLeaveMsg();
+        msgOut.data.roomId = roomId;
+        msgOut.data.peerId = peerId;
+        return await this.post(RoomServerAPIRoutes.newRoom, msgOut) as RoomLeaveResultMsg;
     }
 
     async terminateRoom(roomId: string) {
-        let msgIn = new RoomTerminateMsg();
-        msgIn.data.roomId = roomId;
-        return await this.post(RoomServerAPIRoutes.terminateRoom, msgIn);
+        let msgOut = new RoomTerminateMsg();
+        msgOut.data.roomId = roomId;
+        return await this.post(RoomServerAPIRoutes.terminateRoom, msgOut);
     }
 
     async roomPong(roomId: string, peerTrackingId: string) : Promise<IMsg> {
-        let msgIn = new RoomPongMsg();
-        msgIn.data.roomId = roomId;
-        msgIn.data.peerTrackingId = peerTrackingId;
-        return await this.post(RoomServerAPIRoutes.roomPong, msgIn);
+        let msgOut = new RoomPongMsg();
+        msgOut.data.roomId = roomId;
+        msgOut.data.peerTrackingId = peerTrackingId;
+        return await this.post(RoomServerAPIRoutes.roomPong, msgOut);
     }
 
     async getRoomStatus(roomId: string) : Promise<IMsg> {
-        let msgIn = new RoomGetStatusMsg();
-        msgIn.data.roomId = roomId;
-        return await this.post(RoomServerAPIRoutes.getRoomStatus, msgIn);
+        let msgOut = new RoomGetStatusMsg();
+        msgOut.data.roomId = roomId;
+        return await this.post(RoomServerAPIRoutes.getRoomStatus, msgOut);
     }        
 
     private async post(path: string, dataObj: any): Promise<any> {

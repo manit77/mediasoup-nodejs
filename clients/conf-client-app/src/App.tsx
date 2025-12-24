@@ -1,81 +1,66 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { APIProvider } from './contexts/APIContext';
-import { CallProvider } from './contexts/CallContext';
-import LoginPage from './components/auth/LoginPage';
-import AuthenticatedLayout from './components/layout/AuthenticatedLayout';
-import OnCallScreen from './components/call/OnCallScreen';
-import { useAPI } from './hooks/useAPI';
-import { useCall } from './hooks/useCall';
-import { UIProvider } from './contexts/UIContext';
+import { APIProvider } from '@client/contexts/APIContext';
+import { CallProvider } from '@client/contexts/CallContext';
+import LoginPage from '@client/components/layout/auth/LoginPage';
+import AuthenticatedLayout from './components/layout/home/AuthenticatedLayout';
+import OnCallScreen from '@client/components/layout/call/OnCallScreen';
+import { useAPI } from '@client/hooks/useAPI';
+import { useCall } from '@client/hooks/useCall';
+import { UIProvider } from '@client/contexts/UIContext';
 import { useLocation } from 'react-router-dom';
-import { getConferenceClient } from './services/ConferenceService';
-import LoginGuestPage from './components/auth/LoginGuestPage';
-import LogoutPage from './components/auth/LogoutPage';
+import LoginGuestPage from '@client/components/layout/auth/LoginGuestPage';
+import LogoutPage from '@client/components/layout/auth/LogoutPage';
+import Lobby from '@client/components/layout/lobby/Lobby'
+
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAPI();
-  const { isCallActive } = useCall();
+  const { isCallActive, isConnected } = useCall();
   const location = useLocation();
 
-  console.log("ROUTE:", location.pathname, "AUTH:", isAuthenticated);
-
-  useEffect(() => {
-    console.log('loading app');
-    return () => {
-      console.log('unmounting app');
-      getConferenceClient().dispose();
-    };
-  }, []);
-
-  useEffect(() => {
-
-    const updateVh = () => {
-      const vh = window.innerHeight;
-      document.documentElement.style.setProperty('--vh', `${vh}px`);
-    };
-
-    updateVh(); // set initially
-    window.addEventListener('resize', updateVh);
-
-    return () => window.removeEventListener('resize', updateVh);
-  }, []);
+  // 1. GATEKEEPER: If we don't know the auth status yet, stay here.
+  if (isLoading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100 bg-dark text-white">
+        <div className="spinner-border text-primary me-3" />
+        <span className="fw-bold">Verifying Session...</span>
+      </div>
+    );
+  }
 
   return (
-    <>
-    {isLoading && <div className="d-flex justify-content-center align-items-center vh-100">Loading...</div>}
     <Routes>
       <Route path="/logout" element={<LogoutPage />} />
+
       {!isAuthenticated ? (
+        /* Only reaches here if isLoading is false AND isAuthenticated is false */
         <>
           <Route path="/loginGuest" element={<LoginGuestPage />} />
           <Route path="/login" element={<LoginPage />} />
-
-          {/* Catch-all redirects to login */}
-          <Route path="*" element={<Navigate to={`/login${location.search}`} replace />} />
+          <Route path="*" element={<Navigate to={`/login?redirect=${location.pathname}`} replace />} />
         </>
       ) : (
+        /* Authenticated Logic */
         <>
           {isCallActive ? (
-            <Route path="/on-call" element={<OnCallScreen />} />
+             <Route path="/on-call" element={<OnCallScreen />} />
           ) : (
-            <Route path="/app" element={<AuthenticatedLayout />} />
+            <>
+              <Route path="/app" element={<AuthenticatedLayout />} />
+              <Route path="/lobby/:trackingId" element={<Lobby />} />
+              <Route path="/" element={<Navigate to="/app" replace />} />
+            </>
           )}
-
-          {/* Catch-all redirects to app */}
-          <Route
-            path="*"
-            element={<Navigate to={`${isCallActive ? "/on-call" : "/app"}`} replace />}
-          />
+          {/* Catch-all: only redirect if no match is found in the auth block */}
+          <Route path="*" element={<Navigate to={isCallActive ? "/on-call" : "/app"} replace />} />
         </>
       )}
-
     </Routes>
-    </>
   );
 };
 
-function App() { 
+function App() {
 
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
@@ -83,13 +68,13 @@ function App() {
     // 2. Apply the theme attribute to the root HTML element
     document.documentElement.setAttribute('data-bs-theme', theme);
   }, [theme]);
-  
+
   return (
-    <Router>      
+    <Router>
       <UIProvider>
         <APIProvider>
           <CallProvider>
-            <AppRoutes />
+            <AppRoutes />            
           </CallProvider>
         </APIProvider>
       </UIProvider>

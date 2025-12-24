@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { CallContext } from '../contexts/CallContext';
+import { CallContext } from '@client/contexts/CallContext';
 
 export const useCall = () => {
     const context = useContext(CallContext);

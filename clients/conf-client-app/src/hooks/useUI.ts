@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { UIContext, UIContextType } from '../contexts/UIContext';
+import { UIContext, UIContextType } from '@client/contexts/UIContext';
 
 // Hook to use the context
 export const useUI = (): UIContextType => {

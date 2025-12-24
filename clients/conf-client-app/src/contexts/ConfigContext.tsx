@@ -1,7 +1,7 @@
 // src/context/ConfigContext.tsx
 import React, { createContext, useContext } from 'react';
 import { ConferenceClientConfig } from "@conf/conf-client/src/models";
-import { getConferenceConfig } from '../services/ConferenceConfig';
+import { getConferenceConfig } from '@client/services/ConferenceConfig';
 
 interface ConfigContextType {
     config: ConferenceClientConfig;

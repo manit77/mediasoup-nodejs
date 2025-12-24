@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { APIContext } from '../contexts/APIContext';
+import { APIContext } from '@client/contexts/APIContext';
 
 export const useAPI = () => {
     const context = useContext(APIContext);

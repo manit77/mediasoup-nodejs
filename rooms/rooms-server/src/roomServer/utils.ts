@@ -2,17 +2,25 @@ import * as mediasoup from 'mediasoup';
 import { randomUUID } from "crypto";
 import * as jwt from '../utils/jwtUtil.js';
 import { Room } from "./room.js";
-import { AuthUserTokenPayload, RoomTokenPayload } from "../models/tokenPayloads.js";
+import { AuthClaims, AuthUserTokenPayload, RoomTokenPayload } from "../models/tokenPayloads.js";
 import { AuthUserRoles } from '@rooms/rooms-models';
 import { consoleWarn } from '../utils/utils.js';
 import { RoomServerConfig } from './models.js';
 import { Producer } from 'mediasoup/types';
 import { Consumer } from 'mediasoup-client/types';
 
+/**
+ * generates a unique roomId
+ * @returns
+ */
 export function GetRoomId() {
     return "room-" + randomUUID().toString();
 }
 
+/**
+ * generates a unique peerId
+ * @returns
+ */
 export function GetPeerId() {
     return "peer-" + randomUUID().toString();
 }
@@ -81,21 +89,26 @@ export function decodeAuthUserToken(secretKey: string, token: string): AuthUserT
     return null;
 }
 
-export function validateRoomTokenAgainstRoom(secretKey: string, token: string, room: Room) {
-
-    let payload = validateRoomToken(secretKey, token);
-    if (!payload) {
-        console.error("invalid token.");
-        return false;
+export function getClaimsByRole(role: AuthUserRoles): AuthClaims[] {
+    let claims: AuthClaims[] = [];
+    switch (role) {
+        case AuthUserRoles.service:
+            claims.push(AuthClaims.newAuthToken);
+            claims.push(AuthClaims.createRoom);
+            claims.push(AuthClaims.terminateRoom);
+        break;
+        case AuthUserRoles.admin:
+            claims.push(AuthClaims.createRoom);
+            claims.push(AuthClaims.joinRoom);
+            break;
+        case AuthUserRoles.user:            
+            claims.push(AuthClaims.joinRoom);
+            break;
+        case AuthUserRoles.guest:
+            claims.push(AuthClaims.joinRoom);
+            break;
     }
-
-    if (room.id !== payload.roomId) {
-        console.error("roomid does not match token.");
-        return false;
-    }
-
-    return true;
-
+    return claims;
 }
 
 /**
@@ -103,22 +116,24 @@ export function validateRoomTokenAgainstRoom(secretKey: string, token: string, r
   * @param roomId 
   * @returns 
   */
-export function generateRoomToken(secretKey: string, expiresInMinutes: number): [RoomTokenPayload, string] {
+export function generateRoomToken(secretKey: string, roomId: string, expiresInMinutes: number, claims: AuthClaims[]): [RoomTokenPayload, string] {
     console.log("createRoomToken() ");
 
     let payload: RoomTokenPayload = {
-        roomId: GetRoomId()
+        roomId: roomId,
+        claims: claims
     };
     return [payload, jwt.jwtSign(secretKey, payload, expiresInMinutes)]
 }
 
-export function generateAuthUserToken(secretKey: string, username: string, role: AuthUserRoles, expiresInMinutes: number): string {
+export function generateAuthUserToken(secretKey: string, username: string, role: AuthUserRoles, claims: AuthClaims[], expiresInMinutes: number): string {
     console.log("createRoomToken() ");
 
     let payload: AuthUserTokenPayload = {
         type: "user",
         role: role,
-        username: username
+        username: username,
+        claims: claims
     };
 
     return jwt.jwtSign(secretKey, payload, expiresInMinutes)

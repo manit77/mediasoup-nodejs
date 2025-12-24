@@ -1,0 +1,73 @@
+.participantCard {
+    display: flex;
+    flex-direction: column;
+    background: #333;
+    min-height: 160px;
+    border: none; /* Bootstrap Card default override */
+}
+
+.videoSection {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+}
+
+.videoContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.videoOffPlaceholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white; /* to match existing text color */
+}
+
+.controlsBar {
+    background-color: rgba(33, 37, 41, 0.5); /* bg-dark bg-opacity-50 */
+    color: white;
+    padding: 0.25rem 0.5rem; /* px-2 py-1 */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.nameText {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+    font-size: 0.875em; /* standard <small> tag size */
+}
+
+.buttonGroup {
+    flex-shrink: 0;
+}
+
+.throttledBtn {
+    background-color: #444;
+    border-color: #444;
+}
+
+.audioBtn {
+    margin: 3px;
+}

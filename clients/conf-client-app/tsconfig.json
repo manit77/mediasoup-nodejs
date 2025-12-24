@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -18,29 +14,24 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    
+    /* MOVE THESE INSIDE compilerOptions */
+    "baseUrl": ".",
+    "paths": {
+      "@client/*": ["src/*"],
+      "@conf-client/*": ["../../conf/conf-client/src/*"],
+      "@rooms-client/*": ["../../rooms/rooms-client/src/*"],
+      "@websocket-client/*": ["../../libs/websocket-client/src/*"],
+      "@webrtc-client/*": ["../../libs/webrtc-client/src/*"],
+      "@conf-models/*": ["../../conf/conf-models/src/*"],
+      "@rooms-models/*": ["../../rooms/rooms-models/src/*"]
+    }
   },
   "include": [
-    "src"
-  ],
-  "paths": {
-    "@conf-client/*": [
-      "../../conf/conf-client/src/*"
-    ],
-    "@rooms-client/*": [
-      "../../rooms/rooms-client/src/*"
-    ],
-    "@websocket-client/*": [
-      "../../libs/websocket-client/src/*"
-    ],
-    "@webrtc-client/*": [
-      "../../libs/webrtc-client/src/*"
-    ],
-    "@conf-models/*": [
-      "../../conf/conf-models/src/*"
-    ],
-    "@rooms-models/*": [
-      "../../rooms/rooms-models/src/*"
-    ]
-  }
+    "src",
+    "../../conf/*/src",
+    "../../rooms/*/src",
+    "../../libs/*/src"
+  ]
 }

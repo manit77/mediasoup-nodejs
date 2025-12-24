@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { useCall } from '../../hooks/useCall';
-import { useUI } from '../../hooks/useUI';
+import { useCall } from '@client/hooks/useCall';
+import { useUI } from '@client/hooks/useUI';
 import { Participant } from '@conf/conf-client';
 
 const PresenterVideo: React.FC<{ presenter: Participant }> = ({ presenter }) => {
@@ -105,9 +105,11 @@ const PresenterVideo: React.FC<{ presenter: Participant }> = ({ presenter }) => 
     const toggleFullscreen = (ele: HTMLElement | any) => {
         console.log(ele);
         if (!document.fullscreenElement) {
-            ele.requestFullscreen().catch((err) => {
-                console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-            });
+            if(ele.requestFullscreen) {
+                ele.requestFullscreen().catch((err) => {
+                    console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                });
+            }
         } else {
             document.exitFullscreen();
         }

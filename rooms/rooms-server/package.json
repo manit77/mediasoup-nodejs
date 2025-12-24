@@ -4,6 +4,9 @@
   "license": "ISC",
   "version": "1.0.0",
   "type": "module",
+  "imports": {
+    "#rooms-server/*": "./src/*"
+  },
   "scripts": {
     "build": "tsc --build --force",
     "package": "node package.js && mkdir -p dist/node_modules/@rooms/rooms-models && cp -rf ../rooms-models/dist/. dist/node_modules/@rooms/rooms-models",
