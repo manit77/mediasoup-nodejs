@@ -87,8 +87,8 @@ const IncomingCallPopup: React.FC = () => {
                         <Badge bg="light" text="primary" className="text-uppercase px-3 py-2 mb-2 shadow-sm">
                             Incoming Call
                         </Badge>
-                        <h3 className="fw-bold mb-0 mt-2">{inviteInfoReceived?.data.displayName || "Unknown Caller"}</h3>
-                        <p className="opacity-75">is inviting you to join the session</p>
+                        <h3 className="fw-bold mb-0 mt-2">{inviteInfoReceived?.data?.displayName || "Unknown Caller"}</h3>
+                        <p className="opacity-75">is inviting you to join "{inviteInfoReceived?.data?.conferenceName}"</p>
                     </div>
 
                     {/* Action Area */}

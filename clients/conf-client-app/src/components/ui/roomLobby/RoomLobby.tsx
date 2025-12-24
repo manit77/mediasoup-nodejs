@@ -25,7 +25,7 @@ interface RoomLobbyProps {
 const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
     const api = useAPI();
     const ui = useUI();
-    const { conferencesOnline, localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, selectedDevices, getMediaDevices, isWaiting } = useCall();
+    const { conferencesOnline, localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, selectedDevices, getMediaDevices, isWaiting, getLocalMedia } = useCall();
     const navigate = useNavigate();
 
     const [conferenceCode, setConferenceCode] = useState<string>("");
@@ -163,26 +163,35 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
         }
 
         if (conferencesOnline.length === 0) {
-            setConference(prev => prev
-                ? { ...prev, conferenceId: "" }
-                : undefined
-            );
+            //if no conferences are online, then clear the current conferenceId
+            setConference(prev => {
+                if (!prev) return prev;
+                if (prev.conferenceId === "") {
+                    return prev;
+                }
+                return { ...prev, conferenceId: "" };
+            });
             return;
         }
 
+        //find the conf based on externalId
         let conf = conferencesOnline.find(c => {
             if (c.externalId === conference?.externalId) {
                 return true;
             }
         });
-        
+
         if (conf) {
-            setConference(conf);
+            if (conf.conferenceId !== conference.conferenceId) {
+                setConference(conf);
+            }
         } else {
-            setConference(prev => prev
-                ? { ...prev, conferenceId: "" }
-                : undefined
-            );
+            //no conference found mark as offline
+            if (conference.conferenceId !== "") {
+                setConference(prev =>
+                    prev ? { ...prev, conferenceId: "" } : undefined
+                );
+            }
         }
     }, [conferencesOnline, conference]);
 
@@ -210,7 +219,8 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
         event.preventDefault();
 
         try {
-            //make sure we have a stream before making a call
+            //make sure we have a stream before making a call           
+
 
             //up the tracksInfo for localParticipant from the check boxes on the form 
             localParticipant.tracksInfo.isAudioEnabled = micEnabled;
@@ -223,6 +233,24 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
             console.log('conference', conference);
 
             joinMediaConfig.constraints = getMediaConstraints(joinMediaConfig.isAudioEnabled, joinMediaConfig.isVideoEnabled);
+
+            //get tracks from the localParticipant
+            let tracks = await getLocalMedia(joinMediaConfig);
+            if (!tracks) {
+                ui.showPopUp("unable to get media stream. please check your camera and mic settings.", "error");
+                return;
+            }
+
+            let stream = new MediaStream(tracks);
+            if (joinMediaConfig.isAudioEnabled && stream.getAudioTracks().length == 0) {
+                ui.showPopUp("unable to get audio stream. please check your mic settings.", "error");
+                return;
+            }
+
+            if (joinMediaConfig.isVideoEnabled && stream.getVideoTracks().length == 0) {
+                ui.showPopUp("unable to get audio stream. please check your camera settings.", "error");
+                return;
+            }
 
             if (api.isUser()) {
                 createOrJoinConference(conference.externalId, conferenceCode, joinMediaConfig);
@@ -239,14 +267,6 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
         } finally {
 
         }
-    };
-
-    const handleSettingsClick = () => {
-        ui.setIsShowSettings(true);
-    };
-
-    const handleCloseSettings = () => {
-        ui.setIsShowSettings(false);
     };
 
     return (

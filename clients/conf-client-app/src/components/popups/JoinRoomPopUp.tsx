@@ -94,18 +94,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             localParticipant.tracksInfo.isAudioEnabled = true;
             localParticipant.tracksInfo.isVideoEnabled = false;
         }
-
-        let __getDevices = async () => {
-            //get the stream here for browser permissions issues
-            //certain browsers tie permissions to a click
-            let tempStream = await getBrowserUserMedia(getMediaConstraints(true, true));
-
-            let devices = await getMediaDevices();
-
-        };
-
-
-
+        
     }, [])
 
     useEffect(() => {
