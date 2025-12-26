@@ -1,12 +1,12 @@
 {
   "name": "@conf/conf-server",
   "version": "1.0.0",
-  "type": "module",
+  "type": "module",  
   "scripts": {
     "build": "tsc --build --force",
     "cp-rooms": "mkdir -p dist/node_modules/@rooms/rooms-models && cp -rf ../../rooms/rooms-models/dist/. dist/node_modules/@rooms/rooms-models",
     "cp-conf": "mkdir -p dist/node_modules/@conf/conf-models && cp -rf ../conf-models/dist/. dist/node_modules/@conf/conf-models",
-    "package" : "node package.js && npm run cp-rooms && npm run cp-conf",
+    "package": "node package.js && npm run cp-rooms && npm run cp-conf",
     "tscversion": "tsc --version",
     "start": "NODE_OPTIONS='--loader ts-node/esm' ts-node --esm src/index.ts",
     "test": "vitest"
@@ -19,7 +19,7 @@
     "fluent-ffmpeg": "^2.1.3",
     "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
-    "mediasoup": "^3.15.7",    
+    "mediasoup": "^3.15.7",
     "node-cache": "^5.1.2",
     "sinon": "^20.0.0",
     "ws": "^8.18.2",
@@ -36,7 +36,7 @@
     "@types/node": "^22.15.3",
     "@types/supertest": "^6.0.3",
     "@types/ws": "^8.18.1",
-    "esbuild": "^0.25.3",    
+    "esbuild": "^0.25.3",
     "mock-socket": "^9.3.1",
     "supertest": "^7.1.1",
     "ts-node": "^10.9.2",

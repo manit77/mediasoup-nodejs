@@ -23,7 +23,7 @@ export class Room {
     private roomPeers: UniqueMap<Peer, RoomPeer> = new UniqueMap();
     private recPeers: UniqueMap<Peer, RecPeer> = new UniqueMap();
 
-    roomToken: string;
+    //roomToken: string;
 
     config = new RoomConfig();
     serverConfig: RoomServerConfig;
@@ -132,15 +132,8 @@ export class Room {
         }
     }
 
-    addPeer(peer: Peer, roomToken: string): boolean {
+    addPeer(peer: Peer): boolean {
         console.log("addPeer()");
-
-        if (this.roomToken && this.roomToken !== roomToken) {
-            console.error("token provided does not match room token");
-            console.error(this.roomToken);
-            console.error(roomToken);
-            return false;
-        }
 
         if (peer.room) {
             consoleWarn(`peer already in a room. ${peer.id} ${peer.displayName}`);

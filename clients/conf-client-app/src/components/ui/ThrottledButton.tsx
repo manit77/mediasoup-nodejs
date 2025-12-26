@@ -1,11 +1,11 @@
 import React, { useState, useRef } from 'react';
 
-const ThrottledButton = ({    
+const ThrottledButton = ({
     onClick,
     cooldownSecs = 1,
     disabled = false,
     children,
-    variant = 'secondary', 
+    variant = 'secondary',
     className = '',
     ...props
 }) => {
@@ -28,7 +28,7 @@ const ThrottledButton = ({
         }
 
         setIsCoolingDown(true);
-        
+
         setTimeout(() => {
             setIsCoolingDown(false);
         }, cooldownSecs * 1000);
@@ -43,17 +43,11 @@ const ThrottledButton = ({
     return (
         <div
             {...props}
-            // 1. Accessibility: Treat the div as a button
-            role="button" 
-            // 2. Accessibility: Make it keyboard focusable
-            tabIndex={isDisabled ? -1 : 0} 
-            // 3. Accessibility: Convey disabled state
-            aria-disabled={isDisabled} 
-            // 4. Styling: Apply button appearance via Bootstrap classes
-            className={buttonClasses} 
-            // 5. Behavior: Use the click handler
-            onClick={isDisabled ? null : handleClick} 
-            // 6. Behavior: Handle keyboard interaction (Space/Enter)
+            role="button"
+            tabIndex={isDisabled ? -1 : 0}
+            aria-disabled={isDisabled}
+            className={buttonClasses}
+            onClick={isDisabled ? null : handleClick}
             onKeyDown={(e) => {
                 if (!isDisabled && (e.key === 'Enter' || e.key === ' ')) {
                     e.preventDefault();

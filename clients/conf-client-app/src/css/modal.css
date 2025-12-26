@@ -1,0 +1,188 @@
+/* =====================================================
+   Global Modal Theme
+   Applies to all Bootstrap / React-Bootstrap modals
+   ===================================================== */
+
+/* Modal shell */
+.modal-content {
+  border-radius: 14px;
+  border: none;
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  background-color: var(--bs-body-bg);
+}
+
+/* Header */
+.modal-header {
+  border-bottom: 1px solid var(--bs-border-color);
+  padding: 1rem 1.25rem;
+}
+
+.modal-header .modal-title {
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+/* Close button refinement */
+.modal-header .btn-close {
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.modal-header .btn-close:hover {
+  opacity: 1;
+}
+
+/* Body */
+.modal-body {
+  color: var(--bs-body-color);
+}
+
+/* Footer */
+.modal-footer {
+  border-top: 1px solid var(--bs-border-color);
+  background-color: var(--bs-body-bg);
+}
+
+.modal-footer .btn {
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+/* =====================================================
+   Sidebar (used in settings-style modals)
+   ===================================================== */
+
+.modal-body .border-end {
+  border-color: var(--bs-border-color) !important;
+}
+
+.modal-body .nav-pills .nav-link {
+  border-radius: 10px;
+  color: var(--bs-secondary-color);
+  font-weight: 500;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.modal-body .nav-pills .nav-link:hover {
+  background-color: rgba(var(--bs-primary-rgb), 0.08);
+  color: var(--bs-primary);
+}
+
+.modal-body .nav-pills .nav-link.active {
+  background-color: rgba(var(--bs-primary-rgb), 0.15);
+  color: var(--bs-primary);
+}
+
+/* Sidebar footer note */
+.modal-body .text-muted.small {
+  line-height: 1.4;
+}
+
+/* =====================================================
+   Section Headers (Audio / Video)
+   ===================================================== */
+
+.modal-body h6.text-uppercase {
+  letter-spacing: 0.05em;
+  font-size: 0.72rem;
+}
+
+/* =====================================================
+   Form Controls
+   ===================================================== */
+
+.modal-body .form-select {
+  border-radius: 10px;
+  font-size: 0.9rem;
+  padding: 0.55rem 0.75rem;
+}
+
+.modal-body .form-select:focus {
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.15);
+}
+
+/* =====================================================
+   Audio Meter
+   ===================================================== */
+
+.audio-meter {
+  height: 8px;
+  background-color: var(--bs-secondary-bg);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-meter > div {
+  height: 100%;
+  border-radius: 999px;
+  transition:
+    width 50ms ease-out,
+    background-color 150ms ease;
+}
+
+/* =====================================================
+   Video Preview
+   ===================================================== */
+
+.modal-body video {
+  background-color: #000;
+  border-radius: 12px;
+}
+
+/* Empty preview overlay */
+.modal-body .position-absolute.text-white-50 {
+  pointer-events: none;
+}
+
+/* LIVE badge */
+.badge.bg-danger {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+/* =====================================================
+   Alerts inside modals
+   ===================================================== */
+
+.modal-body .alert {
+  border-radius: 10px;
+  font-size: 0.85rem;
+}
+
+/* =====================================================
+   Buttons
+   ===================================================== */
+
+.modal .btn {
+  border-radius: 999px;
+}
+
+.modal .btn-outline-primary,
+.modal .btn-outline-danger {
+  --bs-btn-hover-color: #fff;
+}
+
+/* Primary action emphasis */
+.modal-footer .btn-primary {
+  box-shadow: 0 4px 10px rgba(var(--bs-primary-rgb), 0.35);
+}
+
+/* =====================================================
+   Responsive polish
+   ===================================================== */
+
+@media (max-width: 576px) {
+  .modal-dialog {
+    margin: 0.75rem;
+  }
+
+  .modal-content {
+    border-radius: 12px;
+  }
+}

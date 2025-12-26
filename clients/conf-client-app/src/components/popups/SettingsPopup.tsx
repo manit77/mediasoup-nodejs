@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Button, Form, Tab, Row, Col, Nav } from 'react-bootstrap';
-import { useCall } from '../../hooks/useCall';
+import { useCall } from '@client/hooks/useCall';
 import {
     Mic, CameraVideo, PersonVideo,
     GearFill, Cpu, CheckCircleFill,
     ExclamationCircle, FilePersonFill,
     InfoCircle
-} from 'react-bootstrap-icons'; import { useUI } from '../../hooks/useUI';
-import { getBrowserUserMedia } from '@conf/conf-client';
+} from 'react-bootstrap-icons'; import { useUI } from '@client/hooks/useUI';
+import '@client/css/modal.css';
+import '@client/css/buttons.css';
 
 
 const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ show, handleClose }) => {
@@ -26,7 +27,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
     const [showingPreview, setShowingPreview] = useState(false);
     const [audioLevel, setAudioLevel] = useState(0); // 🔊 audio meter state
     const videoRef = useRef<HTMLVideoElement>(null);
-    const audioStreamRef = useRef<MediaStream | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
     const animationRef = useRef<number | null>(null);
@@ -34,49 +35,16 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
 
     useEffect(() => {
         return () => {
-            stopAudioMeter();
-            if (videoRef.current) {
-                let stream = videoRef.current.srcObject as MediaStream;
-                if (stream) {
-                    stream.getTracks().forEach(t => t.stop());
-                }
-            }
-            setShowingPreview(false);
+            stopPreview();
         };
     }, []);
 
     useEffect(() => {
-        const initMedia = async () => {
-            if (!show) {
-                stopAudioMeter();
-                if (videoRef.current) {
-                    const stream = videoRef.current.srcObject as MediaStream;
-                    if (stream) {
-                        stream.getTracks().forEach(t => t.stop());
-                    }
-                }
-                setShowingPreview(false);
-                return;
-            }
-
-            try {
-                // Request full mic+camera permission first
-                const tempStream = await getBrowserUserMedia({ audio: true, video: true });
-                tempStream.getTracks().forEach(track => track.stop());
-
-                await getMediaDevices();
-                setAudioId(selectedDevices.audioInId);
-                setVideoId(selectedDevices.videoId);
-
-                startAudioMeter(selectedDevices.audioInId);
-            } catch (err) {
-                console.error("Permission or device error:", err);
-                ui.showPopUp("Please grant camera and microphone permissions to access devices.", 'error', 30);
-            }
-        };
-
-        initMedia();
-    }, [show, selectedDevices]);
+        if (!show) {
+            stopPreview();
+            return;
+        }
+    }, [show]);
 
     const handleDeviceChange = (type: 'video' | 'audioIn' | 'audioOut', deviceId: string, deviceName: string) => {
         console.log(`handleDeviceChange type=${type} deviceId=${deviceId} deviceName=${deviceName}`);
@@ -92,15 +60,16 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
             setAudioId(deviceId);
             selectedDevices.audioInId = deviceId;
             selectedDevices.audioInLabel = deviceName
-
-            stopAudioMeter();
-            startAudioMeter(deviceId); // restart meter with new mic
-
         } else {
             //setSpeakerId(deviceId);
             selectedDevices.audioOutId = deviceId;
             selectedDevices.audioOutLabel = deviceName;
         }
+
+        if (showingPreview) {
+            startPreview();
+        }
+
     };
 
     const closeButtonClick = async () => {
@@ -109,22 +78,76 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
     };
 
     const previewClick = () => {
+        if (showingPreview) {
+            stopPreview();
+            return;
+        } else {
+            startPreview();
+        }
         setShowingPreview(prev => !prev);
     };
 
-    const startAudioMeter = async (deviceId?: string) => {
+    const startPreview = async () => {
+
+        try {
+
+            const constraints = getMediaConstraints(true, true);
+            let stream: MediaStream
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                if (!stream) {
+                    ui.showPopUp("Unable to access media devices. Please check permissions and try again.", 'error', 30);
+                    return;
+                }
+                streamRef.current = stream;
+            } catch (err) {
+                console.error("Error accessing media devices:", err);
+                ui.showPopUp("Error accessing media devices.", 'error', 30);
+                return;
+            }
+
+            try {
+                await getMediaDevices();
+            } catch (err) {
+                console.error("Error getting list of media devices:", err);
+                ui.showPopUp("Unable to get list of media devices. Please check permissions and try again.", 'error', 30);
+                return;
+            }
+
+            setAudioId(selectedDevices.audioInId);
+            setVideoId(selectedDevices.videoId);
+            startAudioMeter(stream);
+            startVideoPreview(stream);
+            setShowingPreview(true);
+
+        } catch (err) {
+            console.error("Permission or device error:", err);
+            //ui.showPopUp("Please grant camera and microphone permissions to access devices.", 'error', 30);
+            ui.showPopUp(err.message, 'error', 30);
+        }
+    };
+
+    const stopPreview = () => {
+        stopAudioMeter();
+        stopVideoPreview();
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
+        }
+        setShowingPreview(false);
+    };
+
+    const startAudioMeter = async (stream: MediaStream) => {
         try {
             stopAudioMeter();
 
-            const stream = await getBrowserUserMedia({
-                audio: deviceId ? { deviceId: { exact: deviceId } } : true,
-                video: false
-            });
-
-            audioStreamRef.current = stream;
-            const audioContext = new AudioContext();
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             audioContextRef.current = audioContext;
 
+            if (audioContext.state === "suspended") {
+                await audioContext.resume();
+            }
             const source = audioContext.createMediaStreamSource(stream);
             const analyser = audioContext.createAnalyser();
             analyser.fftSize = 256;
@@ -165,50 +188,44 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
     };
 
     const stopAudioMeter = () => {
-        if (animationRef.current) cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
-        if (analyserRef.current) analyserRef.current.disconnect();
-        if (audioContextRef.current) audioContextRef.current.close();
-        if (audioStreamRef.current) {
-            audioStreamRef.current.getTracks().forEach(t => t.stop());
+        if (animationRef.current) {
+            cancelAnimationFrame(animationRef.current);
         }
+        animationRef.current = null;
+        if (analyserRef.current) {
+            analyserRef.current.disconnect();
+        }
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+        }
+
         analyserRef.current = null;
         audioContextRef.current = null;
-        audioStreamRef.current = null;
         setAudioLevel(0);
     };
 
-    useEffect(() => {
-        if (!showingPreview) {
-            if (videoRef.current) {
-                videoRef.current.srcObject = null;
-            }
+    const startVideoPreview = (stream: MediaStream) => {
+        const videoTrack = stream.getVideoTracks()[0];
+        if (!videoTrack) {
+            ui.showPopUp("No video devices available", "error");
+            stream.getTracks().forEach((track) => track.stop());
+            setShowingPreview(false);
             return;
         }
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch((e) => {
+            console.error("Video preview failed to play:", e);
+        });
+    };
 
-        const constraints = getMediaConstraints(false, true);
-        getBrowserUserMedia(constraints)
-            .then((stream) => {
-                const audioTrack = stream.getAudioTracks()[0];
-                if (audioTrack) audioTrack.enabled = false;
-                const videoTrack = stream.getVideoTracks()[0];
-                if (!videoTrack) {
-                    ui.showPopUp("No video devices available", "error");
-                    stream.getTracks().forEach((track) => track.stop());
-                    setShowingPreview(false);
-                    return;
-                }
-                videoRef.current.srcObject = new MediaStream([videoTrack]);
-            })
-            .catch((error) => {
-                console.error('Error getting preview stream:', error);
-                ui.showPopUp("Failed to get camera. Check permissions.", "error");
-                setShowingPreview(false);
-            });
-    }, [showingPreview]);
+    const stopVideoPreview = () => {
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+    };
 
     return (
-        <Modal show={show} onHide={handleClose} size="lg" centered shadow>
+        <Modal show={show} onHide={handleClose} size="lg" centered>
             <Modal.Header closeButton className="bg-body">
                 <Modal.Title className="d-flex align-items-center text-secondary">
                     <GearFill className="me-2 text-primary" size={20} />
@@ -216,11 +233,11 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                 </Modal.Title>
             </Modal.Header>
 
-            <Modal.Body className="p-0"> {/* Remove padding to let sidebar span full height */}
+            <Modal.Body className="p-0">
                 <Tab.Container id="settings-tabs" defaultActiveKey="devices">
                     <Row className="g-0">
                         {/* Sidebar Navigation */}
-                        <Col sm={4} className="bg-body border-end p-3" style={{ minHeight: '450px' }}>
+                        <Col sm={4} className="bg-body border-end p-3">
                             <Nav variant="pills" className="flex-column gap-2">
                                 <Nav.Item>
                                     <Nav.Link eventKey="devices" className="d-flex align-items-center px-3 py-2">
@@ -343,10 +360,10 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                                 variant={showingPreview ? "outline-danger" : "outline-primary"}
                                                 size="sm"
                                                 onClick={previewClick}
-                                                className="px-4"
+                                                className="submit-btn"
                                             >
                                                 <FilePersonFill className="me-1" />
-                                                {showingPreview ? 'Stop Preview' : 'Test Camera'}
+                                                {showingPreview ? 'Stop Preview' : 'Test Devices'}
                                             </Button>
                                         </div>
                                     </div>
@@ -358,7 +375,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
             </Modal.Body>
 
             <Modal.Footer className="bg-body border-top p-3">
-                <Button variant="primary" onClick={closeButtonClick} className="px-5 shadow-sm">
+                <Button variant="primary" onClick={closeButtonClick} className="submit-btn px-5 shadow-sm">
                     <CheckCircleFill className="me-2" /> Apply Changes
                 </Button>
             </Modal.Footer>

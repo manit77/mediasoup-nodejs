@@ -1,9 +1,12 @@
 import express, { NextFunction, Request, Response } from 'express';
-import { apiGetParticipantsOnlinePost, apiGetScheduledConferencePost, apiGetScheduledConferenceResult, apiMsgTypes, ConferenceConfig, ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesMsg, GetConferencesScheduledResultMsg, getMsgErorr, GetParticipantsResultMsg, isMsgErorr, LoginGuestMsg, LoginMsg, LoginResultMsg, ParticipantInfo, ParticipantRole, WebRoutes } from '@conf/conf-models';
+import { apiGetScheduledConferencePost, apiGetScheduledConferenceResult, apiMsgTypes, 
+    ConferenceScheduledInfo, GetConferenceScheduledResultMsg, GetConferencesScheduledResultMsg, 
+    getMsgErorr, GetParticipantsResultMsg, isMsgErorr, LoginGuestMsg, LoginMsg, LoginResultMsg, 
+    ParticipantRole, WebRoutes } from '@conf/conf-models';
 import { ConferenceServer } from './conferenceServer.js';
-import { IAuthPayload, Participant } from '../models/models.js';
+import { IAuthPayload, } from '..//models/payloads.js';
 import { jwtSign, jwtVerify } from '../utils/jwtUtil.js';
-import { AuthUserRoles, ErrorMsg, RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/rooms-models';
+import { ErrorMsg, RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/rooms-models';
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from '@conf/conf-models';
 import { getDemoSchedules } from '../demoData/demoData.js';

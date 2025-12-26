@@ -1,10 +1,10 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
-import { loadConferenceConfig } from './services/ConferenceConfig';
-import { apiService } from "./services/ApiService";
-import { ConfigProvider } from './contexts/ConfigContext';
+import '@client/index.css';
+import App from '@client/App';
+import { loadConferenceConfig } from '@client/services/ConferenceConfig';
+import { apiService } from "@client/services/ApiService";
+import { ConfigProvider } from '@client/contexts/ConfigContext';
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 
 let currentCommit: string | null = null;

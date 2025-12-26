@@ -7,7 +7,7 @@ export async function getBrowserUserMedia(constraints: MediaStreamConstraints = 
         return await navigator.mediaDevices.getUserMedia(constraints);
     } catch (err) {
         console.error(err);
-        return null;
+        return null;       
     }
 }
 

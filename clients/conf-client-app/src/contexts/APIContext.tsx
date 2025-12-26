@@ -6,9 +6,8 @@ import React, {
     useCallback,
     useMemo
 } from 'react';
-
-import { apiService, LoginResponse } from '../services/ApiService';
-import { useConfig } from '../hooks/useConfig';
+import { apiService, LoginResponse } from '@client/services/ApiService';
+import { useConfig } from '@client/hooks/useConfig';
 
 import {
     ClientConfig,
@@ -17,8 +16,8 @@ import {
     ParticipantInfo
 } from '@conf/conf-models';
 
-import { User } from '../types';
-import { getConferenceClient } from '../services/ConferenceService';
+import { User } from '@client/types';
+import { getConferenceClient } from '@client/services/ConferenceService';
 
 interface APIContextType {
     isAuthenticated: boolean;
@@ -29,6 +28,7 @@ interface APIContextType {
     login: (username: string, password: string, clientData: {}) => Promise<LoginResponse>;
     logout: () => {};
     fetchConferencesScheduled: () => Promise<ConferenceScheduledInfo[]>;
+    fetchConferenceScheduled: (trackingId: string) => Promise<ConferenceScheduledInfo>;
     getCurrentUser: () => User | null;
     conferencesScheduled: ConferenceScheduledInfo[];
 
@@ -48,7 +48,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { config } = useConfig();
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     const [conferencesScheduled, setConferencesScheduled] = useState<ConferenceScheduledInfo[]>(apiService.conferencesScheduled);
     const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>(apiService.participantsOnline);
@@ -117,6 +117,10 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return apiService.fetchConferencesScheduled();
     }, []);
 
+    const fetchConferenceScheduled = useCallback(async (trackingId: string) => {
+        return apiService.fetchConferenceScheduled(trackingId);
+    }, []);
+
     const fetchParticipantsOnline = useCallback(async () => {
         return apiService.fetchParticipantsOnline();
     }, []);
@@ -174,6 +178,8 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 
     useEffect(() => {
+        setIsLoading(true);
+
         const user = apiService.getUser();
         const loggedIn = Boolean(user);
         setIsAuthenticated(loggedIn);
@@ -181,6 +187,8 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (loggedIn) {
             setUpConnections();
         }
+        setIsLoading(false);
+
     }, [isAuthenticated]);
 
     const value = useMemo(() => ({
@@ -196,6 +204,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         logout,
 
         fetchConferencesScheduled,
+        fetchConferenceScheduled,
         setConferencesScheduled,
 
         participantsOnline,
@@ -222,6 +231,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         logout,
 
         fetchConferencesScheduled,
+        fetchConferenceScheduled,
         fetchParticipantsOnline,
 
         getClientData,

@@ -22,10 +22,12 @@ import {
     payloadTypeSDP, RoomNewProducerSDPMsg, RoomOfferSDPMsg, RoomConsumeSDPMsg, RoomOfferSDPResultMsg,
     RoomConsumeSDPResultMsg,
     RoomAnswerSDPMsg,
+    RoomGetAccessTokenMsg,
+    RoomGetAccessTokenResultMsg, 
 } from "@rooms/rooms-models";
 import { Peer } from './peer.js';
 import * as roomUtils from "./utils.js";
-import { AuthUserTokenPayload } from '../models/tokenPayloads.js';
+import { AuthClaims, AuthUserTokenPayload } from '../models/tokenPayloads.js';
 import { setTimeout } from 'node:timers';
 import { RoomLogAdapterInMemory } from './roomLogsAdapter.js';
 import { consoleError, consoleInfo, consoleLog, consoleWarn } from '../utils/utils.js';
@@ -285,7 +287,7 @@ export class RoomServer {
      * handle messages that require no peerId from services
      * @param msgIn 
      */
-    async inServiceMsg(msgIn: IMsg) {
+    async inServiceMsg(msgIn: IMsg): Promise<IMsg> {
         console.log(`inServiceMsg`, msgIn.type);
 
         try {
@@ -298,6 +300,9 @@ export class RoomServer {
                 }
                 case payloadTypeClient.roomNew: {
                     return await this.onRoomNewMsg(msgIn as RoomNewMsg);
+                }
+                case payloadTypeClient.roomGetAccessToken: {
+                    return await this.onRoomGetAccessTokenMsg(msgIn as RoomGetAccessTokenMsg);
                 }
                 case payloadTypeClient.roomTerminate: {
                     return await this.terminateRoomMsg(msgIn as RoomTerminateMsg);
@@ -442,13 +447,12 @@ export class RoomServer {
 
     async createRoom(args: {
         roomId: string,
-        roomToken: string,
         trackingId: string,
         adminTrackingId: string,
         roomName: string,
         config: RoomConfig
     }): Promise<Room> {
-        console.log(`createRoom() - roomId:${args.roomId} roomToken: ${args.roomToken}`);
+        console.log(`createRoom() - roomId:${args.roomId}`);
 
         if (!args.roomId) {
             args.roomId = roomUtils.GetRoomId();
@@ -456,22 +460,6 @@ export class RoomServer {
 
         if (this.rooms.has(args.roomId)) {
             consoleError("room already exists");
-            return null;
-        }
-
-        if (!args.roomToken) {
-            consoleError("roomToken is required.");
-            return null;
-        }
-
-        let payload = roomUtils.validateRoomToken(this.config.room_secret_key, args.roomToken);
-        if (!payload) {
-            consoleError("invalid token while creating room.");
-            return null;
-        }
-
-        if (args.roomId != payload.roomId) {
-            consoleError("invalid roomId.");
             return null;
         }
 
@@ -483,7 +471,6 @@ export class RoomServer {
         let room = new Room(this.config);
         room.roomLogAdapter = this.roomLogAdapter;
         room.id = args.roomId;
-        room.roomToken = args.roomToken;
         room.trackingId = args.trackingId;
         room.config = roomConfig;
         room.adminTrackingId = args.adminTrackingId;
@@ -931,10 +918,10 @@ export class RoomServer {
     }
 
     async onRoomNewTokenMsg(msgIn: RoomNewTokenMsg): Promise<RoomNewTokenResultMsg> {
-        console.log("onRoomNewTokenMsg");
+        console.log("onRoomNewTokenMsg");        
 
         let msg = new RoomNewTokenResultMsg();
-        let [payloadRoom, roomToken] = roomUtils.generateRoomToken(this.config.room_secret_key, msgIn.data.expiresInMin);
+        let [payloadRoom, roomToken] = roomUtils.generateRoomToken(this.config.room_secret_key, roomUtils.GetRoomId(), msgIn.data.expiresInMin, [AuthClaims.createRoom]);
 
         if (roomToken) {
             msg.data.roomId = payloadRoom.roomId;
@@ -954,8 +941,15 @@ export class RoomServer {
             return;
         }
 
+        if (msgIn.data.role === AuthUserRoles.service) {
+            consoleError(`invalid role.`);
+            return;
+        }
+
+        let claims = roomUtils.getClaimsByRole(msgIn.data.role);
+
         let msg = new AuthUserNewTokenResultMsg();
-        let authToken = roomUtils.generateAuthUserToken(this.config.room_secret_key, msgIn.data.username, msgIn.data.role, msgIn.data.expiresInMin);
+        let authToken = roomUtils.generateAuthUserToken(this.config.room_secret_key, msgIn.data.username, msgIn.data.role, claims, msgIn.data.expiresInMin);
 
         if (authToken) {
             msg.data.authToken = authToken;
@@ -1002,9 +996,29 @@ export class RoomServer {
             return errorMsg;
         }
 
+        let payload = roomUtils.validateRoomToken(this.config.room_secret_key, msgIn.data.roomToken);
+        if (!payload) {
+            consoleError("invalid token while creating room.");
+            return null;
+        }
+
+        if (msgIn.data.roomId != payload.roomId) {
+            consoleError("invalid roomId.");
+            return null;
+        }
+
+        if (!payload.claims) {
+            consoleError("invalid token: claims not found.");
+            return null;
+        }
+
+        if (!payload.claims.includes(AuthClaims.createRoom)) {
+            consoleError("invalid token: claims createRoom not found.");
+            return null;
+        }
+
         let room = await this.createRoom({
             roomId: msgIn.data.roomId,
-            roomToken: msgIn.data.roomToken,
             trackingId: msgIn.data.roomTrackingId,
             adminTrackingId: msgIn.data.adminTrackingId,
             roomName: msgIn.data.roomName,
@@ -1017,10 +1031,34 @@ export class RoomServer {
             return errorMsg;
         }
 
+        //room access token      
+        let [, accessToken] = roomUtils.generateRoomToken(this.config.room_secret_key, room.id, 0, [AuthClaims.joinRoom]);
+
         let msg = new RoomNewResultMsg();
         msg.data.roomId = room.id;
-        msg.data.roomToken = room.roomToken;
+        msg.data.roomToken = accessToken;
         msg.data.roomRtpCapabilities = room.roomRtpCapabilities;
+
+        return msg;
+    }
+
+    async onRoomGetAccessTokenMsg(msgIn: RoomGetAccessTokenMsg): Promise<RoomGetAccessTokenResultMsg> {
+        console.log("onRoomGetAccessTokenMsg");
+
+        if (!msgIn.data.roomId) {
+            consoleError("invalid roomId");
+            return;
+        }
+
+        let msg = new RoomGetAccessTokenResultMsg();
+        let [payloadRoom, roomToken] = roomUtils.generateRoomToken(this.config.room_secret_key, msgIn.data.roomId, msgIn.data.expiresInMin, [AuthClaims.joinRoom]);
+
+        if (roomToken) {
+            msg.data.roomId = payloadRoom.roomId;
+            msg.data.roomToken = roomToken;
+        } else {
+            msg.error = "failed to get token";
+        }
 
         return msg;
     }
@@ -1102,10 +1140,6 @@ export class RoomServer {
         return msgResult;
     }
 
-    onRoomGetLogsMsg(msg: RoomGetLogsMsg) {
-
-    }
-
     /**
      * join with an auth token
      * @param token 
@@ -1127,6 +1161,13 @@ export class RoomServer {
             return msgError;
         }
 
+        if (!msgIn.data.roomId) {
+            consoleError(`roomId required.`);
+            let msgError = new RoomJoinResultMsg();
+            msgError.error = "invalid roomId";
+            return msgError;
+        }
+
         if (!msgIn.data.roomToken) {
             consoleError(`roomToken required.`);
             let msgError = new RoomJoinResultMsg();
@@ -1134,16 +1175,17 @@ export class RoomServer {
             return msgError;
         }
 
-        if (!peer) {
-            consoleError(`peer not created.`);
+        let payload = roomUtils.validateRoomToken(this.config.room_secret_key, msgIn.data.roomToken);
+        if (!payload || payload.roomId !== msgIn.data.roomId || !payload.claims || !payload.claims.includes(AuthClaims.joinRoom)) {
+            consoleError(`invalid roomToken.`);
             let msgError = new RoomJoinResultMsg();
-            msgError.error = "peer not created";
+            msgError.error = "invalid room token";
             return msgError;
         }
 
         let room: Room = this.rooms.get(msgIn.data.roomId);
         if (room) {
-            if (room.addPeer(peer, msgIn.data.roomToken)) {
+            if (room.addPeer(peer)) {
                 console.log(`peer ${peer.id} added to room`);
             } else {
                 consoleError(`error: could not add peer ${peer.id} room: ${room.id}`);
@@ -1225,14 +1267,7 @@ export class RoomServer {
 
         let room = peer.room;
         room.removePeer(peer);
-
-        // let msg = new RoomPeerLeftMsg();
-        // msg.data = {
-        //     peerId: peer.id,
-        //     roomId: room.id
-        // }
-        // this.broadCastAll(room, msg);
-
+        
         let roomLeaveResult = new RoomLeaveResultMsg();
         roomLeaveResult.data.roomId = room.id;
         return roomLeaveResult;

@@ -1,6 +1,4 @@
-import * as mediasoupClient from 'mediasoup-client';
-import { Consumer, Producer } from 'mediasoup-client/types';
-import { PeerTracksInfo, UniqueMap } from '@rooms/rooms-models';
+import { PeerTracksInfo } from '@rooms/rooms-models';
 
 export interface IPeer {
   peerId: string;

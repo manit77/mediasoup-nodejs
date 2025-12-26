@@ -16,7 +16,7 @@ export const EventTypes = {
     conferencesReceived : "conferencesReceived",
 
     acceptResult : "acceptResult",
-    inviteResult : "inviteResult",
+    inviteResult : "inviteResult",    
     inviteReceived : "inviteReceived",
     inviteCancelled : "inviteCancelled",
     rejectReceived : "rejectReceived",

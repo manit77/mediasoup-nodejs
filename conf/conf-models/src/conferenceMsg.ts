@@ -19,9 +19,10 @@ export const CallMessageType = {
     joinConfResult: "joinConfResult",
     terminateConf: "terminateConf",
 
-    invite: "invite", //invite to join room
+    invite: "invite", //invite to join  
     inviteCancelled: "inviteCancelled", //invite cancelled
     inviteResult: "inviteResult", //result of the invite, the other participant could reject it
+    inviteConfResult: "inviteConfResult",
 
     reject: "reject", //the receiver rejects
     accept: "accept", //participant requests to join the conference room
@@ -70,7 +71,7 @@ export function isMsgErorr(msg: IMsg) {
     }
 
     //msg must contain a type
-    if(!msg.type) {
+    if (!msg.type) {
         return true;
     }
 
@@ -85,7 +86,7 @@ export function getMsgErorr(msg: IMsg) {
         return "unknown";
     }
 
-    if(!msg.type) {
+    if (!msg.type) {
         return "invalid msg type";
     }
 
@@ -223,11 +224,11 @@ export class JoinConfMsg extends BaseMsg {
     data?: {
         conferenceId?: string,
         conferenceCode?: string,
-        externalId?: string
+        externalId?: string,
     } = {
             conferenceId: "",
             conferenceCode: "",
-            externalId: ""
+            externalId: "",
         }
 }
 
@@ -249,8 +250,9 @@ export class InviteMsg extends BaseMsg {
         conferenceName?: string,
         conferenceExternalId?: string,
         conferenceType?: conferenceType,
-        withAudio? : boolean,
-        withVideo?: boolean
+        withAudio?: boolean,
+        withVideo?: boolean,
+        ticket?: string,
     } = {};
 }
 
@@ -271,7 +273,6 @@ export class InviteResultMsg extends BaseMsg {
         conferenceName?: string,
         conferenceExternalId?: string,
         conferenceType?: conferenceType,
-
     } = {};
 }
 
@@ -288,15 +289,14 @@ export class AcceptMsg extends BaseMsg {
     type = CallMessageType.accept;
     data?: {
         conferenceId?: string,
-
-    } = {};
+        ticket?: string,
+    } = { conferenceId: "", ticket: "" };
 }
 
 export class AcceptResultMsg extends BaseMsg {
     type = CallMessageType.acceptResult;
     data?: {
         conferenceId?: string,
-
     } = {};
 }
 
@@ -350,24 +350,6 @@ export class PresenterInfoMsg extends BaseMsg {
     data?: {
         participantId?: string,
         status?: "on" | "off"
-    } = {};
-}
-
-export class JoinLobbyMsg extends BaseMsg {
-    type = CallMessageType.joinLobby;
-    data?: {
-        participantId?: string,
-        conferenceExternalId?: string,
-        conferenceId?: string
-    } = {};
-}
-
-export class LeaveLobbyMsg extends BaseMsg {
-    type = CallMessageType.leaveLobby;
-    data?: {
-        participantId?: string,
-        conferenceExternalId?: string,
-        conferenceId?: string
     } = {};
 }
 

@@ -10,7 +10,7 @@ import {
     //NotRegisteredMsg,
     UnauthorizedMsg,
     TerminateConfMsg,
-    ConferenceConfig
+    ConferenceConfig,  
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
 import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
@@ -898,6 +898,8 @@ export class ConferenceClient {
         this.callState = "calling";
         let inviteMsg = new InviteMsg();
         inviteMsg.data.participantId = participantId;
+        inviteMsg.data.conferenceType = "p2p";
+
         if (!this.sendToServer(inviteMsg)) {
             console.error(`failed to send inviteSendMsg`);
             this.resetConferenceRoom();
@@ -930,6 +932,32 @@ export class ConferenceClient {
         this.resetLocalTracks();
     }
 
+    sendInviteConf(participantId: string, args: JoinConferenceParams): InviteMsg {
+        console.log(`sendInvite() ${participantId}`, args);
+
+        if (!this.isRegistered()) {
+            console.error(`connection not registered.`);
+            return null;
+        }
+
+        if (!participantId) {
+            console.error(`participantId is required.`);
+            return null;
+        }
+
+        let inviteMsg = new InviteMsg();
+        inviteMsg.data.participantId = participantId;
+        inviteMsg.data.conferenceId = args.conferenceId;
+        inviteMsg.data.withAudio = args.joinMediaConfig.isAudioEnabled;
+        inviteMsg.data.withVideo = args.joinMediaConfig.isVideoEnabled;
+        inviteMsg.data.conferenceType = "room";
+
+        if (!this.sendToServer(inviteMsg)) {
+            return null;
+        }
+        return inviteMsg;
+    }
+
     createConferenceRoom(args: CreateConferenceParams): boolean {
         console.log(`createConferenceRoom trackingId: ${args.externalId}, roomName: ${args.roomName}`);
 
@@ -942,7 +970,7 @@ export class ConferenceClient {
         //     console.error(`no configs`);
         //     return false;
         // }
-        
+
         const msg = new CreateConfMsg();
         msg.data.conferenceExternalId = args.externalId;
         msg.data.roomName = args.roomName;
@@ -1019,7 +1047,7 @@ export class ConferenceClient {
             }
         });
     }
-
+  
     waitJoinConferenceRoom(args: JoinConferenceParams) {
         console.log(`waitJoinConferenceRoom trackingId: ${args.conferenceId}, conferenceCode: ${args.conferenceCode}`);
 
@@ -1292,6 +1320,7 @@ export class ConferenceClient {
         await this.onEvent(EventTypes.inviteReceived, message);
     }
 
+
     /**
      * remote participant cancelled the invite
      * @param message 
@@ -1352,6 +1381,8 @@ export class ConferenceClient {
 
         const acceptMsg = new AcceptMsg();
         acceptMsg.data.conferenceId = message.data.conferenceId;
+        acceptMsg.data.ticket = message.data.ticket;
+        
         if (!this.sendToServer(acceptMsg)) {
             console.error(`failed to send AcceptMsg`);
             return;

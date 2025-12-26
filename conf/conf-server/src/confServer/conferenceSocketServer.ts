@@ -1,6 +1,5 @@
-import express from 'express';
 import { ConferenceServer } from './conferenceServer.js';
-import { Participant, SocketConnection } from '../models/models.js';
+import { SocketConnection } from '../models/socketConnection.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import https from 'https';
 import { IMsg, UnauthorizedMsg } from '@rooms/rooms-models';
@@ -11,6 +10,7 @@ import {
 } from '@conf/conf-models';
 import { consoleError, consoleLog, consoleWarn } from '../utils/utils.js';
 import { ConferenceServerConfig, ConferenceServerEventTypes } from './models.js';
+import { Participant } from '../models/conference.js';
 
 const LOG = "ConferenceSocketServer";
 

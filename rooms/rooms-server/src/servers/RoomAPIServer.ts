@@ -10,17 +10,22 @@ import {
     IMsg,
     RoomGetStatusMsg,
     RoomPongMsg,
+    RoomGetAccessTokenMsg,
+
 } from "@rooms/rooms-models";
 import { RoomServer } from '../roomServer/roomServer.js';
 import * as roomUtils from "../roomServer/utils.js";
 import { RoomServerConfig } from '../roomServer/models.js';
 import { RecMsgTypes } from '../recording/recModels.js';
+import { AuthUserTokenPayload } from '../models/tokenPayloads.js';
+import { consoleError } from '../utils/utils.js';
 
 const DSTR = "RoomAPIServer";
 
 declare module 'express-serve-static-core' {
     interface Request {
         rooms_authtoken?: string; // Add your custom property
+        rooms_authpayload?: AuthUserTokenPayload; // Add your custom property
     }
 }
 
@@ -29,11 +34,12 @@ export type RoomAPIServerSecurityMap = {
 };
 
 export let defaultHTTPServerSecurityMap: RoomAPIServerSecurityMap = {} as any;
-defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newAuthUserToken] = [AuthUserRoles.admin];
-defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoomToken] = [AuthUserRoles.admin];
-defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoom] = [AuthUserRoles.admin];
-defaultHTTPServerSecurityMap[RoomServerAPIRoutes.terminateRoom] = [AuthUserRoles.admin];
-defaultHTTPServerSecurityMap[RoomServerAPIRoutes.getRoomStatus] = [AuthUserRoles.admin];
+defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newAuthUserToken] = [AuthUserRoles.service];
+defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoomToken] = [AuthUserRoles.service];
+defaultHTTPServerSecurityMap[RoomServerAPIRoutes.newRoom] = [AuthUserRoles.service];
+defaultHTTPServerSecurityMap[RoomServerAPIRoutes.terminateRoom] = [AuthUserRoles.service];
+defaultHTTPServerSecurityMap[RoomServerAPIRoutes.getRoomStatus] = [AuthUserRoles.service];
+defaultHTTPServerSecurityMap[RoomServerAPIRoutes.getRoomAccessToken] = [AuthUserRoles.service];
 
 
 /**
@@ -64,25 +70,27 @@ export class RoomAPIServer {
 
             //this requires admin access
             if (!authtoken) {
-                console.error(DSTR, "authToken required.");
+                consoleError(DSTR, "authToken required.");
                 return res.status(401).json({ error: 'Missing or invalid authToken' });
             }
 
             let payload = roomUtils.decodeAuthUserToken(this.config.room_secret_key, authtoken);
             if (!payload) {
-                console.error(DSTR, "invalid authToken.");
+                consoleError(DSTR, "invalid authToken.");
                 return res.status(401).json({ error: 'invalid authToken.' });
             }
 
             let secMap = this.securityMap[req.path];
             if (!secMap || (secMap.length > 0 && !secMap.includes(payload.role))) {
-                console.error(DSTR, "unauthorized authToken.");
+                consoleError(DSTR, "unauthorized authToken.");
                 return res.status(401).json({ error: 'unauthorized.' });
             }
 
+            req.rooms_authpayload = payload;
+
             next();
         } catch (error) {
-            console.error(DSTR, error);
+            consoleError(DSTR, error);
             return res.status(401).json({ error: 'Invalid or expired token' });
         }
     };
@@ -94,29 +102,44 @@ export class RoomAPIServer {
             res.send("RoomAPIServer");
         });
 
+        /**
+         * Create a new auth user token for the peer to register
+         */
         app.post(RoomServerAPIRoutes.newAuthUserToken, this.tokenCheck as any, async (req, res) => {
             console.log(RoomServerAPIRoutes.newAuthUserToken);
+
             let msgIn = req.body as AuthUserNewTokenMsg;
-
-            let resultMsg = await this.roomServer.inServiceMsg(msgIn)
-
+            let resultMsg = await this.roomServer.inServiceMsg(msgIn);
             res.send(resultMsg);
-
         });
 
+        /**
+         * Create a token to create a new room
+         */
         app.post(RoomServerAPIRoutes.newRoomToken, this.tokenCheck as any, async (req, res) => {
             console.log(RoomServerAPIRoutes.newRoomToken);
+
             let msgIn = req.body as RoomNewTokenMsg;
-            msgIn.data.authToken = req.rooms_authtoken;
+            let resultMsg = await this.roomServer.inServiceMsg(msgIn);
+            res.send(resultMsg);
+        });
+
+        /**
+         * Create a new room
+         */
+        app.post(RoomServerAPIRoutes.newRoom, this.tokenCheck as any, async (req, res) => {
+            console.log(RoomServerAPIRoutes.newRoom);
+
+            let msgIn = req.body as RoomNewMsg;
 
             let resultMsg = await this.roomServer.inServiceMsg(msgIn);
             res.send(resultMsg);
         });
 
-        app.post(RoomServerAPIRoutes.newRoom, this.tokenCheck as any, async (req, res) => {
-            console.log(RoomServerAPIRoutes.newRoom);
-            let msgIn = req.body as RoomNewMsg;
-            msgIn.data.authToken = req.rooms_authtoken;
+        app.post(RoomServerAPIRoutes.getRoomAccessToken, this.tokenCheck as any, async (req, res) => {
+            console.log(RoomServerAPIRoutes.getRoomAccessToken);
+
+            let msgIn = req.body as RoomGetAccessTokenMsg;
 
             //creates a room without a peerId
             let resultMsg = await this.roomServer.inServiceMsg(msgIn);
