@@ -16,11 +16,16 @@ import {
   RoomPongMsg,
   CreateConsumerTransportResultMsg,
 } from "@rooms/rooms-models";
-import { WebSocketClient } from "@rooms/websocket-client";
 import { MediaKind, Transport } from 'mediasoup-client/types';
 import { IPeer, Peer } from './models/peers.js';
-import { LocalRoom } from './models/localRoom.js';
+import { Signaling } from "./signaling.js";
+import { RoomStateManager } from "./roomStateManager.js";
 
+/**
+ * Represents the local user's identity and state within the signaling system.
+ * This class stores details like peerId, authentication tokens, and track information.
+ * @implements {IPeer}
+ */
 class LocalPeer implements IPeer {
   peerId = "";
   trackingId = "";
@@ -31,46 +36,93 @@ class LocalPeer implements IPeer {
   username: string = "";
 }
 
+/**
+ * The main client for interacting with the mediasoup-based room server.
+ * This class encapsulates the signaling logic over WebSocket, manages the mediasoup
+ * device, handles media transports (producer and consumer), and exposes an event-driven
+ * API for room lifecycle events (joining, leaving, new peers, etc.).
+ */
 export class RoomsClient {
 
-  private ws: WebSocketClient;
+  /** The underlying WebSocket client for signaling. */
+  private signaling: Signaling;
+  /** Represents the local user's state. */
   private localPeer: LocalPeer = new LocalPeer();
-  private localRoom: LocalRoom = new LocalRoom();
+  /** Manages the state of the room the local user is in, including peers, transports, and tracks. */
+  private roomState: RoomStateManager = new RoomStateManager();
+  /** The mediasoup-client Device instance, which is the entry point for creating transports. */
   private device: mediasoupClient.types.Device;
+  /** Default STUN servers to be used for ICE. */
   private iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
+  /** A list of generic message listeners for observing all incoming WebSocket messages. */
   private messageListener: Array<((msg: IMsg) => void)> = [];
 
+  /** Configuration for the WebSocket connection. */
   config = {
     socket_ws_uri: "wss://localhost:3000",
     socket_auto_reconnect: true,
     socket_enable_logs: false
   }
 
-  public getPeerId() {
+  /**
+   * Gets the unique ID assigned to the local peer by the server after registration.
+   * @returns {string} The local peer's ID.
+   */
+  public getPeerId(): string {
     return this.localPeer.peerId;
   }
 
+  /**
+   * Initializes a new instance of the RoomsClient.
+   * @param options - Configuration options for the client.
+   * @param options.socket_ws_uri - The WebSocket URI of the signaling server.
+   * @param options.socket_auto_reconnect - Whether the WebSocket should automatically reconnect.
+   * @param options.socket_enable_logs - Whether to enable detailed logging from the WebSocket client.
+   */
   constructor(options: { socket_ws_uri: string, socket_auto_reconnect: boolean, socket_enable_logs: boolean }) {
     console.log(`*** new RoomsClient`);
 
     this.config.socket_auto_reconnect = options.socket_auto_reconnect;
     this.config.socket_enable_logs = options.socket_enable_logs;
     this.config.socket_ws_uri = options.socket_ws_uri;
+
+    this.signaling = new Signaling(options);
+    this.signaling.addOnMessageListener(this.onSocketEvent);
+    this.signaling.addOnCloseListener(this.socketOnClose);
+    this.signaling.addOnErrorListener(this.socketOnClose);
   }
 
+  /** @internal A callback used internally to signal when both send and receive transports are ready. */
   private onTransportsReadyEvent: (transport: mediasoupClient.types.Transport) => void;
 
+  /** Event fired if joining a room fails. */
   eventOnRoomJoinFailed: (roomId: string) => Promise<void> = async () => { };
+  /** Event fired successfully after joining a room. */
   eventOnRoomJoined: (roomId: string) => Promise<void> = async () => { };
+  /** Event fired after both send and receive mediasoup transports have been created. */
   eventRoomTransportsCreated: () => void = () => { };
+  /** Event fired when a new peer joins the room. */
   eventOnRoomPeerJoined: (roomId: string, peer: IPeer) => Promise<void> = async () => { };
+  /** Event fired when a new media track from a remote peer is available for consumption. */
   eventOnPeerNewTrack: (peer: IPeer, track: MediaStreamTrack) => Promise<void> = async () => { };
+  /** Event fired when a peer leaves the room. */
   eventOnRoomPeerLeft: (roomId: string, peer: IPeer) => Promise<void> = async () => { };
+  /** Event fired when the server closes the room. */
   eventOnRoomClosed: (roomId: string) => Promise<void> = async () => { };
+  /** Event fired when a peer's track information (e.g., enabled/disabled state) is updated. */
   eventOnPeerTrackInfoUpdated: (peer: IPeer) => Promise<void> = async () => { };
+  /** Event fired when the underlying WebSocket connection is closed. */
   eventOnRoomSocketClosed: () => Promise<void> = async () => { };
+  /** Event fired when a ping is received from the server, used for keep-alive. */
   eventOnRoomPing: (roomId: string) => Promise<void> = async () => { };
 
+  /**
+   * Initializes the RoomsClient, primarily by setting up the mediasoup-client Device.
+   * This must be called before attempting to join a room.
+   * @param options - Initialization options.
+   * @param options.rtp_capabilities - Optional. If provided, the device is loaded immediately with these capabilities.
+   * This is useful if the capabilities are fetched out-of-band.
+   */
   inititalize = async (options: { rtp_capabilities?: any }) => {
     console.log("inititalize");
 
@@ -81,6 +133,10 @@ export class RoomsClient {
 
   };
 
+  /**
+   * Cleans up all resources, disconnects the WebSocket, and resets all event handlers.
+   * This should be called when the client is no longer needed.
+   */
   dispose = () => {
     console.log("disposeRoom()");
 
@@ -96,6 +152,10 @@ export class RoomsClient {
     console.log("dispose() - complete");
   };
 
+  /**
+   * Removes a previously added generic message listener.
+   * @param cbFunc - The callback function to remove.
+   */
   removeMessageListener = (cbFunc: any) => {
     if (!cbFunc) {
       return;
@@ -103,46 +163,38 @@ export class RoomsClient {
     this.messageListener = this.messageListener.filter(cb => cb != cbFunc);
   }
 
+  /**
+   * Establishes a WebSocket connection to the signaling server.
+   * @param wsURI - Optional. The WebSocket URI to connect to. If not provided, the one from the config is used.
+   * @returns A promise that resolves when the connection attempt is initiated.
+   */
   connect = async (wsURI: string = "") => {
-    console.log(`connect ${wsURI} autoReconnect: ${this.config.socket_auto_reconnect}`);
-    if (wsURI) {
-      this.config.socket_ws_uri = wsURI;
-    }
-
-    if (this.ws && ["connecting", "connected"].includes(this.ws.state)) {
-      console.log("socket already " + this.ws.state)
-      return;
-    }
-
-    console.log("connect " + this.config.socket_ws_uri);
-    this.ws = new WebSocketClient();
-
-    this.ws.addEventHandler("onopen", this.socketOnOpen);
-    this.ws.addEventHandler("onmessage", this.onSocketEvent);
-    this.ws.addEventHandler("onclose", this.socketOnClose);
-    this.ws.addEventHandler("onerror", this.socketOnClose);
-
-    this.ws.connect(this.config.socket_ws_uri, this.config.socket_auto_reconnect);
-
+    return this.signaling.connect(wsURI);
   };
 
+  /**
+   * Disconnects the WebSocket and disposes of the local room state.
+   */
   disconnect = () => {
     console.log("disconnect");
 
-    if (this.ws) {
-      this.ws.disconnect();
-    }
-    this.localRoom.dispose();
+    this.signaling.disconnect();
+    this.roomState.close();
   };
 
 
+  /**
+   * @internal
+   * Handles the 'onopen' event from the WebSocket client.
+   */
   private socketOnOpen = async () => {
     console.log("websocket open " + this.config.socket_ws_uri);
   };
 
   private socketOnClose = async () => {
+    /** @internal Handles the 'onclose' event from the WebSocket client, cleaning up the room state. */
     console.error("socketOnClose closed");
-    let roomId = this.localRoom.roomId;
+    let roomId = this.roomState.roomId;
     if (roomId) {
       this.roomClose();
       await this.eventOnRoomClosed(roomId);
@@ -152,75 +204,29 @@ export class RoomsClient {
   };
 
   /**
-  * resolves when the socket is connected
-  * @param wsURI 
-  * @returns 
-  */
-  waitForConnect = (socketURI: string = "", timeoutSecs: number = 30): Promise<IMsg> => {
+   * Connects to the WebSocket server and waits for the connection to be established.
+   * @param socketURI - The WebSocket URI to connect to.
+   * @param timeoutSecs - The timeout in seconds to wait for the connection.
+   * @returns A promise that resolves with an `OkMsg` on success or rejects on timeout/error.
+   */
+  waitForConnect = async (socketURI: string = "", timeoutSecs: number = 30): Promise<IMsg> => {
     console.log(`waitForConnect() ${socketURI}`);
-    return new Promise<IMsg>((resolve, reject) => {
-      try {
 
-        if (socketURI) {
-          this.config.socket_ws_uri = socketURI;
-        }
-
-        console.log("config.socket_ws_uri:", this.config.socket_ws_uri);
-
-        if (this.ws && ["connecting", "connected"].includes(this.ws.state)) {
-          console.log("socket already created. current state: " + this.ws.state);
-          resolve(new OkMsg(payloadTypeServer.ok, "already connecting"));
-          return;
-        }
-
-        this.ws = new WebSocketClient({ enableLogs: this.config.socket_enable_logs });
-        console.log("waitForConnect() - " + this.config.socket_ws_uri + " state:" + this.ws.state);
-
-        const _onOpen = () => {
-          console.log("websocket onOpen " + this.config.socket_ws_uri);
-          this.socketOnOpen();
-          resolve(new OkMsg(payloadTypeServer.ok, "socket opened."));
-          clearTimeout(timerid);
-        };
-
-        const _onClose = () => {
-          console.log("websocket onClose");
-          this.socketOnClose();
-          resolve(new ErrorMsg(payloadTypeServer.error, "closed"));
-        };
-
-        this.ws.addEventHandler("onopen", _onOpen);
-        this.ws.addEventHandler("onmessage", this.onSocketEvent);
-        this.ws.addEventHandler("onclose", _onClose);
-        this.ws.addEventHandler("onerror", _onClose);
-
-        this.ws.connect(this.config.socket_ws_uri, this.config.socket_auto_reconnect);
-
-        let timerid = setTimeout(() => {
-
-          if (this.ws) {
-            this.ws.disconnect();
-          }
-
-          reject("failed to connect");
-        }, timeoutSecs * 1000);
-
-      } catch (err: any) {
-        console.error(err);
-        reject("failed to connect");
-      }
-
-    });
+    return this.signaling.waitForOpen(timeoutSecs);
   };
 
   /**
-   * register a client connection and wait for a result
-   * @param authToken 
-   * @param trackingId 
-   * @param displayName 
-   * @returns 
+   * Sends a registration request to the server and waits for the result.
+   * This is a crucial step to authenticate the client and get a unique `peerId`.
+   * @param args - The registration arguments.
+   * @param args.authToken - The authentication token for the user.
+   * @param args.username - The user's username.
+   * @param args.trackingId - A client-side generated unique ID for tracking.
+   * @param args.displayName - The name to be displayed to other peers.
+   * @param args.timeoutSecs - The timeout for the operation.
+   * @returns A promise that resolves with the registration result message.
    */
-  waitForRegister = (args: {
+  waitForRegister = async (args: {
     authToken: string,
     username: string,
     trackingId: string,
@@ -229,258 +235,87 @@ export class RoomsClient {
     clientType?: "sdp" | "mediasoup"
   }): Promise<IMsg> => {
     console.log("waitForRegister");
-
-    if (!args.clientType) {
-      args.clientType = "mediasoup"
+    
+    if (this.localPeer.peerId) {
+      console.log("Already registered.");
+      return new OkMsg(payloadTypeServer.ok, { peerId: this.localPeer.peerId });
     }
 
-    return new Promise<IMsg>((resolve, reject) => {
+    if (!this.register({ ...args })) {
+      throw new Error("Failed to send 'register' request. Check input parameters.");
+    }
 
-      if (!this.ws) {
-        reject("websocket not initialized");
-        return;
-      }
+    const resultMsg = await this.signaling.waitForResponse(payloadTypeServer.registerPeerResult, args.timeoutSecs * 1000);
 
-      if (this.ws.state !== "connected") {
-        reject("websocket not connected");
-        return;
-      }
+    if (resultMsg.error) {
+      throw new Error(`Registration failed: ${resultMsg.error}`);
+    }
 
-      if (this.localPeer.peerId) {
-        console.log(`"already authenticated"`);
-        resolve(new OkMsg(payloadTypeServer.ok, {}));
-        return;
-      }
-
-      let _onmessage: (event: any) => void;
-      try {
-
-        _onmessage = (event: any) => {
-          let msg = JSON.parse(event.data) as IMsg;
-          console.log("--waitForRegister() - onmessage", msg);
-          if (msg.type == payloadTypeServer.registerPeerResult) {
-
-            if (msg.error) {
-              clearTimeout(timerid);
-              this.ws.removeEventHandler("onmessage", _onmessage);
-              console.error(msg.error)
-              reject("register error.");
-              return;
-            }
-
-            this.localPeer.peerId = (msg as RegisterPeerResultMsg).data.peerId;
-            clearTimeout(timerid);
-            this.ws.removeEventHandler("onmessage", _onmessage);
-            console.log(`register result received, remove _onmessage`);
-            resolve(msg);
-
-          }
-        };
-        this.ws.addEventHandler("onmessage", _onmessage);
-        let timerid = setTimeout(() => {
-          if (_onmessage) {
-            this.ws.removeEventHandler("onmessage", _onmessage);
-          }
-          reject("failed to register");
-        }, (args.timeoutSecs ?? 30) * 1000);
-
-        let registerSent = this.register({ ...args });
-
-        if (!registerSent) {
-          this.ws.removeEventHandler("onmessage", _onmessage);
-          reject("register failed to send.");
-        }
-      } catch (err: any) {
-        console.error(err);
-        if (_onmessage) {
-          this.ws.removeEventHandler("onmessage", _onmessage);
-        }
-        reject("failed to register");
-      }
-    });
+    // The onRegisterResult handler will set the peerId, but we can return the message directly.
+    return resultMsg;
   };
 
-  waitForNewRoomToken = (expiresInMin: number, timeoutSecs: number = 30): Promise<IMsg> => {
-    return new Promise<IMsg>((resolve, reject) => {
-      let _onmessage: (event: any) => void;
-      try {
-        let timerid = setTimeout(() => {
-          if (_onmessage) {
-            this.ws.removeEventHandler("onmessage", _onmessage);
-          }
-          reject("failed to create new room token");
-        }, timeoutSecs * 1000);
-
-        _onmessage = (event: any) => {
-
-          let msg = JSON.parse(event.data);
-          console.log("waitForNewRoomToken() -- onmessage", msg);
-
-          if (msg.type == payloadTypeServer.roomNewTokenResult) {
-            let msgIn: RoomNewTokenResultMsg = msg;
-            clearTimeout(timerid);
-            this.ws.removeEventHandler("onmessage", _onmessage);
-            resolve(msgIn);
-          }
-
-        };
-
-        this.ws.addEventHandler("onmessage", _onmessage);
-
-        if (!this.roomNewToken(expiresInMin)) {
-          this.ws.removeEventHandler("onmessage", _onmessage);
-          reject("unable to request new token");
-        }
-
-      } catch (err: any) {
-        if (_onmessage) {
-          this.ws.removeEventHandler("onmessage", _onmessage);
-        }
-        reject("unable to get data");
-      }
-    });
+  /**
+   * Requests a new room token from the server and waits for the response.
+   * @param expiresInMin - The desired expiration time for the token in minutes.
+   * @param timeoutSecs - The timeout for the operation.
+   * @returns A promise that resolves with the `RoomNewTokenResultMsg`.
+   */
+  waitForNewRoomToken = async (expiresInMin: number, timeoutSecs: number = 30): Promise<IMsg> => {
+    if (!this.roomNewToken(expiresInMin)) {
+      // The `send` method in WebSocketClient returns false if the socket is not connected.
+      throw new Error("Failed to send 'roomNewToken' request. WebSocket not connected.");
+    }
+    return this.signaling.waitForResponse(payloadTypeServer.roomNewTokenResult, timeoutSecs * 1000);
   };
 
-  waitForNewRoom = (maxPeers: number, maxRoomDurationMinutes: number, timeoutSecs: number = 30): Promise<IMsg> => {
-    return new Promise<IMsg>((resolve, reject) => {
-      let _onmessage: (event: any) => void;
-
-      try {
-        let timerid = setTimeout(() => {
-          if (_onmessage) {
-            this.ws.removeEventHandler("onmessage", _onmessage);
-          }
-          reject("failed to create new room");
-        }, timeoutSecs * 1000);
-
-        _onmessage = (event: any) => {
-
-          let msg = JSON.parse(event.data);
-          console.log("waitForNewRoom() -- onmessage", msg);
-
-          if (msg.type == payloadTypeServer.roomNewResult) {
-            let msgIn: RoomNewResultMsg = msg;
-            clearTimeout(timerid);
-            this.ws.removeEventHandler("onmessage", _onmessage);
-            resolve(msgIn);
-          }
-
-        };
-
-        this.ws.addEventHandler("onmessage", _onmessage);
-
-        if (!this.roomNew(maxPeers, maxRoomDurationMinutes)) {
-          this.ws.removeEventHandler("onmessage", _onmessage);
-          reject("unable to reqeust new room");
-        }
-
-      } catch (err: any) {
-        console.error(err);
-        if (_onmessage) {
-          this.ws.removeEventHandler("onmessage", _onmessage);
-        }
-        reject("failed to create new room");
-      }
-    });
+  /**
+   * Requests the server to create a new room and waits for the result.
+   * @param maxPeers - The maximum number of peers allowed in the room.
+   * @param maxRoomDurationMinutes - The maximum duration of the room in minutes.
+   * @param timeoutSecs - The timeout for the operation.
+   * @returns A promise that resolves with the `RoomNewResultMsg`.
+   */
+  waitForNewRoom = async (maxPeers: number, maxRoomDurationMinutes: number, timeoutSecs: number = 30): Promise<IMsg> => {
+    if (!this.roomNew(maxPeers, maxRoomDurationMinutes)) {
+      // The `send` method in WebSocketClient returns false if the socket is not connected.
+      // We can reject immediately in that case.
+      throw new Error("Failed to send 'roomNew' request.");
+    }
+    return this.signaling.waitForResponse(payloadTypeServer.roomNewResult, timeoutSecs * 1000);
   };
 
-  waitForRegister1 = (authToken: string, trackingId: string, displayName: string, timeoutSecs: number = 30): Promise<IMsg> => {
-    console.log("waitTryRegister");
-
-    return new Promise<IMsg>((resolve, reject) => {
-      let _onmessage: (msg: IMsg) => void;
-      let timerid = setTimeout(() => {
-        this.removeMessageListener(_onmessage);
-        reject("failed to register connection, register timed out.");
-      }, (timeoutSecs) * 1000);
-
-      try {
-
-        _onmessage = (msg: IMsg) => {
-          console.log("** onmessage", msg.data);
-
-          if (msg.type == payloadTypeServer.registerPeerResult) {
-
-            clearTimeout(timerid);
-            this.removeMessageListener(_onmessage);
-
-            let msgIn = msg as RegisterPeerResultMsg;
-            if (msgIn.error) {
-              console.error(msgIn.error);
-              reject(`register error`);
-              return;
-            }
-
-            this.localPeer.peerId = msgIn.data.peerId;
-
-            resolve(msgIn);
-          }
-        };
-
-        this.messageListener.push(_onmessage);
-
-        this.localPeer.authToken = authToken;
-        let sent = this.register({ username: this.localPeer.username, authToken, trackingId, displayName });
-        if (!sent) {
-          reject("failed to send register message.");
-        }
-
-      } catch (err: any) {
-        console.log(err);
-
-        clearTimeout(timerid);
-        this.removeMessageListener(_onmessage);
-        reject("error: failed to register connection");
-      }
-    });
+  /**
+   * Sends a request to join an existing room and waits for the result.
+   * @param roomid - The ID of the room to join.
+   * @param roomToken - The token required to join the room.
+   * @param timeoutSecs - The timeout for the operation.
+   * @returns A promise that resolves with the `RoomJoinResultMsg`.
+   */  
+  waitForRoomJoin = async (roomid: string, roomToken: string, timeoutSecs: number = 30): Promise<IMsg> => {
+    if(!this.roomJoin(roomid, roomToken)){
+      throw new Error("Failed to send 'roomJoin' request.");
+    }
+    return this.signaling.waitForResponse(payloadTypeServer.roomJoinResult, timeoutSecs * 1000);
   }
 
   /**
-   * join an existing room and wait for a result
-   * @param roomid 
-   * @param roomToken 
-   * @returns 
+   * Sets the authentication token for the local peer.
+   * @param authToken - The authentication token.
    */
-  waitForRoomJoin = (roomid: string, roomToken: string, timeoutSecs: number = 30): Promise<IMsg> => {
-    //remove the old event hanlder    
-    return new Promise<IMsg>((resolve, reject) => {
-      let _onmessage: (event: any) => void;
-      try {
-        let timerid = setTimeout(() => {
-          if (_onmessage) {
-            this.ws.removeEventHandler("onmessage", _onmessage);
-          }
-          reject("failed to join room");
-        }, timeoutSecs * 1000);
-
-        _onmessage = (event: any) => {
-          console.log("** onmessage", event.data);
-          let msg = JSON.parse(event.data);
-
-          if (msg.type == payloadTypeServer.roomJoinResult) {
-            clearTimeout(timerid);
-            this.ws.removeEventHandler("onmessage", _onmessage);
-            let msgIn = msg as RoomJoinResultMsg;
-            resolve(msgIn);
-          }
-        };
-
-        this.ws.addEventHandler("onmessage", _onmessage);
-        this.roomJoin(roomid, roomToken);
-      } catch (err: any) {
-        console.log(err);
-        if (_onmessage) {
-          this.ws.removeEventHandler("onmessage", _onmessage);
-        }
-        reject("failed to join room");
-      }
-    });
-  };
-
   setAuthtoken = (authToken: string) => {
     this.localPeer.authToken = authToken;
   }
 
+  /**
+   * Sends a registration message to the server to identify the client.
+   * @param args - Registration details.
+   * @param args.authToken - The authentication token.
+   * @param args.username - The user's username.
+   * @param args.trackingId - A client-side unique ID.
+   * @param args.displayName - The user's display name.
+   * @returns `true` if the message was sent, `false` if there was a validation error.
+   */
   register = (args: { authToken: string, username: string, trackingId: string, displayName: string, clientType?: "sdp" | "mediasoup" }) => {
     console.log(`-- register username: ${args.username}, trackingId: ${args.trackingId}, displayName: ${args.displayName}`);
 
@@ -527,6 +362,11 @@ export class RoomsClient {
     return true;
   };
 
+  /**
+   * Publishes local media tracks (e.g., from a webcam or microphone) to the room.
+   * It creates mediasoup producers for each track. If a producer for a given kind already exists, it replaces the track.
+   * @param tracks - An array of `MediaStreamTrack` objects to publish.
+   */
   publishTracks = async (tracks: MediaStreamTrack[]) => {
     console.log(`publishTracks: ${tracks.length}`);
     console.log(`trying to publish tracks`, tracks);
@@ -541,12 +381,12 @@ export class RoomsClient {
       return;
     }
 
-    if (!this.localRoom.transportSend) {
+    if (!this.roomState.localRoom.transportSend) {
       console.error('No transportSend');
       return;
     }
 
-    let localTracks = this.localRoom.getProducerTracks();
+    let localTracks = this.roomState.localRoom.getProducerTracks();
     console.log(`local tracks`, tracks);
 
     for (const track of tracks) {
@@ -556,14 +396,14 @@ export class RoomsClient {
         if (existingTrack) {
           console.log(`existingTrack of kind ${track.kind}, track must be replaced or unpublished.`);
           //swap the track          
-          let producer = this.localRoom.getProducers()?.values().find(p => p.kind === track.kind);
+          let producer = this.roomState.localRoom.getProducers()?.values().find(p => p.kind === track.kind);
           if (producer) {
             await producer.replaceTrack({ track: track });
             console.log(`producer, replacing existing ${track.kind}`);
           }
           return;
         }
-        let producer = await this.localRoom.createProducer(track);
+        let producer = await this.roomState.localRoom.createProducer(track);
         console.log("publishing new track: " + producer.track.kind);
 
       } catch (error) {
@@ -572,11 +412,15 @@ export class RoomsClient {
       }
     }
 
-    console.log(`publishTracks: local producers:`, this.localRoom.getProducers());
-    console.log(`publishTracks: local tracks:`, this.localRoom.getProducerTracks());
+    console.log(`publishTracks: local producers:`, this.roomState.localRoom.getProducers());
+    console.log(`publishTracks: local tracks:`, this.roomState.localRoom.getProducerTracks());
 
   };
 
+  /**
+   * Stops publishing the specified media tracks. It closes the corresponding mediasoup producers.
+   * @param tracks - An array of `MediaStreamTrack` objects to unpublish.
+   */
   unPublishTracks = async (tracks: MediaStreamTrack[]) => {
     console.log(`unPublishTracks`);
 
@@ -589,7 +433,7 @@ export class RoomsClient {
     msg.data.kinds = [];
 
     for (const track of tracks) {
-      let producer = this.localRoom.getProducers().get(track.kind as any);
+      let producer = this.roomState.localRoom.getProducers().get(track.kind as any);
       if (producer) {
         console.log(`producer found, closing ${track.kind}`)
         producer.close();
@@ -600,24 +444,32 @@ export class RoomsClient {
     this.send(msg);
   };
 
+  /**
+   * Checks if the client is currently broadcasting video.
+   * @returns `true` if a live video track is being produced, `false` otherwise.
+   */
   isBroadcastingVideo() {
     if (!this.isInRoom()) {
       return false;
     }
 
-    let videoTrack = this.localRoom.getProducerTracks().find(t => t.kind == "video");
+    let videoTrack = this.roomState.localRoom.getProducerTracks().find(t => t.kind == "video");
     if (videoTrack && videoTrack.readyState == "live") {
       return true;
     }
     return false;
   }
 
+  /**
+   * Checks if the client is currently broadcasting audio.
+   * @returns `true` if a live audio track is being produced, `false` otherwise.
+   */
   isBroadcastingAudio() {
     if (!this.isInRoom()) {
       return false;
     }
 
-    let audioTrack = this.localRoom.getProducerTracks().find(t => t.kind == "audio");
+    let audioTrack = this.roomState.localRoom.getProducerTracks().find(t => t.kind == "audio");
     if (audioTrack && audioTrack.readyState == "live") {
       return true;
     }
@@ -625,10 +477,11 @@ export class RoomsClient {
     return false;
   }
 
-  // findTrack = (kind: string) => {
-  //   return this.localRoom.tracks.getTrack(kind);
-  // }
-
+  /**
+   * Replaces an existing media track with a new one without needing to create a new producer.
+   * @param existingTrack - The track that is currently being published.
+   * @param newTrack - The new track to publish in its place.
+   */
   replaceTrack = async (existingTrack: MediaStreamTrack, newTrack: MediaStreamTrack) => {
     console.log("replaceTrack");
 
@@ -642,7 +495,7 @@ export class RoomsClient {
       return;
     }
 
-    let producer = this.localRoom.getProducers().get(existingTrack.kind as any);
+    let producer = this.roomState.localRoom.getProducers().get(existingTrack.kind as any);
     if (producer) {
       producer.replaceTrack({ track: newTrack });
 
@@ -654,6 +507,10 @@ export class RoomsClient {
 
   };
 
+  /**
+   * Broadcasts the current state of the local user's tracks (e.g., enabled/disabled) to all peers in the room.
+   * @param tracksInfo - The current track state information.
+   */
   broadCastTrackInfo = async (tracksInfo: PeerTracksInfo) => {
     console.log(`broadCastTrackInfo`, tracksInfo);
 
@@ -676,16 +533,28 @@ export class RoomsClient {
 
   }
 
+  /**
+   * Sends a request to the server to mute/unmute the tracks of a specific participant in the room.
+   * This is typically used by a moderator.
+   * @param peerId - The ID of the peer to mute/unmute.
+   * @param audioMuted - Whether to mute the audio.
+   * @param videoMuted - Whether to mute the video.
+   */
   muteParticipantTrack = async (peerId: string, audioMuted: boolean, videoMuted: boolean) => {
     console.log(`muteParticipantTrack audioMuted: ${audioMuted}, videoMuted:${videoMuted}`);
 
     let msg = new PeerMuteTracksMsg();
     msg.data.peerId = peerId;
-    msg.data.roomId = this.localRoom.roomId;
+    msg.data.roomId = this.roomState.roomId;
     msg.data.tracksInfo = { isAudioEnabled: !audioMuted, isVideoEnabled: !videoMuted, isVideoMuted: videoMuted, isAudioMuted: audioMuted };
     this.send(msg);
   }
 
+  /**
+   * Requests a new, single-use token for creating a room.
+   * @param expiresInMin - The desired validity period for the new token.
+   * @returns `true` if the request was sent successfully.
+   */
   roomNewToken = (expiresInMin: number = 60) => {
     console.log(`roomNewToken`);
 
@@ -697,6 +566,12 @@ export class RoomsClient {
     return this.send(msg);
   };
 
+  /**
+   * Sends a request to create a new room with specific configuration.
+   * @param maxPeers - The maximum number of peers for the new room.
+   * @param maxRoomDurationMinutes - The maximum duration of the new room.
+   * @returns `true` if the request was sent successfully.
+   */
   roomNew = (maxPeers: number, maxRoomDurationMinutes: number) => {
     console.log(`${maxPeers} ${maxRoomDurationMinutes}`);
 
@@ -710,7 +585,7 @@ export class RoomsClient {
     let msg = new RoomNewMsg();
     msg.data = {      
       peerId: this.localPeer.peerId,
-      roomId: this.localRoom.roomId,
+      roomId: this.roomState.roomId,
       roomToken: this.localPeer.roomToken,
       roomConfig: config
     };
@@ -718,6 +593,11 @@ export class RoomsClient {
     return this.send(msg);
   };
 
+  /**
+   * Sends a request to join an existing room, returns false if there was a send error
+   * @param roomid - The ID of the room to join.
+   * @param roomToken - The token required for entry.
+   */
   roomJoin = (roomid: string, roomToken: string) => {
     console.log(`roomJoin ${roomid} ${roomToken}`);
 
@@ -726,30 +606,42 @@ export class RoomsClient {
       roomId: roomid,
       roomToken: roomToken
     };
-    this.send(msg);
+    return this.send(msg);
   };
 
+  /**
+   * Sends a request to leave the current room and cleans up local room state.
+   */
   roomLeave = () => {
     console.log("roomLeave");
 
-    if (!this.localRoom.roomId) {
+    if (!this.roomState.roomId) {
       console.error("not in room");
       return;
     }
 
     let msg = new RoomLeaveMsg();
     msg.data = {
-      roomId: this.localRoom.roomId,      
+      roomId: this.roomState.roomId,
     };
 
     this.roomClose();
     return this.send(msg);
   };
 
+  /**
+   * Checks if the client is currently in a room.
+   * @returns `true` if the client has a `roomId`, `false` otherwise.
+   */
   isInRoom = () => {
-    return !!this.localRoom.roomId;
+    return !!this.roomState.roomId;
   };
 
+  /**
+   * @internal
+   * Initializes the mediasoup-client Device. If router RTP capabilities are provided, it loads them.
+   * @param rtpCapabilities - The RTP capabilities of the mediasoup router.
+   */
   private initMediaSoupDevice = async (rtpCapabilities?: any) => {
     console.log("initMediaSoupDevice");
 
@@ -774,10 +666,14 @@ export class RoomsClient {
     }
   };
 
-  private onSocketEvent = async (event: any) => {
+  /**
+   * @internal
+   * The main message handler for all incoming WebSocket events. It parses the message,
+   * identifies its type, and delegates it to the appropriate `on...` handler.
+   */
+  private onSocketEvent = async (msgIn: any) => {
+    console.log("** onmessage", msgIn);
 
-    let msgIn = JSON.parse(event.data);
-    console.log("** onmessage", msgIn.type, msgIn);
     //parse the msgIn
     if (!msgIn.type) {
       console.log("invalid message type");
@@ -854,16 +750,26 @@ export class RoomsClient {
 
   };
 
+  /**
+   * @internal
+   * A helper method to send a message object to the server via WebSocket.
+   * @param msg - The message object to send. It will be JSON-stringified.
+   * @returns `true` if the message was sent successfully.
+   */
   private send = (msg: any): boolean => {
     console.log("send", msg.type, msg);
 
-    return this.ws.send(JSON.stringify(msg));
+    return this.signaling.send(msg);
   };
 
+  /**
+   * @internal
+   * Adds a remote peer to the local room's state.
+   */
   private addPeer = (remotePeer: Peer) => {
     console.log(`addPeer() - ${remotePeer.displayName} ${remotePeer.peerId} ${remotePeer.trackingId}`);
 
-    if (this.localRoom.peers.has(remotePeer.peerId)) {
+    if (this.roomState.peers.has(remotePeer.peerId)) {
       console.error(`peer already exists, ${remotePeer.peerId}`);
       return false;
     }
@@ -873,20 +779,28 @@ export class RoomsClient {
       return false;
     }
 
-    this.localRoom.peers.set(remotePeer.peerId, remotePeer);
+    this.roomState.peers.set(remotePeer.peerId, remotePeer);
     return true;
   };
 
+  /**
+   * @internal
+   * Removes a remote peer from the local room's state and cleans up associated consumers.
+   */
   private removePeer = (remotePeer: Peer) => {
     console.log(`removePeer() - ${remotePeer.displayName} ${remotePeer.peerId} ${remotePeer.trackingId}`);
 
-    let consumers = this.localRoom.getConsumers(remotePeer);
+    let consumers = this.roomState.localRoom.getConsumers(remotePeer);
     consumers.values().forEach(c => c.close());
-    this.localRoom.removeConsumer(remotePeer);
+    this.roomState.localRoom.removeConsumer(remotePeer);
 
-    return this.localRoom.peers.delete(remotePeer.peerId);
+    return this.roomState.peers.delete(remotePeer.peerId);
   };
 
+  /**
+   * @internal
+   * Handles the result of an auth token request.
+   */
   private onAuthUserNewTokenResult = async (msgIn: AuthUserNewTokenResultMsg) => {
     console.log("onAuthUserNewTokenResult");
 
@@ -898,6 +812,10 @@ export class RoomsClient {
 
   };
 
+  /**
+   * @internal
+   * Handles the result of a peer registration request, setting the local `peerId`.
+   */
   private onRegisterResult = async (msgIn: RegisterPeerResultMsg) => {
     console.log(`** onRegisterResult - peerId: ${msgIn.data?.peerId}`);
 
@@ -911,26 +829,38 @@ export class RoomsClient {
 
   };
 
+  /**
+   * @internal
+   * Sends a request to the server to create a producer transport.
+   */
   private createProducerTransport = (): boolean => {
     console.log("** createProducerTransport");
 
     let msg = new CreateProducerTransportMsg();
-    msg.data.roomId = this.localRoom.roomId;
+    msg.data.roomId = this.roomState.roomId;
     this.send(msg);
 
     return true;
   };
 
+  /**
+   * @internal
+   * Sends a request to the server to create a consumer transport.
+   */
   private createConsumerTransport = (): boolean => {
     console.log("** createConsumerTransport");
 
     let msg = new CreateConsumerTransportMsg();
-    msg.data.roomId = this.localRoom.roomId;
+    msg.data.roomId = this.roomState.roomId;
     this.send(msg);
 
     return true;
   };
 
+  /**
+   * @internal
+   * Handles the result of a `roomNewToken` request, storing the new room ID and token.
+   */
   private onRoomNewTokenResult = async (msgIn: RoomNewTokenResultMsg) => {
     console.log("** onRoomNewTokenResult()");
 
@@ -939,13 +869,17 @@ export class RoomsClient {
       return;
     }
 
-    this.localRoom.roomId = msgIn.data.roomId;
+    this.roomState.roomId = msgIn.data.roomId;
     console.log("roomId set", msgIn.data.roomId)
     this.localPeer.roomToken = msgIn.data.roomToken;
-    console.log("room token set " + this.localPeer.roomToken, this.localRoom.roomId);
+    console.log("room token set " + this.localPeer.roomToken, this.roomState.roomId);
 
   };
 
+  /**
+   * @internal
+   * Handles the result of a `roomNew` request, loading the mediasoup device with the router's RTP capabilities.
+   */
   private onRoomNewResult = async (msgIn: RoomNewResultMsg) => {
     console.log("** onRoomNewResult()");
 
@@ -962,26 +896,31 @@ export class RoomsClient {
 
   };
 
+  /**
+   * @internal
+   * Handles the result of a `roomJoin` request. This is a critical method that sets up the room,
+   * processes the list of existing peers, creates the necessary transports, and starts consuming media from other peers.
+   */
   private onRoomJoinResult = async (msgIn: RoomJoinResultMsg) => {
     console.log("** onRoomJoinResult()", msgIn.data);
 
     if (msgIn.error) {
       console.error(msgIn.error);
-      await this.eventOnRoomJoinFailed(this.localRoom.roomId);
+      await this.eventOnRoomJoinFailed(this.roomState.roomId);
       return;
     }
 
     //race condition can occur when onRoomNewProducer is fired before onRoomJoinResult
     //we may need to store the producer info or fetch the produce info for the peer if we don't have one
-    this.localRoom.roomId = msgIn.data.roomId;
-    await this.eventOnRoomJoined(this.localRoom.roomId);
+    this.roomState.roomId = msgIn.data.roomId;
+    await this.eventOnRoomJoined(this.roomState.roomId);
 
     if (msgIn.data && msgIn.data.peers) {
       for (const peerInfo of msgIn.data.peers) {
         let newpeer: Peer = this.createPeer(peerInfo.peerId, peerInfo.peerTrackingId, peerInfo.displayName, peerInfo.trackInfo);
-        await this.eventOnRoomPeerJoined(this.localRoom.roomId, newpeer);
+        await this.eventOnRoomPeerJoined(this.roomState.roomId, newpeer);
         let producerInfo = peerInfo.producers.map(p => ({ peer: newpeer, producerId: p.producerId, kind: p.kind }));
-        this.localRoom.producersToConsume.set(newpeer, producerInfo);
+        this.roomState.localRoom.producersToConsume.set(newpeer, producerInfo);
         console.log("** onRoomJoinResult producers :" + peerInfo.producers?.length);
       }
     }
@@ -996,7 +935,7 @@ export class RoomsClient {
     }
     console.log("transports created.");
 
-    for (const peer of this.localRoom.peers.values()) {
+    for (const peer of this.roomState.peers.values()) {
       await this.consumePeerProducers(peer);
       console.log(`fire eventOnRoomPeerJoined onRoomJoinResult`);
     }
@@ -1005,6 +944,10 @@ export class RoomsClient {
 
   }
 
+  /**
+   * @internal
+   * A factory method to create and add a `Peer` object to the local state.
+   */
   private createPeer(peerId: string, trackingId: string, displayName: string, tracksInfo: PeerTracksInfo) {
     console.log(`createPeer() - ${displayName}, peerId:${peerId}, trackingId:${trackingId},tracksInfo:`, tracksInfo);
 
@@ -1019,6 +962,10 @@ export class RoomsClient {
     return newpeer;
   }
 
+  /**
+   * @internal
+   * Handles the `roomNewPeer` message from the server, which indicates a new user has joined the room.
+   */
   private onRoomNewPeer = async (msgIn: RoomNewPeerMsg) => {
     console.log("onRoomNewPeer " + msgIn.data?.peerId + " producers: " + msgIn.data?.producers?.length);
     console.log(`new PeeerJoined ${msgIn.data?.peerId} `);
@@ -1034,6 +981,10 @@ export class RoomsClient {
     await this.eventOnRoomPeerJoined(msgIn.data.roomId, newpeer);
   }
 
+  /**
+   * @internal
+   * Handles the `roomPeerLeft` message, cleaning up the state associated with the departed peer.
+   */
   private onRoomPeerLeft = async (msgIn: RoomPeerLeftMsg) => {
     console.log("peer left the room, peerid:" + msgIn.data.peerId);
 
@@ -1045,26 +996,30 @@ export class RoomsClient {
       return;
     }
 
-    let peer = this.localRoom.peers.get(msgIn.data.peerId);
+    let peer = this.roomState.peers.get(msgIn.data.peerId);
     if (!peer) {
-      console.error(`peer not found ${msgIn.data.peerId}, current peers:`, this.localRoom.peers);
+      console.error(`peer not found ${msgIn.data.peerId}, current peers:`, this.roomState.peers);
       return;
     }
 
-    this.removePeer(peer);
+    this.roomState.removePeer(peer.peerId);
     let roomid = msgIn.data.roomId;
     await this.eventOnRoomPeerLeft(roomid, peer);
   }
 
+  /**
+   * @internal
+   * Handles the `peerTracksInfo` message, updating the enabled/disabled state of a remote peer's tracks.
+   */
   private onPeerTracksInfo(msgIn: PeerTracksInfoMsg) {
     console.log("onPeerTracksInfo");
 
-    if (!this.localRoom.roomId) {
+    if (!this.roomState.roomId) {
       console.error("not in a room.");
       return;
     }
 
-    let peer = this.localRoom.peers.get(msgIn.data.peerId);
+    let peer = this.roomState.peers.get(msgIn.data.peerId);
     if (!peer) {
       console.error(`peer not found ${msgIn.data.peerId}`);
       return;
@@ -1073,7 +1028,7 @@ export class RoomsClient {
     peer.tracksInfo = msgIn.data.tracksInfo;
     console.log(`updated tracksInfo for ${peer.displayName}:`, peer.tracksInfo);
 
-    let tracks = this.localRoom.getConsumerTracks(peer);
+    let tracks = this.roomState.localRoom.getConsumerTracks(peer);
 
     let audioTrack = tracks.find(t => t.kind == "audio");
     if (audioTrack) {
@@ -1090,11 +1045,15 @@ export class RoomsClient {
     this.eventOnPeerTrackInfoUpdated(peer);
   }
 
+  /**
+   * @internal
+   * Handles the `peerMuteTracks` message, which is a command from a moderator to mute the local user's tracks.
+   */
   private onPeerMuteTracks(msgIn: PeerMuteTracksMsg) {
     console.log("PeerMuteTracksMsg, someone muted me!");
 
     //someone muted me!
-    if (!this.localRoom.roomId) {
+    if (!this.roomState.roomId) {
       console.error("not in a room.");
       return;
     }
@@ -1104,7 +1063,7 @@ export class RoomsClient {
       return;
     }
 
-    if (this.localRoom.roomId != msgIn.data.roomId) {
+    if (this.roomState.roomId != msgIn.data.roomId) {
       console.error("not the same room.", msgIn.data.roomId);
       return;
     }
@@ -1113,12 +1072,12 @@ export class RoomsClient {
     console.log(`updated localPeer tracksInfo:`, msgIn.data.tracksInfo);
 
     //mute the producer track
-    let audioTrack = this.localRoom.getProducerTracks().find(t => t.kind == "audio");
+    let audioTrack = this.roomState.localRoom.getProducerTracks().find(t => t.kind == "audio");
     if (audioTrack) {
       audioTrack.enabled = this.localPeer.tracksInfo.isAudioEnabled;
     }
 
-    let videoTrack = this.localRoom.getProducerTracks().find(t => t.kind == "video");
+    let videoTrack = this.roomState.localRoom.getProducerTracks().find(t => t.kind == "video");
     if (videoTrack) {
       videoTrack.enabled = this.localPeer.tracksInfo.isVideoEnabled;
     }
@@ -1132,130 +1091,126 @@ export class RoomsClient {
 
   }
 
+  /**
+   * @internal
+   * Handles the `roomClosed` message from the server.
+   */
   private onRoomClosed = async (msgIn: RoomClosedMsg) => {
     console.log("onRoomClosed:" + msgIn.data.roomId);
     this.roomClose();
     await this.eventOnRoomClosed(msgIn.data.roomId);
   }
 
+  /**
+   * @internal
+   * Cleans up the local state associated with being in a room.
+   */
   private roomClose() {
     console.log("** roomClose");
 
     if (!this.isInRoom()) {
-      console.error("not in a room.", this.localRoom)
+      console.error("not in a room.", this.roomState.localRoom)
       return;
     }
-    this.localRoom.close();
+    this.roomState.close();
     console.log("** room closed");
   }
 
   /**
-   * when you join a room transports need be created and published to a room
-   */
+   * @internal
+   * Waits for both the send and receive transports to be created after joining a room.
+   * It initiates the creation and uses a promise to wait for both to complete.
+   */ 
   private waitForRoomTransports = async (): Promise<IMsg> => {
     console.log("** waitForRoomTransports");
 
-    if (!this.localRoom.roomId) {
+    if (!this.roomState.roomId) {
       console.error("room is required for creating transports");
       return new ErrorMsg(payloadTypeServer.error, "cannot create transports before joining a room.");
     }
 
-    let waitFunc = () => {
-      return new Promise<IMsg>((resolve, reject) => {
-        try {
-          let transTrack = { recv: false, send: false };
+    const createTransportsPromise = new Promise<IMsg>((resolve) => {
+      let transportsReady = { send: false, recv: false };
+      this.onTransportsReadyEvent = (transport: Transport) => {
+        if (transport.direction === 'send') transportsReady.send = true;
+        if (transport.direction === 'recv') transportsReady.recv = true;
 
-          let timerid = setTimeout(() => {
-            console.error("transport timed out.");
-            resolve(new ErrorMsg(payloadTypeServer.error, "transport timeout"));
-          }, 5000);
-
-          this.onTransportsReadyEvent = (transport: Transport) => {
-            try {
-              if (transport.direction == "recv") {
-                transTrack.recv = true;
-              } else {
-                transTrack.send = true;
-              }
-              if (transTrack.recv && transTrack.send) {
-                clearTimeout(timerid);
-                resolve(new OkMsg(payloadTypeServer.ok, "transportCreated"));
-              }
-            } catch (err) {
-              console.log(err);
-              clearTimeout(timerid);
-              reject("failed to create transport");
-            }
-          }
-
-          this.createConsumerTransport();
-          this.createProducerTransport();
-        } catch (err) {
-          console.error(err);
-          reject(err);
+        if (transportsReady.send && transportsReady.recv) {
+          resolve(new OkMsg(payloadTypeServer.ok, "transports created"));
         }
-      });
-    };
+      };
+    });
 
-    let waitResult = await waitFunc();
-    return waitResult;
+    // Trigger the creation
+    this.createProducerTransport();
+    this.createConsumerTransport();
+
+    // Race against a timeout
+    const timeoutPromise = new Promise<IMsg>((_, reject) =>
+      setTimeout(() => reject(new Error("Timed out waiting for transports to be created.")), 5000)
+    );
+
+    return Promise.race([createTransportsPromise, timeoutPromise]);
   };
 
-  private waitForTransportConnected = async (transport: mediasoupClient.types.Transport): Promise<IMsg> => {
+  /**
+   * @internal
+   * Waits for a given mediasoup transport to reach the 'connected' state.
+   * @param transport - The transport to monitor.
+   * @param timeoutMs - The timeout in milliseconds.
+   */
+  private waitForTransportConnected = async (transport: mediasoupClient.types.Transport, timeoutMs: number = 5000): Promise<IMsg> => {
     console.log("** waitForTransportConnected created " + transport.direction)
+
+    if (transport.connectionState === 'connected') {
+      return new OkMsg(payloadTypeServer.ok, "already connected");
+    }
+
     return new Promise<IMsg>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error(`Transport connection timed out for ${transport.direction}`));
+      }, timeoutMs);
 
-      let timeoutId = setTimeout(() => {
-        console.log("waitForTransportConnected timeout " + transport.direction);
-        resolve(new ErrorMsg(payloadTypeServer.error, "tranport timed out"));
-      }, 5000);
-
-      try {
-        if (transport.connectionState === 'connected') {
-          clearTimeout(timeoutId);
+      const onStateChange = (state: string) => {
+        console.log(`transport connectionstatechange: ${state}`);
+        if (state === 'connected') {
+          cleanup();
           resolve(new OkMsg(payloadTypeServer.ok, "connected"));
-          return;
+        } else if (state === 'failed' || state === 'closed') {
+          cleanup();
+          reject(new Error(`Transport connection failed with state: ${state}`));
         }
-        const onStateChange = (state: string) => {
-          console.log("connectionstatechange transport: " + state);
-          if (state === 'connected') {
-            clearTimeout(timeoutId);
-            resolve(new OkMsg(payloadTypeServer.ok, "connected"));
-            transport.off('connectionstatechange', onStateChange);
-          } else if (state === 'failed' || state === 'closed') {
-            clearTimeout(timeoutId);
-            resolve(new ErrorMsg(payloadTypeServer.error, "failed to connect"));
-            transport.off('connectionstatechange', onStateChange);
-          }
-        };
-        transport.on('connectionstatechange', onStateChange);
-      } catch (err: any) {
-        console.error(err);
-        clearTimeout(timeoutId);
-        reject("failed to connect transport");
-      }
+      };
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        transport.off('connectionstatechange', onStateChange);
+      };
+
+      transport.on('connectionstatechange', onStateChange);
     });
   };
 
   /**
-   * if sfu, consume the producers in the room
-   * @param peer
-   * @returns 
-   */
+   * @internal
+   * Iterates through the known producers of a given peer and initiates consumption for each.
+   * @param peer - The peer whose producers should be consumed.
+   */ 
   async consumePeerProducers(peer: Peer) {
     console.log(`consumePeerProducers() ${peer.peerId} ${peer.displayName}`);
 
-    if (!this.localRoom.roomId) {
+    if (!this.roomState.roomId) {
       console.error("cannot connect to a peer. not in a room.");
       return;
     }
 
-    if (!this.localRoom.transportReceive || !this.localRoom.transportSend) {
+    if (!this.roomState.localRoom.transportReceive || !this.roomState.localRoom.transportSend) {
       console.error("transports have not been created.");
       return;
     }
 
-    let producersToConsume = this.localRoom.producersToConsume.get(peer);
+    let producersToConsume = this.roomState.localRoom.producersToConsume.get(peer);
     if (producersToConsume) {
       for (const producerInfo of producersToConsume.values()) {
         await this.consumeProducer(peer.peerId, producerInfo.producerId, producerInfo.kind);
@@ -1263,17 +1218,22 @@ export class RoomsClient {
     }
   }
 
+  /**
+   * @internal
+   * Handles the server's response for creating a consumer transport. It then creates the
+   * corresponding `RecvTransport` on the client side using the provided parameters.
+   */
   private onCreateConsumerTransportResult = async (msgIn: CreateConsumerTransportResultMsg) => {
     console.log("** onCreateConsumerTransportResult", msgIn);
 
     //the server has created a consumer transport for the peer 
     //roomid should match the local roomid
-    if (msgIn.data.roomId != this.localRoom.roomId) {
+    if (msgIn.data.roomId != this.roomState.roomId) {
       console.error(`onConsumerTransportCreated: invalid message for roomid`);
       return;
     }
 
-    this.localRoom.transportReceive = this.device.createRecvTransport({
+    this.roomState.localRoom.transportReceive = this.device.createRecvTransport({
       id: msgIn.data.transportId,
       iceServers: msgIn.data.iceServers ?? this.iceServers,
       iceCandidates: msgIn.data.iceCandidates,
@@ -1283,59 +1243,68 @@ export class RoomsClient {
       //iceTransportPolicy: "relay"
     });
 
-    this.localRoom.transportReceive.on('connect', ({ dtlsParameters }, callback) => {
+    this.roomState.localRoom.transportReceive.on('connect', ({ dtlsParameters }, callback) => {
       let msg = new ConnectConsumerTransportMsg();
       msg.data = {
         transportId: msgIn.data.transportId,
-        roomId: this.localRoom.roomId,
+        roomId: this.roomState.roomId,
         dtlsParameters: dtlsParameters
       }
       this.send(msg);
       callback();
     });
 
-    this.localRoom.transportReceive.on("connectionstatechange", (args) => {
+    this.roomState.localRoom.transportReceive.on("connectionstatechange", (args) => {
       console.log(`transportReceive connectionstatechange`, args);
     });
 
-    this.localRoom.transportReceive.on("icecandidateerror", (args) => {
+    this.roomState.localRoom.transportReceive.on("icecandidateerror", (args) => {
       console.log(`transportReceive icecandidateerror`, args);
     });
 
-    this.localRoom.transportReceive.on("icegatheringstatechange", (args) => {
+    this.roomState.localRoom.transportReceive.on("icegatheringstatechange", (args) => {
       console.log(`transportReceive icegatheringstatechange`, args);
     });
 
-    this.localRoom.transportReceive.on("produce", (args) => {
+    this.roomState.localRoom.transportReceive.on("produce", (args) => {
       console.log(`transportReceive produce`, args);
     });
 
-    this.localRoom.transportReceive.on("producedata", (args) => {
+    this.roomState.localRoom.transportReceive.on("producedata", (args) => {
       console.log(`transportReceive producedata`, args);
     });
 
 
     if (this.onTransportsReadyEvent) {
-      this.onTransportsReadyEvent(this.localRoom.transportReceive);
+      this.onTransportsReadyEvent(this.roomState.localRoom.transportReceive);
     }
   }
 
+  /**
+   * @internal
+   * Handles the `consumerTransportConnected` message. Currently a no-op.
+   */
   private onConsumerTransportConnected(msgIn: ProducerTransportConnectedMsg) {
     console.log("** onConsumerTransportConnected");
   }
 
+  /**
+   * @internal
+   * Handles the server's response for creating a producer transport. It then creates the
+   * corresponding `SendTransport` on the client side and sets up its event listeners ('connect', 'produce').
+   */
   private oncreateProducerTransportResult = async (msgIn: CreateProducerTransportResultMsg) => {
     console.log("** oncreateProducerTransportResult:", msgIn);
 
     //the server has created a producer transport for the peer
     //roomid should match the local roomid
-    if (msgIn.data.roomId != this.localRoom.roomId) {
+    if (msgIn.data.roomId != this.roomState.roomId) {
       console.error(`oncreateProducerTransportResult: invalid message for roomid`);
       return;
     }
 
     //create a client transport to connect to the server transport
-    this.localRoom.transportSend = this.device.createSendTransport({
+    this.roomState.localRoom.transportSend = this.device.createSendTransport({
       id: msgIn.data!.transportId,
       iceServers: msgIn.data.iceServers ?? this.iceServers,
       iceCandidates: msgIn.data.iceCandidates,
@@ -1345,14 +1314,14 @@ export class RoomsClient {
       //iceTransportPolicy: "relay"
     });
 
-    this.localRoom.transportSend.on("connect", ({ dtlsParameters }, callback) => {
+    this.roomState.localRoom.transportSend.on("connect", ({ dtlsParameters }, callback) => {
       console.log("** transportSend connect");
       //fires when the transport connects to the mediasoup server
 
       let msg = new ConnectProducerTransportMsg();
       msg.data = {
         transportId: msgIn.data.transportId,
-        roomId: this.localRoom.roomId,
+        roomId: this.roomState.roomId,
         dtlsParameters: dtlsParameters
       };
 
@@ -1362,14 +1331,14 @@ export class RoomsClient {
 
     });
 
-    this.localRoom.transportSend.on('produce', ({ kind, rtpParameters }, callback) => {
+    this.roomState.localRoom.transportSend.on('produce', ({ kind, rtpParameters }, callback) => {
 
       console.log("** transportSend produce");
 
       //fires when we call produce with local tracks
       let msg = new RoomProduceStreamMsg();
       msg.data = {
-        roomId: this.localRoom.roomId,
+        roomId: this.roomState.roomId,
         kind: kind,
         rtpParameters: rtpParameters
       }
@@ -1378,47 +1347,62 @@ export class RoomsClient {
       callback({ id: msgIn.data!.transportId });
     });
 
-    this.localRoom.transportSend.on("connectionstatechange", (args) => {
+    this.roomState.localRoom.transportSend.on("connectionstatechange", (args) => {
       console.log(`transportSend connectionstatechange`, args);
     });
 
-    this.localRoom.transportSend.on("icecandidateerror", (args) => {
+    this.roomState.localRoom.transportSend.on("icecandidateerror", (args) => {
       console.log(`transportSend icecandidateerror`, args);
     });
 
-    this.localRoom.transportSend.on("icegatheringstatechange", (args) => {
+    this.roomState.localRoom.transportSend.on("icegatheringstatechange", (args) => {
       console.log(`transportSend icegatheringstatechange`, args);
     });
 
 
     if (this.onTransportsReadyEvent) {
-      this.onTransportsReadyEvent(this.localRoom.transportSend);
+      this.onTransportsReadyEvent(this.roomState.localRoom.transportSend);
     }
 
   }
 
+  /**
+   * @internal
+   * Handles the `producerTransportConnected` message. Currently a no-op.
+   */
   private onProducerTransportConnected(msgIn: ProducerTransportConnectedMsg) {
     console.log("** onProducerTransportConnected");
 
   }
 
+  /**
+   * @internal
+   * Handles the `roomNewProducer` message, which signals that a remote peer has started publishing a new track.
+   */
   private onRoomNewProducer = async (msgIn: RoomNewProducerMsg) => {
     console.log("onRoomNewProducer: " + msgIn.data.kind, msgIn.data.peerId);
 
-    let peer = this.localRoom.peers.get(msgIn.data.peerId);
+    let peer = this.roomState.peers.get(msgIn.data.peerId);
     if (!peer) {
       console.error(`peer not found. peerId: ${msgIn.data.peerId}`);
       return;
     }
 
     if (!this.isInRoom()) {
-      console.error("not in a room", this.localRoom);
+      console.error("not in a room", this.roomState.localRoom);
       return;
     }
 
     this.consumeProducer(msgIn.data.peerId, msgIn.data.producerId, msgIn.data.kind);
   }
 
+  /**
+   * @internal
+   * Sends a request to the server to consume a specific producer from a remote peer.
+   * @param remotePeerId - The ID of the peer who owns the producer.
+   * @param producerId - The ID of the producer to consume.
+   * @param kind - The media kind ('audio' or 'video').
+   */
   private consumeProducer = async (remotePeerId: string, producerId: string, kind: string) => {
     console.log("consumeProducer() :" + remotePeerId, producerId, kind);
 
@@ -1428,17 +1412,17 @@ export class RoomsClient {
     }
 
     if (!this.isInRoom()) {
-      console.error("not in a room", this.localRoom);
+      console.error("not in a room", this.roomState.localRoom);
       return false;
     }
 
-    let peer = this.localRoom.peers.get(remotePeerId);
+    let peer = this.roomState.peers.get(remotePeerId);
     if (!peer) {
       console.error(`peer not found. ${remotePeerId}`);
       return false;
     }
 
-    let consumers = this.localRoom.getConsumers(peer);
+    let consumers = this.roomState.localRoom.getConsumers(peer);
     let consumer = consumers.get(kind as MediaKind);
     if (consumer) {
       console.error(`consumer already exists for ${remotePeerId} of type ${kind}`);
@@ -1447,7 +1431,7 @@ export class RoomsClient {
 
     let msg = new RoomConsumeProducerMsg();
     msg.data = {
-      roomId: this.localRoom.roomId,
+      roomId: this.roomState.roomId,
       remotePeerId: remotePeerId,
       producerId: producerId,
       rtpCapabilities: this.device.rtpCapabilities
@@ -1456,16 +1440,21 @@ export class RoomsClient {
 
   };
 
+  /**
+   * @internal
+   * Handles the result of a consumption request. It creates the client-side `Consumer`
+   * and fires the `eventOnPeerNewTrack` event with the newly available `MediaStreamTrack`.
+   */
   private onConsumed = async (msgIn: RoomConsumeProducerResultMsg) => {
     console.log("onConsumed() " + msgIn.data?.kind);
 
-    let peer = this.localRoom.peers.get(msgIn.data.peerId);
+    let peer = this.roomState.peers.get(msgIn.data.peerId);
     if (!peer) {
-      console.error(`onConsumed - peer not found, peerId: ${msgIn.data.peerId}`, this.localRoom.peers);
+      console.error(`onConsumed - peer not found, peerId: ${msgIn.data.peerId}`, this.roomState.peers);
       return;
     }
 
-    const consumer = await this.localRoom.createConsumer(peer, msgIn.data.consumerId, msgIn.data.producerId, msgIn.data.kind, msgIn.data.rtpParameters);
+    const consumer = await this.roomState.localRoom.createConsumer(peer, msgIn.data.consumerId, msgIn.data.producerId, msgIn.data.kind, msgIn.data.rtpParameters);
     console.log(`new track for remote peer ${peer.displayName} of type ${consumer.track.kind}`);
 
     //sync the tracks with tracksinfo
@@ -1481,23 +1470,35 @@ export class RoomsClient {
 
   };
 
+  /**
+   * @internal
+   * Handles the result of a `produce` request. Currently a no-op.
+   */
   private onProduced = async (msgIn: RoomProduceStreamResultMsg) => {
     console.log("onProduced " + msgIn.data?.kind);
 
   };
 
+  /**
+   * @internal
+   * Handles a `ping` message from the server and fires the corresponding event.
+   */
   private onRoomPing = async (msgIn: RoomPingMsg) => {
     console.log("onRoomPing ");
 
-    if (!this.localRoom.roomId) {
+    if (!this.roomState.roomId) {
       console.log("not in room");
       return;
     }
 
-    await this.eventOnRoomPing(this.localRoom.roomId);
+    await this.eventOnRoomPing(this.roomState.roomId);
 
   };
 
+  /**
+   * Sends a `pong` message back to the server in response to a `ping`.
+   * @param roomId - The ID of the current room.
+   */
   roomPong(roomId: string) {
     console.log("roomPong ");
 
@@ -1506,14 +1507,14 @@ export class RoomsClient {
       return;
     }
 
-    if (roomId !== this.localRoom.roomId) {
+    if (roomId !== this.roomState.roomId) {
       console.error(`not the same roomid`);
       return;
     }
 
     //send back pong
     let msg = new RoomPongMsg();
-    msg.data.roomId = this.localRoom.roomId;
+    msg.data.roomId = this.roomState.roomId;
 
     this.send(msg);
 
