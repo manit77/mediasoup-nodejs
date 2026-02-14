@@ -7,18 +7,17 @@ import {
     PresenterInfoMsg,
     RegisterMsg, RegisterResultMsg, RejectMsg,
     LoggedOffMsg,
-    //NotRegisteredMsg,
     UnauthorizedMsg,
     TerminateConfMsg,
-    ConferenceConfig,  
+    ConferenceConfig,
 } from "@conf/conf-models";
 import { WebSocketClient } from "@rooms/websocket-client";
-import { RoomsClient, Peer, IPeer } from "@rooms/rooms-client";
 import { callStates, Conference, ConferenceClientConfig, Participant, SelectedDevices } from "./models.js";
-import { EventParticpantNewTrackMsg, EventTypes } from "./conferenceEvents.js";
+import { EventTypes } from "./conferenceEvents.js";
 import { ConferenceAPIClient } from "./conferenceAPIClient.js";
 import { IMsg, OkMsg, payloadTypeServer } from "@rooms/rooms-models";
 import { getBrowserDisplayMedia, getBrowserUserMedia } from "./conferenceUtils.js";
+import { RoomManager } from './roomManager.js';
 
 export type ConferenceEvent = (eventType: string, payload: IMsg) => Promise<void>;
 
@@ -36,8 +35,7 @@ export class ConferenceClient {
 
     public participantsOnline: ParticipantInfo[] = [];
     public conferencesOnline: ConferenceScheduledInfo[] = [];
-    private roomsClient: RoomsClient;
-    private roomsClientDisconnectTimerId: any;
+    private roomManager: RoomManager;
 
     isScreenSharing = false;
     selectedDevices: SelectedDevices = new SelectedDevices();
@@ -76,7 +74,10 @@ export class ConferenceClient {
         console.log("dispose");
 
         this.onEvent = null;
-        this.disconnectRoomsClient("dispose", 0);
+        if (this.roomManager) {
+            this.roomManager.dispose();
+        }
+        this.roomManager = null;
 
         if (this.socket) {
             console.log(`disconnecting from socket`);
@@ -161,8 +162,9 @@ export class ConferenceClient {
     disconnect() {
         console.log("conferenceClient disconnect");
 
-        this.disconnectRoomsClient("disconnect");
-
+        if (this.roomManager) {
+            this.roomManager.dispose();
+        }
 
         if (this.socket) {
             console.log(`disconnecting from socket`);
@@ -345,14 +347,9 @@ export class ConferenceClient {
         //the socket client has a reconnect feature
         console.log(`is autoReconnecting: ${this.socket.autoReconnect} in ${this.config.socket_reconnect_secs}`);
 
-        if (this.roomsClient) {
-            console.log(`closing roomsClient`);
-            this.roomsClient.roomLeave();
-            this.roomsClient.disconnect();
-            this.roomsClient.dispose();
-            this.roomsClient = null;
+        if (this.roomManager) {
+            this.roomManager.dispose();
         }
-
         if (this.isInConference()) {
             let msg = new ConferenceClosedMsg();
             msg.data.conferenceId = this.conference.conferenceId;
@@ -439,8 +436,9 @@ export class ConferenceClient {
         if (!this.sendToServer(new OkMsg(payloadTypeServer.ok, {}))) {
             console.error("failed to send ok message, forcing a reconnect");
             //disconnected from server
-            //this.waitRegisterConnection(this.username, this.authToken, this.clientData);
-            //this.disconnectRoomsClient("network change", 0);            
+            if (this.roomManager) {
+                this.roomManager.dispose();
+            }
             this.connect(this.participantGroup, this.conferenceGroup, this.username, this.authToken, this.clientData);
         }
     }
@@ -591,8 +589,8 @@ export class ConferenceClient {
         }
 
         //publish the tracks
-        if (this.roomsClient) {
-            await this.roomsClient.publishTracks(tracks);
+        if (this.roomManager) {
+            await this.roomManager.publishTracks(tracks);
         }
 
         return true;
@@ -613,8 +611,8 @@ export class ConferenceClient {
             console.log(`track remoted and stopped ${track.kind}`);
         });
 
-        if (this.roomsClient) {
-            this.roomsClient.unPublishTracks(tracks);
+        if (this.roomManager) {
+            this.roomManager.unPublishTracks(tracks);
         }
     }
 
@@ -625,25 +623,25 @@ export class ConferenceClient {
     broadCastTrackInfo() {
         console.warn(`broadCastTrackInfo`);
 
-        if (this.roomsClient) {
-            this.roomsClient?.broadCastTrackInfo(this.localParticipant.tracksInfo);
+        if (this.roomManager) {
+            this.roomManager.broadCastTrackInfo();
         }
     }
 
     isBroadcastingVideo() {
-        if (!this.roomsClient) {
+        if (!this.roomManager) {
             return false;
         }
 
-        return this.roomsClient.isBroadcastingVideo();
+        return this.roomManager.isBroadcastingVideo();
     }
 
     isBroadcastingAudio() {
-        if (!this.roomsClient) {
+        if (!this.roomManager) {
             return false;
         }
 
-        return this.roomsClient.isBroadcastingAudio();
+        return this.roomManager.isBroadcastingAudio();
     }
 
     /**
@@ -653,7 +651,7 @@ export class ConferenceClient {
     muteParticipantTrack(participantId: string, audioMuted: boolean, videoMuted: boolean) {
         console.log(`muteParticipantTrack participantId: ${participantId}`);
 
-        if (this.roomsClient) {
+        if (this.roomManager) {
 
             console.log(`conference.participants`, [...this.conference.participants.values()]);
             let peerId = this.conference.participants.get(participantId)?.peerId;
@@ -663,7 +661,7 @@ export class ConferenceClient {
             }
 
             //console.log("particpant tracks", particpant.mediaStream.getTracks());
-            this.roomsClient.muteParticipantTrack(peerId, audioMuted, videoMuted);
+            this.roomManager.muteParticipantTrack(peerId, audioMuted, videoMuted);
         }
 
     }
@@ -1047,7 +1045,7 @@ export class ConferenceClient {
             }
         });
     }
-  
+
     waitJoinConferenceRoom(args: JoinConferenceParams) {
         console.log(`waitJoinConferenceRoom trackingId: ${args.conferenceId}, conferenceCode: ${args.conferenceCode}`);
 
@@ -1382,7 +1380,7 @@ export class ConferenceClient {
         const acceptMsg = new AcceptMsg();
         acceptMsg.data.conferenceId = message.data.conferenceId;
         acceptMsg.data.ticket = message.data.ticket;
-        
+
         if (!this.sendToServer(acceptMsg)) {
             console.error(`failed to send AcceptMsg`);
             return;
@@ -1468,9 +1466,8 @@ export class ConferenceClient {
             this.rejectInvite(this.inviteReceivedMsg);
         }
 
-        if (this.roomsClient) {
-            this.roomsClient.roomLeave();
-            this.disconnectRoomsClient("leave");
+        if (this.roomManager) {
+            this.roomManager.dispose();
         }
 
         this.localParticipant.tracksInfo = {
@@ -1577,12 +1574,12 @@ export class ConferenceClient {
             return;
         }
 
-        if (!this.roomsClient) {
+        if (!this.roomManager) {
             console.error(`room not initialized.`);
             return;
         }
 
-        this.roomsClient.roomPong(this.conference.roomId);
+        this.roomManager.roomPong(this.conference.roomId);
     }
 
     private sendToServer(message: IMsg) {
@@ -1660,7 +1657,9 @@ export class ConferenceClient {
         await this.onEvent(EventTypes.rejectReceived, message);
         this.resetConferenceRoom();
         this.resetLocalTracks();
-        this.disconnectRoomsClient("onRejectReceived");
+        if (this.roomManager) {
+            this.roomManager.dispose();
+        }
     }
 
     /**
@@ -1675,15 +1674,16 @@ export class ConferenceClient {
             console.error(message.error);
 
             await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.error } });
-            this.disconnectRoomsClient("onCreateConfResult");
+            if (this.roomManager) {
+                this.roomManager.dispose();
+            }
             return;
         }
 
         if (!message.data.conferenceId) {
             console.error(`no conferenceId`);
 
-            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.error } });
-            this.disconnectRoomsClient("no conferenceId");
+            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: "no conferenceId" } });
             return;
         }
 
@@ -1706,7 +1706,9 @@ export class ConferenceClient {
             this.conference.conferenceId = "";
 
             await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.error } });
-            this.disconnectRoomsClient("onJoinConfResult");
+            if (this.roomManager) {
+                this.roomManager.dispose();
+            }
             return;
         }
 
@@ -1777,64 +1779,21 @@ export class ConferenceClient {
         }
 
         try {
-            await this.initRoomsClient(message.data.roomURI, message.data.roomRtpCapabilities);
-            console.log("-- room initialized.")
+            this.roomManager = new RoomManager(this.conference, this.localParticipant, this.username);
+            this.setupRoomManagerEvents();
 
-            let connectResult = await this.roomsClient.waitForConnect();
-            if (!connectResult.error) {
-                console.log("-- room socket connected.");
-            } else {
-                console.log("-- room socket failed to connect.");
-            }
+            await this.roomManager.initialize(message.data.roomURI, message.data.roomRtpCapabilities);
+            await this.roomManager.connectAndJoin();
 
-            let registerResult = await this.roomsClient.waitForRegister({
-                authToken: this.conference.roomAuthToken,
-                username: this.username,
-                trackingId: this.localParticipant.participantId,
-                displayName: this.localParticipant.displayName,
-                timeoutSecs: 30
-            });
-
-            if (!registerResult.error) {
-                console.log(`-- room socket registered. new peerId ${this.roomsClient.getPeerId()}`);
-                this.localParticipant.peerId = this.roomsClient.getPeerId();
-
-                console.log("update the tracksInfo on the rooms clicent", this.localParticipant.tracksInfo);
-                await this.roomsClient.broadCastTrackInfo(this.localParticipant.tracksInfo);
-            } else {
-                console.log("-- room socket failed to register.");
-            }
-
-            let roomJoinResult = connectResult = await this.roomsClient.waitForRoomJoin(this.conference.roomId, this.conference.roomToken);
-            if (!roomJoinResult.error) {
-                console.log("-- room join.");
-            } else {
-                console.log("-- room failed to join.");
-            }
-
-            if (connectResult.error || registerResult.error || roomJoinResult.error) {
-                //call failed
-                let msg = {
-                    type: EventTypes.conferenceFailed,
-                    data: {
-                        conferenceId: this.conference.conferenceId
-                    }
-                };
-
-                this.resetConferenceRoom();
-                this.resetLocalTracks();
-
-                this.disconnectRoomsClient("join conference failed.");
-                await this.onEvent(EventTypes.conferenceFailed, msg);
-
-            }
         } catch (err) {
             console.error(err);
 
             this.resetConferenceRoom();
             this.resetLocalTracks();
 
-            this.disconnectRoomsClient("join conference error.");
+            if (this.roomManager) {
+                this.roomManager.dispose();
+            }
             await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: "error connecting to conference." } });
         }
     }
@@ -1874,9 +1833,8 @@ export class ConferenceClient {
         }
 
         // the room may still be open leave the room
-        if (this.roomsClient) {
-            this.roomsClient.roomLeave();
-            this.disconnectRoomsClient("onConferenceClosed");
+        if (this.roomManager) {
+            this.roomManager.dispose();
         }
 
         await this.onEvent(EventTypes.conferenceClosed, message);
@@ -1884,284 +1842,118 @@ export class ConferenceClient {
         this.resetLocalTracks();
     }
 
-    private async initRoomsClient(roomURI: string, roomRtpCapabilities: string) {
-        console.log("initRoomsClient");
+    private setupRoomManagerEvents() {
+        if (!this.roomManager) return;
 
-        if (this.roomsClientDisconnectTimerId) {
-            console.log(`clear roomsClientDisconnectTimer ${this.roomsClientDisconnectTimerId}`);
-            clearTimeout(this.roomsClientDisconnectTimerId);
-        }
+        this.roomManager.setEventHandler(async (eventType: string, payload: IMsg) => {
+            switch (eventType) {
+                case EventTypes.disconnected:
+                    this.leave();
+                    await this.onEvent(EventTypes.conferenceClosed, { type: EventTypes.conferenceClosed, data: { conferenceId: this.conference.conferenceId, reason: "disconnected from room server" } });
+                    this.resetConferenceRoom();
+                    this.resetLocalTracks();
+                    if (this.roomManager) {
+                        this.roomManager.dispose();
+                    }
+                    break;
 
-        if (this.roomsClient) {
-            console.log("room already initialized with URI:", roomURI);
-            return false;
-        }
+                case EventTypes.conferenceJoined:
+                    this.clearCallConnectTimer();
+                    this.callState = "connected";
+                    this.conference.participants.set(this.localParticipant.participantId, this.localParticipant);
+                    if (this.conference.presenterId === this.localParticipant.participantId) {
+                        this.conference.setPresenter(this.localParticipant);
+                    }
+                    await this.onEvent(EventTypes.conferenceJoined, payload);
+                    break;
 
-        this.roomsClient = new RoomsClient({
-            socket_auto_reconnect: true,
-            socket_enable_logs: this.config.socket_enable_logs,
-            socket_ws_uri: roomURI
+                case 'eventRoomTransportsCreated':
+                    if (this.conference.joinParams.joinMediaConfig) {
+                        await this.getNewTracksForLocalParticipant(this.conference.joinParams.joinMediaConfig);
+                        this.publishTracks(this.localParticipant.stream.getTracks(), "eventRoomTransportsCreated");
+                    }
+                    break;
+
+                case EventTypes.conferenceClosed:
+                    this.leave();
+                    this.clearCallConnectTimer();
+                    this.callState = "disconnected";
+                    if (this.roomManager) {
+                        this.roomManager.dispose();
+                    }
+                    await this.onEvent(EventTypes.conferenceClosed, payload);
+                    this.resetConferenceRoom();
+                    this.resetLocalTracks();
+                    break;
+
+                case EventTypes.participantJoined: {
+                    const { peer, roomId } = payload.data;
+                    let participant = this.conference.participants.get(peer.trackingId);
+                    if (participant) {
+                        console.error(`participant already in local conference: ${peer.trackingId}`);
+                        return;
+                    }
+                    participant = new Participant();
+                    participant.displayName = peer.displayName;
+                    participant.participantId = peer.trackingId;
+                    participant.peerId = peer.peerId;
+                    participant.tracksInfo = peer.tracksInfo;
+                    this.conference.participants.set(participant.participantId, participant);
+                    if (this.conference.presenterId === participant.participantId) {
+                        this.conference.setPresenter(participant);
+                    }
+                    await this.onEvent(EventTypes.participantJoined, { type: EventTypes.participantJoined, data: { ...payload.data, participantId: participant.participantId, displayName: participant.displayName, conferenceId: this.conference.conferenceId } });
+                    break;
+                }
+
+                case EventTypes.participantNewTrack: {
+                    const { peer, track } = payload.data;
+                    let participant = this.conference.participants.get(peer.trackingId);
+                    if (!participant) {
+                        console.error(`participant not found for new track: ${peer.trackingId}`);
+                        return;
+                    }
+                    let existingTrack = participant.stream.getTracks().find(t => t.kind === track.kind);
+                    if (existingTrack) {
+                        participant.stream.removeTrack(existingTrack);
+                    }
+                    participant.stream.addTrack(track);
+                    await this.onEvent(EventTypes.participantNewTrack, { type: EventTypes.participantNewTrack, data: { participant, track, participantId: participant.participantId } });
+                    break;
+                }
+
+                case EventTypes.participantLeft: {
+                    const { peer } = payload.data;
+                    let participant = this.conference.participants.get(peer.trackingId);
+                    if (!participant) return;
+
+                    this.conference.participants.delete(participant.participantId);
+                    if (this.conference.presenter === participant) {
+                        this.conference.setPresenter(null);
+                    }
+                    await this.onEvent(EventTypes.participantLeft, { type: EventTypes.participantLeft, data: { conferenceId: this.conference.conferenceId, participantId: participant.participantId } });
+                    break;
+                }
+
+                case EventTypes.participantTrackInfoUpdated: {
+                    const { peer } = payload.data;
+                    let participant: Participant = (this.localParticipant.participantId === peer.trackingId)
+                        ? this.localParticipant
+                        : this.conference.participants.get(peer.trackingId);
+
+                    if (!participant) return;
+
+                    participant.tracksInfo = peer.tracksInfo;
+                    await this.onEvent(EventTypes.participantTrackInfoUpdated, { type: EventTypes.participantTrackInfoUpdated, data: { participantId: participant.participantId, tracksInfo: participant.tracksInfo } });
+                    break;
+                }
+
+                case EventTypes.conferencePing:
+                    await this.onEvent(EventTypes.conferencePing, payload);
+                    break;
+            }
         });
-
-        this.roomsClient.eventOnRoomSocketClosed = async () => {
-            console.log("onRoomSocketClosedEvent");
-
-            //room socket closed
-            //leave the conference
-            this.leave();
-
-            //if in conference, notify the conference closed
-            if (this.isInConference()) {
-                let msg = new ConferenceClosedMsg();
-                msg.data.conferenceId = this.conference.conferenceId;
-                msg.data.reason = "disconnected from room server";
-                this.onEvent(EventTypes.conferenceClosed, msg);
-            }
-
-            this.resetConferenceRoom();
-            this.resetLocalTracks();
-
-            //disconnect the rooms client immediately
-            this.disconnectRoomsClient("onRoomClosedEvent", 0);
-
-        };
-
-        this.roomsClient.eventOnRoomJoined = async (roomId: string) => {
-            //confirmation for local user has joined a room
-            console.log(`onRoomJoinedEvent roomId: ${roomId} ${this.conference.conferenceId} `);
-            this.clearCallConnectTimer();
-            this.callState = "connected";
-
-            //add self to the call participants
-            this.conference.participants.set(this.localParticipant.participantId, this.localParticipant);
-            console.log(`add self to conference.participants ${this.conference.participants.size}`);
-
-            if (this.conference.presenterId === this.localParticipant.participantId) {
-                this.conference.setPresenter(this.localParticipant);
-            }
-
-            let msg = {
-                type: EventTypes.conferenceJoined,
-                data: {
-                    conferenceId: this.conference.conferenceId
-                }
-            }
-            await this.onEvent(EventTypes.conferenceJoined, msg);
-
-        };
-
-        this.roomsClient.eventRoomTransportsCreated = async () => {
-            console.log(`eventRoomTransportsCreate `, this.conference.joinParams);
-            if (this.conference.joinParams.joinMediaConfig) {
-                await this.getNewTracksForLocalParticipant(this.conference.joinParams.joinMediaConfig);
-                this.publishTracks(this.localParticipant.stream.getTracks(), "eventRoomTransportsCreated");
-            } else {
-                console.error(`eventRoomTransportsCreate no joinMediaConfig`);
-            }
-        };
-
-        this.roomsClient.eventOnRoomClosed = async (roomId: string) => {
-            console.log("onRoomClosedEvent roomId:", roomId);
-
-            //leave the conference
-            this.leave();
-
-            this.clearCallConnectTimer();
-            this.callState = "disconnected";
-
-            this.disconnectRoomsClient("onRoomClosedEvent");
-
-            let msg = {
-                type: EventTypes.conferenceClosed,
-                data: {
-                    conferenceId: this.conference.conferenceId,
-                    reason: "room closed"
-                }
-            };
-            await this.onEvent(EventTypes.conferenceClosed, msg);
-
-            this.resetConferenceRoom();
-            this.resetLocalTracks();
-        };
-
-        this.roomsClient.eventOnRoomPeerJoined = async (roomId: string, peer: Peer) => {
-            console.log(`onRoomPeerJoinedEvent roomId: ${roomId} ${peer.peerId} ${peer.displayName} `, peer);
-
-            //the peer.trackingId is the participantId
-            let participant = this.conference.participants.get(peer.trackingId);
-            if (participant) {
-                console.error(`participant already in local conference: ${peer.trackingId} ${participant.displayName}`);
-                return;
-            }
-
-            if (!peer.tracksInfo) {
-                console.error(`peer tracksInfo is required.`);
-                return;
-            }
-
-            //create a new participant and add it to the conference
-            participant = new Participant();
-            participant.displayName = peer.displayName;
-            participant.participantId = peer.trackingId;
-            participant.peerId = peer.peerId;
-            participant.tracksInfo = peer.tracksInfo;
-
-            this.conference.participants.set(participant.participantId, participant);
-            console.log(`adding new participant to the room: ${participant.displayName}, ${this.conference.participants.size}`);
-
-            if (this.conference.presenterId === participant.participantId) {
-                this.conference.setPresenter(participant);
-            }
-
-            let msg = {
-                type: EventTypes.participantJoined,
-                data: {
-                    participantId: participant.participantId,
-                    displayName: participant.displayName,
-                    conferenceId: this.conference.conferenceId,
-                    peerId: peer.peerId,
-                    roomId: roomId
-                }
-            }
-            await this.onEvent(EventTypes.participantJoined, msg);
-        };
-
-        this.roomsClient.eventOnPeerNewTrack = async (peer: IPeer, track: MediaStreamTrack) => {
-            console.warn(`onPeerNewTrackEvent peerId: ${peer.displayName} ${peer.peerId}, ${peer.trackingId}`);
-
-            let participant = this.conference.participants.get(peer.trackingId);
-            if (!participant) {
-                console.error(`participant not found. ${peer.displayName} ${peer.trackingId}`, participant, this.conference.participants);
-                return;
-            }
-            console.warn(`add track for ${participant.displayName} of type ${track.kind} `);
-
-            //remove the track is exists
-            let existingTrack = participant.stream.getTracks().find(t => t.kind === track.kind);
-            if (existingTrack) {
-                console.warn(`existing track removed ${existingTrack.id}`);
-                participant.stream.removeTrack(existingTrack);
-            }
-            participant.stream.addTrack(track);
-            console.warn(`total tracks for ${participant.displayName}`, participant.stream.getTracks());
-
-            let msg = new EventParticpantNewTrackMsg();
-            msg.data.participantId = participant.participantId;
-            msg.data.participant = participant;
-            msg.data.track = track;
-            await this.onEvent(EventTypes.participantNewTrack, msg);
-
-        };
-
-        this.roomsClient.eventOnRoomPeerLeft = async (roomId: string, peer: IPeer) => {
-            console.log("eventOnRoomPeerLeft roomId:", roomId);
-
-            let participant = this.conference.participants.get(peer.trackingId);
-            if (!participant) {
-                console.error(`participant not found. ${peer.trackingId} ${peer.displayName}`, participant, this.conference.participants);
-                return;
-            }
-
-            this.conference.participants.delete(participant.participantId);
-            if (this.conference.presenter == participant) {
-                this.conference.setPresenter(null);
-            }
-
-            let msg = {
-                type: EventTypes.participantLeft,
-                data: {
-                    conferenceId: this.conference.conferenceId,
-                    participantId: participant.participantId
-                }
-            }
-            await this.onEvent(EventTypes.participantLeft, msg);
-
-        };
-
-        this.roomsClient.eventOnPeerTrackInfoUpdated = async (peer: IPeer) => {
-            console.log(`eventOnPeerTrackInfoUpdated peerId: ${peer.peerId} trackingId: ${peer.trackingId} displayName: ${peer.displayName}`);
-            console.log(`participants:`, this.conference.participants);
-
-            let participant: Participant;
-            if (this.localParticipant.participantId === peer.trackingId) {
-                participant = this.localParticipant;
-            } else {
-                participant = this.conference.participants.get(peer.trackingId);
-            }
-
-            if (!participant) {
-                console.error(`participant not found. ${peer.trackingId} ${peer.displayName}`, participant, this.conference.participants);
-                return;
-            }
-
-            participant.tracksInfo = peer.tracksInfo;
-            console.log(`participant tracksInfo updated:`, participant.tracksInfo);
-
-            let msg = {
-                type: EventTypes.participantTrackInfoUpdated,
-                data: {
-                    participantId: participant.participantId,
-                    tracksInfo: participant.tracksInfo
-                }
-            }
-            await this.onEvent(EventTypes.participantTrackInfoUpdated, msg);
-        };
-
-        this.roomsClient.eventOnRoomPing = async (roomId: string) => {
-            //send this to the UI
-            if (!this.isInConference()) {
-                console.error(`not in conference`);
-                return;
-            }
-
-            if (this.conference.roomId !== roomId) {
-                console.error(`not in the same room`);
-                return;
-            }
-
-            let msg = {
-                type: EventTypes.conferencePing,
-                data: {
-                    conferenceId: this.conference.conferenceId
-                }
-            }
-            await this.onEvent(EventTypes.conferencePing, msg);
-
-        };
-
-        await this.roomsClient.inititalize({ rtp_capabilities: roomRtpCapabilities });
-
-        return true;
     }
 
-    private disconnectRoomsClient(reason: string, inSeconds: number = 0) {
-        console.log(`disconnectRoomsClient in ${inSeconds} seconds ${reason}`);
-
-        if (this.roomsClientDisconnectTimerId) {
-            console.log(`clear roomsClientDisconnectTimer ${this.roomsClientDisconnectTimerId}`);
-            clearTimeout(this.roomsClientDisconnectTimerId);
-            this.roomsClientDisconnectTimerId = null;
-        }
-        const _destroy = () => {
-            if (this.roomsClient) {
-                this.roomsClientDisconnectTimerId = null;
-                this.roomsClient.roomLeave();
-                this.roomsClient.disconnect();
-                this.roomsClient.dispose();
-                this.roomsClient = null;
-            }
-        };
-
-        if (inSeconds <= 0) {
-            console.log(`disconnectRoomsClient immediately ${reason}`);
-            _destroy();
-            return;
-        }
-
-        this.roomsClientDisconnectTimerId = setTimeout(() => {
-            console.log(`disconnectRoomsClient timeout ${reason}`);
-            _destroy();
-        }, inSeconds * 1000);
-    }
 
 }
