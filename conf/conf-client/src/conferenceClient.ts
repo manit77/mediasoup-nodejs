@@ -7,6 +7,7 @@ import {
     PresenterInfoMsg,
     RegisterMsg, RegisterResultMsg, RejectMsg,
     LoggedOffMsg,
+    //NotRegisteredMsg,
     UnauthorizedMsg,
     TerminateConfMsg,
     ConferenceConfig,
@@ -70,14 +71,12 @@ export class ConferenceClient {
     }
 
     dispose() {
-
         console.log("dispose");
 
         this.onEvent = null;
         if (this.roomManager) {
             this.roomManager.dispose();
         }
-        this.roomManager = null;
 
         if (this.socket) {
             console.log(`disconnecting from socket`);
@@ -199,95 +198,41 @@ export class ConferenceClient {
         this.isScreenSharing = false;
     }
 
-    waitRegisterConnection(participantGroup: string, conferenceGroup: string, username: string, authToken: string, clientData: {}) {
+    async waitRegisterConnection(participantGroup: string, conferenceGroup: string, username: string, authToken: string, clientData: {}): Promise<RegisterResultMsg> {
         console.log("waitRegisterConnection");
 
-        return new Promise<RegisterResultMsg>((resolve, reject) => {
-            let _onmessage: (event: any) => void;
+        this.registerConnection(participantGroup, conferenceGroup, username, authToken, clientData);
 
-            let _removeEvents = () => {
-                if (_onmessage) {
-                    this.socket.removeEventHandler("onmessage", _onmessage);
-                }
-            }
+        const timeout = (this.config.conf_socket_register_timeout_secs ?? 30) * 1000;
+        const resultMsg = await this.waitForMessage(CallMessageType.registerResult, timeout);
 
-            try {
-                let timerid = setTimeout(() => {
-                    _removeEvents();
-                    reject("failed to register connection, register timed out.");
-                }, (this.config.conf_socket_register_timeout_secs ?? 30) * 1000);
+        if (resultMsg.error) {
+            throw new Error(`Failed to register connection: ${resultMsg.error}`);
+        }
 
-                _onmessage = (event: any) => {
-                    console.log("** onmessage", event.data);
-                    let msg = JSON.parse(event.data);
-
-                    if (msg.type == CallMessageType.registerResult) {
-                        clearTimeout(timerid);
-                        _removeEvents();
-
-                        let msgIn = msg as RegisterResultMsg;
-                        if (msgIn.error) {
-                            console.log(msgIn.error);
-                            reject("failed to register connection, " + msgIn.error);
-                            return;
-                        }
-                        resolve(msgIn);
-                    }
-                };
-
-                this.socket.addEventHandler("onmessage", _onmessage);
-                this.registerConnection(participantGroup, conferenceGroup, username, authToken, clientData);
-
-            } catch (err: any) {
-                console.log(err);
-                _removeEvents();
-                reject("error: failed to register connection");
-            }
-        });
+        return resultMsg as RegisterResultMsg;
     }
 
-    waitTryRegister() {
+    private async waitForMessage(messageType: string, timeoutMs: number): Promise<IMsg> {
+        // This assumes the underlying WebSocketClient has a `waitFor` method that returns the next message.
+        while (true) {
+            let msg: IMsg = await this.socket.waitFor(timeoutMs);
+            if (msg && msg.type && msg.type === messageType) {
+                return msg;
+            }
+        }
+    }
+
+    async waitTryRegister(): Promise<boolean> {
         console.log("waitTryRegister");
+        const timeout = (this.config.conf_socket_register_timeout_secs ?? 30) * 1000;
+        const resultMsg = await this.waitForMessage(CallMessageType.registerResult, timeout) as RegisterResultMsg;
 
-        return new Promise<boolean>((resolve, reject) => {
-            let _onmessage: (event: any) => void;
-
-            let _removeEvents = () => {
-                if (_onmessage) {
-                    this.messageListener = this.messageListener.filter(cb => cb != _onmessage);
-                }
-            }
-
-            try {
-                let timerid = setTimeout(() => {
-                    _removeEvents();
-                    reject("failed to register connection, register timed out.");
-                }, (this.config.conf_socket_register_timeout_secs ?? 30) * 1000);
-
-                _onmessage = (msg: any) => {
-                    console.log("** onmessage", msg.data);
-
-                    if (msg.type == CallMessageType.registerResult) {
-                        clearTimeout(timerid);
-                        _removeEvents();
-
-                        let msgIn = msg as RegisterResultMsg;
-                        if (msgIn.error) {
-                            console.log(msgIn.error);
-                            return;
-                        }
-                        resolve(true);
-                    }
-                };
-
-                this.messageListener.push(_onmessage);
-
-            } catch (err: any) {
-                console.log(err);
-                _removeEvents();
-                reject("error: failed to register connection");
-            }
-        });
+        if (resultMsg.error) {
+            console.log(resultMsg.error);
+            return false;
+        }
+        return true;
     }
 
     private async onSocketConnected() {
@@ -897,6 +842,9 @@ export class ConferenceClient {
         let inviteMsg = new InviteMsg();
         inviteMsg.data.participantId = participantId;
         inviteMsg.data.conferenceType = "p2p";
+        inviteMsg.data.withAudio = args.joinMediaConfig.isAudioEnabled;
+        inviteMsg.data.withVideo = args.joinMediaConfig.isVideoEnabled;
+
 
         if (!this.sendToServer(inviteMsg)) {
             console.error(`failed to send inviteSendMsg`);
@@ -988,123 +936,28 @@ export class ConferenceClient {
      */
 
     waitCreateConferenceRoom(args: CreateConferenceParams) {
-        console.log(`waitCreateConferenceRoom externalId: ${args.externalId}, roomName: ${args.roomName}, conferenceCode: ${args.conferenceCode}`);
-        return new Promise<CreateConfResultMsg>((resolve, reject) => {
-
-            if (!this.isRegistered()) {
-                console.error(`connection not registered.`);
-                reject(`connection not registered.`);
-            }
-
-            if (!args.externalId) {
-                console.error("createArgs externalId is required.");
-                reject(`externalId is required.`);
-            }
-
-            let _onmessage: (event: any) => void;
-
-            let _removeEvents = () => {
-                if (_onmessage) {
-                    this.socket.removeEventHandler("onmessage", _onmessage);
-                }
-            }
-
-            try {
-                let timerid = setTimeout(() => {
-                    _removeEvents();
-                    reject("failed to create conference");
-                }, 5000);
-
-                _onmessage = (event: any) => {
-                    console.log("** onmessage", event.data);
-                    let msg = JSON.parse(event.data);
-
-                    if (msg.type == CallMessageType.createConfResult) {
-                        clearTimeout(timerid);
-                        _removeEvents();
-
-                        let msgIn = msg as CreateConfResultMsg;
-                        if (msgIn.error) {
-                            console.log(msgIn.error);
-                            reject("failed to create conference");
-                            return;
-                        }
-                        resolve(msgIn);
-                    }
-                };
-
-                this.socket.addEventHandler("onmessage", _onmessage);
-                if (!this.createConferenceRoom(args)) {
-                    reject("failed send conference room msg.");
-                }
-
-            } catch (err: any) {
-                console.log(err);
-                _removeEvents();
-                reject("erorr on creating conference room");
-            }
-        });
+        console.log(`waitCreateConferenceRoom externalId: ${args.externalId}`);
+        if (!this.isRegistered()) {
+            throw new Error("Connection not registered.");
+        }
+        if (!args.externalId) {
+            throw new Error("externalId is required.");
+        }
+        if (!this.createConferenceRoom(args)) {
+            throw new Error("Failed to send createConferenceRoom message.");
+        }
+        return this.waitForMessage(CallMessageType.createConfResult, 5000) as Promise<CreateConfResultMsg>;
     }
 
     waitJoinConferenceRoom(args: JoinConferenceParams) {
-        console.log(`waitJoinConferenceRoom trackingId: ${args.conferenceId}, conferenceCode: ${args.conferenceCode}`);
-
-        return new Promise<JoinConfResultMsg>((resolve, reject) => {
-
-            if (!this.isRegistered()) {
-                console.error(`connection not registered.`);
-                reject(`connection not registered.`);
-            }
-
-            if (!args.externalId) {
-                console.error("createArgs externalId is required.");
-                reject(`externalId is required.`);
-            }
-
-            let _onmessage: (event: any) => void;
-
-            let _removeEvents = () => {
-                if (_onmessage) {
-                    this.socket.removeEventHandler("onmessage", _onmessage);
-                }
-            }
-
-            try {
-                let timerid = setTimeout(() => {
-                    _removeEvents();
-                    reject("failed to join conference");
-                }, 5000);
-
-                _onmessage = (event: any) => {
-                    console.log("** onmessage", event.data);
-                    let msg = JSON.parse(event.data);
-
-                    if (msg.type == CallMessageType.joinConfResult) {
-                        clearTimeout(timerid);
-                        _removeEvents();
-
-                        let msgIn = msg as JoinConfResultMsg;
-
-                        if (msgIn.error) {
-                            console.log(msgIn.error);
-                            reject("failed to join conference");
-                            return;
-                        }
-                        resolve(msgIn);
-                    }
-                };
-
-                this.socket.addEventHandler("onmessage", _onmessage);
-                if (!this.joinConferenceRoom(args)) {
-                    reject(`failed to send joinConferenceRoom`);
-                }
-
-            } catch (err: any) {
-                console.log(err);
-                _removeEvents();
-                reject("failed to join room");
-            }
-        });
+        console.log(`waitJoinConferenceRoom conferenceId: ${args.conferenceId}`);
+        if (!this.isRegistered()) {
+            throw new Error("Connection not registered.");
+        }
+        if (!this.joinConferenceRoom(args)) {
+            throw new Error("Failed to send joinConferenceRoom message.");
+        }
+        return this.waitForMessage(CallMessageType.joinConfResult, 5000) as Promise<JoinConfResultMsg>;
     }
 
     async waitCreateAndJoinConference(createArgs: CreateConferenceParams, joinArgs: JoinConferenceParams) {
@@ -1288,7 +1141,7 @@ export class ConferenceClient {
     }
 
     async onInviteReceived(message: InviteMsg) {
-        console.log("onInviteReceived()");
+        console.log("onInviteReceived()", message);
         if (this.isInConference()) {
             console.log(`already in a conference. ${this.conference.conferenceId}`);
             return;
@@ -1780,7 +1633,7 @@ export class ConferenceClient {
 
         try {
             this.roomManager = new RoomManager(this.conference, this.localParticipant, this.username);
-            this.setupRoomManagerEvents();
+            this.setupMediaManagerEvents();
 
             await this.roomManager.initialize(message.data.roomURI, message.data.roomRtpCapabilities);
             await this.roomManager.connectAndJoin();
@@ -1842,7 +1695,7 @@ export class ConferenceClient {
         this.resetLocalTracks();
     }
 
-    private setupRoomManagerEvents() {
+    private setupMediaManagerEvents() {
         if (!this.roomManager) return;
 
         this.roomManager.setEventHandler(async (eventType: string, payload: IMsg) => {
@@ -1954,6 +1807,4 @@ export class ConferenceClient {
             }
         });
     }
-
-
 }
