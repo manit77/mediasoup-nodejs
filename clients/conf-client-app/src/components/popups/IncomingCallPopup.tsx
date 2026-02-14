@@ -53,7 +53,7 @@ const IncomingCallPopup: React.FC = () => {
         let joinMediaConfig = new GetUserMediaConfig();
         joinMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
         joinMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
-        console.warn("accepting invite with ", localParticipant.tracksInfo);
+        console.warn("accepting invite with ", joinMediaConfig,  localParticipant.tracksInfo);
 
         joinMediaConfig.constraints = getMediaConstraints(joinMediaConfig.isAudioEnabled, joinMediaConfig.isVideoEnabled);
 

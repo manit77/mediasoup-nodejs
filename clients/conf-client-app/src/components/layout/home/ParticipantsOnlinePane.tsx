@@ -124,6 +124,7 @@ const ParticipantsOnlinePane: React.FC = () => {
                                 {/* Call Actions */}
                                 <div className="d-flex align-items-center gap-2">
                                     <div className="btn-group bg-body-tertiary rounded-pill p-1 shadow-sm border">
+                                        { /* make audio call only */ }
                                         <ThrottledButton
                                             variant="link"
                                             className={`rounded-pill p-0 d-flex align-items-center justify-content-center ${isCallActive || !isOnline ? 'text-muted' : 'text-primary'}`}
@@ -136,7 +137,7 @@ const ParticipantsOnlinePane: React.FC = () => {
                                         >
                                             <MicFill size={18} />
                                         </ThrottledButton> 
-
+                                        { /* make audio and vidoe call */ }
                                         <ThrottledButton
                                             variant="link"
                                             className={`rounded-pill p-0 d-flex align-items-center justify-content-center ${isCallActive || !isOnline ? 'text-muted' : 'text-success'}`}
