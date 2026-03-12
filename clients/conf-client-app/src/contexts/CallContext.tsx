@@ -11,30 +11,88 @@ import { getConferenceClient } from '../services/ConferenceService';
 export const conferenceClient = getConferenceClient();
 
 interface CallContextType {
+
+    /**
+     * websocket is connecting
+     */
     isConnecting: boolean;
+    /**
+     * websocket is connected
+     */
     isConnected: boolean;
+    /**
+     * whether the connected socket is authenticated
+     */
+    isAuthenticated: boolean;
+
     isLoggedOff: boolean;
     setIsLoggedOff: React.Dispatch<React.SetStateAction<boolean>>;
-    isAuthenticated: boolean;
+
+    /**
+     * local conference participant
+     */
     localParticipant: Participant;
-    //isLocalStreamUpdated: boolean;
+    /**
+     * the presenter of the conference
+     */
     presenter: Participant;
 
+    /**
+     * waiting state for connection
+     */
     isWaiting: boolean;
+
+    /**
+     * where or not on an active call/conference
+     */
     isCallActive: boolean;
+
+    /**
+     * conference
+     */
     conference: Conference;
+
+    /**
+     * list of all call participants, does not include local participant
+     */
     callParticipants: Map<string, Participant>;
+
+    /**
+     * when join in a conference we need to send pong to the server
+     */
     onConferencePing: any;
     conferencePong: () => void;
 
+    /**
+     * where or note the local participant is doing a screen share
+     */
     isScreenSharing: boolean;
+
+    /**
+     * list of all participants authenticated "contacts list"
+     */
     participantsOnline: ParticipantInfo[];
+    /**
+     * list of all active conferences
+     */
     conferencesOnline: ConferenceScheduledInfo[];
+    /**
+     * invite message sent
+     */
     inviteInfoSend: InviteMsg;
+    /**
+     * invite message received
+     */
     inviteInfoReceived: InviteMsg;
     setInviteInfoSend: React.Dispatch<React.SetStateAction<InviteMsg>>;
 
+    /**
+     * all avaialable devices for local participant
+     */
     availableDevices: { video: Device[]; audioIn: Device[]; audioOut: Device[] };
+    /**
+     * the selected device for the local participant
+     */
     selectedDevices: SelectedDevices;
     setSelectedDevices: React.Dispatch<React.SetStateAction<SelectedDevices>>;
 
@@ -271,34 +329,63 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         );
     }
 
+    function hasParticipantChanged(prev: Participant | undefined, next: Participant): boolean {
+        if (!prev) return true;
+
+        // 1. Check Track State (Muted/Unmuted)
+        if (
+            prev.tracksInfo.isAudioEnabled !== next.tracksInfo.isAudioEnabled ||
+            prev.tracksInfo.isVideoEnabled !== next.tracksInfo.isVideoEnabled
+        ) {
+            return true;
+        }
+
+        // 2. Check Metadata
+        if (prev.displayName !== next.displayName || prev.role !== next.role) {
+            return true;
+        }
+
+        // 3. CRITICAL: Check if tracks were added/removed/swapped on the same stream
+        const prevTrackIds = prev.stream ? prev.stream.getTracks().map(t => t.id).sort().join(',') : '';
+        const nextTrackIds = next.stream ? next.stream.getTracks().map(t => t.id).sort().join(',') : '';
+
+        if (prevTrackIds !== nextTrackIds) {
+            return true;
+        }
+
+        return false;
+    }
+
     const updateCallParticipants = useCallback(() => {
         console.warn(`updateCallParticipants`);
 
-        setCallParticipants(prev => {
-            const latest = conferenceClient.conference.participants;
-            let hasChanges = false;
+        // 1. Grab the external state BEFORE entering the React setter
+        const latestParticipants = conferenceClient.conference?.participants;
+        if (!latestParticipants) return;
 
-            // Create a new Map only if changes are detected
+        setCallParticipants(prev => {
+            let hasChanges = false;
             const next = new Map(prev);
 
-            // Check for additions or updates (including tracksInfo changes)
-            for (const [id, participant] of latest.entries()) {
+            // 2. Check for additions or updates
+            for (const [id, participant] of latestParticipants.entries()) {
                 const prevParticipant = prev.get(id);
-                if (!prevParticipant || hasTracksInfoChanged(prevParticipant, participant)) {
+
+                if (hasParticipantChanged(prevParticipant, participant)) {
                     next.set(id, cloneParticipant(participant));
                     hasChanges = true;
-                    console.warn(`updateCallParticipants - has changes.`);
+                    console.warn(`updateCallParticipants - participant ${id} changed.`);
                 } else {
-                    // Preserve existing participant if no tracksInfo change
                     next.set(id, prevParticipant);
                 }
             }
 
-            // Check for removals
+            // 3. Check for removals
             for (const id of prev.keys()) {
-                if (!latest.has(id)) {
+                if (!latestParticipants.has(id)) {
                     next.delete(id);
                     hasChanges = true;
+                    console.warn(`updateCallParticipants - participant ${id} removed.`);
                 }
             }
 
@@ -306,10 +393,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 console.warn(`updateCallParticipants - no changes.`);
             }
 
-            // Return previous Map if no changes, otherwise return new Map
+            // 4. Return previous Map if no changes, otherwise return new Map
             return hasChanges ? next : prev;
         });
     }, []);
+
 
     const updateTracksInfo = useCallback((participantId: string) => {
         console.error(`updateTracksInfo`);
@@ -453,7 +541,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 }
                 case EventTypes.inviteReceived: {
                     let msg = msgIn as InviteMsg;
-                    console.log(`CallContext: onInviteReceived ${msg.data.displayName} ${msg.data.participantId} ${msg.data.conferenceName}`);
+                    console.log(`CallContext: onInviteReceived ${msg.data.displayName} ${msg.data.participantId} ${msg.data.conferenceName}`, msg);
 
                     ui.hidePopUp();
                     setInviteInfoReceived(msg);
@@ -584,13 +672,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 return;
             }
             ui.showToast(`invite sent`);
-            inviteMsg.data.displayName = participantInfo.displayName;
-            inviteMsg.data.withAudio = joinMediaConfig.isAudioEnabled;
-            inviteMsg.data.withVideo = joinMediaConfig.isVideoEnabled;
+            inviteMsg.data.displayName = participantInfo.displayName; //set display name for local ui
 
             setInviteInfoSend(inviteMsg);
 
-            console.log(`Call initiated to ${participantInfo.displayName}`);
+            console.log(`invite sent to ${participantInfo.displayName}`, inviteMsg);
         } catch (error) {
             console.error('Failed to initiate call:');
             ui.showPopUp("Failed to initialized call.", "error");
