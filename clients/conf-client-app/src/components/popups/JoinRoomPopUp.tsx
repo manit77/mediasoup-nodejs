@@ -8,6 +8,8 @@ import { ConferenceScheduledInfo, GetUserMediaConfig } from '@conf/conf-models';
 import { getBrowserUserMedia } from '@conf/conf-client';
 import RoomLobby from '@client/components/ui/roomLobby/RoomLobby';
 import { DoorOpen, Gear } from 'react-bootstrap-icons';
+import '@client/css/modal.css';
+import '@client/css/buttons.css';
 
 interface JoinRoomPopUpProps {
     conferenceScheduled: ConferenceScheduledInfo;
@@ -20,6 +22,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
     const ui = useUI();
     const { localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, availableDevices, selectedDevices, setSelectedDevices, getMediaDevices, getLocalMedia, isWaiting } = useCall();
     const navigate = useNavigate();
+    const [joinAction, setJoinAction] = useState<(() => void) | null>(null);
 
     const [conferenceCode, setConferenceCode] = useState<string>("");
     const [requireConfCode, setRequireConfCode] = useState<boolean>(false);
@@ -166,13 +169,17 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
         ui.setIsShowSettings(true);
     };
 
+    const handleJoinActionReady = useCallback((action: () => void) => {
+        setJoinAction(() => action);
+    }, []);
+
     useEffect(() => {
         console.log(`JoinRoomPopUpProps conferenceScheduled`, conferenceScheduled);
     }, [conferenceScheduled]);
 
     return (
-        <Modal show={show} centered backdrop="static" keyboard={false} onHide={onClose} size="lg">
-            <Modal.Header className="bg-body">
+        <Modal show={show} centered backdrop="static" keyboard={false} onHide={onClose} size="lg" scrollable dialogClassName="join-room-modal">
+            <Modal.Header closeButton onHide={onClose} className="bg-body">
                 <Modal.Title className="d-flex align-items-center justify-content-between w-100">
                     <div className="d-flex align-items-center">
                         <DoorOpen className="me-2 text-primary" size={24} />
@@ -184,13 +191,18 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                <RoomLobby conferenceScheduled={conferenceScheduled} ></RoomLobby>
+                <RoomLobby conferenceScheduled={conferenceScheduled} showJoinButton={false} onJoinActionReady={handleJoinActionReady}></RoomLobby>
             </Modal.Body>
 
             <Modal.Footer className="border-0 pt-0">
-                <Button variant="link" className="text-decoration-none text-muted" onClick={handleCancelClick} disabled={isWaiting}>
-                    Cancel
-                </Button>
+                <div className="d-flex align-items-center justify-content-end gap-2 w-100">
+                    <Button variant="primary" className="submit-btn px-4 shadow-sm" onClick={() => joinAction && joinAction()} disabled={isWaiting || !joinAction}>
+                        {isWaiting ? 'Connecting...' : 'Enter Room'}
+                    </Button>
+                    <Button variant="link" className="text-decoration-none text-muted" onClick={handleCancelClick} disabled={isWaiting}>
+                        Cancel
+                    </Button>
+                </div>
             </Modal.Footer>
         </Modal>
     );

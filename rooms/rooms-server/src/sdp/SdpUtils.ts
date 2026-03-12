@@ -194,6 +194,7 @@ export function sdpToProducerRtpParameters(
     if (sdpMediaObj.ssrcs) {
       producerParams.encodings = MsSdpUnifiedPlanUtils.getRtpEncodings({
         offerMediaObject: sdpMediaObj,
+        codecs: producerParams.codecs ?? [],
       });
     } else {
       producerParams.encodings = [];

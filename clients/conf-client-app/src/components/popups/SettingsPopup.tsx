@@ -225,7 +225,7 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
     };
 
     return (
-        <Modal show={show} onHide={handleClose} size="lg" centered>
+        <Modal show={show} onHide={handleClose} size="lg" centered scrollable dialogClassName="settings-popup-modal" className="priority-modal-layer" backdropClassName="priority-modal-backdrop">
             <Modal.Header closeButton className="bg-body">
                 <Modal.Title className="d-flex align-items-center text-secondary">
                     <GearFill className="me-2 text-primary" size={20} />
