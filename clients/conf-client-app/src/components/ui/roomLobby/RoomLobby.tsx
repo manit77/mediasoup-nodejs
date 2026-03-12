@@ -20,9 +20,11 @@ import SettingsPopup from '../../popups/SettingsPopup';
 
 interface RoomLobbyProps {
     conferenceScheduled?: ConferenceScheduledInfo;
+    showJoinButton?: boolean;
+    onJoinActionReady?: (action: () => void) => void;
 }
 
-const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
+const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButton = true, onJoinActionReady }) => {
     const api = useAPI();
     const ui = useUI();
     const { conferencesOnline, localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, selectedDevices, getMediaDevices, isWaiting, getLocalMedia } = useCall();
@@ -215,8 +217,12 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
         setCameraEnabled(enabled);
     }, [localParticipant]);
 
-    const handleJoinConf = async (event: React.FormEvent) => {
-        event.preventDefault();
+    const handleJoinConf = useCallback(async () => {
+
+        if (!conference) {
+            ui.showPopUp("conference details unavailable.", "error");
+            return;
+        }
 
         try {
             //make sure we have a stream before making a call           
@@ -267,7 +273,29 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
         } finally {
 
         }
-    };
+    }, [
+        api,
+        cameraEnabled,
+        conference,
+        conferenceCode,
+        createOrJoinConference,
+        getLocalMedia,
+        getMediaConstraints,
+        joinConference,
+        localParticipant,
+        micEnabled,
+        ui,
+    ]);
+
+    useEffect(() => {
+        if (!onJoinActionReady) {
+            return;
+        }
+
+        onJoinActionReady(() => {
+            void handleJoinConf();
+        });
+    }, [handleJoinConf, onJoinActionReady]);
 
     return (
         (!conference && !trackingId) ? (<><h2>Invalid Lobby Params</h2></>) :
@@ -386,11 +414,13 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled }) => {
                                         </div>
                                     </div>
 
-                                    <div className="d-grid gap-2 mt-4">
-                                        <ThrottledButton onClick={handleJoinConf} variant="primary" size="lg" disabled={isWaiting}>
-                                            {isWaiting ? 'Connecting...' : 'Enter Room'}
-                                        </ThrottledButton>
-                                    </div>
+                                    {showJoinButton && (
+                                        <div className="d-grid gap-2 mt-4">
+                                            <ThrottledButton onClick={() => { void handleJoinConf(); }} variant="primary" size="lg" disabled={isWaiting}>
+                                                {isWaiting ? 'Connecting...' : 'Enter Room'}
+                                            </ThrottledButton>
+                                        </div>
+                                    )}
                                 </Form>
                             </Card.Body>
                         </Card>

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Modal, Button, Spinner, Badge } from 'react-bootstrap';
 import { useCall } from '@client/hooks/useCall';
 import { CameraVideoFill, CameraVideoOffFill, MicFill, MicMuteFill, TelephoneOutboundFill, XCircleFill } from 'react-bootstrap-icons';
+import '@client/css/modal.css';
 
 const CallingPopup: React.FC = () => {
     const { inviteInfoSend, cancelInvite } = useCall();
@@ -12,8 +13,8 @@ const CallingPopup: React.FC = () => {
 
 
     return (
-        <Modal show={true} centered backdrop="static" keyboard={false} contentClassName="border-0 shadow-lg">
-            <Modal.Body className="p-0 overflow-hidden rounded">
+        <Modal show={true} centered backdrop="static" keyboard={false} contentClassName="border-0 shadow-lg" scrollable dialogClassName="calling-popup-modal">
+            <Modal.Body className="p-0 rounded">
                 {/* Connection Header Section */}
                 <div className="bg-primary text-white text-center p-5 position-relative">
                     <div className="pulse-container mb-4">

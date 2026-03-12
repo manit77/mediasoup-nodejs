@@ -2,6 +2,7 @@ import { Modal, Button } from 'react-bootstrap';
 import PropTypes from 'prop-types';
 import styles from './ConfirmPopUp.module.css';
 import { ExclamationTriangleFill } from 'react-bootstrap-icons';
+import '@client/css/modal.css';
 
 const ConfirmPopUp = ({ show, onHide, onConfirm, title, message }) => {
     return (
@@ -11,6 +12,8 @@ const ConfirmPopUp = ({ show, onHide, onConfirm, title, message }) => {
             centered
             backdrop="static"
             keyboard={false}
+            className="priority-modal-layer"
+            backdropClassName="priority-modal-backdrop"
             contentClassName={styles.modalContent} // Applies style to the inner modal box
         >
             <Modal.Header className={styles.header} closeVariant="white" closeButton>

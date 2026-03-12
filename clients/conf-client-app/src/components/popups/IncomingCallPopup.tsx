@@ -7,6 +7,7 @@ import { GetUserMediaConfig } from '@conf/conf-models';
 import ThrottledButton from '@client/components/ui/ThrottledButton';
 import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { TelephoneInboundFill, CameraVideoFill, MicFill, XCircleFill } from 'react-bootstrap-icons';
+import '@client/css/modal.css';
 
 const IncomingCallPopup: React.FC = () => {
     const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite, localParticipant, getMediaConstraints } = useCall();
@@ -72,8 +73,8 @@ const IncomingCallPopup: React.FC = () => {
         <>
             <audio ref={audioRef} src="/ring.wav" loop />
 
-            <Modal show={true} centered backdrop="static" keyboard={false} contentClassName="border-0 shadow-lg">
-                <Modal.Body className="p-0 overflow-hidden rounded">
+            <Modal show={true} centered backdrop="static" keyboard={false} contentClassName="border-0 shadow-lg" scrollable dialogClassName="incoming-call-popup-modal">
+                <Modal.Body className="p-0 rounded">
                     {/* Animated Header Section */}
                     <div className="bg-primary text-white text-center p-5 position-relative">
                         {/* Pulsing Ring Effect */}

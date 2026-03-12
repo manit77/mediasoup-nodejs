@@ -174,12 +174,92 @@
 }
 
 /* =====================================================
+   Priority Modal Layer (used for on-call critical dialogs)
+   ===================================================== */
+
+.priority-modal-layer {
+  z-index: 20000 !important;
+}
+
+.priority-modal-backdrop {
+  z-index: 19990 !important;
+}
+
+/* =====================================================
+   Join Room Modal (viewport-responsive sizing)
+   ===================================================== */
+
+.join-room-modal {
+  max-width: min(900px, calc(100vw - 2rem));
+  margin: 1rem auto;
+}
+
+.calling-popup-modal,
+.incoming-call-popup-modal,
+.settings-popup-modal {
+  max-width: min(900px, calc(100vw - 2rem));
+  margin: 1rem auto;
+}
+
+.join-room-modal .modal-content {
+  max-height: calc(100dvh - 2rem);
+}
+
+.calling-popup-modal .modal-content,
+.incoming-call-popup-modal .modal-content,
+.settings-popup-modal .modal-content {
+  max-height: calc(100dvh - 2rem);
+}
+
+.join-room-modal .modal-body {
+  overflow-y: auto;
+}
+
+.calling-popup-modal .modal-body,
+.incoming-call-popup-modal .modal-body,
+.settings-popup-modal .modal-body {
+  overflow-y: auto;
+}
+
+@supports not (height: 100dvh) {
+  .join-room-modal .modal-content {
+    max-height: calc(100vh - 2rem);
+  }
+
+  .calling-popup-modal .modal-content,
+  .incoming-call-popup-modal .modal-content,
+  .settings-popup-modal .modal-content {
+    max-height: calc(100vh - 2rem);
+  }
+}
+
+/* =====================================================
    Responsive polish
    ===================================================== */
 
 @media (max-width: 576px) {
   .modal-dialog {
     margin: 0.75rem;
+  }
+
+  .join-room-modal {
+    max-width: calc(100vw - 1.5rem);
+  }
+
+  .calling-popup-modal,
+  .incoming-call-popup-modal,
+  .settings-popup-modal {
+    max-width: calc(100vw - 1.5rem);
+  }
+
+  .join-room-modal .modal-content {
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  .calling-popup-modal .modal-content,
+  .incoming-call-popup-modal .modal-content,
+  .settings-popup-modal .modal-content {
+    max-height: calc(100dvh - 1.5rem);
   }
 
   .modal-content {
