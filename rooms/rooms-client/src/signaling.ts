@@ -62,7 +62,7 @@ export class Signaling {
         return resolve(new OkMsg(payloadTypeServer.ok, "already connected"));
       }
 
-      let timerId: NodeJS.Timeout;
+      let timerId: any;
 
       const _onOpen = () => {
         cleanup();
