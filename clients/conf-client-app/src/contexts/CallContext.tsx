@@ -1,12 +1,12 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, GetUserMediaConfig, InviteMsg, JoinConferenceParams, LoggedOffMsg, ParticipantInfo } from '@conf/conf-models';
-import { Conference, Device, getBrowserUserMedia, Participant, SelectedDevices } from '@conf/conf-client';
-import { useUI } from '@client/hooks/useUI';
-import { useAPI } from '@client/hooks/useAPI';
-import { useConfig } from '@client/hooks/useConfig';
+import { Conference, Device, getBrowserDisplayMedia, getBrowserUserMedia, Participant, SelectedDevices } from '@conf/conf-client';
+import { useUI } from '../hooks/useUI';
+import { useAPI } from '../hooks/useAPI';
+import { useConfig } from '../hooks/useConfig';
 import { IMsg } from '@rooms/rooms-models';
 import { EventParticpantNewTrackMsg, EventTypes } from '@conf/conf-client';
-import { getConferenceClient } from '@client/services/ConferenceService';
+import { getConferenceClient } from '../services/ConferenceService';
 
 export const conferenceClient = getConferenceClient();
 
@@ -46,9 +46,8 @@ interface CallContextType {
     createConference: (externalId: string, roomName: string) => void;
     joinConference: (conferenceCode: string, scheduled: ConferenceScheduledInfo, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
     createOrJoinConference: (externalId: string, conferenceCode: string, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
-   
+
     sendInvite: (participantInfo: ParticipantInfo, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
-    sendInviteConf: (participantInfo: ParticipantInfo, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
     acceptInvite: (joinMediaConfig: GetUserMediaConfig) => Promise<void>;
     declineInvite: () => void;
     cancelInvite: () => void;
@@ -179,35 +178,17 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     }, [selectedDevices]);
 
-    const getMediaConstraints = useCallback(
-        (getAudio: boolean, getVideo: boolean): MediaStreamConstraints => {
-            const constraints: MediaStreamConstraints = {};
+    const getMediaConstraints = useCallback((getAudio: boolean, getVideo: boolean): MediaStreamConstraints => {
+        const constraints: { audio?: any, video?: any } = {};
 
-            if (getAudio) {
-                constraints.audio = selectedDevices.audioInId
-                    ? { deviceId: { ideal: selectedDevices.audioInId } }
-                    : true;
-            }
-
-            if (getVideo) {
-                if (selectedDevices.videoId) {
-                    constraints.video = {
-                        deviceId: { ideal: selectedDevices.videoId },
-                        aspectRatio: { ideal: 16 / 9 }
-                    };
-                } else {
-                    constraints.video = {
-                        facingMode: "user",
-                        aspectRatio: { ideal: 16 / 9 }
-                    };
-                }
-            }
-
-            return constraints;
-        },
-        [selectedDevices]
-    );
-
+        if (getAudio) {
+            constraints.audio = selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true;
+        }
+        if (getVideo) {
+            constraints.video = selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId, aspectRatio: 16 / 9, facingMode: "user" } } : true;
+        }
+        return constraints;
+    }, [selectedDevices]);
 
     const getLocalMedia = useCallback(async (options: GetUserMediaConfig) => {
         console.log("getLocalMedia");
@@ -566,57 +547,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [callParticipants, getConferenceRoomsOnline, ui]);
 
-    const sendInviteConf = useCallback(async (participantInfo: ParticipantInfo, joinMediaConfig: GetUserMediaConfig) => {
-        console.log(`sendInviteConf to ${participantInfo.participantId} ${participantInfo.displayName}`);
-
-        try {
-
-            if (!isCallActive) {
-                console.error(`call is not active`);
-                ui.showPopUp("error: call is not active.", "error");
-                return;
-            }
-
-            if (inviteInfoSend) {
-                console.error(`inviteInfoSend is not null`);
-                ui.showPopUp("error: there is a pending invite.", "error");
-                return;
-            }
-
-            if (!conferenceClient.conference) {
-                console.error(`no active conference`);
-                ui.showPopUp("error: no active conference.", "error");
-                return;
-            }
-
-            let joinArgs: JoinConferenceParams = {
-                joinMediaConfig: joinMediaConfig,
-                clientData: api.getCurrentUser()?.clientData,
-                conferenceCode: conferenceClient.conference.conferenceConfig.conferenceCode,
-                conferenceId: conferenceClient.conference.conferenceId,
-                roomName: conferenceClient.conference.conferenceName,
-                externalId: conferenceClient.conference.conferenceExternalId,                
-            }
-
-            if (!await waitTryRegister()) {
-                console.error('wait for registration failed.');
-                return;
-            }
-
-            let inviteMsg = conferenceClient.sendInviteConf(participantInfo.participantId, joinArgs);
-            if (!inviteMsg) {
-                ui.showPopUp("error unable to initiate a new call", "error");
-                return;
-            }
-            ui.showToast(`invite sent`);
-
-            console.log(`Call initiated to ${participantInfo.displayName}`);
-        } catch (error) {
-            console.error('Failed to initiate call:');
-            ui.showPopUp("Failed to initialized call.", "error");
-        }
-    }, [api, getLocalMedia, inviteInfoSend, isCallActive, ui]);
-
     const sendInvite = useCallback(async (participantInfo: ParticipantInfo, joinMediaConfig: GetUserMediaConfig) => {
         console.log(`sendInvite to ${participantInfo.participantId} ${participantInfo.displayName}`);
 
@@ -751,7 +681,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } else {
             ui.showPopUp("failed to create conference.");
         }
-    }, [ui]);   
+    }, [ui]);
 
     const joinConference = useCallback(async (conferenceCode: string, scheduled: ConferenceScheduledInfo, joinMediaConfig: GetUserMediaConfig) => {
         console.log("CallContext: joinConference");
@@ -1109,10 +1039,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             createConference,
             joinConference,
-            createOrJoinConference,       
+            createOrJoinConference,
 
             sendInvite,
-            sendInviteConf,
             acceptInvite,
             declineInvite,
             cancelInvite,
