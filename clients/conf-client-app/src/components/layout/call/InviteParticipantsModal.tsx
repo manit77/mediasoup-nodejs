@@ -54,7 +54,16 @@ const InviteParticipantsModal: React.FC<{ conference: Conference | null, show: b
 
     return (
         <>
-            <Modal show={show} centered backdrop="static" keyboard={false} onHide={onClose} size="lg">
+            <Modal
+                show={show}
+                centered
+                backdrop="static"
+                keyboard={false}
+                onHide={onClose}
+                size="lg"
+                className="priority-modal-layer"
+                backdropClassName="priority-modal-backdrop"
+            >
                 <Modal.Header closeButton className="bg-body">
                     <Modal.Title className="d-flex align-items-center text-secondary">
                         <PersonPlusFill className="me-2" />
