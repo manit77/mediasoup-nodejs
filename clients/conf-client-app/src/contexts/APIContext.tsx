@@ -164,6 +164,7 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             user.participantGroup,
             user.conferenceGroup,
             user.username,
+            user.displayName,
             user.authToken,
             user.clientData
         );

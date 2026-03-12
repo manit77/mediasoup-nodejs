@@ -419,6 +419,7 @@ export class ConferenceAPI {
             let resultMsg = new GetParticipantsResultMsg();
 
             let participants = this.confServer.getParticipants(participantGroup);
+            consoleError(`getParticipantsOnline participants:`, participants);
             resultMsg.data.participants = [];
             for (let p of participants.filter(p => p.username !== username)) {
                 resultMsg.data.participants.push({

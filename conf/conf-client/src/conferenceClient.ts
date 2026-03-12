@@ -29,6 +29,7 @@ export class ConferenceClient {
     participantGroup: string = "";
     conferenceGroup: string = "";
     username: string = "";
+    displayName: string = "";
     authToken: string = "";
     clientData = {};
     conference: Conference = new Conference();
@@ -88,7 +89,7 @@ export class ConferenceClient {
 
     }
 
-    connect(participantGroup: string, conferenceGroup: string, username: string, authToken: string, clientData: any, options?: { socket_ws_uri?: string }) {
+    connect(participantGroup: string, conferenceGroup: string, username: string, displayName: string, authToken: string, clientData: any, options?: { socket_ws_uri?: string }) {
         console.log(`connect to socket server. participantGroup:${participantGroup} username:${username}`, this.config);
 
         if (this.socket && this.socket.state != "disconnected") {
@@ -119,6 +120,8 @@ export class ConferenceClient {
         this.participantGroup = participantGroup;
         this.conferenceGroup = conferenceGroup;
         this.username = username;
+        this.displayName = displayName;
+
         this.authToken = authToken;
         this.clientData = clientData;
 
@@ -198,10 +201,10 @@ export class ConferenceClient {
         this.isScreenSharing = false;
     }
 
-    async waitRegisterConnection(participantGroup: string, conferenceGroup: string, username: string, authToken: string, clientData: {}): Promise<RegisterResultMsg> {
+    async waitRegisterConnection(participantGroup: string, conferenceGroup: string, username: string, displayName: string, authToken: string, clientData: {}): Promise<RegisterResultMsg> {
         console.log("waitRegisterConnection");
 
-        this.registerConnection(participantGroup, conferenceGroup, username, authToken, clientData);
+        this.registerConnection(participantGroup, conferenceGroup, username, displayName, authToken, clientData);
 
         const timeout = (this.config.conf_socket_register_timeout_secs ?? 30) * 1000;
         const resultMsg = await this.waitForMessage(CallMessageType.registerResult, timeout);
@@ -252,7 +255,7 @@ export class ConferenceClient {
     private async register() {
         console.log("register()");
         try {
-            let registerResult = await this.waitRegisterConnection(this.participantGroup, this.conferenceGroup, this.username, this.authToken, this.clientData);
+            let registerResult = await this.waitRegisterConnection(this.participantGroup, this.conferenceGroup, this.username, this.displayName, this.authToken, this.clientData);
             if (!registerResult.error) {
                 await this.onEvent(EventTypes.connected, new OkMsg());
                 return true;
@@ -384,7 +387,7 @@ export class ConferenceClient {
             if (this.roomManager) {
                 this.roomManager.dispose();
             }
-            this.connect(this.participantGroup, this.conferenceGroup, this.username, this.authToken, this.clientData);
+            this.connect(this.participantGroup, this.conferenceGroup, this.username, this.displayName, this.authToken, this.clientData);
         }
     }
 
@@ -749,7 +752,7 @@ export class ConferenceClient {
      * @param username 
      * @param authToken 
      */
-    private registerConnection(participantGroup: string, conferenceGroup: string, username: string, authToken: string, clientData: {}) {
+    private registerConnection(participantGroup: string, conferenceGroup: string, username: string, displayName: string, authToken: string, clientData: {}) {
         console.log("registerConnection");
 
         if (this.isRegistered()) {
@@ -771,7 +774,7 @@ export class ConferenceClient {
         // Register with the server
         const registerMsg: RegisterMsg = new RegisterMsg();
         registerMsg.data.username = username;
-        registerMsg.data.displayName = username;
+        registerMsg.data.displayName = displayName;
         registerMsg.data.authToken = authToken;
         registerMsg.data.participantGroup = participantGroup;
         registerMsg.data.conferenceGroup = conferenceGroup;
@@ -1472,7 +1475,7 @@ export class ConferenceClient {
     private async onUnauthorized(message: UnauthorizedMsg) {
         console.log("onUnauthorized");
 
-        this.connect(this.participantGroup, this.conferenceGroup, this.username, this.authToken, this.clientData);
+        this.connect(this.participantGroup, this.conferenceGroup, this.username, this.displayName, this.authToken, this.clientData);
         await this.onEvent(EventTypes.unAuthorized, message);
     }
 

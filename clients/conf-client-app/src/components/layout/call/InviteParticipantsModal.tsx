@@ -8,7 +8,7 @@ import { useAPI } from '@client/hooks/useAPI';
 import { Conference } from '@conf-client/models';
 
 const InviteParticipantsModal: React.FC<{ conference: Conference | null, show: boolean, onClose: () => void }> = ({ conference, show, onClose }) => {
-    const { isCallActive, inviteInfoReceived, callParticipants, sendInvite } = useCall();
+    const { isCallActive, inviteInfoReceived, callParticipants, sendInviteConf } = useCall();
     const api = useAPI();
 
     const [inviteList, setInviteList] = useState<ParticipantInfo[]>([]);
@@ -46,7 +46,7 @@ const InviteParticipantsModal: React.FC<{ conference: Conference | null, show: b
         let getUserMediaConfig = new GetUserMediaConfig();
         getUserMediaConfig.isAudioEnabled = true;
         getUserMediaConfig.isVideoEnabled = true;
-        sendInvite(participant, getUserMediaConfig);
+        sendInviteConf(participant, getUserMediaConfig);
 
         setInvitedIds(prev => [...prev, participant.participantId]);
 

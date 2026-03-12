@@ -277,7 +277,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         };
 
         conference.onNewParticipant = (part: Participant) => {
-           
+
         }
 
         consoleLog(`conference created: ${conference.id} ${conference.roomName} `);
@@ -357,7 +357,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         let participant: Participant = this.createParticipant({
             username: msgIn.data.username,
-            displayName: msgIn.data.username,
+            displayName: msgIn.data.displayName,
             participantGroup: msgIn.data.participantGroup,
             conferenceGroup: msgIn.data.conferenceGroup,
             clientData: msgIn.data.clientData
@@ -365,6 +365,12 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
         let authTokenObject: IAuthPayload;
         authTokenObject = jwtVerify(this.config.conf_secret_key, msgIn.data.authToken) as IAuthPayload;
+
+        if (!authTokenObject) {
+            let errorMsg = new RegisterResultMsg();
+            errorMsg.error = "invalid auth token.";
+            return errorMsg;
+        }
 
         participant.role = authTokenObject.role;
 
@@ -579,7 +585,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.withAudio = msgIn.data.withAudio;
         msg.data.withVideo = msgIn.data.withVideo;
 
-        msg.data.ticket = jwtSign(this.config.conf_secret_key, { conferenceId: conference.id, participantId: remote.participantId });    
+        msg.data.ticket = jwtSign(this.config.conf_secret_key, { conferenceId: conference.id, participantId: remote.participantId });
 
         if (!this.send(remote, msg)) {
             consoleError("failed to send invite to receiver");
@@ -1080,7 +1086,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             msg.error = "unable to join conference";
             return msg;
         }
-     
+
         if (!conference.addParticipant(participant)) {
             let errorMsg = new JoinConfResultMsg();
             errorMsg.error = "unable to add you to the conference.";
