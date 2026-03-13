@@ -6,6 +6,8 @@
   <title>Keyboard</title>
   <!-- simple-keyboard styles copied into dist as simple-keyboard.css -->
   <link rel="stylesheet" href="./simple-keyboard.css">
+  <!-- Material Icons for toolbar buttons -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <style>
     body, html {
       margin: 0;
@@ -34,6 +36,9 @@
       cursor: pointer;
       font-size: 13px;
       font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
     #toolbar-left button {
       background-color: #3b82f6;
@@ -46,16 +51,33 @@
     #keyboard-container {
       width: 100%;
       height: calc(100% - 40px);
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 8px 0;
+      box-sizing: border-box;
+    }
+    /* Constrain simple-keyboard so it doesn't stretch edge-to-edge on large screens */
+    .simple-keyboard {
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
     }
   </style>
 </head>
 <body>
   <div id="toolbar">
     <div id="toolbar-left">
-      <button id="btn-home">Home</button>
+      <button id="btn-home">
+        <span class="material-icons">home</span>
+        <span>Home</span>
+      </button>
     </div>
     <div id="toolbar-right">
-      <button id="btn-toggle-keyboard">Hide keyboard</button>
+      <button id="btn-toggle-keyboard">
+        <span class="material-icons">keyboard</span>
+        <span id="btn-toggle-keyboard-label">Show keyboard</span>
+      </button>
     </div>
   </div>
   <div id="keyboard-container">

@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Toolbar buttons
   const homeBtn = document.getElementById('btn-home');
   const toggleBtn = document.getElementById('btn-toggle-keyboard') as HTMLButtonElement | null;
+  const toggleLabel = document.getElementById('btn-toggle-keyboard-label') as HTMLSpanElement | null;
   const keyboardContainer = document.getElementById('keyboard-container') as HTMLDivElement | null;
 
   homeBtn?.addEventListener('click', () => {
@@ -48,8 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (keyboardContainer) {
       keyboardContainer.style.display = visible ? 'block' : 'none';
     }
-    if (toggleBtn) {
-      toggleBtn.textContent = visible ? 'Hide keyboard' : 'Show keyboard';
+    if (toggleLabel) {
+      toggleLabel.textContent = visible ? 'Hide keyboard' : 'Show keyboard';
     }
   });
 });
