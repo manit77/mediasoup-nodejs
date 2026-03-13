@@ -48,6 +48,9 @@
       background-color: #4b5563;
       color: white;
     }
+    #btn-language {
+      margin-right: 12px;
+    }
     #keyboard-container {
       width: 100%;
       height: calc(100% - 40px);
@@ -63,6 +66,74 @@
       width: 100%;
       margin: 0 auto;
     }
+
+    /* Language popup */
+    #language-popup {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background-color: rgba(0, 0, 0, 0.4);
+      z-index: 10;
+    }
+    #language-popup.visible {
+      display: flex;
+    }
+    #language-popup-content {
+      background-color: #111827;
+      color: #f9fafb;
+      padding: 16px 20px;
+      border-radius: 8px;
+      min-width: 280px;
+      max-width: 360px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    #language-popup-content h3 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .language-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .lang-option {
+      border: none;
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 13px;
+      text-align: left;
+      background-color: #1f2937;
+      color: #f9fafb;
+    }
+    .lang-option:hover {
+      background-color: #374151;
+    }
+    .lang-en { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .lang-es { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .lang-fr { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .lang-de { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .lang-ru { font-family: system-ui, "Helvetica Neue", Arial, "Segoe UI", "Noto Sans", "Roboto", sans-serif; }
+    .lang-ar { font-family: system-ui, "Geeza Pro", "Noto Naskh Arabic", "Arial", sans-serif; direction: rtl; text-align: right; }
+    .lang-zh { font-family: system-ui, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+    .lang-ja { font-family: system-ui, "Hiragino Kaku Gothic ProN", "Meiryo", "Noto Sans JP", sans-serif; }
+    .lang-ko { font-family: system-ui, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; }
+
+    #language-popup-close {
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      background-color: #4b5563;
+      color: #f9fafb;
+      width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -74,6 +145,10 @@
       </button>
     </div>
     <div id="toolbar-right">
+      <button id="btn-language">
+        <span class="material-icons">language</span>
+        <span>Language</span>
+      </button>
       <button id="btn-toggle-keyboard">
         <span class="material-icons">keyboard</span>
         <span id="btn-toggle-keyboard-label">Show keyboard</span>
@@ -83,6 +158,13 @@
   <div id="keyboard-container">
     <!-- simple-keyboard will render its keys into this element -->
     <div class="simple-keyboard"></div>
+  </div>
+  <div id="language-popup">
+    <div id="language-popup-content">
+      <h3>Select keyboard language</h3>
+      <div class="language-list" id="language-list"></div>
+      <button id="language-popup-close">Close</button>
+    </div>
   </div>
   <script>
     // Use Electron's CommonJS loader so keyboard.js can use require/exports
