@@ -1,5 +1,24 @@
 import { ipcRenderer } from 'electron';
 
+// Expose keyboard control to the hosted web app (e.g. window.electronKeyboard.showKeyboard())
+declare global {
+  interface Window {
+    electronKeyboard?: {
+      hideKeyboard: () => void;
+      showKeyboard: () => void;
+      disableKeyboard: () => void;
+      enableKeyboard: () => void;
+    };
+  }
+}
+
+window.electronKeyboard = {
+  hideKeyboard: () => ipcRenderer.send('hide-keyboard'),
+  showKeyboard: () => ipcRenderer.send('show-keyboard'),
+  disableKeyboard: () => ipcRenderer.send('disable-keyboard'),
+  enableKeyboard: () => ipcRenderer.send('enable-keyboard'),
+};
+
 const INPUT_TAGS = ['INPUT', 'TEXTAREA'];
 
 window.addEventListener('focusin', (event) => {

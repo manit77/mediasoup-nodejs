@@ -25,6 +25,7 @@ startUrl = process.env.ELECTRON_START_URL || startUrl;
 const KEYBOARD_HEIGHT = 270; // total height for toolbar + keyboard
 const KEYBOARD_TOOLBAR_HEIGHT = 40;
 let isKeyboardVisible = false;
+let keyboardEnabled = true;
 let mainWindow: BrowserWindow | null = null;
 let remoteView: BrowserView | null = null;
 let keyboardView: BrowserView | null = null;
@@ -121,12 +122,25 @@ function createWindow(): void {
 
     ipcMain.on('show-keyboard', () => {
         console.log('IPC: show-keyboard');
-        updateLayout(true);
+        if (keyboardEnabled) {
+            updateLayout(true);
+        }
     });
 
     ipcMain.on('hide-keyboard', () => {
         console.log('IPC: hide-keyboard');
         updateLayout(false);
+    });
+
+    ipcMain.on('disable-keyboard', () => {
+        console.log('IPC: disable-keyboard');
+        keyboardEnabled = false;
+        updateLayout(false);
+    });
+
+    ipcMain.on('enable-keyboard', () => {
+        console.log('IPC: enable-keyboard');
+        keyboardEnabled = true;
     });
 
     ipcMain.on('key-press', (_event, key) => {
