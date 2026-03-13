@@ -10,7 +10,7 @@ import { ErrorMsg, RoomCallBackMsg, RoomPeerCallBackMsg } from '@rooms/rooms-mod
 import { ThirdPartyAPI } from '../thirdParty/thirdPartyAPI.js';
 import { apiGetScheduledConferencesPost, apiGetScheduledConferencesResult } from '@conf/conf-models';
 import { getDemoSchedules } from '../demoData/demoData.js';
-import { consoleError, fill, parseString } from '../utils/utils.js';
+import { consoleError, consoleLog, fill, parseString } from '../utils/utils.js';
 import { CacheManager } from '../utils/cacheManager.js';
 import { ConferenceServerConfig, defaultClientConfig } from './models.js';
 
@@ -419,7 +419,7 @@ export class ConferenceAPI {
             let resultMsg = new GetParticipantsResultMsg();
 
             let participants = this.confServer.getParticipants(participantGroup);
-            consoleError(`getParticipantsOnline participants:`, participants);
+            consoleLog(`getParticipantsOnline participants:`, participants);
             resultMsg.data.participants = [];
             for (let p of participants.filter(p => p.username !== username)) {
                 resultMsg.data.participants.push({

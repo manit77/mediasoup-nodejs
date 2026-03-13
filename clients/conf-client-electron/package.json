@@ -1,0 +1,17 @@
+{
+  "name": "conf-client-electron",
+  "version": "1.0.0",
+  "description": "Electron client for the conference application",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^29.1.5",
+    "typescript": "^5.4.5"
+  }
+}

@@ -212,6 +212,20 @@ export class RoomsClient {
   waitForConnect = async (socketURI: string = "", timeoutSecs: number = 30): Promise<IMsg> => {
     console.log(`waitForConnect() ${socketURI}`);
 
+    if (!socketURI) {
+      socketURI = this.config.socket_ws_uri;
+    }
+
+    if (!socketURI) {
+      console.error(`socketURI is empty.`);
+      return;
+    }
+
+    if (!this.signaling) {
+      console.error(`signaling socket is null.`);
+      return;
+    }
+
     return this.signaling.waitForOpen(timeoutSecs);
   };
 
@@ -235,7 +249,7 @@ export class RoomsClient {
     clientType?: "sdp" | "mediasoup"
   }): Promise<IMsg> => {
     console.log("waitForRegister");
-    
+
     if (this.localPeer.peerId) {
       console.log("Already registered.");
       return new OkMsg(payloadTypeServer.ok, { peerId: this.localPeer.peerId });
@@ -291,9 +305,9 @@ export class RoomsClient {
    * @param roomToken - The token required to join the room.
    * @param timeoutSecs - The timeout for the operation.
    * @returns A promise that resolves with the `RoomJoinResultMsg`.
-   */  
+   */
   waitForRoomJoin = async (roomid: string, roomToken: string, timeoutSecs: number = 30): Promise<IMsg> => {
-    if(!this.roomJoin(roomid, roomToken)){
+    if (!this.roomJoin(roomid, roomToken)) {
       throw new Error("Failed to send 'roomJoin' request.");
     }
     return this.signaling.waitForResponse(payloadTypeServer.roomJoinResult, timeoutSecs * 1000);
@@ -559,7 +573,7 @@ export class RoomsClient {
     console.log(`roomNewToken`);
 
     let msg = new RoomNewTokenMsg();
-    msg.data = {     
+    msg.data = {
       expiresInMin: expiresInMin
     };
 
@@ -583,7 +597,7 @@ export class RoomsClient {
     config.closeRoomOnPeerCount = 0; //close the room when there are zero participants
 
     let msg = new RoomNewMsg();
-    msg.data = {      
+    msg.data = {
       peerId: this.localPeer.peerId,
       roomId: this.roomState.roomId,
       roomToken: this.localPeer.roomToken,
@@ -1120,7 +1134,7 @@ export class RoomsClient {
    * @internal
    * Waits for both the send and receive transports to be created after joining a room.
    * It initiates the creation and uses a promise to wait for both to complete.
-   */ 
+   */
   private waitForRoomTransports = async (): Promise<IMsg> => {
     console.log("** waitForRoomTransports");
 
@@ -1196,7 +1210,7 @@ export class RoomsClient {
    * @internal
    * Iterates through the known producers of a given peer and initiates consumption for each.
    * @param peer - The peer whose producers should be consumed.
-   */ 
+   */
   async consumePeerProducers(peer: Peer) {
     console.log(`consumePeerProducers() ${peer.peerId} ${peer.displayName}`);
 

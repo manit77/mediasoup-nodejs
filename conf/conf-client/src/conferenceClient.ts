@@ -157,6 +157,7 @@ export class ConferenceClient {
             this.onNetworkChange();
         });
 
+        console.log("conf_ws_url", this.config.conf_ws_url);
         this.socket.connect(this.config.conf_ws_url, this.config.socket_auto_reconnect ?? true, this.config.socket_reconnect_secs ?? 5);
 
     }
@@ -1653,6 +1654,7 @@ export class ConferenceClient {
 
             if (this.roomManager) {
                 this.roomManager.dispose();
+                this.roomManager = null;
             }
             await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: "error connecting to conference." } });
         }

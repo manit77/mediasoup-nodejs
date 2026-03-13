@@ -1158,7 +1158,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.roomId = conference.roomId;
         msg.data.roomToken = accessTokenResult.data.roomToken;
         msg.data.roomAuthToken = authUserTokenResult.data.authToken;
-        msg.data.roomURI = conference.roomURI;
+        let wsURI = conference.roomURI.replace("https://", "wss://").replace("http://", "ws://");
+        msg.data.roomURI = wsURI;
         msg.data.roomRtpCapabilities = conference.roomRtpCapabilities;
 
         this.send(participant, msg);
@@ -1188,8 +1189,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         //caller sent an invite
         //receiver accepted the invite
         //send room ready to both parties
-        let roomURI = this.getNextRoomServerURI();
-        let roomsAPI = new RoomsAPI(roomURI, this.config.room_access_token);
+        let roomAPIURL = this.getNextRoomServerAPIURL();
+        let roomsAPI = new RoomsAPI(roomAPIURL, this.config.room_access_token);
 
         let roomTokenResult = await roomsAPI.newRoomToken();
         if (!roomTokenResult || roomTokenResult?.error) {
@@ -1227,11 +1228,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return false;
         }
 
-        //let roomAccessToken = roomNewResult.data.roomToken;
-
         conference.roomId = roomId;
-        //conference.roomToken = roomAccessToken;
-        conference.roomURI = roomURI;
+        conference.roomURI = roomAPIURL;
         conference.roomRtpCapabilities = roomNewResult.data.roomRtpCapabilities;
         conference.startTimers();
 
@@ -1389,10 +1387,10 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     /**
      * you can load balance the room server using simple round robin
-     * @returns url of room server 
+     * @returns api url of room server 
      */
-    getNextRoomServerURI(): string {
-        consoleLog("getNextRoomServerURI");
+    getNextRoomServerAPIURL(): string {
+        consoleLog("getNextRoomServerAPIURL");
         let uri = this.config.room_servers_uris[this.nextRoomURIIdx];
         this.nextRoomURIIdx++;
         if (this.nextRoomURIIdx >= this.config.room_servers_uris.length) {
