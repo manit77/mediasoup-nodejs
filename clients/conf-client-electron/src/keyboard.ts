@@ -12,6 +12,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const keyboard = new Keyboard({
     layout: layouts.en,
     layoutName,
+    display: {
+      '{enter}': 'enter',
+      '{bksp}': 'backspace',
+      '{space}': 'space',
+      '{shift}': 'shift',
+      '{shiftleft}': 'shift',
+      '{shiftright}': 'shift',
+      '{tab}': 'tab',
+    },
     onKeyPress: (button: string) => {
       // Handle layout toggle keys locally
       if (button === '{shift}' || button === '{shiftleft}' || button === '{shiftright}') {
@@ -30,6 +39,9 @@ document.addEventListener('DOMContentLoaded', () => {
           break;
         case '{space}':
           ipcRenderer.send('key-press', ' ');
+          break;
+        case '{tab}':
+          ipcRenderer.send('key-press', 'Tab');
           break;
         default:
           // Regular character keys

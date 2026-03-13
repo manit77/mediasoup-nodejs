@@ -21,7 +21,7 @@ export const layouts: KeyboardLayouts = {
   en: {
     default: [
       "1 2 3 4 5 6 7 8 9 0 {bksp}",
-      "q w e r t y u i o p",
+      "{tab} q w e r t y u i o p",
       "a s d f g h j k l",
       "{shift} z x c v b n m , .",
       "@ {space} {enter}"
@@ -38,7 +38,7 @@ export const layouts: KeyboardLayouts = {
   es: {  // Latin American variant (most common for "es")
     default: [
       "1 2 3 4 5 6 7 8 9 0 {bksp}",
-      "q w e r t y u i o p",
+      "{tab} q w e r t y u i o p",
       "a s d f g h j k l ñ",
       "{shift} z x c v b n m , . -",
       "@ {space} {enter}"
@@ -72,7 +72,7 @@ export const layouts: KeyboardLayouts = {
   de: {  // Standard QWERTZ (Germany/Austria)
     default: [
       "1 2 3 4 5 6 7 8 9 0 ß {bksp}",
-      "q w e r t z u i o p ü +",
+      "{tab} q w e r t z u i o p ü +",
       "a s d f g h j k l ö ä #",
       "{shift} y x c v b n m , . -",
       "@ {space} {enter}"
@@ -123,7 +123,7 @@ export const layouts: KeyboardLayouts = {
   zh: {  // QWERTY + Pinyin IME (very common)
     default: [
       "1 2 3 4 5 6 7 8 9 0 {bksp}",
-      "q w e r t y u i o p",
+      "{tab} q w e r t y u i o p",
       "a s d f g h j k l",
       "{shift} z x c v b n m , .",
       "@ {space} {enter}"
@@ -140,7 +140,7 @@ export const layouts: KeyboardLayouts = {
   ja: {  // Romaji + IME (very common)
     default: [
       "1 2 3 4 5 6 7 8 9 0 {bksp}",
-      "q w e r t y u i o p",
+      "{tab} q w e r t y u i o p",
       "a s d f g h j k l",
       "{shift} z x c v b n m , .",
       "@ {space} {enter}"

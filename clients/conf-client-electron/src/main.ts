@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, systemPreferences, session, BrowserView, Certificate, Event, WebContents } from 'electron';
+import { app, BrowserWindow, ipcMain, systemPreferences, session, BrowserView, Certificate, Event, WebContents, desktopCapturer } from 'electron';
 import * as path from 'path';
 
 // --- Configuration ---
@@ -129,16 +129,24 @@ function createWindow(): void {
         updateLayout(false);
     });
 
-    ipcMain.on('key-press', (event, key) => {
+    ipcMain.on('key-press', (_event, key) => {
         if (remoteView && remoteView.webContents) {
             console.log(`Forwarding key: ${key}`);
+            remoteView.webContents.focus();
+
             if (key === 'Enter') {
                 remoteView.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+                remoteView.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
             } else if (key === 'Backspace') {
                 remoteView.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Backspace' });
-            }
-            else {
+                remoteView.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Backspace' });
+            } else if (key === 'Tab') {
+                remoteView.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' });
+                remoteView.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' });
+            } else {
+                remoteView.webContents.sendInputEvent({ type: 'keyDown', keyCode: key });
                 remoteView.webContents.sendInputEvent({ type: 'char', keyCode: key });
+                remoteView.webContents.sendInputEvent({ type: 'keyUp', keyCode: key });
             }
         }
     });
@@ -162,6 +170,27 @@ app.whenReady().then(async () => {
       callback(true);
     } else {
       callback(false);
+    }
+  });
+
+  // Handle getDisplayMedia() so screen share works in the remote app (BrowserView)
+  session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen', 'window'],
+        thumbnailSize: { width: 0, height: 0 },
+        fetchWindowIcons: false,
+      });
+      const screenSource = sources.find((s) => s.id.startsWith('screen:'));
+      const source = screenSource ?? sources[0];
+      if (source) {
+        callback({ video: source });
+      } else {
+        callback({});
+      }
+    } catch (err) {
+      console.error('setDisplayMediaRequestHandler error:', err);
+      callback({});
     }
   });
 
