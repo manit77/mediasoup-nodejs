@@ -5,6 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
+    "postbuild": "cp ./src/config.json ./dist/config.json && cp ./src/keyboard.html ./dist/keyboard.html && cp ../../node_modules/simple-keyboard/build/css/index.css ./dist/simple-keyboard.css || true",
     "start": "npm run build && electron .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -22,5 +23,9 @@
   "devDependencies": {
     "electron": "^29.1.5",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "kioskboard": "^2.3.0",
+    "simple-keyboard": "^3.8.120"
   }
 }

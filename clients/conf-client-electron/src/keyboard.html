@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Keyboard</title>
+  <!-- simple-keyboard styles copied into dist as simple-keyboard.css -->
+  <link rel="stylesheet" href="./simple-keyboard.css">
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #f0f0f0;
+    }
+    #toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background-color: #222;
+      color: #fff;
+      height: 40px;
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    #toolbar button {
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      margin-right: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    #toolbar-left button {
+      background-color: #3b82f6;
+      color: white;
+    }
+    #toolbar-right button {
+      background-color: #4b5563;
+      color: white;
+    }
+    #keyboard-container {
+      width: 100%;
+      height: calc(100% - 40px);
+    }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <div id="toolbar-left">
+      <button id="btn-home">Home</button>
+    </div>
+    <div id="toolbar-right">
+      <button id="btn-toggle-keyboard">Hide keyboard</button>
+    </div>
+  </div>
+  <div id="keyboard-container">
+    <!-- simple-keyboard will render its keys into this element -->
+    <div class="simple-keyboard"></div>
+  </div>
+  <script>
+    // Use Electron's CommonJS loader so keyboard.js can use require/exports
+    require('./keyboard.js');
+  </script>
+</body>
+</html>
