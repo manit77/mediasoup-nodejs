@@ -1,6 +1,7 @@
 import { app, BrowserWindow, session, systemPreferences, Certificate, Event, WebContents } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
+import { desktopCapturer } from 'electron';
 
 // --- Configuration ---
 
@@ -28,10 +29,10 @@ function createWindow(): void {
     width: 1280,
     height: 720,
     webPreferences: {
-      // It's recommended to use a preload script for security,
-      // but for loading a remote URL, it's not strictly necessary
-      // unless you want to expose Node.js APIs to the renderer.
-      // preload: path.join(__dirname, 'preload.js')
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      devTools: true
     },
   });
 
@@ -53,37 +54,38 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(async () => {
-  // On macOS, we need to explicitly ask for camera and microphone permissions.
   if (process.platform === 'darwin') {
-    try {
-      const cameraAccess = await systemPreferences.askForMediaAccess('camera');
-      console.log(`Camera access: ${cameraAccess}`);
-      const micAccess = await systemPreferences.askForMediaAccess('microphone');
-      console.log(`Microphone access: ${micAccess}`);
-    } catch (error) {
-      console.error('Could not get media access', error);
-    }
+    // Check screen recording status
+    const screenStatus = systemPreferences.getMediaAccessStatus('screen');
+    console.log(`Screen access status: ${screenStatus}`);
+
+    // Standard media access
+    await systemPreferences.askForMediaAccess('camera');
+    await systemPreferences.askForMediaAccess('microphone');
   }
 
-  // Handle permission requests for media (camera, microphone)
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     const ourUrl = new URL(startUrl);
-    const requestUrl = new URL(webContents.getURL());
 
-    const allowedPermissions: string[] = ['media', 'camera', 'microphone'];
+    // Ensure 'display-capture' is allowed
+    const allowedPermissions = ['media', 'camera', 'microphone', 'display-capture'];
 
-    if (allowedPermissions.includes(permission) && requestUrl.origin === ourUrl.origin) {
-      callback(true); // Grant permission
+    if (allowedPermissions.includes(permission)) {
+      callback(true);
     } else {
-      callback(false); // Deny other requests
+      callback(false);
     }
+  });
+
+  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+    desktopCapturer.getSources({ types: ['screen', 'window'] }).then((sources) => {
+      // For a quick test, we'll just automatically pick the first available screen.
+      // In a real app, you'd send these sources to your frontend to let the user pick.
+      callback({ video: sources[0] });
+    });
   });
 
   createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
 });
 
 app.on('certificate-error', (event: Event, webContents: WebContents, url: string, error: string, certificate: Certificate, callback: (isTrusted: boolean) => void) => {

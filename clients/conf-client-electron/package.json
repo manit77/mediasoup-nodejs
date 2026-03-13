@@ -8,6 +8,15 @@
     "start": "npm run build && electron .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "build": {
+    "mac": {
+      "extendInfo": {
+        "NSCameraUsageDescription": "This app needs access to the camera.",
+        "NSMicrophoneUsageDescription": "This app needs access to the microphone.",
+        "NSScreenCaptureDescription": "This app needs to help you share your screen."
+      }
+    }
+  },
   "author": "",
   "license": "ISC",
   "devDependencies": {
