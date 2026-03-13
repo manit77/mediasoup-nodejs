@@ -355,13 +355,6 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return errorMsg;
         }
 
-        let participant: Participant = this.createParticipant({
-            username: msgIn.data.username,
-            displayName: msgIn.data.displayName,
-            participantGroup: msgIn.data.participantGroup,
-            conferenceGroup: msgIn.data.conferenceGroup,
-            clientData: msgIn.data.clientData
-        });
 
         let authTokenObject: IAuthPayload;
         authTokenObject = jwtVerify(this.config.conf_secret_key, msgIn.data.authToken) as IAuthPayload;
@@ -371,6 +364,14 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             errorMsg.error = "invalid auth token.";
             return errorMsg;
         }
+
+        let participant: Participant = this.createParticipant({
+            username: msgIn.data.username,
+            displayName: msgIn.data.displayName,
+            participantGroup: msgIn.data.participantGroup,
+            conferenceGroup: msgIn.data.conferenceGroup,
+            clientData: msgIn.data.clientData
+        });
 
         participant.role = authTokenObject.role;
 

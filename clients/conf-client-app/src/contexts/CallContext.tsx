@@ -358,44 +358,20 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     const updateCallParticipants = useCallback(() => {
-        console.warn(`updateCallParticipants`);
-
-        // 1. Grab the external state BEFORE entering the React setter
         const latestParticipants = conferenceClient.conference?.participants;
         if (!latestParticipants) return;
 
         setCallParticipants(prev => {
-            let hasChanges = false;
-            const next = new Map(prev);
+            // Create a new Map to ensure React detects a reference change
+            const next = new Map();
 
-            // 2. Check for additions or updates
-            for (const [id, participant] of latestParticipants.entries()) {
-                const prevParticipant = prev.get(id);
+            latestParticipants.forEach((participant, id) => {
+                // We pass the actual instance. React components should 
+                // handle the internal property changes.
+                next.set(id, participant);
+            });
 
-                if (hasParticipantChanged(prevParticipant, participant)) {
-                    next.set(id, cloneParticipant(participant));
-                    hasChanges = true;
-                    console.warn(`updateCallParticipants - participant ${id} changed.`);
-                } else {
-                    next.set(id, prevParticipant);
-                }
-            }
-
-            // 3. Check for removals
-            for (const id of prev.keys()) {
-                if (!latestParticipants.has(id)) {
-                    next.delete(id);
-                    hasChanges = true;
-                    console.warn(`updateCallParticipants - participant ${id} removed.`);
-                }
-            }
-
-            if (!hasChanges) {
-                console.warn(`updateCallParticipants - no changes.`);
-            }
-
-            // 4. Return previous Map if no changes, otherwise return new Map
-            return hasChanges ? next : prev;
+            return next;
         });
     }, []);
 
@@ -612,7 +588,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     break;
                 }
                 case EventTypes.participantLeft: {
-                    console.log(`CallContext: onParticipantJoined ${msgIn.data.displayName} (${msgIn.data.participantId})`);
+                    console.log(`CallContext: participantLeft ${msgIn.data.displayName} (${msgIn.data.participantId})`);
                     updateCallParticipants();
                     setPresenter(conference.current.presenter);
                     break;
@@ -735,7 +711,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [api, getLocalMedia, inviteInfoSend, isCallActive, ui]);
 
-  
+
     const acceptInvite = useCallback(async (joinMediaConfig: GetUserMediaConfig) => {
         console.warn(`acceptInvite with `, joinMediaConfig);
 

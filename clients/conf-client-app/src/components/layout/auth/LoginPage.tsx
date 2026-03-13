@@ -45,13 +45,13 @@ const LoginPage: React.FC = () => {
         let _participantGroupName = "";
         let _conferenceGroup = "";
 
-        _participantGroup = query.participantGroup || clientData.participantGroup;
+        _participantGroup = query.pg || query.participantGroup || clientData.participantGroup;
         setParticipantGroup(_participantGroup);
 
         _participantGroupName = query.participantGroupName || clientData.participantGroupName;
         setParticipantGroupName(_participantGroupName);
 
-        _conferenceGroup = query.conferenceGroup || clientData.conferenceGroup;
+        _conferenceGroup = query.cg || query.conferenceGroup || clientData.conferenceGroup;
         setConferenceGroup(_conferenceGroup);
 
         if (config.conf_require_participant_group && !_participantGroup) {

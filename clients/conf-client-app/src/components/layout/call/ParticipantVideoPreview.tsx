@@ -34,103 +34,38 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
 
     const localParticipantId = localParticipant.participantId;
 
-    const logVideoDebugSnapshot = useCallback((reason: string, explicitVideoElement?: HTMLVideoElement | null) => {
-        const container = videoContainerRef.current;
-        const videoElement = explicitVideoElement
-            ?? participant.videoEle
-            ?? (container?.querySelector("video") as HTMLVideoElement | null)
-            ?? null;
-
-        const streamFromElement = (videoElement?.srcObject as MediaStream | null) ?? null;
-        const stream = streamFromElement ?? participant.stream ?? null;
-        const videoTracks = stream?.getVideoTracks() ?? [];
-        const audioTracks = stream?.getAudioTracks() ?? [];
-
-        console.log(`[VideoDebug] ${reason}`, {
-            participantId: participant.participantId,
-            displayName: participant.displayName,
-            isLocalParticipant: participant.participantId === localParticipantId,
-            hasContainer: !!container,
-            childCount: container?.children.length ?? 0,
-            hasVideoElement: !!videoElement,
-            hasParticipantVideoElement: !!participant.videoEle,
-            tracksInfo: participant.tracksInfo,
-            elementState: videoElement ? {
-                paused: videoElement.paused,
-                ended: videoElement.ended,
-                readyState: videoElement.readyState,
-                networkState: videoElement.networkState,
-                currentTime: videoElement.currentTime,
-                muted: videoElement.muted,
-                autoplay: videoElement.autoplay,
-                playsInline: videoElement.playsInline,
-                videoWidth: videoElement.videoWidth,
-                videoHeight: videoElement.videoHeight,
-                clientWidth: videoElement.clientWidth,
-                clientHeight: videoElement.clientHeight,
-                srcObjectIsParticipantStream: videoElement.srcObject === participant.stream,
-            } : null,
-            streamState: stream ? {
-                id: stream.id,
-                active: stream.active,
-                videoTrackCount: videoTracks.length,
-                audioTrackCount: audioTracks.length,
-            } : null,
-            videoTracks: videoTracks.map(track => ({
-                id: track.id,
-                label: track.label,
-                enabled: track.enabled,
-                muted: track.muted,
-                readyState: track.readyState,
-            })),
-            audioTracks: audioTracks.map(track => ({
-                id: track.id,
-                label: track.label,
-                enabled: track.enabled,
-                muted: track.muted,
-                readyState: track.readyState,
-            })),
-        });
-    }, [localParticipantId, participant]);
-
     useEffect(() => {
         console.warn(`attach video triggered. ${participant.displayName}`);
+
+        const container = videoContainerRef.current;
+        const video = participant.videoEle;
 
         if (localParticipant.role == "guest") {
             setAllowControls(conference.conferenceConfig.guestsAllowDeviceControls);
         }
 
-        if (!videoContainerRef.current) {
+        if (!container) {
             console.warn(`-- attach video triggered, no videoContainerRef ${participant.displayName}`);
             return;
         }
 
         const attachVideo = () => {
-            if (videoContainerRef.current && participant.videoEle) {
+            if (container && video) {
 
-                //if (participant.videoEle && !participant.videoEle.parentElement) {
-                if (videoContainerRef.current.children.length == 0) {
-                    videoContainerRef.current.appendChild(participant.videoEle);
-                }
-                //}
-
-                // Mute the video element if it belongs to the local user
-                participant.videoEle.muted = localParticipantId === participant.participantId;
-
-                // Assign standard styles
-                Object.assign(participant.videoEle.style, videoStyle);
-
-                // Ensure the srcObject is correctly set
-                if (participant.videoEle.srcObject !== participant.stream) {
-                    participant.videoEle.srcObject = participant.stream;
+                if (container.children.length == 0) {
+                    container.appendChild(video);
                 }
 
-                logVideoDebugSnapshot("attachVideo:element-attached", participant.videoEle);
+                Object.assign(video.style, videoStyle);
+
+                if (video.srcObject !== participant.stream) {
+                    video.srcObject = participant.stream;
+                }
 
                 // Attempt to play the video, catching any errors
-                // participant.videoEle.play().then(() => console.warn(`participant.videoEle playing for ${participant.displayName}`)).catch(err => {
-                //     console.error(`participant.videoEle.play() failed for ${participant.displayName}:`, err);
-                // });
+                video.play().then(() => console.warn(`participant.videoEle playing for ${participant.displayName}`)).catch(err => {
+                    console.error(`participant.videoEle.play() failed for ${participant.displayName}:`, err);
+                });
 
 
             } else {
@@ -140,164 +75,6 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
 
         attachVideo();
 
-        const attachedVideoElement = participant.videoEle
-            ?? (videoContainerRef.current?.querySelector("video") as HTMLVideoElement | null)
-            ?? null;
-
-        const mediaEventNames = [
-            "loadstart",
-            "loadedmetadata",
-            "loadeddata",
-            "canplay",
-            "canplaythrough",
-            "play",
-            "playing",
-            "pause",
-            "waiting",
-            "stalled",
-            "suspend",
-            "seeking",
-            "seeked",
-            "ended",
-            "emptied",
-            "error",
-        ] as const;
-
-        const onMediaDebugEvent = (event: Event) => {
-            const targetVideoElement = event.currentTarget as HTMLVideoElement | null;
-            const eventType = event.type;
-
-            if (eventType === "waiting" || eventType === "stalled" || eventType === "error") {
-                console.warn(`[VideoDebug] media-event:${eventType}`, {
-                    participantId: participant.participantId,
-                    displayName: participant.displayName,
-                    mediaError: targetVideoElement?.error
-                        ? {
-                            code: targetVideoElement.error.code,
-                            message: targetVideoElement.error.message,
-                        }
-                        : null,
-                });
-            } else {
-                console.log(`[VideoDebug] media-event:${eventType}`, {
-                    participantId: participant.participantId,
-                    displayName: participant.displayName,
-                });
-            }
-
-            logVideoDebugSnapshot(`media-event:${eventType}`, targetVideoElement);
-        };
-
-        mediaEventNames.forEach((eventName) => {
-            attachedVideoElement?.addEventListener(eventName, onMediaDebugEvent);
-        });
-
-        const stream = participant.stream ?? null;
-        const videoTracks = stream?.getVideoTracks() ?? [];
-        const audioTracks = stream?.getAudioTracks() ?? [];
-
-        const trackCleanupTasks: Array<() => void> = [];
-
-        const addTrackDebugListeners = (track: MediaStreamTrack, kind: "video" | "audio") => {
-            const onTrackMute = () => {
-                console.warn(`[VideoDebug] ${kind}-track:mute`, {
-                    participantId: participant.participantId,
-                    trackId: track.id,
-                    label: track.label,
-                    readyState: track.readyState,
-                    enabled: track.enabled,
-                    muted: track.muted,
-                });
-            };
-
-            const onTrackUnmute = () => {
-                console.log(`[VideoDebug] ${kind}-track:unmute`, {
-                    participantId: participant.participantId,
-                    trackId: track.id,
-                    label: track.label,
-                    readyState: track.readyState,
-                    enabled: track.enabled,
-                    muted: track.muted,
-                });
-            };
-
-            const onTrackEnded = () => {
-                console.warn(`[VideoDebug] ${kind}-track:ended`, {
-                    participantId: participant.participantId,
-                    trackId: track.id,
-                    label: track.label,
-                    readyState: track.readyState,
-                    enabled: track.enabled,
-                    muted: track.muted,
-                });
-                logVideoDebugSnapshot(`${kind}-track:ended`, attachedVideoElement);
-            };
-
-            track.addEventListener("mute", onTrackMute);
-            track.addEventListener("unmute", onTrackUnmute);
-            track.addEventListener("ended", onTrackEnded);
-
-            trackCleanupTasks.push(() => {
-                track.removeEventListener("mute", onTrackMute);
-                track.removeEventListener("unmute", onTrackUnmute);
-                track.removeEventListener("ended", onTrackEnded);
-            });
-        };
-
-        videoTracks.forEach((track) => addTrackDebugListeners(track, "video"));
-        audioTracks.forEach((track) => addTrackDebugListeners(track, "audio"));
-
-        const onStreamAddTrack = (event: MediaStreamTrackEvent) => {
-            console.log("[VideoDebug] stream:addtrack", {
-                participantId: participant.participantId,
-                displayName: participant.displayName,
-                kind: event.track.kind,
-                trackId: event.track.id,
-                label: event.track.label,
-            });
-            logVideoDebugSnapshot("stream:addtrack", attachedVideoElement);
-        };
-
-        const onStreamRemoveTrack = (event: MediaStreamTrackEvent) => {
-            console.warn("[VideoDebug] stream:removetrack", {
-                participantId: participant.participantId,
-                displayName: participant.displayName,
-                kind: event.track.kind,
-                trackId: event.track.id,
-                label: event.track.label,
-            });
-            logVideoDebugSnapshot("stream:removetrack", attachedVideoElement);
-        };
-
-        stream?.addEventListener("addtrack", onStreamAddTrack);
-        stream?.addEventListener("removetrack", onStreamRemoveTrack);
-
-        let lastCurrentTime = attachedVideoElement?.currentTime ?? -1;
-        const stallWatchIntervalId = window.setInterval(() => {
-            if (!attachedVideoElement) {
-                return;
-            }
-
-            const isPossiblyStalled =
-                !attachedVideoElement.paused &&
-                !attachedVideoElement.ended &&
-                attachedVideoElement.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
-                attachedVideoElement.currentTime === lastCurrentTime;
-
-            if (isPossiblyStalled) {
-                console.warn("[VideoDebug] interval:possible-stall", {
-                    participantId: participant.participantId,
-                    displayName: participant.displayName,
-                    currentTime: attachedVideoElement.currentTime,
-                    readyState: attachedVideoElement.readyState,
-                    networkState: attachedVideoElement.networkState,
-                });
-                logVideoDebugSnapshot("interval:possible-stall", attachedVideoElement);
-            }
-
-            lastCurrentTime = attachedVideoElement.currentTime;
-        }, 3000);
-
         setAudioEnabled(participant.tracksInfo.isAudioEnabled);
         setVideoEnabled(participant.tracksInfo.isVideoEnabled);
 
@@ -305,20 +82,9 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
         // This removes the video element to prevent it from playing in the background
         return () => {
             console.warn(`dispose video triggered.`);
-            mediaEventNames.forEach((eventName) => {
-                attachedVideoElement?.removeEventListener(eventName, onMediaDebugEvent);
-            });
-
-            trackCleanupTasks.forEach((cleanup) => cleanup());
-
-            stream?.removeEventListener("addtrack", onStreamAddTrack);
-            stream?.removeEventListener("removetrack", onStreamRemoveTrack);
-
-            window.clearInterval(stallWatchIntervalId);
-
-            // if (videoContainerRef.current && participant.videoEle && videoContainerRef.current.contains(participant.videoEle)) {
-            //     videoContainerRef.current.removeChild(participant.videoEle);
-            // }
+            if (video.parentNode === container) {
+                container.removeChild(video);
+            }
         };
 
     }, []);
@@ -497,94 +263,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
             const isAudioEnabled = participant.stream.getAudioTracks()[0]?.enabled ?? false;
             muteParticipantTrack(participant.participantId, !isAudioEnabled, !newEnabled);
         }
-    }, []);  
-
-    const onVideoContainerDebugClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-        const container = videoContainerRef.current;
-        const clickedTarget = event.target as HTMLElement | null;
-
-        let videoElement: HTMLVideoElement | null = null;
-        if (clickedTarget instanceof HTMLVideoElement) {
-            videoElement = clickedTarget;
-        } else if (container) {
-            videoElement = container.querySelector("video");
-        }
-
-        if (!videoElement && participant.videoEle) {
-            videoElement = participant.videoEle;
-        }
-
-        const streamFromElement = (videoElement?.srcObject as MediaStream | null) ?? null;
-        const stream = streamFromElement ?? participant.stream ?? null;
-        const videoTracks = stream?.getVideoTracks() ?? [];
-        const audioTracks = stream?.getAudioTracks() ?? [];
-
-        console.groupCollapsed(`[VideoDebug] click participant=${participant.displayName} id=${participant.participantId}`);
-        console.log("clicked target", {
-            tagName: clickedTarget?.tagName,
-            className: clickedTarget?.className,
-        });
-        console.log("container", {
-            hasContainer: !!container,
-            childCount: container?.children.length,
-        });
-        console.log("participant", {
-            isLocalParticipant: participant.participantId === localParticipantId,
-            tracksInfo: participant.tracksInfo,
-            hasParticipantStream: !!participant.stream,
-            hasParticipantVideoElement: !!participant.videoEle,
-        });
-        console.log("video element", videoElement ? {
-            paused: videoElement.paused,
-            ended: videoElement.ended,
-            readyState: videoElement.readyState,
-            networkState: videoElement.networkState,
-            currentTime: videoElement.currentTime,
-            muted: videoElement.muted,
-            volume: videoElement.volume,
-            autoplay: videoElement.autoplay,
-            playsInline: videoElement.playsInline,
-            videoWidth: videoElement.videoWidth,
-            videoHeight: videoElement.videoHeight,
-            clientWidth: videoElement.clientWidth,
-            clientHeight: videoElement.clientHeight,
-            srcObjectIsParticipantStream: videoElement.srcObject === participant.stream,
-        } : "video element not found");
-        console.log("stream", stream ? {
-            id: stream.id,
-            active: stream.active,
-            videoTrackCount: videoTracks.length,
-            audioTrackCount: audioTracks.length,
-        } : "stream not found");
-        console.log("video tracks", videoTracks.map(track => ({
-            id: track.id,
-            label: track.label,
-            enabled: track.enabled,
-            muted: track.muted,
-            readyState: track.readyState,
-        })));
-        console.log("audio tracks", audioTracks.map(track => ({
-            id: track.id,
-            label: track.label,
-            enabled: track.enabled,
-            muted: track.muted,
-            readyState: track.readyState,
-        })));
-
-        if (videoElement && videoElement.paused) {
-            videoElement.play()
-                .then(() => {
-                    console.log("videoElement.play() succeeded from click", {
-                        participantId: participant.participantId,
-                    });
-                })
-                .catch((err) => {
-                    console.error("videoElement.play() failed from click", err);
-                });
-        }
-
-        console.groupEnd();
-    }, [localParticipantId, participant]);
+    }, []);
 
     return (
         <Card
@@ -596,7 +275,6 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
                 <div
                     ref={videoContainerRef}
                     className={styles.videoContainer}
-                    onClick={onVideoContainerDebugClick}
                 />
 
                 {!videoEnabled && (
@@ -613,7 +291,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
                     {participant.displayName}{" "}
                     {localParticipant.participantId === participant.participantId && '(You)'}
                 </small>
-                
+
                 <div className={styles.buttonGroup}>
                     <ThrottledButton
                         onClick={onAudioClick}
@@ -621,7 +299,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
                     >
                         {audioEnabled ? <MicFill color="lightgreen" /> : <MicMuteFill color="red" />}
                     </ThrottledButton>
-                    
+
                     <ThrottledButton
                         onClick={onVideoClick}
                         className={styles.throttledBtn}

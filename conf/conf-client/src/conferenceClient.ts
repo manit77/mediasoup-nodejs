@@ -217,8 +217,12 @@ export class ConferenceClient {
     }
 
     private async waitForMessage(messageType: string, timeoutMs: number): Promise<IMsg> {
-        // This assumes the underlying WebSocketClient has a `waitFor` method that returns the next message.
-        while (true) {
+        if(!this.socket) {
+            console.error("socket is null");
+            return null;
+        }
+
+        while (true) {            
             let msg: IMsg = await this.socket.waitFor(timeoutMs);
             if (msg && msg.type && msg.type === messageType) {
                 return msg;
