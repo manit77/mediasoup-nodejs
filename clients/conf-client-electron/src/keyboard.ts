@@ -1,6 +1,7 @@
 import { ipcRenderer } from 'electron';
 import Keyboard from 'simple-keyboard';
 import { layouts, supportedLanguages } from './keyboardLayout';
+import { ipcCommands } from './models';
 
 document.addEventListener('DOMContentLoaded', () => {
   // Start with keyboard hidden; toolbar button should say "Show keyboard"
@@ -8,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Track current layout (default/shift) for simple-keyboard
   let layoutName: 'default' | 'shift' = 'default';
+  let keyboardEnabled = true;
 
   const keyboard = new Keyboard({
     layout: layouts.en,
@@ -32,28 +34,28 @@ document.addEventListener('DOMContentLoaded', () => {
       // Map simple-keyboard buttons to the keys our main process expects
       switch (button) {
         case '{enter}':
-          ipcRenderer.send('key-press', 'Enter');
+          ipcRenderer.send(ipcCommands.keyPress, 'Enter');
           break;
         case '{bksp}':
-          ipcRenderer.send('key-press', 'Backspace');
+          ipcRenderer.send(ipcCommands.keyPress, 'Backspace');
           break;
         case '{space}':
-          ipcRenderer.send('key-press', ' ');
+          ipcRenderer.send(ipcCommands.keyPress, ' ');
           break;
         case '{tab}':
-          ipcRenderer.send('key-press', 'Tab');
+          ipcRenderer.send(ipcCommands.keyPress, 'Tab');
           break;
         default:
           // Regular character keys
-          ipcRenderer.send('key-press', button);
+          ipcRenderer.send(ipcCommands.keyPress, button);
           break;
       }
     },
   });
 
   // Report user activity for idle timeout (clicks/touches on keyboard view)
-  document.addEventListener('click', () => ipcRenderer.send('user-activity'));
-  document.addEventListener('touchstart', () => ipcRenderer.send('user-activity'));
+  document.addEventListener('click', () => ipcRenderer.send(ipcCommands.userActivity));
+  document.addEventListener('touchstart', () => ipcRenderer.send(ipcCommands.userActivity));
 
   // Toolbar buttons
   const homeBtn = document.getElementById('btn-home');
@@ -88,21 +90,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   homeBtn?.addEventListener('click', () => {
-    ipcRenderer.send('go-home');
+    ipcRenderer.send(ipcCommands.goHome);
   });
 
   toggleBtn?.addEventListener('click', () => {
     // Toggle keyboard visibility via main process
     if (isVisible) {
-      ipcRenderer.send('hide-keyboard');
+      ipcRenderer.send(ipcCommands.hideKeyboard);
     } else {
-      ipcRenderer.send('show-keyboard');
+      ipcRenderer.send(ipcCommands.showKeyboard);
     }
   });
 
   languageBtn?.addEventListener('click', () => {
+    // When keyboard is disabled, language changes should be blocked
+    if (!keyboardEnabled) {
+      return;
+    }
     // Ensure keyboard is shown when changing language
-    ipcRenderer.send('show-keyboard');
+    ipcRenderer.send(ipcCommands.showKeyboard);
     languagePopup?.classList.add('visible');
   });
 
@@ -133,5 +139,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toggleLabel) {
       toggleLabel.textContent = visible ? 'Hide keyboard' : 'Show keyboard';
     }
+  });
+
+  // Track enabled/disabled state pushed from main
+  ipcRenderer.on('keyboard-enabled', (_event, enabled: boolean) => {
+    keyboardEnabled = enabled;
   });
 });

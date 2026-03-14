@@ -5,7 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "postbuild": "cp ./src/config.json ./dist/config.json && cp ./src/keyboard.html ./dist/keyboard.html && cp ./src/error.html ./dist/error.html && cp ../../node_modules/simple-keyboard/build/css/index.css ./dist/simple-keyboard.css || true",
+    "postbuild": "cp ./src/config.json ./dist/config.json && cp ./src/*.html ./dist/ && cp ../../node_modules/simple-keyboard/build/css/index.css ./dist/simple-keyboard.css || true",
     "start": "npm run build && electron .",
     "dist": "npm run build && npx electron-builder",
     "dist:mac": "npm run build && npx electron-builder --mac",

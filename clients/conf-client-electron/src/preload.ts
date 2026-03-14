@@ -1,38 +1,59 @@
 import { ipcRenderer } from 'electron';
+import { ipcCommands } from './models';
 
 // Expose keyboard control and reload to the hosted web app
 declare global {
   interface Window {
-    electronKeyboard?: {
+    electron?: {
       hideKeyboard: () => void;
       showKeyboard: () => void;
       disableKeyboard: () => void;
-      enableKeyboard: () => void;
-    };
-    electronReload?: {
-      reload: () => void;
+      enableKeyboard: () => void;   
+      goHome: () => void;
     };
   }
 }
 
-window.electronKeyboard = {
-  hideKeyboard: () => ipcRenderer.send('hide-keyboard'),
-  showKeyboard: () => ipcRenderer.send('show-keyboard'),
-  disableKeyboard: () => ipcRenderer.send('disable-keyboard'),
-  enableKeyboard: () => ipcRenderer.send('enable-keyboard'),
-};
-
-window.electronReload = {
-  reload: () => ipcRenderer.send('go-home'),
+window.electron = {
+  hideKeyboard: () => ipcRenderer.send(ipcCommands.hideKeyboard),
+  showKeyboard: () => ipcRenderer.send(ipcCommands.showKeyboard),
+  disableKeyboard: () => ipcRenderer.send(ipcCommands.disableKeyboard),
+  enableKeyboard: () => ipcRenderer.send(ipcCommands.enableKeyboard),
+  goHome: () => ipcRenderer.send(ipcCommands.goHome),
 };
 
 function reportUserActivity() {
-  ipcRenderer.send('user-activity');
+  ipcRenderer.send(ipcCommands.userActivity);
 }
 window.addEventListener('click', reportUserActivity);
 window.addEventListener('touchstart', reportUserActivity);
 window.addEventListener('mousedown', reportUserActivity);
 window.addEventListener('keydown', reportUserActivity);
+
+// Block copy/paste and context menu inside the hosted web app
+window.addEventListener('copy', (event) => {
+  event.preventDefault();
+});
+window.addEventListener('cut', (event) => {
+  event.preventDefault();
+});
+window.addEventListener('paste', (event) => {
+  event.preventDefault();
+});
+window.addEventListener('contextmenu', (event) => {
+  event.preventDefault();
+});
+
+// Block file uploads (input[type=file]) inside the hosted web app
+window.addEventListener('click', (event) => {
+  const target = event.target as HTMLElement | null;
+  if (!target) return;
+  const input = target.closest('input[type=\"file\"]') as HTMLInputElement | null;
+  if (input) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+}, true);
 
 const INPUT_TAGS = ['INPUT', 'TEXTAREA'];
 
@@ -40,6 +61,6 @@ window.addEventListener('focusin', (event) => {
   const target = event.target as HTMLElement;
   if (target && INPUT_TAGS.includes(target.tagName)) {
     console.log('Focus on input detected, showing keyboard.');
-    ipcRenderer.send('show-keyboard');
+    ipcRenderer.send(ipcCommands.showKeyboard);
   }
 });

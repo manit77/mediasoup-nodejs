@@ -1,32 +1,17 @@
 import { app, BrowserWindow, ipcMain, systemPreferences, session, BrowserView, Certificate, Event, WebContents, desktopCapturer } from 'electron';
 import * as path from 'path';
+import { KEYBOARD_HEIGHT, KEYBOARD_TOOLBAR_HEIGHT } from './keyboardLayout';
+import {  AppConfig, ipcCommands } from './models';
+import * as file from 'fs';
+import { loadConfig } from './config';
 
-// --- Configuration ---
-interface AppConfig {
-  startUrl: string;
+let config: AppConfig = loadConfig();
+if (!config.startUrl) {
+  config.startUrl = 'error_noconfig.html';
 }
 
-let startUrl: string = "https://192.168.40.43:3000/login"; // Hardcoded default
-
-try {
-  // In the built app, __dirname points to dist where config.json is emitted.
-  // During development, this still resolves correctly when running from dist.
-  const configPath = path.join(__dirname, 'config.json');
-  const config: AppConfig = require(configPath) as AppConfig;
-  startUrl = config.startUrl;
-} catch (error) {
-  console.error('Could not load config.json. Falling back to default.', error);
-}
-
-// Use environment variable if available
-startUrl = process.env.ELECTRON_START_URL || startUrl;
-
-
-const KEYBOARD_HEIGHT = 270; // total height for toolbar + keyboard
-const KEYBOARD_TOOLBAR_HEIGHT = 40;
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const IDLE_CHECK_INTERVAL_MS = 60 * 1000; // check every minute
-
 let isKeyboardVisible = false;
 let keyboardEnabled = true;
 let mainWindow: BrowserWindow | null = null;
@@ -34,6 +19,21 @@ let remoteView: BrowserView | null = null;
 let keyboardView: BrowserView | null = null;
 let lastActivityTime = Date.now();
 let idleCheckInterval: NodeJS.Timeout | null = null;
+
+function loadStartTarget(): void {
+  if (!remoteView) return;
+  const target = config.startUrl;
+
+  // Treat http/https as remote URLs, everything else as a local file path
+  if (/^https?:\/\//i.test(target)) {
+    remoteView.webContents.loadURL(target);
+  } else {
+    const filePath = path.isAbsolute(target)
+      ? target
+      : path.join(__dirname, target);
+    remoteView.webContents.loadFile(filePath);
+  }
+}
 
 function resetIdleTimer(): void {
   lastActivityTime = Date.now();
@@ -43,7 +43,7 @@ function startIdleCheck(): void {
   if (idleCheckInterval) return;
   idleCheckInterval = setInterval(() => {
     if (Date.now() - lastActivityTime >= IDLE_TIMEOUT_MS) {
-      remoteView?.webContents.loadURL(startUrl);
+      loadStartTarget();
       resetIdleTimer();
     }
   }, IDLE_CHECK_INTERVAL_MS);
@@ -106,9 +106,8 @@ function createWindow(): void {
     remoteView?.webContents.loadFile(errorPath);
   });
 
-  remoteView.webContents.loadURL(startUrl);
+  loadStartTarget();
   //remoteView.webContents.openDevTools();
-
 
   // --- Keyboard View ---
   keyboardView = new BrowserView({
@@ -137,6 +136,10 @@ function createWindow(): void {
 
   const onBeforeInput = (event: Electron.Event, input: Electron.Input) => {
     resetIdleTimer();
+    // Only allow F12 DevTools toggle when explicitly enabled in config/env
+    if (!config.enableJSConsole) {
+      return;
+    }
     if (input.key.toLowerCase() === 'f12' && input.type === 'keyDown') {
       event.preventDefault();
       remoteView?.webContents.toggleDevTools();
@@ -146,40 +149,42 @@ function createWindow(): void {
   remoteView.webContents.on('before-input-event', onBeforeInput);
   keyboardView.webContents.on('before-input-event', onBeforeInput);
 
-  ipcMain.on('user-activity', resetIdleTimer);
+  ipcMain.on(ipcCommands.userActivity, resetIdleTimer);
 
   startIdleCheck();
 
   ipcMain.on('go-home', () => {
-    remoteView?.webContents.loadURL(startUrl);
+    loadStartTarget();
   });
 
   // --- IPC Handlers from Views ---
 
-  ipcMain.on('show-keyboard', () => {
+  ipcMain.on(ipcCommands.showKeyboard, () => {
     console.log('IPC: show-keyboard');
     if (keyboardEnabled) {
       updateLayout(true);
     }
   });
 
-  ipcMain.on('hide-keyboard', () => {
+  ipcMain.on(ipcCommands.hideKeyboard, () => {    
     console.log('IPC: hide-keyboard');
     updateLayout(false);
   });
 
-  ipcMain.on('disable-keyboard', () => {
+  ipcMain.on(ipcCommands.disableKeyboard, () => {
     console.log('IPC: disable-keyboard');
     keyboardEnabled = false;
     updateLayout(false);
+    keyboardView?.webContents.send('keyboard-enabled', false);
   });
 
-  ipcMain.on('enable-keyboard', () => {
+  ipcMain.on(ipcCommands.enableKeyboard, () => {
     console.log('IPC: enable-keyboard');
     keyboardEnabled = true;
+    keyboardView?.webContents.send('keyboard-enabled', true);
   });
 
-  ipcMain.on('key-press', (_event, key) => {
+  ipcMain.on(ipcCommands.keyPress, (_event, key) => {
     if (remoteView && remoteView.webContents) {
       console.log(`Forwarding key: ${key}`);
       remoteView.webContents.focus();

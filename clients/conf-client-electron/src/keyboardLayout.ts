@@ -1,5 +1,8 @@
 export type KeyboardLayouts = Record<string, any>;
 
+export const KEYBOARD_HEIGHT = 270; // total height for toolbar + keyboard
+export const KEYBOARD_TOOLBAR_HEIGHT = 40;
+
 // Languages exposed in the UI language picker
 export const supportedLanguages: Array<{
   code: string;
