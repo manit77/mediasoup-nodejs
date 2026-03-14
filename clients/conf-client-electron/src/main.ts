@@ -24,11 +24,30 @@ startUrl = process.env.ELECTRON_START_URL || startUrl;
 
 const KEYBOARD_HEIGHT = 270; // total height for toolbar + keyboard
 const KEYBOARD_TOOLBAR_HEIGHT = 40;
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const IDLE_CHECK_INTERVAL_MS = 60 * 1000; // check every minute
+
 let isKeyboardVisible = false;
 let keyboardEnabled = true;
 let mainWindow: BrowserWindow | null = null;
 let remoteView: BrowserView | null = null;
 let keyboardView: BrowserView | null = null;
+let lastActivityTime = Date.now();
+let idleCheckInterval: NodeJS.Timeout | null = null;
+
+function resetIdleTimer(): void {
+  lastActivityTime = Date.now();
+}
+
+function startIdleCheck(): void {
+  if (idleCheckInterval) return;
+  idleCheckInterval = setInterval(() => {
+    if (Date.now() - lastActivityTime >= IDLE_TIMEOUT_MS) {
+      remoteView?.webContents.loadURL(startUrl);
+      resetIdleTimer();
+    }
+  }, IDLE_CHECK_INTERVAL_MS);
+}
 
 function updateLayout(showKeyboard: boolean) {
   if (!mainWindow || !remoteView || !keyboardView) {
@@ -54,7 +73,6 @@ function updateLayout(showKeyboard: boolean) {
   keyboardView.webContents.send('keyboard-visibility', showKeyboard);
 }
 
-
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -77,8 +95,18 @@ function createWindow(): void {
     }
   });
   mainWindow.addBrowserView(remoteView);
+
+  // Show custom error page when the site cannot be reached (main frame only)
+  remoteView.webContents.on('did-fail-load', (_event, errorCode, _errorDescription, _validatedURL, isMainFrame) => {
+    if (!isMainFrame) return;
+    // -3 = ABORTED (e.g. user navigated away); show error for actual network failures
+    if (errorCode === -3) return;
+    const errorPath = path.join(__dirname, 'error.html');
+    remoteView?.webContents.loadFile(errorPath);
+  });
+
   remoteView.webContents.loadURL(startUrl);
-  remoteView.webContents.openDevTools();
+  //remoteView.webContents.openDevTools();
 
 
   // --- Keyboard View ---
@@ -93,7 +121,7 @@ function createWindow(): void {
   // In the built app, __dirname points to dist, where keyboard.html is emitted
   const keyboardPath = path.join(__dirname, 'keyboard.html');
   keyboardView.webContents.loadFile(keyboardPath);
-  keyboardView.webContents.openDevTools();
+  //keyboardView.webContents.openDevTools();
 
   // --- Initial Layout ---
   updateLayout(false); // Initially show only toolbar (keyboard hidden)
@@ -106,13 +134,20 @@ function createWindow(): void {
     }
   });
 
-  mainWindow.webContents.on('before-input-event', (event, input) => {
+  const onBeforeInput = (event: Electron.Event, input: Electron.Input) => {
+    resetIdleTimer();
     if (input.key.toLowerCase() === 'f12' && input.type === 'keyDown') {
       event.preventDefault();
       remoteView?.webContents.toggleDevTools();
       keyboardView?.webContents.toggleDevTools();
     }
-  });
+  };
+  remoteView.webContents.on('before-input-event', onBeforeInput);
+  keyboardView.webContents.on('before-input-event', onBeforeInput);
+
+  ipcMain.on('user-activity', resetIdleTimer);
+
+  startIdleCheck();
 
   ipcMain.on('go-home', () => {
     remoteView?.webContents.loadURL(startUrl);

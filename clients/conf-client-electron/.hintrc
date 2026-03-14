@@ -8,6 +8,7 @@
       {
         "html-has-lang": "off"
       }
-    ]
+    ],
+    "typescript-config/strict": "off"
   }
 }

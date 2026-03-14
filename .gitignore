@@ -74,9 +74,12 @@ recordings/
 bin/
 
 dist/
+release/
+
 *.tsbuildinfo
 
 *.env*.json
 deploy/
+
 
 config.json

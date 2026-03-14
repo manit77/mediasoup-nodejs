@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connection error</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #1a1a1a;
+      color: #e5e5e5;
+      padding: 24px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 0 0 8px 0;
+      color: #fafafa;
+    }
+    p {
+      margin: 0 0 24px 0;
+      color: #a3a3a3;
+      max-width: 360px;
+    }
+    button {
+      padding: 10px 24px;
+      font-size: 1rem;
+      font-weight: 500;
+      color: #fff;
+      background: #3b82f6;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+  </style>
+</head>
+<body>
+  <h1>This site can't be reached</h1>
+  <p>The connection to the server may be down or the address may be wrong.</p>
+  <button type="button" id="reload-btn">Reload</button>
+  <script>
+    document.getElementById('reload-btn').addEventListener('click', function () {
+      if (window.electronReload && typeof window.electronReload.reload === 'function') {
+        window.electronReload.reload();
+      }
+    });
+  </script>
+</body>
+</html>

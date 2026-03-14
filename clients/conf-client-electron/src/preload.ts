@@ -1,6 +1,6 @@
 import { ipcRenderer } from 'electron';
 
-// Expose keyboard control to the hosted web app (e.g. window.electronKeyboard.showKeyboard())
+// Expose keyboard control and reload to the hosted web app
 declare global {
   interface Window {
     electronKeyboard?: {
@@ -8,6 +8,9 @@ declare global {
       showKeyboard: () => void;
       disableKeyboard: () => void;
       enableKeyboard: () => void;
+    };
+    electronReload?: {
+      reload: () => void;
     };
   }
 }
@@ -18,6 +21,18 @@ window.electronKeyboard = {
   disableKeyboard: () => ipcRenderer.send('disable-keyboard'),
   enableKeyboard: () => ipcRenderer.send('enable-keyboard'),
 };
+
+window.electronReload = {
+  reload: () => ipcRenderer.send('go-home'),
+};
+
+function reportUserActivity() {
+  ipcRenderer.send('user-activity');
+}
+window.addEventListener('click', reportUserActivity);
+window.addEventListener('touchstart', reportUserActivity);
+window.addEventListener('mousedown', reportUserActivity);
+window.addEventListener('keydown', reportUserActivity);
 
 const INPUT_TAGS = ['INPUT', 'TEXTAREA'];
 

@@ -55,7 +55,7 @@ export const layouts: KeyboardLayouts = {
   fr: {  // Standard AZERTY (France) - most common
     default: [
       "& é \" ' ( § è ! ç à ) - {bksp}",
-      "a z e r t y u i o p ^ $",
+      "{tab} a z e r t y u i o p ^ $",
       "q s d f g h j k l m ù *",
       "{shift} < w x c v b n , ; : ! {bksp}",
       "@ {space} {enter}"
@@ -89,7 +89,7 @@ export const layouts: KeyboardLayouts = {
   ru: {
     default: [
       "1 2 3 4 5 6 7 8 9 0 {bksp}",
-      "й ц у к е н г ш щ з х ъ",
+      "{tab} й ц у к е н г ш щ з х ъ",
       "ф ы в а п р о л д ж э",
       "{shift} я ч с м и т ь б ю .",
       "@ {space} {enter}"
@@ -106,7 +106,7 @@ export const layouts: KeyboardLayouts = {
   ar: {  // Standard Arabic (101) - right-to-left visual order
     default: [
       "1 2 3 4 5 6 7 8 9 0 - = {bksp}",
-      "ض ص ث ق ف غ ع ه خ ح ج د",
+      "{tab} ض ص ث ق ف غ ع ه خ ح ج د",
       "ش س ي ب ل ا ت ن م ك ط",
       "{shift} ئ ء ؤ ر لا ى ة و ز ظ {bksp}",
       "@ {space} {enter}"
@@ -157,7 +157,7 @@ export const layouts: KeyboardLayouts = {
   ko: {  // Standard Dubeolsik (most common in South Korea)
     default: [
       "1 2 3 4 5 6 7 8 9 0 - = {bksp}",
-      "ㅂ ㅈ ㄷ ㄱ ㅅ ㅛ ㅕ ㅑ ㅐ ㅔ",
+      "{tab} ㅂ ㅈ ㄷ ㄱ ㅅ ㅛ ㅕ ㅑ ㅐ ㅔ",
       "ㅁ ㄴ ㅇ ㄹ ㅎ ㅗ ㅓ ㅏ ㅣ",
       "{shift} ㅋ ㅌ ㅊ ㅍ ㅠ ㅜ ㅡ , . /",
       "@ {space} {enter}"

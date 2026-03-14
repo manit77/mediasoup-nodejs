@@ -5,23 +5,38 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "postbuild": "cp ./src/config.json ./dist/config.json && cp ./src/keyboard.html ./dist/keyboard.html && cp ../../node_modules/simple-keyboard/build/css/index.css ./dist/simple-keyboard.css || true",
+    "postbuild": "cp ./src/config.json ./dist/config.json && cp ./src/keyboard.html ./dist/keyboard.html && cp ./src/error.html ./dist/error.html && cp ../../node_modules/simple-keyboard/build/css/index.css ./dist/simple-keyboard.css || true",
     "start": "npm run build && electron .",
+    "dist": "npm run build && npx electron-builder",
+    "dist:mac": "npm run build && npx electron-builder --mac",
+    "dist:win": "npm run build && npx electron-builder --win",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "build": {
+    "appId": "com.conference.client",
+    "productName": "Conference Client",
+    "electronVersion": "29.1.5",
+    "directories": {
+      "output": "release"
+    },
     "mac": {
+      "category": "public.app-category.utilities",
       "extendInfo": {
         "NSCameraUsageDescription": "This app needs access to the camera.",
         "NSMicrophoneUsageDescription": "This app needs access to the microphone.",
         "NSScreenCaptureDescription": "This app needs to help you share your screen."
       }
+    },
+    "win": {
+      "target": ["nsis", "portable"]
     }
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "electron": "^29.1.5",
+    "7zip-bin": "^5.1.1",
+    "electron": "29.1.5",
+    "electron-builder": "^24.13.3",
     "typescript": "^5.4.5"
   },
   "dependencies": {

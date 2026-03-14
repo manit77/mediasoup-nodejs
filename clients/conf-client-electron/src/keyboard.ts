@@ -51,6 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
     },
   });
 
+  // Report user activity for idle timeout (clicks/touches on keyboard view)
+  document.addEventListener('click', () => ipcRenderer.send('user-activity'));
+  document.addEventListener('touchstart', () => ipcRenderer.send('user-activity'));
+
   // Toolbar buttons
   const homeBtn = document.getElementById('btn-home');
   const toggleBtn = document.getElementById('btn-toggle-keyboard') as HTMLButtonElement | null;
