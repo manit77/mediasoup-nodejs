@@ -184,6 +184,16 @@ function createWindow(): void {
     keyboardView?.webContents.send('keyboard-enabled', true);
   });
 
+  ipcMain.on(ipcCommands.reloadConfig, () => {
+    console.log('IPC: reload-config');
+    // Reload configuration from disk/env and go back to the new startUrl
+    config = loadConfig();
+    if (!config.startUrl) {
+      config.startUrl = 'error_noconfig.html';
+    }
+    loadStartTarget();
+  });
+
   ipcMain.on(ipcCommands.keyPress, (_event, key) => {
     if (remoteView && remoteView.webContents) {
       console.log(`Forwarding key: ${key}`);

@@ -60,6 +60,13 @@
         window.electron.goHome();
       }
     });
+
+    // Periodically try to go home in case connectivity is restored
+    setInterval(function () {
+      if (window.electron && typeof window.electron.goHome === 'function') {
+        window.electron.goHome();
+      }
+    }, 5 * 60 * 1000); // every 5 minutes
   </script>
 </body>
 </html>

@@ -17,7 +17,8 @@ export enum ipcCommands {
   enableKeyboard = "enable-keyboard",
   goHome = "go-home",
   userActivity = "user-activity",
-  keyPress = "key-press"
+  keyPress = "key-press",
+  reloadConfig = "reload-config"
 }
 
 

@@ -53,5 +53,20 @@
 <body>
   <h1>Config Erorr</h1>
   <p>The config file is missing or corrupted.</p> 
+  <button type="button" id="reload-config-btn">Reload config</button>
+  <script>
+    document.getElementById('reload-config-btn').addEventListener('click', function () {
+      if (window.electron && typeof window.electron.reloadConfig === 'function') {
+        window.electron.reloadConfig();
+      }
+    });
+
+    // Periodically try to reload configuration in case the file appears later
+    setInterval(function () {
+      if (window.electron && typeof window.electron.reloadConfig === 'function') {
+        window.electron.reloadConfig();
+      }
+    }, 5 * 60 * 1000); // every 5 minutes
+  </script>
 </body>
 </html>

@@ -10,6 +10,7 @@ declare global {
       disableKeyboard: () => void;
       enableKeyboard: () => void;   
       goHome: () => void;
+      reloadConfig: () => void;
     };
   }
 }
@@ -20,6 +21,7 @@ window.electron = {
   disableKeyboard: () => ipcRenderer.send(ipcCommands.disableKeyboard),
   enableKeyboard: () => ipcRenderer.send(ipcCommands.enableKeyboard),
   goHome: () => ipcRenderer.send(ipcCommands.goHome),
+  reloadConfig: () => ipcRenderer.send(ipcCommands.reloadConfig),
 };
 
 function reportUserActivity() {

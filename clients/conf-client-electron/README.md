@@ -59,10 +59,30 @@ npm run dist
 
 To build for Mac and Windows from one machine, run `npm run dist:mac` and `npm run dist:win` (Windows build may require Wine on non-Windows hosts for full support).
 
-## Configuration
+## Configuration (AppConfig)
 
-- **`src/config.json`** — `startUrl`: URL of the conference web app (e.g. `https://host:3000/login`). The built app uses `dist/config.json`.
-- **Environment:** `ELECTRON_START_URL` overrides the configured start URL when set.
+The app is configured via **`config.json`** (built app uses `dist/config.json`) and optional **environment variables**. Environment values override the config file when set.
+
+| Field | Type | Description | Config key | Env override |
+|-------|------|-------------|------------|--------------|
+| `startUrl` | string | URL or path to load in the main webview (e.g. `https://host:3000/login` or a local file like `test.html`). | `startUrl` | `KIOSK_START_URL` |
+| `enableJSConsole` | boolean | When `true`, F12 toggles DevTools for the remote and keyboard views. Default: `false`. | `enableJSConsole` | `KIOSK_ENABLE_JSCONSOLE` (`1`, `true`, `yes` = true) |
+
+### Example config.json
+
+```json
+{
+  "startUrl": "https://example.com/app",
+  "enableJSConsole": false
+}
+```
+
+To enable the JS console via environment only (e.g. for debugging):
+
+```bash
+export KIOSK_ENABLE_JSCONSOLE=true
+npm run start
+```
 
 ## Architecture
 
