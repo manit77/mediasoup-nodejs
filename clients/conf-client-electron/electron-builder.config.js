@@ -3,7 +3,7 @@
  */
 module.exports = {
   appId: process.env.APP_ID || "us.visitel.kiosk",
-  productName: "Conference Client",
+  productName: "ConferenceClient",
   electronVersion: "29.1.5",
   directories: {
     output: "release", // This will stop the 'dist' folder collision

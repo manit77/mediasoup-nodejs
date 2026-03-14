@@ -13,7 +13,7 @@ if (!config.startUrl) {
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const IDLE_CHECK_INTERVAL_MS = 60 * 1000; // check every minute
 let isKeyboardVisible = false;
-let keyboardEnabled = true;
+let keyboardEnabled = config.enableKeyboard ?? false;
 let mainWindow: BrowserWindow | null = null;
 let remoteView: BrowserView | null = null;
 let keyboardView: BrowserView | null = null;
@@ -40,7 +40,9 @@ function resetIdleTimer(): void {
 }
 
 function startIdleCheck(): void {
-  if (idleCheckInterval) return;
+  if (idleCheckInterval) 
+    clearInterval(idleCheckInterval);
+
   idleCheckInterval = setInterval(() => {
     if (Date.now() - lastActivityTime >= IDLE_TIMEOUT_MS) {
       loadStartTarget();
@@ -50,11 +52,18 @@ function startIdleCheck(): void {
 }
 
 function updateLayout(showKeyboard: boolean) {
-  if (!mainWindow || !remoteView || !keyboardView) {
+  if (!mainWindow || !remoteView) {
     return;
   }
 
   const [width, height] = mainWindow.getContentSize();
+
+  // When keyboard is disabled, remote view uses full window
+  if (!keyboardView) {
+    remoteView.setBounds({ x: 0, y: 0, width, height });
+    return;
+  }
+
   isKeyboardVisible = showKeyboard;
 
   if (showKeyboard) {
@@ -69,20 +78,35 @@ function updateLayout(showKeyboard: boolean) {
     keyboardView.setBounds({ x: 0, y: height - KEYBOARD_TOOLBAR_HEIGHT, width, height: KEYBOARD_TOOLBAR_HEIGHT });
   }
 
+  bringKeyboardToFront();
+
   // Inform the keyboard view so it can toggle its internal panel + button text
   keyboardView.webContents.send('keyboard-visibility', showKeyboard);
 }
 
+function bringKeyboardToFront() {
+  if (mainWindow && keyboardView) {
+    mainWindow.setTopBrowserView(keyboardView);
+  }
+}
+
 function createWindow(): void {
+  const isKiosk = config.isKiosk ?? false;
   mainWindow = new BrowserWindow({
-    fullscreen: true,
-    kiosk: true,
-    alwaysOnTop: true,
+    fullscreen: isKiosk,
+    kiosk: isKiosk,
+    alwaysOnTop: isKiosk,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
     },
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (isKiosk) {
+      mainWindow?.webContents.insertCSS('html, body { cursor: none; }');
+    }
   });
 
   // --- Remote App View ---
@@ -95,6 +119,7 @@ function createWindow(): void {
       preload: path.join(__dirname, 'preload.js')
     }
   });
+
   mainWindow.addBrowserView(remoteView);
 
   // Show custom error page when the site cannot be reached (main frame only)
@@ -109,22 +134,26 @@ function createWindow(): void {
   loadStartTarget();
   //remoteView.webContents.openDevTools();
 
-  // --- Keyboard View ---
-  keyboardView = new BrowserView({
-    webPreferences: {
-      nodeIntegration: true, // Keyboard needs access to ipcRenderer
-      contextIsolation: false,
-      devTools: true,
-    }
-  });
-  mainWindow.addBrowserView(keyboardView);
-  // In the built app, __dirname points to dist, where keyboard.html is emitted
-  const keyboardPath = path.join(__dirname, 'keyboard.html');
-  keyboardView.webContents.loadFile(keyboardPath);
-  //keyboardView.webContents.openDevTools();
+  // --- Keyboard View (only when enableKeyboard is true) ---
+  if (keyboardEnabled) {
+    keyboardView = new BrowserView({
+      webPreferences: {
+        nodeIntegration: true, // Keyboard needs access to ipcRenderer
+        contextIsolation: false,
+        devTools: true,
+      }
+    });
+    mainWindow.addBrowserView(keyboardView);
+    // In the built app, __dirname points to dist, where keyboard.html is emitted
+    const keyboardPath = path.join(__dirname, 'keyboard.html');
+    keyboardView.webContents.loadFile(keyboardPath);
+    keyboardView.webContents.once('did-finish-load', () => {
+      keyboardView?.webContents.send('keyboard-enabled', keyboardEnabled);
+    });
+  }
 
   // --- Initial Layout ---
-  updateLayout(false); // Initially show only toolbar (keyboard hidden)
+  updateLayout(false); // Full remote view, or toolbar only if keyboard enabled
 
   // --- Window Event Handlers ---
   mainWindow.on('resize', () => {
@@ -147,7 +176,9 @@ function createWindow(): void {
     }
   };
   remoteView.webContents.on('before-input-event', onBeforeInput);
-  keyboardView.webContents.on('before-input-event', onBeforeInput);
+  if (keyboardView) {
+    keyboardView.webContents.on('before-input-event', onBeforeInput);
+  }
 
   ipcMain.on(ipcCommands.userActivity, resetIdleTimer);
 
@@ -191,6 +222,8 @@ function createWindow(): void {
     if (!config.startUrl) {
       config.startUrl = 'error_noconfig.html';
     }
+    keyboardEnabled = config.enableKeyboard ?? false;
+    keyboardView?.webContents.send('keyboard-enabled', keyboardEnabled);
     loadStartTarget();
   });
 

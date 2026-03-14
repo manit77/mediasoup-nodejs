@@ -1,11 +1,13 @@
-import { ipcRenderer } from "electron";
-
 // --- Configuration ---
 export interface AppConfig {
   startUrl: string;
+  /** When true, run in kiosk mode. Env: CONFCLIENT_IS_KIOSK (default: false). */
+  isKiosk?: boolean;
+  /** When true, the on-screen keyboard can be shown. Env: CONFCLIENT_ENABLE_KEYBOARD (default: false). */
+  enableKeyboard?: boolean;
   /**
    * When true, allow F12 to toggle DevTools.
-   * Can be set via config.json or the KIOSK_ENABLE_JSCONSOLE env var.
+   * Can be set via config.json or the CONFCLIENT_ENABLE_JSCONSOLE env var.
    */
   enableJSConsole?: boolean;
 }

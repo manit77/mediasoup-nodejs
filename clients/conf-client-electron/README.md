@@ -65,23 +65,34 @@ The app is configured via **`config.json`** (built app uses `dist/config.json`) 
 
 | Field | Type | Description | Config key | Env override |
 |-------|------|-------------|------------|--------------|
-| `startUrl` | string | URL or path to load in the main webview (e.g. `https://host:3000/login` or a local file like `test.html`). | `startUrl` | `KIOSK_START_URL` |
-| `enableJSConsole` | boolean | When `true`, F12 toggles DevTools for the remote and keyboard views. Default: `false`. | `enableJSConsole` | `KIOSK_ENABLE_JSCONSOLE` (`1`, `true`, `yes` = true) |
+| `startUrl` | string | URL or path to load in the main webview (e.g. `https://host:3000/login` or a local file like `test.html`). | `startUrl` | `CONFCLIENT_START_URL` |
+| `isKiosk` | boolean | When `true`, run in kiosk mode. Default: `false`. | `isKiosk` | `CONFCLIENT_IS_KIOSK` (`1`, `true`, `yes` = true) |
+| `enableKeyboard` | boolean | When `true`, the on-screen keyboard can be shown. Default: `false`. | `enableKeyboard` | `CONFCLIENT_ENABLE_KEYBOARD` (`1`, `true`, `yes` = true) |
+| `enableJSConsole` | boolean | When `true`, F12 toggles DevTools for the remote and keyboard views. Default: `false`. | `enableJSConsole` | `CONFCLIENT_ENABLE_JSCONSOLE` (`1`, `true`, `yes` = true) |
 
 ### Example config.json
 
 ```json
 {
   "startUrl": "https://example.com/app",
+  "isKiosk": false,
+  "enableKeyboard": false,
   "enableJSConsole": false
 }
 ```
 
-To enable the JS console via environment only (e.g. for debugging):
+To override via environment (e.g. for debugging):
 
 ```bash
-export KIOSK_ENABLE_JSCONSOLE=true
+export CONFCLIENT_START_URL="https://localhost:3000/login"
+export CONFCLIENT_ENABLE_JSCONSOLE=true
+export CONFCLIENT_ENABLE_KEYBOARD=true
 npm run start
+```
+
+when running on a mac:
+```
+open ConferenceClient.app --env CONFCLIENT_START_URL="https://192.168.40.43:3000/login"
 ```
 
 ## Architecture
