@@ -207,7 +207,23 @@ function createWindow(): void {
     console.log('IPC: show-keyboard');
     if (keyboardEnabled) {
       updateLayout(true);
+      // Re-report focused input so we can scroll it into view after keyboard is shown
+      remoteView?.webContents.executeJavaScript(
+        'window.electron && typeof window.electron.reportFocusedInput === "function" && window.electron.reportFocusedInput();'
+      ).catch(() => {});
     }
+  });
+
+  ipcMain.on(ipcCommands.inputFocused, () => {
+    if (!remoteView || !isKeyboardVisible) return;
+    // After resize, scroll the focused input into view (center) so it isn't covered by the keyboard
+    setTimeout(() => {
+      remoteView?.webContents.executeJavaScript(`
+        if (document.activeElement) {
+          document.activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      `).catch(() => {});
+    }, 100);
   });
 
   ipcMain.on(ipcCommands.hideKeyboard, () => {    

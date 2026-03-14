@@ -8,11 +8,18 @@ declare global {
       hideKeyboard: () => void;
       showKeyboard: () => void;
       disableKeyboard: () => void;
-      enableKeyboard: () => void;   
+      enableKeyboard: () => void;
       goHome: () => void;
       reloadConfig: () => void;
+      /** Report the currently focused input's rect so the main process can scroll it into view. */
+      reportFocusedInput: () => void;
     };
   }
+}
+
+function sendFocusedInputRect(el: HTMLElement): void {
+  const rect = el.getBoundingClientRect();
+  ipcRenderer.send(ipcCommands.inputFocused, { bottom: rect.bottom, height: rect.height });
 }
 
 window.electron = {
@@ -22,6 +29,12 @@ window.electron = {
   enableKeyboard: () => ipcRenderer.send(ipcCommands.enableKeyboard),
   goHome: () => ipcRenderer.send(ipcCommands.goHome),
   reloadConfig: () => ipcRenderer.send(ipcCommands.reloadConfig),
+  reportFocusedInput: () => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el && ['INPUT', 'TEXTAREA'].includes(el.tagName)) {
+      sendFocusedInputRect(el);
+    }
+  },
 };
 
 function reportUserActivity() {
@@ -64,5 +77,6 @@ window.addEventListener('focusin', (event) => {
   if (target && INPUT_TAGS.includes(target.tagName)) {
     console.log('Focus on input detected, showing keyboard.');
     ipcRenderer.send(ipcCommands.showKeyboard);
+    sendFocusedInputRect(target);
   }
 });

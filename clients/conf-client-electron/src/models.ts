@@ -20,7 +20,8 @@ export enum ipcCommands {
   goHome = "go-home",
   userActivity = "user-activity",
   keyPress = "key-press",
-  reloadConfig = "reload-config"
+  reloadConfig = "reload-config",
+  inputFocused = "input-focused"
 }
 
 
