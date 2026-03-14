@@ -31,7 +31,7 @@ window.electron = {
   reloadConfig: () => ipcRenderer.send(ipcCommands.reloadConfig),
   reportFocusedInput: () => {
     const el = document.activeElement as HTMLElement | null;
-    if (el && ['INPUT', 'TEXTAREA'].includes(el.tagName)) {
+    if (el && FORM_CONTROL_TAGS.includes(el.tagName)) {
       sendFocusedInputRect(el);
     }
   },
@@ -70,12 +70,13 @@ window.addEventListener('click', (event) => {
   }
 }, true);
 
-const INPUT_TAGS = ['INPUT', 'TEXTAREA'];
+/** Form controls that can receive focus when using TAB to navigate (show keyboard + scroll into view). */
+const FORM_CONTROL_TAGS = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'];
 
 window.addEventListener('focusin', (event) => {
   const target = event.target as HTMLElement;
-  if (target && INPUT_TAGS.includes(target.tagName)) {
-    console.log('Focus on input detected, showing keyboard.');
+  if (target && FORM_CONTROL_TAGS.includes(target.tagName)) {
+    console.log('Focus on form control detected, showing keyboard.');
     ipcRenderer.send(ipcCommands.showKeyboard);
     sendFocusedInputRect(target);
   }

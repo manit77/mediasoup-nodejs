@@ -89,6 +89,73 @@
       color: #6b7280;
       margin-top: 8px;
     }
+    .form-controls-test label {
+      display: block;
+      margin: 12px 0 4px 0;
+      font-size: 0.9rem;
+      color: #d1d5db;
+    }
+    .form-controls-test label:first-of-type {
+      margin-top: 0;
+    }
+    .form-controls-test input[type="text"],
+    .form-controls-test input[type="email"],
+    .form-controls-test input[type="number"],
+    .form-controls-test input[type="password"],
+    .form-controls-test input[type="url"],
+    .form-controls-test input[type="date"],
+    .form-controls-test textarea,
+    .form-controls-test select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #374151;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+    }
+    .form-controls-test textarea {
+      min-height: 72px;
+      resize: vertical;
+    }
+    .form-controls-test .checkbox-row,
+    .form-controls-test .radio-row {
+      margin: 12px 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+    }
+    .form-controls-test .checkbox-row label,
+    .form-controls-test .radio-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      cursor: pointer;
+    }
+    .form-controls-test input[type="checkbox"],
+    .form-controls-test input[type="radio"] {
+      width: auto;
+      flex: none;
+    }
+    .form-controls-test button[type="submit"],
+    .form-controls-test button[type="button"].form-btn {
+      margin-top: 16px;
+      padding: 8px 14px;
+      font-size: 0.9rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #1d4ed8;
+      color: #f9fafb;
+      font-weight: 500;
+    }
+    .form-controls-test button[type="submit"]:hover,
+    .form-controls-test button[type="button"].form-btn:hover {
+      background: #2563eb;
+    }
   </style>
 </head>
 <body>
@@ -171,8 +238,67 @@
     </p>
   </section>
 
+  <section style="margin-top: 16px;" class="form-controls-test">
+    <h2>7. Form controls test</h2>
+    <p>Use TAB to move between all form controls. The on-screen keyboard and scroll-into-view should work for INPUT, TEXTAREA, SELECT, and BUTTON.</p>
+    <form id="test-form" action="#" method="get" onsubmit="return false;">
+      <label for="fc-text">Text</label>
+      <input id="fc-text" name="text" type="text" value="Sample text value" placeholder="Enter text" />
+
+      <label for="fc-email">Email</label>
+      <input id="fc-email" name="email" type="email" value="test@example.com" placeholder="you@example.com" />
+
+      <label for="fc-number">Number</label>
+      <input id="fc-number" name="number" type="number" value="42" min="0" max="100" placeholder="0–100" />
+
+      <label for="fc-password">Password</label>
+      <input id="fc-password" name="password" type="password" value="test123" placeholder="Password" />
+
+      <label for="fc-url">URL</label>
+      <input id="fc-url" name="url" type="url" value="https://example.com" placeholder="https://..." />
+
+      <label for="fc-date">Date</label>
+      <input id="fc-date" name="date" type="date" value="2025-03-13" />
+
+      <label for="fc-textarea">Textarea</label>
+      <textarea id="fc-textarea" name="bio" placeholder="Multi-line text...">First line of test data.
+Second line.
+Third line.</textarea>
+
+      <label for="fc-select">Select</label>
+      <select id="fc-select" name="country">
+        <option value="">Choose one…</option>
+        <option value="us" selected>United States</option>
+        <option value="uk">United Kingdom</option>
+        <option value="ca">Canada</option>
+        <option value="de">Germany</option>
+        <option value="fr">France</option>
+      </select>
+
+      <div class="checkbox-row">
+        <span style="display:block; margin-bottom:4px; color:#d1d5db;">Checkboxes</span>
+        <label><input type="checkbox" name="opt1" value="a" checked /> Option A</label>
+        <label><input type="checkbox" name="opt2" value="b" /> Option B</label>
+        <label><input type="checkbox" name="opt3" value="c" checked /> Option C</label>
+      </div>
+
+      <div class="radio-row">
+        <span style="display:block; margin-bottom:4px; color:#d1d5db;">Radio</span>
+        <label><input type="radio" name="choice" value="one" /> One</label>
+        <label><input type="radio" name="choice" value="two" checked /> Two</label>
+        <label><input type="radio" name="choice" value="three" /> Three</label>
+      </div>
+
+      <button type="button" class="form-btn" id="fc-button">Form button (focusable)</button>
+      <button type="submit" id="fc-submit">Submit</button>
+    </form>
+    <p class="note">
+      Expected: focusing any control (click or TAB) shows the keyboard and scrolls it into view. All controls are pre-filled with test data.
+    </p>
+  </section>
+
   <section style="margin-top: 16px;">
-    <h2>7. Full keyboard input test</h2>
+    <h2>8. Full keyboard input test</h2>
     <p>
       Use the on-screen keyboard (simple-keyboard) together with the physical keyboard to exercise all keys,
       including function keys (<code>F1-F12</code>), Tab, Enter, Backspace, arrows, and symbol keys.
@@ -277,6 +403,14 @@
     });
     document.getElementById('btn-go-home').addEventListener('click', () => {
       callElectron('goHome');
+    });
+
+    document.getElementById('test-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      alert('Form submit prevented for test page.');
+    });
+    document.getElementById('fc-button').addEventListener('click', () => {
+      alert('Form button clicked.');
     });
   </script>
 </body>
