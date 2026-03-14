@@ -27,6 +27,9 @@ module.exports = {
       ElectronTeamID: process.env.APPLE_TEAM_ID || null,
       NSCameraUsageDescription: "Camera access is required for video conferencing.",
       NSMicrophoneUsageDescription: "Microphone access is required for audio calls."
-    }
+    },
+    notarize: {
+      teamId: process.env.APPLE_TEAM_ID || null
+    },
   }
 };
