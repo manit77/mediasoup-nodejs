@@ -75,8 +75,9 @@ function updateLayout(showKeyboard: boolean) {
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 720,
+    fullscreen: true,
+    kiosk: true,
+    alwaysOnTop: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -128,9 +129,9 @@ function createWindow(): void {
 
   // --- Window Event Handlers ---
   mainWindow.on('resize', () => {
-    if(mainWindow) {
-        // Maintain current keyboard visibility state on resize
-        updateLayout(isKeyboardVisible);
+    if (mainWindow) {
+      // Maintain current keyboard visibility state on resize
+      updateLayout(isKeyboardVisible);
     }
   });
 
@@ -153,52 +154,52 @@ function createWindow(): void {
     remoteView?.webContents.loadURL(startUrl);
   });
 
-    // --- IPC Handlers from Views ---
+  // --- IPC Handlers from Views ---
 
-    ipcMain.on('show-keyboard', () => {
-        console.log('IPC: show-keyboard');
-        if (keyboardEnabled) {
-            updateLayout(true);
-        }
-    });
+  ipcMain.on('show-keyboard', () => {
+    console.log('IPC: show-keyboard');
+    if (keyboardEnabled) {
+      updateLayout(true);
+    }
+  });
 
-    ipcMain.on('hide-keyboard', () => {
-        console.log('IPC: hide-keyboard');
-        updateLayout(false);
-    });
+  ipcMain.on('hide-keyboard', () => {
+    console.log('IPC: hide-keyboard');
+    updateLayout(false);
+  });
 
-    ipcMain.on('disable-keyboard', () => {
-        console.log('IPC: disable-keyboard');
-        keyboardEnabled = false;
-        updateLayout(false);
-    });
+  ipcMain.on('disable-keyboard', () => {
+    console.log('IPC: disable-keyboard');
+    keyboardEnabled = false;
+    updateLayout(false);
+  });
 
-    ipcMain.on('enable-keyboard', () => {
-        console.log('IPC: enable-keyboard');
-        keyboardEnabled = true;
-    });
+  ipcMain.on('enable-keyboard', () => {
+    console.log('IPC: enable-keyboard');
+    keyboardEnabled = true;
+  });
 
-    ipcMain.on('key-press', (_event, key) => {
-        if (remoteView && remoteView.webContents) {
-            console.log(`Forwarding key: ${key}`);
-            remoteView.webContents.focus();
+  ipcMain.on('key-press', (_event, key) => {
+    if (remoteView && remoteView.webContents) {
+      console.log(`Forwarding key: ${key}`);
+      remoteView.webContents.focus();
 
-            if (key === 'Enter') {
-                remoteView.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
-                remoteView.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
-            } else if (key === 'Backspace') {
-                remoteView.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Backspace' });
-                remoteView.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Backspace' });
-            } else if (key === 'Tab') {
-                remoteView.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' });
-                remoteView.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' });
-            } else {
-                remoteView.webContents.sendInputEvent({ type: 'keyDown', keyCode: key });
-                remoteView.webContents.sendInputEvent({ type: 'char', keyCode: key });
-                remoteView.webContents.sendInputEvent({ type: 'keyUp', keyCode: key });
-            }
-        }
-    });
+      if (key === 'Enter') {
+        remoteView.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+        remoteView.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+      } else if (key === 'Backspace') {
+        remoteView.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Backspace' });
+        remoteView.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Backspace' });
+      } else if (key === 'Tab') {
+        remoteView.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' });
+        remoteView.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' });
+      } else {
+        remoteView.webContents.sendInputEvent({ type: 'keyDown', keyCode: key });
+        remoteView.webContents.sendInputEvent({ type: 'char', keyCode: key });
+        remoteView.webContents.sendInputEvent({ type: 'keyUp', keyCode: key });
+      }
+    }
+  });
 }
 
 // Instruct Chromium to ignore certificate errors globally (including localhost)
@@ -209,8 +210,12 @@ app.commandLine.appendSwitch('allow-insecure-localhost', 'true');
 
 app.whenReady().then(async () => {
   if (process.platform === 'darwin') {
-    await systemPreferences.askForMediaAccess('camera');
-    await systemPreferences.askForMediaAccess('microphone');
+    const cameraPrivilege = await systemPreferences.askForMediaAccess('camera');
+    const micPrivilege = await systemPreferences.askForMediaAccess('microphone');
+
+    if (!cameraPrivilege || !micPrivilege) {
+      console.error("User denied camera or mic access");
+    }
   }
 
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
