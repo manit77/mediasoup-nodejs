@@ -90,6 +90,17 @@ function bringKeyboardToFront() {
   }
 }
 
+/** Returns 'granted' or a non-granted status for camera/mic (for toolbar indicators). */
+function getMediaStatus(): { camera: string; microphone: string } {
+  try {
+    const camera = systemPreferences.getMediaAccessStatus('camera');
+    const microphone = systemPreferences.getMediaAccessStatus('microphone');
+    return { camera: camera ?? 'not-determined', microphone: microphone ?? 'not-determined' };
+  } catch {
+    return { camera: 'not-determined', microphone: 'not-determined' };
+  }
+}
+
 function createWindow(): void {
   const isKiosk = config.isKiosk ?? false;
   mainWindow = new BrowserWindow({
@@ -149,6 +160,8 @@ function createWindow(): void {
     keyboardView.webContents.loadFile(keyboardPath);
     keyboardView.webContents.once('did-finish-load', () => {
       keyboardView?.webContents.send('keyboard-enabled', keyboardEnabled);
+      const media = getMediaStatus();
+      keyboardView?.webContents.send('media-status', media);
     });
   }
 

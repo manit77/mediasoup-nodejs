@@ -145,4 +145,72 @@ document.addEventListener('DOMContentLoaded', () => {
   ipcRenderer.on('keyboard-enabled', (_event, enabled: boolean) => {
     keyboardEnabled = enabled;
   });
+
+  // Camera/mic: permission from main process + physical device presence via checkHardware()
+  let lastMediaStatus: { camera: string; microphone: string } | null = null;
+  let hasCameraDevice = false;
+  let hasMicDevice = false;
+
+  async function checkHardware(): Promise<{ hasCamera: boolean; hasMic: boolean }> {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const hasCamera = devices.some((device) => device.kind === 'videoinput');
+    const hasMic = devices.some((device) => device.kind === 'audioinput');
+    console.log(`Camera connected: ${hasCamera}`);
+    console.log(`Mic connected: ${hasMic}`);
+    return { hasCamera, hasMic };
+  }
+
+  function updateMediaIcons() {
+    const iconCamera = document.getElementById('icon-camera');
+    const iconMic = document.getElementById('icon-mic');
+    if (!lastMediaStatus) return;
+
+    const cameraGranted = lastMediaStatus.camera === 'granted' && hasCameraDevice;
+    const micGranted = lastMediaStatus.microphone === 'granted' && hasMicDevice;
+
+    if (iconCamera) {
+      iconCamera.className = `material-icons media-icon ${cameraGranted ? 'granted' : 'denied'}`;
+      const cameraTitle = !hasCameraDevice
+        ? 'Camera: no device found'
+        : lastMediaStatus.camera === 'granted'
+          ? 'Camera: accessible'
+          : 'Camera: not accessible';
+      iconCamera.setAttribute('title', cameraTitle);
+    }
+    if (iconMic) {
+      iconMic.className = `material-icons media-icon ${micGranted ? 'granted' : 'denied'}`;
+      const micTitle = !hasMicDevice
+        ? 'Microphone: no device found'
+        : lastMediaStatus.microphone === 'granted'
+          ? 'Microphone: accessible'
+          : 'Microphone: not accessible';
+      iconMic.setAttribute('title', micTitle);
+    }
+  }
+
+  ipcRenderer.on('media-status', (_event, status: { camera: string; microphone: string }) => {
+    lastMediaStatus = status;
+    updateMediaIcons();
+  });
+
+  // Initial hardware check and device-change listener
+  if (navigator.mediaDevices && typeof navigator.mediaDevices.enumerateDevices === 'function') {
+    checkHardware().then((status) => {
+      hasCameraDevice = status.hasCamera;
+      hasMicDevice = status.hasMic;
+      updateMediaIcons();
+    }).catch(() => {
+      updateMediaIcons();
+    });
+
+    navigator.mediaDevices.ondevicechange = async () => {
+      console.log('Hardware change detected!');
+      const status = await checkHardware();
+      hasCameraDevice = status.hasCamera;
+      hasMicDevice = status.hasMic;
+      updateMediaIcons();
+    };
+  } else {
+    updateMediaIcons();
+  }
 });

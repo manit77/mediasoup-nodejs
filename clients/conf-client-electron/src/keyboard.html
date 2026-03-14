@@ -57,6 +57,24 @@
     #toolbar-right button:hover {
       background-color: #4b5563;
     }
+    /* Camera/mic status indicators (left of language button) */
+    #media-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-right: 16px;
+    }
+    #media-status .media-icon {
+      display: inline-flex;
+      align-items: center;
+      font-size: 20px;
+    }
+    #media-status .media-icon.granted {
+      color: #22c55e;
+    }
+    #media-status .media-icon.denied {
+      color: #ef4444;
+    }
     #btn-language {
       margin-right: 12px;
     }
@@ -170,6 +188,10 @@
       </button>
     </div>
     <div id="toolbar-right">
+      <div id="media-status" aria-label="Camera and microphone access">
+        <span id="icon-camera" class="material-icons media-icon denied" title="Camera">videocam</span>
+        <span id="icon-mic" class="material-icons media-icon denied" title="Microphone">mic</span>
+      </div>
       <button id="btn-language">
         <span class="material-icons">language</span>
         <span>Language</span>
