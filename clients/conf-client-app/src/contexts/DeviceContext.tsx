@@ -1,9 +1,11 @@
 import { getConferenceClient } from '@client/services/ConferenceService';
 import { GetUserMediaConfig } from '@conf-models/conferenceModels';
 import { Device, SelectedDevices } from '@conf/conf-client';
-import React, { createContext, useState, ReactNode, useEffect, useContext, useCallback } from 'react';
+import React, { createContext, useState, ReactNode, useEffect, useContext, useCallback, use } from 'react';
 
 const conferenceClient = getConferenceClient();
+const VIRTUAL_DEVICE_KEYWORDS = ['virtual', 'microsoft teams', 'zoom', 'obs', 'cable', 'mdaudio', 'fake', 'cisco', 'chromecast'];
+const STORAGE_KEY = 'preferred_devices';
 
 interface DeviceContextType {
     isCameraAvailable: boolean;
@@ -15,13 +17,9 @@ interface DeviceContextType {
     setSelectedDevices: React.Dispatch<React.SetStateAction<SelectedDevices>>;
 }
 
-const STORAGE_KEY = 'preferred_devices';
 export const DeviceContext = createContext<DeviceContextType | undefined>(undefined);
 
-const VIRTUAL_DEVICE_KEYWORDS = ['virtual', 'microsoft teams', 'zoom', 'obs', 'cable', 'mdaudio', 'fake', 'cisco', 'chromecast'];
-
-const isVirtual = (label: string): boolean =>
-    VIRTUAL_DEVICE_KEYWORDS.some(keyword => label.toLowerCase().includes(keyword));
+const isVirtual = (label: string): boolean => VIRTUAL_DEVICE_KEYWORDS.some(keyword => label.toLowerCase().includes(keyword));
 
 /** Prefer a real (non-virtual) device when choosing a default; fall back to virtual if no real device. */
 function getPreferredDefaultDevice(devices: Device[]): Device | undefined {
@@ -42,30 +40,30 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         return saved ? JSON.parse(saved) : conferenceClient.selectedDevices;
     });
 
-    // 1. Fetch devices and handle hardware changes
-    const checkDevices = useCallback(async () => {
-        try {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-
-            const video = devices.filter(d => d.kind === 'videoinput').map(d => ({ id: d.deviceId, label: d.label || 'Camera' }));
-            const audioIn = devices.filter(d => d.kind === 'audioinput').map(d => ({ id: d.deviceId, label: d.label || 'Mic' }));
-            const audioOut = devices.filter(d => d.kind === 'audiooutput').map(d => ({ id: d.deviceId, label: d.label || 'Speaker' }));
-
-            setAvailableDevices({ video, audioIn, audioOut });
-            setCameraAvailable(video.length > 0);
-            setMicAvailable(audioIn.length > 0);
-        } catch (error) {
-            console.error("Error enumerating devices:", error);
-        }
-    }, []);
-
+    // Fetch devices and handle hardware changes
     useEffect(() => {
-        checkDevices();
+
+        const checkDevices = async () => {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+
+                const video = devices.filter(d => d.kind === 'videoinput').map(d => ({ id: d.deviceId, label: d.label || 'Camera' }));
+                const audioIn = devices.filter(d => d.kind === 'audioinput').map(d => ({ id: d.deviceId, label: d.label || 'Mic' }));
+                const audioOut = devices.filter(d => d.kind === 'audiooutput').map(d => ({ id: d.deviceId, label: d.label || 'Speaker' }));
+
+                setAvailableDevices({ video, audioIn, audioOut });
+                setCameraAvailable(video.length > 0);
+                setMicAvailable(audioIn.length > 0);
+            } catch (error) {
+                console.error("Error enumerating devices:", error);
+            }
+        };
+       
         navigator.mediaDevices.addEventListener('devicechange', checkDevices);
         return () => navigator.mediaDevices.removeEventListener('devicechange', checkDevices);
-    }, [checkDevices]);
+    }, []);
 
-    // 2. Sync selected devices when available devices change (e.g. plug/unplug)
+    // Sync selected devices when available devices change (e.g. plug/unplug)
     useEffect(() => {
         setSelectedDevices(prev => {
             const newSelection = { ...prev };
@@ -105,13 +103,13 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         });
     }, [availableDevices]);
 
-    // 3. Persist manual changes
+    // Persist manual changes
     useEffect(() => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedDevices));
         conferenceClient.selectedDevices = selectedDevices;
     }, [selectedDevices]);
 
-    const getMediaConstraints = useCallback((getAudio: boolean, getVideo: boolean): MediaStreamConstraints => {
+    const getMediaConstraints = (getAudio: boolean, getVideo: boolean): MediaStreamConstraints => {
         const constraints: { audio?: any, video?: any } = {};
 
         if (getAudio) {
@@ -121,9 +119,9 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             constraints.video = selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId, aspectRatio: 16 / 9, facingMode: "user" } } : true;
         }
         return constraints;
-    }, [selectedDevices]);
+    };
 
-    const getLocalMedia = useCallback(async (options: GetUserMediaConfig) => {
+    const getLocalMedia = async (options: GetUserMediaConfig) => {
         console.log("getLocalMedia");
 
         if (!options.isAudioEnabled && !options.isVideoEnabled) {
@@ -153,21 +151,17 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
         return tracks;
 
-    }, [getMediaConstraints]);
+    };
 
     return (
         <DeviceContext.Provider value={{ isCameraAvailable, isMicAvailable, availableDevices, getLocalMedia, getMediaConstraints, selectedDevices, setSelectedDevices }}>
             {children}
         </DeviceContext.Provider>
     );
-
-
 };
 
-export const useDevice = (): DeviceContextType => {
-    const context = useContext(DeviceContext);
-    if (context === undefined) {
-        throw new Error('useDevice must be used within a DeviceProvider');
-    }
+export const useDevice = () => {
+    const context = use(DeviceContext);
+    if (!context) throw new Error('useDevice must be used within a DeviceProvider');
     return context;
 };
