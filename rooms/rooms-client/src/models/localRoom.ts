@@ -168,18 +168,23 @@ export class LocalRoom {
 
         consumers.set(consumer.kind, consumer);
 
-        consumer.on("trackended", () => {
-            console.log(`consumer - track ended ${consumer.track?.id} ${consumer.track?.kind}`);
+        consumer.on("transportclose", () => {
+            console.log(`consumer - transportclose ${consumer.track?.id} ${consumer.track?.kind}`);
+            consumers.delete(consumer.kind);
         });
 
-        consumer.observer.on('pause', () => {
+        consumer.on("trackended", () => {
+            console.log(`consumer - track ended ${consumer.track?.id} ${consumer.track?.kind}`);
+            consumers.delete(consumer.kind);
+        });
+
+        consumer.on('@pause', () => {
             console.log('consumer - paused (muted)');
         });
 
-        consumer.observer.on('resume', () => {
+        consumer.on('@resume', () => {
             console.log('consumer - resumed (unmuted)');
-        });
-
+        });        
 
     }
 }

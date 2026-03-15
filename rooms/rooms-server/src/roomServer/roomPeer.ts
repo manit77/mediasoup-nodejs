@@ -136,6 +136,9 @@ export class RoomPeer {
             consoleError(`existing consumer found ${existingConsumer.id} ${existingConsumer.kind} producer ${producer.kind} ${producer.id}.`);
             return;
         }
+
+        consoleWarn(`producer: ${producer.paused} ${producer.kind} ${producer.id} ${producer.type}`);
+
         //consume the producer
         const consumer = await this.consumerTransport.consume({
             producerId: producer.id,
@@ -150,8 +153,6 @@ export class RoomPeer {
             consoleWarn(`producerclose ${remotePeer.displayName} ${producer.kind}, removing from peer ${this.peer.id} ${this.peer.displayName}. producerid: ${consumer.producerId}`);
             consumer.close();
             this.consumers.delete(consumer.id);
-
-            //TODO: need to send, alert all consumers
             this.room.onConsumerClosed(this.peer, consumer);
         });
 
@@ -166,22 +167,31 @@ export class RoomPeer {
             this.consumers.delete(consumer.id);
         });
 
+        consumer.addListener('producerpause', () => {
+            consoleWarn(`Consumer ${consumer.id} producerpause`);
+        });
+
+         consumer.addListener('producerresume', () => {
+            consoleWarn(`Consumer ${consumer.id} producerresume`);
+        });
+
+
         return consumer;
     }
 
-    async createProducer(kind: MediaKind, rtpParameters: mediasoup.types.RtpParameters) {
+    async createProducer(kind: MediaKind, rtpParameters: mediasoup.types.RtpParameters): Promise<Producer> {
         console.log(`createProducer ${this.peer.displayName}, ${this.producers.size}`);
 
         //requires a producerTransport
         if (!this.producerTransport) {
             consoleError(`Transport not found for peer ${this.peer.id} ${this.peer.displayName}`);
-            return
+            return null;
         }
 
         //we only allow one audio, one video
         if (this.producers.get(kind)) {
             consoleError(`producer with ${kind} already exists`);
-            return;
+            return null;
         }
 
         //init a producer with rtpParameters
