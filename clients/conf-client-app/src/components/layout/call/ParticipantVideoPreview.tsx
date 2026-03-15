@@ -22,7 +22,7 @@ interface ParticipantVideoPreviewProps {
 const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected, style }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, broadCastTrackInfo, conference, muteParticipantTrack } = useCall();
+    const call = useCall();
     const { availableDevices, getMediaConstraints, selectedDevices, getLocalMedia } = useDevice();
     const [videoEnabled, setVideoEnabled] = useState(false);
     const [audioEnabled, setAudioEnabled] = useState(false);
@@ -36,7 +36,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
         background: '#333',
     };
 
-    const localParticipantId = localParticipant.participantId;
+    const localParticipantId = call.localParticipant.participantId;
 
     useEffect(() => {
         console.warn(`attach video triggered. ${participant.displayName}`);
@@ -44,8 +44,8 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
         const container = videoContainerRef.current;
         const video = participant.videoEle;
 
-        if (localParticipant.role == "guest") {
-            setAllowControls(conference.conferenceConfig.guestsAllowDeviceControls);
+        if (call.localParticipant.role == "guest") {
+            setAllowControls(call.conference.conferenceConfig.guestsAllowDeviceControls);
         }
 
         if (!container) {
@@ -105,18 +105,18 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
         event.preventDefault();
         event.stopPropagation();
 
-        if (localParticipant.role == "guest" && !conference.conferenceConfig.guestsAllowDeviceControls) {
+        if (call.localParticipant.role == "guest" && !call.conference.conferenceConfig.guestsAllowDeviceControls) {
             return;
         }
 
-        let audioAllowedFor = isAudioAllowedFor(conference, participant);
+        let audioAllowedFor = isAudioAllowedFor(call.conference, participant);
         if (!audioAllowedFor) {
             console.error(`audio is not allowed for ${participant.displayName} ${participant.role}`);
             ui.showToast(`audio not allowed.`);
             return;
         }
 
-        const isLocalParticipant = participant.participantId === localParticipant.participantId;
+        const isLocalParticipant = participant.participantId === call.localParticipant.participantId;
 
         // Determine if the target participant (the one being toggled) is a guest
         const targetIsGuest = isLocalParticipant ? !api.isUser() : (participant.role === "guest");
@@ -128,7 +128,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
             return;
         }
 
-        if (isLocalParticipant && localParticipant.tracksInfo.isAudioMuted) {
+        if (isLocalParticipant && call.localParticipant.tracksInfo.isAudioMuted) {
             ui.showToast("your audio is muted.");
             return;
         }
@@ -140,7 +140,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
 
         if (isLocalParticipant && !audioTrack) {
             //there is no audio track published, set the isAudioEnabled to true
-            localParticipant.tracksInfo.isAudioEnabled = true;
+            call.localParticipant.tracksInfo.isAudioEnabled = true;
 
             //get a new stream for the local participant
             let newStream = await getBrowserUserMedia(getMediaConstraints(true, false));
@@ -159,7 +159,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
         }
 
         // Prevent enabling the mic for a guest if not allowed
-        if (newEnabled && targetIsGuest && !conference.conferenceConfig.guestsAllowMic) {
+        if (newEnabled && targetIsGuest && !call.conference.conferenceConfig.guestsAllowMic) {
             console.log(`Cannot enable mic for guest when not allowed.`);
             ui.showToast(`Cannot enable mic for guest when not allowed.`);
             return;
@@ -175,34 +175,37 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
 
         // Update the server with the new state
         if (isLocalParticipant) {
-            localParticipant.tracksInfo.isAudioEnabled = audioTrack ? audioTrack.enabled : newEnabled;
-            console.log(`update tracksInfo.isAudioEnabled to `, localParticipant.tracksInfo.isAudioEnabled);
-            broadCastTrackInfo();
+            call.localParticipant.tracksInfo.isAudioEnabled = audioTrack ? audioTrack.enabled : newEnabled;
+            console.log(`update tracksInfo.isAudioEnabled to `, call.localParticipant.tracksInfo.isAudioEnabled);
+            call.broadCastTrackInfo();
         } else {
             // For remote, send the new audio state (video unchanged)
             const isVideoEnabled = participant.stream.getVideoTracks()[0]?.enabled ?? false;
-            muteParticipantTrack(participant.participantId, !newEnabled, !isVideoEnabled);
+            call.muteParticipantTrack(participant.participantId, !newEnabled, !isVideoEnabled);
         }
-    }, []);
+    }, [call.isScreenSharing, call.conference, participant, api, ui, getMediaConstraints]);
 
+    /**
+     * this is to manage the camera only, this button should not turn off the stream for the presenter mode
+     */
     const onVideoClick = useCallback(async (event) => {
         console.log("onVideoClick ", participant);
 
         event.preventDefault();
         event.stopPropagation();
 
-        if (localParticipant.role == "guest" && !conference.conferenceConfig.guestsAllowDeviceControls) {
+        if (call.localParticipant.role == "guest" && !call.conference.conferenceConfig.guestsAllowDeviceControls) {
             return;
         }
 
-        let videoAllowedFor = isVideoAllowedFor(conference, participant);
+        let videoAllowedFor = isVideoAllowedFor(call.conference, participant);
         if (!videoAllowedFor) {
             console.error(`video is not allowed for ${participant.displayName} ${participant.role}`);
             ui.showToast(`video not allowed.`);
             return;
         }
 
-        const isLocalParticipant = participant.participantId === localParticipant.participantId;
+        const isLocalParticipant = participant.participantId === call.localParticipant.participantId;
 
         // Determine if the target participant (the one being toggled) is a guest
         const targetIsGuest = isLocalParticipant ? !api.isUser() : (participant.role === "guest");
@@ -214,8 +217,13 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
             return;
         }
 
-        if (isLocalParticipant && localParticipant.tracksInfo.isVideoMuted) {
+        if (isLocalParticipant && call.localParticipant.tracksInfo.isVideoMuted) {
             ui.showToast("your video is muted.");
+            return;
+        }
+
+        //cannot toggle camera when screen sharing
+        if (call.isScreenSharing) {
             return;
         }
 
@@ -226,7 +234,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
 
         if (isLocalParticipant && !videoTrack) {
             //get a new stream for the local participant
-            localParticipant.tracksInfo.isVideoEnabled = true;
+            call.localParticipant.tracksInfo.isVideoEnabled = true;
             let newStream = await getBrowserUserMedia(getMediaConstraints(false, true));
             videoTrack = newStream.getVideoTracks()[0];
             if (videoTrack) {
@@ -243,7 +251,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
         }
 
         // Prevent enabling the camera for a guest if not allowed
-        if (newEnabled && targetIsGuest && !conference.conferenceConfig.guestsAllowCamera) {
+        if (newEnabled && targetIsGuest && !call.conference.conferenceConfig.guestsAllowCamera) {
             console.log(`Cannot enable camera for guest when not allowed.`);
             ui.showToast(`Cannot enable camera for guest when not allowed.`);
             return;
@@ -259,15 +267,15 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
 
         // Update the server with the new state
         if (isLocalParticipant) {
-            localParticipant.tracksInfo.isVideoEnabled = videoTrack ? videoTrack.enabled : newEnabled;
-            console.log(`update tracksInfo.isVideoEnabled to `, localParticipant.tracksInfo.isVideoEnabled);
-            broadCastTrackInfo();
+            call.localParticipant.tracksInfo.isVideoEnabled = videoTrack ? videoTrack.enabled : newEnabled;
+            console.log(`update tracksInfo.isVideoEnabled to `, call.localParticipant.tracksInfo.isVideoEnabled);
+            call.broadCastTrackInfo();
         } else {
             // For remote, send the new video state (audio unchanged)
             const isAudioEnabled = participant.stream.getAudioTracks()[0]?.enabled ?? false;
-            muteParticipantTrack(participant.participantId, !isAudioEnabled, !newEnabled);
+            call.muteParticipantTrack(participant.participantId, !isAudioEnabled, !newEnabled);
         }
-    }, []);
+    }, [call.isScreenSharing, call.conference, participant, api, ui, getMediaConstraints]);
 
     return (
         <Card
@@ -283,7 +291,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
 
                 {!videoEnabled && (
                     <div className={styles.videoOffPlaceholder}>
-                        {participant === localParticipant ? "your" : `${participant.displayName}'s`} video is off
+                        {participant === call.localParticipant ? "your" : `${participant.displayName}'s`} video is off
                         <CameraVideoOffFill size={30} className="ms-2" />
                     </div>
                 )}
@@ -293,7 +301,7 @@ const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> =
             <div className={styles.controlsBar}>
                 <small className={styles.nameText}>
                     {participant.displayName}{" "}
-                    {localParticipant.participantId === participant.participantId && '(You)'}
+                    {call.localParticipant.participantId === participant.participantId && '(You)'}
                 </small>
 
                 <div className={styles.buttonGroup}>
