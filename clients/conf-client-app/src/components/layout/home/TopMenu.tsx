@@ -2,7 +2,9 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Navbar, Nav, NavDropdown, Container } from 'react-bootstrap';
 import { useAPI } from '@client/hooks/useAPI';
 import { useNavigate } from 'react-router-dom';
-import { BoxArrowRight, CircleFill, Gear, Person, PersonGear } from 'react-bootstrap-icons';
+import { BoxArrowRight, CameraVideoFill, CircleFill, ExclamationTriangleFill, Gear, MicFill, Person } from 'react-bootstrap-icons';
+import { useDevice } from '@client/contexts/DeviceContext';
+import '@client/css/BlinkingWarning.css';
 import { objectToQueryString } from '@client/utils/utils';
 import { flushSync } from 'react-dom';
 import { useCall } from '@client/hooks/useCall';
@@ -18,6 +20,7 @@ interface TopMenuProps {
 const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
     const { getCurrentUser, logout, getClientData } = useAPI();
     const { disconnect, isConnected, isAuthenticated, isConnecting } = useCall();
+    const { isCameraAvailable, isMicAvailable } = useDevice();
      const ui = useUI();
     const navigate = useNavigate();
     const [config, setConfig] = useState<ConferenceClientConfig>(null);
@@ -130,6 +133,17 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
                         <span className="text-light opacity-75">
                             {isConnecting ? "SYNCING" : isConnected && isAuthenticated ? 'CONNECTED' : 'OFFLINE'}
                         </span>
+                        <CameraVideoFill
+                            className={`ms-3 ${isCameraAvailable ? 'text-success' : 'text-danger'}`}
+                            size={16} />
+                        <MicFill
+                            className={`ms-2 ${isMicAvailable ? 'text-success' : 'text-danger'}`}
+                            size={16} />
+                        {(!isCameraAvailable || !isMicAvailable) &&
+                            <ExclamationTriangleFill
+                                className='ms-2 blinking-warning text-warning'
+                                size={16} />
+                        }
                     </div>
                 </Navbar.Brand>
 

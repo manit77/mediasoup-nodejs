@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Button, Form, Card, Badge } from 'react-bootstrap';
+import { Form, Card, Badge } from 'react-bootstrap';
 import { useCall } from '@client/hooks/useCall';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAPI } from '@client/hooks/useAPI';
@@ -9,25 +9,29 @@ import ThrottledButton from '../ThrottledButton';
 import { getBrowserUserMedia } from '@conf/conf-client';
 import {
     CameraVideo, CameraVideoOff,
-    Mic, MicMute,
-    Gear, DoorOpen,
+    Mic, MicMute,  
     ShieldLock, InfoCircle,
     ExclamationTriangle,
     CircleFill,
     Circle
 } from 'react-bootstrap-icons';
-import SettingsPopup from '../../popups/SettingsPopup';
+import { useDevice } from '@client/contexts/DeviceContext';
 
 interface RoomLobbyProps {
     conferenceScheduled?: ConferenceScheduledInfo;
     showJoinButton?: boolean;
     onJoinActionReady?: (action: () => void) => void;
+    /** When provided (e.g. from JoinRoomPopUp), use for device labels so they stay in sync after Settings changes */
+    deviceMicName?: string;
+    deviceCameraName?: string;
 }
 
-const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButton = true, onJoinActionReady }) => {
+const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButton = true, onJoinActionReady, deviceMicName, deviceCameraName }) => {
     const api = useAPI();
     const ui = useUI();
-    const { conferencesOnline, localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, selectedDevices, getMediaDevices, isWaiting, getLocalMedia } = useCall();
+    const { conferencesOnline, localParticipant, isCallActive, createOrJoinConference, joinConference, isWaiting } = useCall();
+    const { availableDevices, getMediaConstraints, selectedDevices, getLocalMedia } = useDevice();
+
     const navigate = useNavigate();
 
     const [conferenceCode, setConferenceCode] = useState<string>("");
@@ -38,9 +42,27 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButt
     const [showMicOption, setShowMicOption] = useState<boolean>(true); // Default to true
     const [showCameraOption, setShowCameraOption] = useState<boolean>(true); // Default to true
 
-    const [micName, setMicName] = useState<string>(selectedDevices.audioInLabel);
-    const [cameraName, setCameraName] = useState<string>(selectedDevices.videoLabel);
     const { trackingId } = useParams();
+    const getDeviceLabel = (devices: { id: string; label: string }[], id?: string, fallback?: string) => {
+        if (id) {
+            const match = devices.find(device => device.id === id);
+            if (match?.label) {
+                return match.label;
+            }
+        }
+        return fallback ?? '';
+    };
+
+    const displayMicName = getDeviceLabel(
+        availableDevices.audioIn,
+        selectedDevices.audioInId,
+        deviceMicName ?? selectedDevices.audioInLabel
+    );
+    const displayCameraName = getDeviceLabel(
+        availableDevices.video,
+        selectedDevices.videoId,
+        deviceCameraName ?? selectedDevices.videoLabel
+    );
     const [isComponentLoading, setIsComponentLoading] = useState<boolean>(true);
 
     const [conference, setConference] = useState<ConferenceScheduledInfo | null>(null);
@@ -90,10 +112,6 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButt
                 }
 
                 let tempStream = await getBrowserUserMedia(getMediaConstraints(true, true));
-                let devices = await getMediaDevices();
-
-                setMicName(selectedDevices.audioInLabel);
-                setCameraName(selectedDevices.videoLabel);
 
                 if (user.role === "guest" && conferenceScheduled.config.guestsRequireConferenceCode) {
                     setRequireConfCode(true);
@@ -151,12 +169,6 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButt
             __load();
         }
     }, [conferenceScheduled]);
-
-
-    useEffect(() => {
-        setMicName(selectedDevices.audioInLabel);
-        setCameraName(selectedDevices.videoLabel);
-    }, [selectedDevices]);
 
     useEffect(() => {
 
@@ -357,11 +369,11 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButt
                                                         className="mb-2"
                                                     />
                                                 </Form.Group>
-                                                <div className={`p-2 rounded small ${!micName ? 'bg-danger-subtle text-danger' : 'bg-body text-muted border'}`}>
-                                                    {!micName ? (
+                                                <div className={`p-2 rounded small ${!displayMicName ? 'bg-danger-subtle text-danger' : 'bg-body text-muted border'}`}>
+                                                    {!displayMicName ? (
                                                         <><ExclamationTriangle className="me-1" /> No Mic Detected</>
                                                     ) : (
-                                                        <><Mic size={12} className="me-1" /> {micName}</>
+                                                        <><Mic size={12} className="me-1" /> {displayMicName}</>
                                                     )}
                                                 </div>
                                             </div>
@@ -375,17 +387,17 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButt
                                                         type="switch"
                                                         id="camera-switch"
                                                         label={cameraEnabled ? <span><CameraVideo className="me-1" /> Video On</span> : <span><CameraVideoOff className="me-1" /> Video Off</span>}
-                                                        checked={cameraEnabled && !!cameraName}
+                                                        checked={cameraEnabled && !!displayCameraName}
                                                         onChange={(e) => toggleCamera(e.target.checked)}
-                                                        disabled={isWaiting || !cameraName}
+                                                        disabled={isWaiting || !displayCameraName}
                                                         className="mb-2"
                                                     />
                                                 </Form.Group>
-                                                <div className={`p-2 rounded small ${!cameraName ? 'bg-danger-subtle text-danger' : 'bg-body text-muted border'}`}>
-                                                    {!cameraName ? (
+                                                <div className={`p-2 rounded small ${!displayCameraName ? 'bg-danger-subtle text-danger' : 'bg-body text-muted border'}`}>
+                                                    {!displayCameraName ? (
                                                         <><ExclamationTriangle className="me-1" /> No Camera Detected</>
                                                     ) : (
-                                                        <><CameraVideo size={12} className="me-1" /> {cameraName}</>
+                                                        <><CameraVideo size={12} className="me-1" /> {displayCameraName}</>
                                                     )}
                                                 </div>
                                             </div>

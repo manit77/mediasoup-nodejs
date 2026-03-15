@@ -6,20 +6,13 @@ import { useUI } from '@client/hooks/useUI';
 import { useAPI } from '@client/hooks/useAPI';
 import { ArrowRepeat, MicFill, CameraVideoFill, CircleFill, Circle, PersonCircle } from 'react-bootstrap-icons';
 import { Button, ListGroup, Badge, Spinner } from 'react-bootstrap';
+import { useDevice } from '@client/contexts/DeviceContext';
 
 const ParticipantsOnlinePane: React.FC = () => {
     const ui = useUI()
-    const {
-        localParticipant,
-        isAuthenticated,
-        isConnected,
-        sendInvite,
-        isCallActive,
-        inviteInfoSend,
-        getLocalMedia, participantsOnline } = useCall();
-
+    const { localParticipant, isAuthenticated, isConnected, sendInvite, isCallActive, inviteInfoSend, participantsOnline } = useCall();
+    const { availableDevices, getMediaConstraints, selectedDevices, getLocalMedia } = useDevice();
     const api = useAPI();
-
     const [participantsToDisplay, setParticipantsToDisplay] = useState<ParticipantInfo[]>([]);
 
     // Handle initial loading state
@@ -124,7 +117,7 @@ const ParticipantsOnlinePane: React.FC = () => {
                                 {/* Call Actions */}
                                 <div className="d-flex align-items-center gap-2">
                                     <div className="btn-group bg-body-tertiary rounded-pill p-1 shadow-sm border">
-                                        { /* make audio call only */ }
+                                        { /* make audio call only */}
                                         <ThrottledButton
                                             variant="link"
                                             className={`rounded-pill p-0 d-flex align-items-center justify-content-center ${isCallActive || !isOnline ? 'text-muted' : 'text-primary'}`}
@@ -136,8 +129,8 @@ const ParticipantsOnlinePane: React.FC = () => {
                                             style={{ width: "40px", height: "40px" }}
                                         >
                                             <MicFill size={18} />
-                                        </ThrottledButton> 
-                                        { /* make audio and vidoe call */ }
+                                        </ThrottledButton>
+                                        { /* make audio and vidoe call */}
                                         <ThrottledButton
                                             variant="link"
                                             className={`rounded-pill p-0 d-flex align-items-center justify-content-center ${isCallActive || !isOnline ? 'text-muted' : 'text-success'}`}

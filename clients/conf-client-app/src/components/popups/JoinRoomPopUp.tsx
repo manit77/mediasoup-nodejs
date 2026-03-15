@@ -5,11 +5,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAPI } from '@client/hooks/useAPI';
 import { useUI } from '@client/hooks/useUI';
 import { ConferenceScheduledInfo, GetUserMediaConfig } from '@conf/conf-models';
-import { getBrowserUserMedia } from '@conf/conf-client';
 import RoomLobby from '@client/components/ui/roomLobby/RoomLobby';
 import { DoorOpen, Gear } from 'react-bootstrap-icons';
 import '@client/css/modal.css';
 import '@client/css/buttons.css';
+import { useDevice } from '@client/contexts/DeviceContext';
 
 interface JoinRoomPopUpProps {
     conferenceScheduled: ConferenceScheduledInfo;
@@ -20,7 +20,9 @@ interface JoinRoomPopUpProps {
 const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show, onClose }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, availableDevices, selectedDevices, setSelectedDevices, getMediaDevices, getLocalMedia, isWaiting } = useCall();
+    const { localParticipant, isCallActive, createOrJoinConference, joinConference, isWaiting } = useCall();
+    const { getMediaConstraints, selectedDevices } = useDevice();
+
     const navigate = useNavigate();
     const [joinAction, setJoinAction] = useState<(() => void) | null>(null);
 
@@ -31,9 +33,6 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
     const [cameraEnabled, setCameraEnabled] = useState<boolean>(true); // Default to true
     const [showMicOption, setShowMicOption] = useState<boolean>(true); // Default to true
     const [showCameraOption, setShowCameraOption] = useState<boolean>(true); // Default to true
-
-    const [micName, setMicName] = useState<string>(selectedDevices.audioInLabel);
-    const [cameraName, setCameraName] = useState<string>(selectedDevices.videoLabel);
 
     useEffect(() => {
 
@@ -98,12 +97,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             localParticipant.tracksInfo.isVideoEnabled = false;
         }
         
-    }, [])
-
-    useEffect(() => {
-        setMicName(selectedDevices.audioInLabel);
-        setCameraName(selectedDevices.videoLabel);
-    }, [selectedDevices]);
+    }, []);
 
     useEffect(() => {
         console.log(`isCallActive`, isCallActive);
@@ -191,7 +185,13 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                <RoomLobby conferenceScheduled={conferenceScheduled} showJoinButton={false} onJoinActionReady={handleJoinActionReady}></RoomLobby>
+                <RoomLobby
+                    conferenceScheduled={conferenceScheduled}
+                    showJoinButton={false}
+                    onJoinActionReady={handleJoinActionReady}
+                    deviceMicName={selectedDevices.audioInLabel ?? ''}
+                    deviceCameraName={selectedDevices.videoLabel ?? ''}
+                />
             </Modal.Body>
 
             <Modal.Footer className="border-0 pt-0">

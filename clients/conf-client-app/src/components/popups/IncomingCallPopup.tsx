@@ -8,9 +8,11 @@ import ThrottledButton from '@client/components/ui/ThrottledButton';
 import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { TelephoneInboundFill, CameraVideoFill, MicFill, XCircleFill } from 'react-bootstrap-icons';
 import '@client/css/modal.css';
+import { useDevice } from '@client/contexts/DeviceContext';
 
 const IncomingCallPopup: React.FC = () => {
-    const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite, localParticipant, getMediaConstraints } = useCall();
+    const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite, localParticipant } = useCall();
+    const { availableDevices, getMediaConstraints, selectedDevices, getLocalMedia } = useDevice();
     const navigate = useNavigate();
     const ui = useUI();
     const audioRef = useRef<HTMLAudioElement>(null);

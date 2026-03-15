@@ -6,9 +6,10 @@ import { useAPI } from '../hooks/useAPI';
 import { useConfig } from '../hooks/useConfig';
 import { IMsg } from '@rooms/rooms-models';
 import { EventParticpantNewTrackMsg, EventTypes } from '@conf/conf-client';
+import { useDevice } from './DeviceContext';
 import { getConferenceClient } from '../services/ConferenceService';
 
-export const conferenceClient = getConferenceClient();
+const conferenceClient = getConferenceClient();
 
 interface CallContextType {
 
@@ -84,20 +85,9 @@ interface CallContextType {
      * invite message received
      */
     inviteInfoReceived: InviteMsg;
-    setInviteInfoSend: React.Dispatch<React.SetStateAction<InviteMsg>>;
 
-    /**
-     * all avaialable devices for local participant
-     */
-    availableDevices: { video: Device[]; audioIn: Device[]; audioOut: Device[] };
-    /**
-     * the selected device for the local participant
-     */
-    selectedDevices: SelectedDevices;
-    setSelectedDevices: React.Dispatch<React.SetStateAction<SelectedDevices>>;
+    setInviteInfoSend: React.Dispatch<React.SetStateAction<InviteMsg>>;   
 
-    getLocalMedia: (options: GetUserMediaConfig) => Promise<MediaStreamTrack[]>;
-    getMediaConstraints: (getAudio: boolean, getVideo: boolean) => MediaStreamConstraints;
     getConferenceRoomsOnline: () => void;
     getParticipantsOnline: () => void;
 
@@ -122,7 +112,6 @@ interface CallContextType {
     startScreenShare: () => Promise<boolean>;
     stopScreenShare: () => void;
 
-    getMediaDevices: () => Promise<SelectedDevices>;
     switchDevicesOnCall: () => Promise<void>;//, isAudioEnabled: boolean, isVideoEnabled: boolean) => Promise<void>;
 
     disconnect: () => void;
@@ -134,6 +123,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const ui = useUI();
     const api = useAPI();
     const { config } = useConfig();
+    const { availableDevices, selectedDevices } = useDevice();
 
     const [isConnected, setIsConnected] = useState<boolean>(conferenceClient.isConnected());
     const [isConnecting, setIsConnecting] = useState<boolean>(conferenceClient.isConnecting());
@@ -149,7 +139,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const conference = useRef<Conference>(conferenceClient.conference);
     const [callParticipants, setCallParticipants] = useState<Map<string, Participant>>(new Map());
     const [isScreenSharing, setIsScreenSharing] = useState<boolean>(conferenceClient.isScreenSharing);
-    const [selectedDevices, setSelectedDevices] = useState<SelectedDevices>(conferenceClient.selectedDevices);
 
     const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>(conferenceClient.participantsOnline);
     const [conferencesOnline, setConferencesOnline] = useState<ConferenceScheduledInfo[]>(conferenceClient.conferencesOnline);
@@ -157,8 +146,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [inviteInfoReceived, setInviteInfoReceived] = useState<InviteMsg | null>(conferenceClient.inviteReceivedMsg);
 
     //const [isLocalStreamUpdated, setIsLocalStreamUpdated] = useState<boolean>(false);
-    const [availableDevices, setAvailableDevices] = useState<{ video: Device[]; audioIn: Device[]; audioOut: Device[] }>({ video: [], audioIn: [], audioOut: [] });
     const [onConferencePing, setOnConferencePing] = useState({});
+    const { getMediaConstraints } = useDevice();
 
     useEffect(() => {
         conferenceClient.init(config);
@@ -177,7 +166,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         setIsCallActive(conferenceClient.isInConference());
         setIsScreenSharing(conferenceClient.isScreenSharing);
-        setSelectedDevices(conferenceClient.selectedDevices);
         setPresenter(conferenceClient.conference.presenter);
 
         setParticipantsOnline(conferenceClient.participantsOnline);
@@ -195,132 +183,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return () => console.log("CallProvider unmounted");
     }, [isAuthenticated, isConnected]);
 
-    const getMediaDevices = useCallback(async () => {
-        try {
-            if (!navigator.mediaDevices) {
-                console.error(`cannot access mediaDevices, use https`);
-                return;
-            }
-
-            const devices = await navigator.mediaDevices?.enumerateDevices();
-            const video: Device[] = [];
-            const audioIn: Device[] = [];
-            const audioOut: Device[] = [];
-            devices.forEach(device => {
-                if (device.kind === 'videoinput') video.push({ id: device.deviceId, label: device.label || `Camera ${video.length + 1}` });
-                else if (device.kind === 'audioinput') audioIn.push({ id: device.deviceId, label: device.label || `Mic ${audioIn.length + 1}` });
-                else if (device.kind === 'audiooutput') audioOut.push({ id: device.deviceId, label: device.label || `Speaker ${audioOut.length + 1}` });
-            });
-            setAvailableDevices({ video, audioIn, audioOut });
-
-            // Set defaults of selected devices if not already set
-            if (!selectedDevices.videoId && video.length > 0) {
-                selectedDevices.videoId = video[0].id;
-                selectedDevices.videoLabel = video[0].label;
-            }
-            if (!selectedDevices.audioInId && audioIn.length > 0) {
-                selectedDevices.audioInId = audioIn[0].id;
-                selectedDevices.audioInLabel = audioIn[0].label;
-            }
-            if (!selectedDevices.audioOutId && audioOut.length > 0) {
-                selectedDevices.audioOutId = audioOut[0].id;
-                selectedDevices.audioOutLabel = audioOut[0].label;
-            }
-
-            return selectedDevices;
-
-        } catch (error) {
-            console.error('Error enumerating devices:', error);
-        }
-
-        return null;
-
-    }, [selectedDevices]);
-
-    const getMediaConstraints = useCallback((getAudio: boolean, getVideo: boolean): MediaStreamConstraints => {
-        const constraints: { audio?: any, video?: any } = {};
-
-        if (getAudio) {
-            constraints.audio = selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true;
-        }
-        if (getVideo) {
-            constraints.video = selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId, aspectRatio: 16 / 9, facingMode: "user" } } : true;
-        }
-        return constraints;
-    }, [selectedDevices]);
-
-    const getLocalMedia = useCallback(async (options: GetUserMediaConfig) => {
-        console.log("getLocalMedia");
-
-        if (!options.isAudioEnabled && !options.isVideoEnabled) {
-            return [];
-        }
-
-        if (!options.constraints) {
-            options.constraints = getMediaConstraints(options.isAudioEnabled, options.isVideoEnabled);
-        }
-
-        const tracks = await conferenceClient.getNewTracksForLocalParticipant(options);
-
-        console.log('conferenceClient.localParticipant', conferenceClient.localParticipant.stream.getTracks());
-        console.log('localParticipant', localParticipant.current.stream.getTracks());
-
-        const audioTrack = tracks.find(t => t.kind === "audio");
-        if (audioTrack) {
-            audioTrack.enabled = options.isAudioEnabled;
-            console.log(`audioTrack:`, audioTrack.enabled);
-        }
-
-        const videoTrack = tracks.find(t => t.kind === "video");
-        if (videoTrack) {
-            videoTrack.enabled = options.isVideoEnabled;
-            console.log(`videoTrack:`, videoTrack.enabled);
-        }
-
-        //setIsLocalStreamUpdated(true);
-        console.log("setIsLocalStreamUpdated");
-
-        return tracks;
-
-    }, [getMediaConstraints]);
-
-    useEffect(() => {
-        getMediaDevices();
-        navigator.mediaDevices?.addEventListener('devicechange', getMediaDevices);
-        return () => {
-            navigator.mediaDevices?.removeEventListener('devicechange', getMediaDevices);
-        };
-    }, [getMediaDevices]);
-
-    function cloneParticipant(participant: Participant): Participant {
-        const cloned = new Participant();
-        cloned.participantId = participant.participantId;
-        cloned.displayName = participant.displayName;
-        cloned.role = participant.role;
-        cloned.peerId = participant.peerId;
-
-        // Clone tracksInfo
-        cloned.tracksInfo = {
-            isAudioEnabled: participant.tracksInfo.isAudioEnabled,
-            isVideoEnabled: participant.tracksInfo.isVideoEnabled
-        };
-
-        // Clone prevTracksInfo if it exists
-        if (participant.prevTracksInfo) {
-            cloned.prevTracksInfo = {
-                isAudioEnabled: participant.prevTracksInfo.isAudioEnabled,
-                isVideoEnabled: participant.prevTracksInfo.isVideoEnabled,
-                screenShareTrackId: participant.prevTracksInfo.screenShareTrackId
-            };
-        }
-
-        // Note: MediaStream and HTMLVideoElement are not deeply cloned as they are managed by the browser
-        // The video element is already created in the Participant constructor
-        cloned.stream = participant.stream; // MediaStream is typically managed externally
-        cloned.videoEle.srcObject = participant.stream; // Reassign stream to video element
-
-        return cloned;
-    }
 
     function hasTracksInfoChanged(prev: Participant | undefined, next: Participant): boolean {
         if (!prev) return true; // No previous participant means tracksInfo is new
@@ -661,7 +523,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error('Failed to initiate call:');
             ui.showPopUp("Failed to initialized call.", "error");
         }
-    }, [api, getLocalMedia, inviteInfoSend, isCallActive, ui]);
+    }, [api, inviteInfoSend, isCallActive, ui]);
 
     const sendInvite = useCallback(async (participantInfo: ParticipantInfo, joinMediaConfig: GetUserMediaConfig) => {
         console.log(`sendInvite to ${participantInfo.participantId} ${participantInfo.displayName}`);
@@ -709,7 +571,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error('Failed to initiate call:');
             ui.showPopUp("Failed to initialized call.", "error");
         }
-    }, [api, getLocalMedia, inviteInfoSend, isCallActive, ui]);
+    }, [api, inviteInfoSend, isCallActive, ui]);
 
 
     const acceptInvite = useCallback(async (joinMediaConfig: GetUserMediaConfig) => {
@@ -1110,7 +972,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsCallActive(false);
         setCallParticipants(conferenceClient.conference.participants);
         setIsScreenSharing(conferenceClient.isScreenSharing);
-        setSelectedDevices(conferenceClient.selectedDevices);
         setParticipantsOnline(conferenceClient.participantsOnline);
         setConferencesOnline(conferenceClient.conferencesOnline);
         setInviteInfoSend(conferenceClient.inviteSendMsg);
@@ -1141,14 +1002,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             inviteInfoSend,
             inviteInfoReceived,
 
-            setInviteInfoSend,
-            availableDevices,
-            selectedDevices,
-            setSelectedDevices,
-
-            getLocalMedia,
-            getMediaConstraints,
-
+            setInviteInfoSend,            
             getConferenceRoomsOnline,
             getParticipantsOnline,
 
@@ -1171,7 +1025,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             startScreenShare,
             stopScreenShare,
 
-            getMediaDevices,
             switchDevicesOnCall,
             disconnect,
 

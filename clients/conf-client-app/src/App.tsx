@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { APIProvider } from '@client/contexts/APIContext';
 import { CallProvider } from '@client/contexts/CallContext';
+import { DeviceProvider } from '@client/contexts/DeviceContext';
 import LoginPage from '@client/components/layout/auth/LoginPage';
 import AuthenticatedLayout from './components/layout/home/AuthenticatedLayout';
 import OnCallScreen from '@client/components/layout/call/OnCallScreen';
@@ -161,9 +162,11 @@ function App() {
     <Router>
       <UIProvider>
         <APIProvider>
-          <CallProvider>
-            <AppRoutes />            
-          </CallProvider>
+          <DeviceProvider>
+            <CallProvider>
+              <AppRoutes />            
+            </CallProvider>
+          </DeviceProvider>
         </APIProvider>
       </UIProvider>
     </Router>

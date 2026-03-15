@@ -2,12 +2,15 @@ import { Participant, isAudioAllowedFor, getBrowserUserMedia, isVideoAllowedFor 
 import React, { useState, useEffect, useCallback } from "react";
 import { Card } from "react-bootstrap";
 import { CameraVideoOffFill, MicFill, MicMuteFill, CameraVideoFill } from "react-bootstrap-icons";
-import { conferenceClient } from "@client/contexts/CallContext";
 import { useAPI } from "@client/hooks/useAPI";
 import { useCall } from "@client/hooks/useCall";
 import { useUI } from "@client/hooks/useUI";
 import ThrottledButton from "@client/components/ui/ThrottledButton";
 import styles from './ParticipantVideoPreview.module.css';
+import { getConferenceClient } from "@client/services/ConferenceService";
+import { useDevice } from "@client/contexts/DeviceContext";
+
+const conferenceClient = getConferenceClient();
 
 interface ParticipantVideoPreviewProps {
     participant: Participant;
@@ -19,7 +22,8 @@ interface ParticipantVideoPreviewProps {
 const ParticipantVideoPreviewComponent: React.FC<ParticipantVideoPreviewProps> = ({ participant, onClick, isSelected, style }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, broadCastTrackInfo, conference, muteParticipantTrack, getMediaConstraints } = useCall();
+    const { localParticipant, broadCastTrackInfo, conference, muteParticipantTrack } = useCall();
+    const { availableDevices, getMediaConstraints, selectedDevices, getLocalMedia } = useDevice();
     const [videoEnabled, setVideoEnabled] = useState(false);
     const [audioEnabled, setAudioEnabled] = useState(false);
     const [allowControls, setAllowControls] = useState(true);
