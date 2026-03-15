@@ -9,10 +9,13 @@ import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { TelephoneInboundFill, CameraVideoFill, MicFill, XCircleFill } from 'react-bootstrap-icons';
 import '@client/css/modal.css';
 import { useDevice } from '@client/contexts/DeviceContext';
+import { useAPI } from '@client/hooks/useAPI';
 
 const IncomingCallPopup: React.FC = () => {
     const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite, localParticipant } = useCall();
-    const { availableDevices, getMediaConstraints, selectedDevices, getLocalMedia } = useDevice();
+    const { getMediaConstraints } = useDevice();
+    const { getCurrentUser } = useAPI();
+
     const navigate = useNavigate();
     const ui = useUI();
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -27,8 +30,8 @@ const IncomingCallPopup: React.FC = () => {
 
     useEffect(() => {
         if (inviteInfoReceived) {
-            let config = getConferenceConfig();
-            if (config && config.debug_auto_answer) {
+            let appConfig = getConferenceConfig();
+            if (appConfig && appConfig.debug_auto_answer) {
                 handleAccept(true, true);
             }
         }
@@ -38,6 +41,34 @@ const IncomingCallPopup: React.FC = () => {
             audioRef.current.play().catch(err => {
                 console.warn("ring autoplay failed:", err);
             });
+        }
+
+        if (inviteInfoReceived.data.conferenceType == "p2p") {
+            //this is p2p call, user can decide to accept with audio for video
+        } else {
+            //this is a conference room
+
+            if(!inviteInfoReceived?.data?.conferenceConfig){
+                console.error(`no conference config`);
+                return;
+            }
+            
+            //check the conference config
+            if (inviteInfoReceived?.data?.conferenceConfig) {
+                let user = getCurrentUser();
+                if (user && user.role === "guest") {
+
+                    //enforce camera
+                    if (inviteInfoReceived.data.conferenceConfig.guestsRequireCamera) {
+                        localParticipant.tracksInfo.isVideoEnabled = true;
+                    }
+
+                    //enforce mic
+                    if (inviteInfoReceived.data.conferenceConfig.guestsRequireMic) {
+                        localParticipant.tracksInfo.isAudioEnabled = true;
+                    }
+                }
+            }
         }
 
     }, [inviteInfoReceived]);
@@ -56,7 +87,7 @@ const IncomingCallPopup: React.FC = () => {
         let joinMediaConfig = new GetUserMediaConfig();
         joinMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
         joinMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
-        console.warn("accepting invite with ", joinMediaConfig,  localParticipant.tracksInfo);
+        console.warn("accepting invite with ", joinMediaConfig, localParticipant.tracksInfo);
 
         joinMediaConfig.constraints = getMediaConstraints(joinMediaConfig.isAudioEnabled, joinMediaConfig.isVideoEnabled);
 
@@ -70,6 +101,18 @@ const IncomingCallPopup: React.FC = () => {
     useEffect(() => {
         console.log("updated inviteInfoReceived", inviteInfoReceived);
     }, [inviteInfoReceived]);
+
+    const isConferenceInvite = inviteInfoReceived?.data?.conferenceType !== "p2p";
+    const isGuest = getCurrentUser()?.role === "guest";
+    const isGuestConference = isConferenceInvite && isGuest;
+    const conferenceConfig = inviteInfoReceived?.data?.conferenceConfig;
+
+    const guestAudioEnabled = isGuestConference
+        ? !!(conferenceConfig?.guestsRequireMic || conferenceConfig?.guestsAllowMic)
+        : !!inviteInfoReceived?.data?.withAudio;
+    const guestVideoEnabled = isGuestConference
+        ? !!(conferenceConfig?.guestsRequireCamera || conferenceConfig?.guestsAllowCamera)
+        : !!inviteInfoReceived?.data?.withVideo;
 
     return (
         <>
@@ -97,40 +140,55 @@ const IncomingCallPopup: React.FC = () => {
                     {/* Action Area */}
                     <div className="p-4 bg-body">
                         <div className="d-grid gap-3">
-
-                            {inviteInfoReceived?.data?.withVideo && <>
+                            {isGuestConference ? (
                                 <ThrottledButton
                                     variant="success"
                                     size="lg"
                                     className="py-3 fw-bold d-flex align-items-center justify-content-center shadow-sm"
-                                    onClick={() => handleAccept(true, true)}
+                                    onClick={() => handleAccept(guestAudioEnabled, guestVideoEnabled)}
                                 >
-                                    <CameraVideoFill className="me-2" size={20} /> Accept with Video
+                                    {guestVideoEnabled ? (
+                                        <CameraVideoFill className="me-2" size={20} />
+                                    ) : (
+                                        <MicFill className="me-2" size={20} />
+                                    )}
+                                    Join Conference
                                 </ThrottledButton>
-                            </>}
-                            {inviteInfoReceived.data.withAudio && (
-                                <Button
-                                    variant="outline-success"
-                                    size="lg"
-                                    className="py-2 d-flex align-items-center justify-content-center"
-                                    onClick={() => handleAccept(true, false)}
-                                >
-                                    <MicFill className="me-2" size={18} /> Audio Only
-                                </Button>
+                            ) : (
+                                <>
+                                    {inviteInfoReceived?.data?.withVideo && (
+                                        <ThrottledButton
+                                            variant="success"
+                                            size="lg"
+                                            className="py-3 fw-bold d-flex align-items-center justify-content-center shadow-sm"
+                                            onClick={() => handleAccept(true, true)}
+                                        >
+                                            <CameraVideoFill className="me-2" size={20} /> Accept with Video
+                                        </ThrottledButton>
+                                    )}
+                                    {inviteInfoReceived?.data?.withAudio && (
+                                        <Button
+                                            variant="outline-success"
+                                            size="lg"
+                                            className="py-2 d-flex align-items-center justify-content-center"
+                                            onClick={() => handleAccept(true, false)}
+                                        >
+                                            <MicFill className="me-2" size={18} /> Audio Only
+                                        </Button>
+                                    )}
+
+                                    {!inviteInfoReceived?.data?.withAudio && !inviteInfoReceived?.data?.withVideo && (
+                                        <ThrottledButton
+                                            variant="outline-success"
+                                            size="lg"
+                                            className="py-2 d-flex align-items-center justify-content-center"
+                                            onClick={() => handleAccept(false, false)}
+                                        >
+                                            <MicFill className="me-2" size={18} /> Answer
+                                        </ThrottledButton>
+                                    )}
+                                </>
                             )}
-
-                            {(!inviteInfoReceived?.data?.withAudio && !inviteInfoReceived?.data?.withVideo) && (<>
-                                <ThrottledButton
-                                    variant="outline-success"
-                                    size="lg"
-                                    className="py-2 d-flex align-items-center justify-content-center"
-                                    onClick={() => handleAccept(false, false)}
-                                >
-                                    <MicFill className="me-2" size={18} /> Answer
-                                </ThrottledButton>
-                            </>)}
-
-
 
                             <hr className="my-2" />
 

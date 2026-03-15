@@ -501,7 +501,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
     }
 
     /**
-     * invite a peer to a p2p call
+     * invite a peer to a p2p call or conference
      * @param ws 
      * @param msgIn 
      * @returns 
@@ -585,6 +585,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.conferenceType = conference.confType;
         msg.data.withAudio = msgIn.data.withAudio;
         msg.data.withVideo = msgIn.data.withVideo;
+
 
         msg.data.ticket = jwtSign(this.config.conf_secret_key, { conferenceId: conference.id, participantId: remote.participantId });
 
@@ -701,11 +702,18 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         if (remote.role == AuthUserRoles.guest) {
             withAudio = conference.config.guestsRequireMic || (withAudio && conference.config.guestsAllowMic);
             withVideo = conference.config.guestsRequireCamera || (withVideo && conference.config.guestsAllowCamera);
+            msg.data.conferenceConfig = {
+                guestsRequireCamera: conference.config.guestsRequireCamera,
+                guestsRequireMic: conference.config.guestsRequireMic,
+            }
         }
-
+        
         msg.data.withAudio = withAudio;
         msg.data.withVideo = withVideo;
         msg.data.ticket = jwtSign(this.config.conf_secret_key, { conferenceId: conference.id, participantId: remote.participantId });
+
+        //send the config
+
 
         if (!this.send(remote, msg)) {
             consoleError("failed to send invite to receiver");
