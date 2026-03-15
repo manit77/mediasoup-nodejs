@@ -2,9 +2,9 @@ import { Participant, isAudioAllowedFor, getBrowserUserMedia, isVideoAllowedFor 
 import React, { useState, useEffect, useCallback } from "react";
 import { Card } from "react-bootstrap";
 import { CameraVideoOffFill, MicFill, MicMuteFill, CameraVideoFill } from "react-bootstrap-icons";
-import { useAPI } from "@client/hooks/useAPI";
-import { useCall } from "@client/hooks/useCall";
-import { useUI } from "@client/hooks/useUI";
+import { useAPI } from '@client/contexts/APIContext';
+import { useCall } from '@client/contexts/CallContext';
+import { useUI } from '@client/contexts/UIContext';
 import ThrottledButton from "@client/components/ui/ThrottledButton";
 import styles from './ParticipantVideoPreview.module.css';
 import { getConferenceClient } from "@client/services/ConferenceService";

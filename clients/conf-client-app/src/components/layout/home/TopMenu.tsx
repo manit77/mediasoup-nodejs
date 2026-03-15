@@ -1,17 +1,18 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Navbar, Nav, NavDropdown, Container } from 'react-bootstrap';
-import { useAPI } from '@client/hooks/useAPI';
+import { useAPI } from '@client/contexts/APIContext';
 import { useNavigate } from 'react-router-dom';
 import { BoxArrowRight, CameraVideoFill, CircleFill, ExclamationTriangleFill, Gear, MicFill, Person } from 'react-bootstrap-icons';
 import { useDevice } from '@client/contexts/DeviceContext';
 import '@client/css/BlinkingWarning.css';
 import { objectToQueryString } from '@client/utils/utils';
 import { flushSync } from 'react-dom';
-import { useCall } from '@client/hooks/useCall';
+import { useCall } from '@client/contexts/CallContext';
 import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { ConferenceClientConfig } from '@conf/conf-client';
 import SettingsPopup from '@client/components/popups/SettingsPopup';
-import { useUI } from '@client/hooks/useUI';
+import { useUI } from '@client/contexts/UIContext';
+import { usePresence } from '@client/contexts/PresenceContext';
 
 interface TopMenuProps {
     onShowSettings: () => void;
@@ -19,7 +20,8 @@ interface TopMenuProps {
 
 const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
     const { getCurrentUser, logout, getClientData } = useAPI();
-    const { disconnect, isConnected, isAuthenticated, isConnecting } = useCall();
+    const call = useCall();
+    const { isRegistered, isConnected, isConnecting } = usePresence();
     const { isCameraAvailable, isMicAvailable } = useDevice();
      const ui = useUI();
     const navigate = useNavigate();
@@ -43,8 +45,8 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
             console.log(`logout clientData:`, clientData);
 
             flushSync(() => {
-                logout();
-                disconnect();
+                call.disconnect();
+                logout();                
             });
 
             navigate(path, { replace: true });
@@ -127,11 +129,11 @@ const TopMenu: React.FC<TopMenuProps> = ({ onShowSettings }) => {
                         }}
                     >
                         <CircleFill
-                            className={`me-2 ${isConnecting ? "text-warning" : isConnected && isAuthenticated ? 'text-success' : 'text-danger'}`}
+                            className={`me-2 ${isConnecting ? "text-warning" : isConnected && isRegistered ? 'text-success' : 'text-danger'}`}
                             size={7}
                         />
                         <span className="text-light opacity-75">
-                            {isConnecting ? "SYNCING" : isConnected && isAuthenticated ? 'CONNECTED' : 'OFFLINE'}
+                            {isConnecting ? "SYNCING" : isConnected && isRegistered ? 'CONNECTED' : 'OFFLINE'}
                         </span>
                         <CameraVideoFill
                             className={`ms-3 ${isCameraAvailable ? 'text-success' : 'text-danger'}`}

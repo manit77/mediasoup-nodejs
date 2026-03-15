@@ -47,7 +47,29 @@ export class ConferenceClient {
 
     CallConnectTimeoutSeconds = 30;
 
-    onEvent: ConferenceEvent;
+    // Multiple listeners can subscribe to ConferenceClient events.
+    private eventListeners: ConferenceEvent[] = [];
+    // Backing field for the legacy single-listener API (onEvent).
+    private _onEvent?: ConferenceEvent;
+
+    /**
+     * Legacy single-listener API. Assigning to this will REPLACE all existing listeners
+     * with the provided handler. Prefer addEventListener/removeEventListener for
+     * multiple subscribers.
+     */
+    public set onEvent(handler: ConferenceEvent | undefined) {
+        if (handler) {
+            this._onEvent = handler;
+            this.eventListeners = [handler];
+        } else {
+            this._onEvent = undefined;
+            this.eventListeners = [];
+        }
+    }
+
+    public get onEvent(): ConferenceEvent | undefined {
+        return this._onEvent;
+    }
     apiClient: ConferenceAPIClient;
 
     CallConnectTimeoutTimerIds = new Set<any>();
@@ -71,10 +93,34 @@ export class ConferenceClient {
         }
     }
 
+    /**
+     * Subscribe to conference events.
+     */
+    addEventListener(handler: ConferenceEvent): void {
+        this.eventListeners.push(handler);
+    }
+
+    /**
+     * Unsubscribe from conference events.
+     */
+    removeEventListener(handler: ConferenceEvent): void {
+        this.eventListeners = this.eventListeners.filter(h => h !== handler);
+    }
+
+    private async emitEvent(eventType: string, payload: IMsg): Promise<void> {
+        if (!this.eventListeners.length) {
+            return;
+        }
+        // Call listeners sequentially to preserve ordering and avoid race conditions in shared state.
+        for (const handler of this.eventListeners) {
+            await handler(eventType, payload);
+        }
+    }
+
     dispose() {
         console.log("dispose");
 
-        this.onEvent = null;
+        this.eventListeners = [];
         if (this.roomManager) {
             this.roomManager.dispose();
         }
@@ -262,7 +308,7 @@ export class ConferenceClient {
         try {
             let registerResult = await this.waitRegisterConnection(this.participantGroup, this.conferenceGroup, this.username, this.displayName, this.authToken, this.clientData);
             if (!registerResult.error) {
-                await this.onEvent(EventTypes.connected, new OkMsg());
+                await this.emitEvent(EventTypes.connected, new OkMsg());
                 return true;
             }
         } catch (err) {
@@ -307,7 +353,7 @@ export class ConferenceClient {
             let msg = new ConferenceClosedMsg();
             msg.data.conferenceId = this.conference.conferenceId;
             msg.data.reason = "connection closed";
-            await this.onEvent(EventTypes.conferenceClosed, msg);
+            await this.emitEvent(EventTypes.conferenceClosed, msg);
         }
 
         this.resetConferenceRoom();
@@ -317,7 +363,7 @@ export class ConferenceClient {
         console.log(`reconnectAttempts: ${this.socket.reconnectAttempts}`);
         if (this.socket.reconnectAttempts == 0) {
             console.log(`fire EventTypes.disconnected`);
-            await this.onEvent(EventTypes.disconnected, new OkMsg());
+            await this.emitEvent(EventTypes.disconnected, new OkMsg());
         }
     }
 
@@ -416,7 +462,7 @@ export class ConferenceClient {
                     msg.data.reason = "call timed out.";
                 }
 
-                await this.onEvent(EventTypes.conferenceClosed, msg);
+                await this.emitEvent(EventTypes.conferenceClosed, msg);
 
                 this.leave();
             }
@@ -1126,7 +1172,7 @@ export class ConferenceClient {
         }
 
         if (this.callState === "disconnected") {
-            await this.onEvent(EventTypes.inviteResult, message);
+            await this.emitEvent(EventTypes.inviteResult, message);
             this.resetConferenceRoom();
             this.resetLocalTracks();
             return;
@@ -1145,7 +1191,7 @@ export class ConferenceClient {
 
         this.startCallConnectTimer();
 
-        await this.onEvent(EventTypes.inviteResult, message);
+        await this.emitEvent(EventTypes.inviteResult, message);
     }
 
     async onInviteReceived(message: InviteMsg) {
@@ -1176,7 +1222,7 @@ export class ConferenceClient {
         console.log(`set conferenceId ${message.data.conferenceId}`, this.conference);
         this.startCallConnectTimer();
 
-        await this.onEvent(EventTypes.inviteReceived, message);
+        await this.emitEvent(EventTypes.inviteReceived, message);
     }
 
 
@@ -1198,7 +1244,7 @@ export class ConferenceClient {
             return;
         }
 
-        await this.onEvent(EventTypes.inviteCancelled, message);
+        await this.emitEvent(EventTypes.inviteCancelled, message);
 
         this.resetConferenceRoom();
         this.resetLocalTracks();
@@ -1271,7 +1317,7 @@ export class ConferenceClient {
             return;
         }
 
-        await this.onEvent(EventTypes.acceptResult, message);
+        await this.emitEvent(EventTypes.acceptResult, message);
 
     }
 
@@ -1459,13 +1505,13 @@ export class ConferenceClient {
 
         if (message.error) {
             console.error(message.error);
-            await this.onEvent(EventTypes.registerResult, message);
+            await this.emitEvent(EventTypes.registerResult, message);
         } else {
             this.localParticipant.participantId = message.data.participantId;
             this.localParticipant.displayName = message.data.username;
             this.localParticipant.role = message.data.role;
             console.log('*** Registered with participantId:', this.localParticipant);
-            await this.onEvent(EventTypes.registerResult, message);
+            await this.emitEvent(EventTypes.registerResult, message);
 
             this.getParticipantsOnline();
         }
@@ -1474,14 +1520,14 @@ export class ConferenceClient {
     private async onLoggedOff(message: LoggedOffMsg) {
         console.log("onRegisterResult");
 
-        await this.onEvent(EventTypes.loggedOff, message);
+        await this.emitEvent(EventTypes.loggedOff, message);
     }
 
     private async onUnauthorized(message: UnauthorizedMsg) {
         console.log("onUnauthorized");
 
         this.connect(this.participantGroup, this.conferenceGroup, this.username, this.displayName, this.authToken, this.clientData);
-        await this.onEvent(EventTypes.unAuthorized, message);
+        await this.emitEvent(EventTypes.unAuthorized, message);
     }
 
     // private async onNotRegistred(message: NotRegisteredMsg) {
@@ -1493,14 +1539,14 @@ export class ConferenceClient {
         console.log("onParticipantsReceived");
 
         this.participantsOnline = message.data.participants.filter(c => c.participantId !== this.localParticipant.participantId);
-        await this.onEvent(EventTypes.participantsReceived, message);
+        await this.emitEvent(EventTypes.participantsReceived, message);
     }
 
     private async onConferencesReceived(message: GetConferencesResultMsg) {
         //console.log("onConferencesReceived");
 
         this.conferencesOnline = message.data.conferences;
-        await this.onEvent(EventTypes.conferencesReceived, message);
+        await this.emitEvent(EventTypes.conferencesReceived, message);
     }
 
     /**
@@ -1515,7 +1561,7 @@ export class ConferenceClient {
             return;
         }
 
-        await this.onEvent(EventTypes.rejectReceived, message);
+        await this.emitEvent(EventTypes.rejectReceived, message);
         this.resetConferenceRoom();
         this.resetLocalTracks();
         if (this.roomManager) {
@@ -1534,7 +1580,7 @@ export class ConferenceClient {
         if (message.error) {
             console.error(message.error);
 
-            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.error } });
+            await this.emitEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.error } });
             if (this.roomManager) {
                 this.roomManager.dispose();
             }
@@ -1544,11 +1590,11 @@ export class ConferenceClient {
         if (!message.data.conferenceId) {
             console.error(`no conferenceId`);
 
-            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: "no conferenceId" } });
+            await this.emitEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: "no conferenceId" } });
             return;
         }
 
-        await this.onEvent(EventTypes.conferenceCreatedResult, message);
+        await this.emitEvent(EventTypes.conferenceCreatedResult, message);
     }
 
     /**
@@ -1566,7 +1612,7 @@ export class ConferenceClient {
             this.callState = "disconnected";
             this.conference.conferenceId = "";
 
-            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.error } });
+            await this.emitEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: message.error } });
             if (this.roomManager) {
                 this.roomManager.dispose();
             }
@@ -1656,7 +1702,7 @@ export class ConferenceClient {
                 this.roomManager.dispose();
                 this.roomManager = null;
             }
-            await this.onEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: "error connecting to conference." } });
+            await this.emitEvent(EventTypes.conferenceFailed, { type: EventTypes.conferenceFailed, data: { error: "error connecting to conference." } });
         }
     }
 
@@ -1677,7 +1723,7 @@ export class ConferenceClient {
                 }
             }
 
-            await this.onEvent(EventTypes.prensenterInfo, msg);
+            await this.emitEvent(EventTypes.prensenterInfo, msg);
         }
     }
 
@@ -1699,7 +1745,7 @@ export class ConferenceClient {
             this.roomManager.dispose();
         }
 
-        await this.onEvent(EventTypes.conferenceClosed, message);
+        await this.emitEvent(EventTypes.conferenceClosed, message);
         this.resetConferenceRoom();
         this.resetLocalTracks();
     }
@@ -1711,7 +1757,7 @@ export class ConferenceClient {
             switch (eventType) {
                 case EventTypes.disconnected:
                     this.leave();
-                    await this.onEvent(EventTypes.conferenceClosed, { type: EventTypes.conferenceClosed, data: { conferenceId: this.conference.conferenceId, reason: "disconnected from room server" } });
+                    await this.emitEvent(EventTypes.conferenceClosed, { type: EventTypes.conferenceClosed, data: { conferenceId: this.conference.conferenceId, reason: "disconnected from room server" } });
                     this.resetConferenceRoom();
                     this.resetLocalTracks();
                     if (this.roomManager) {
@@ -1726,7 +1772,7 @@ export class ConferenceClient {
                     if (this.conference.presenterId === this.localParticipant.participantId) {
                         this.conference.setPresenter(this.localParticipant);
                     }
-                    await this.onEvent(EventTypes.conferenceJoined, payload);
+                    await this.emitEvent(EventTypes.conferenceJoined, payload);
                     break;
 
                 case 'eventRoomTransportsCreated':
@@ -1743,7 +1789,7 @@ export class ConferenceClient {
                     if (this.roomManager) {
                         this.roomManager.dispose();
                     }
-                    await this.onEvent(EventTypes.conferenceClosed, payload);
+                    await this.emitEvent(EventTypes.conferenceClosed, payload);
                     this.resetConferenceRoom();
                     this.resetLocalTracks();
                     break;
@@ -1764,7 +1810,7 @@ export class ConferenceClient {
                     if (this.conference.presenterId === participant.participantId) {
                         this.conference.setPresenter(participant);
                     }
-                    await this.onEvent(EventTypes.participantJoined, { type: EventTypes.participantJoined, data: { ...payload.data, participantId: participant.participantId, displayName: participant.displayName, conferenceId: this.conference.conferenceId } });
+                    await this.emitEvent(EventTypes.participantJoined, { type: EventTypes.participantJoined, data: { ...payload.data, participantId: participant.participantId, displayName: participant.displayName, conferenceId: this.conference.conferenceId } });
                     break;
                 }
 
@@ -1780,7 +1826,7 @@ export class ConferenceClient {
                         participant.stream.removeTrack(existingTrack);
                     }
                     participant.stream.addTrack(track);
-                    await this.onEvent(EventTypes.participantNewTrack, { type: EventTypes.participantNewTrack, data: { participant, track, participantId: participant.participantId } });
+                    await this.emitEvent(EventTypes.participantNewTrack, { type: EventTypes.participantNewTrack, data: { participant, track, participantId: participant.participantId } });
                     break;
                 }
 
@@ -1793,7 +1839,7 @@ export class ConferenceClient {
                     if (this.conference.presenter === participant) {
                         this.conference.setPresenter(null);
                     }
-                    await this.onEvent(EventTypes.participantLeft, { type: EventTypes.participantLeft, data: { conferenceId: this.conference.conferenceId, participantId: participant.participantId } });
+                    await this.emitEvent(EventTypes.participantLeft, { type: EventTypes.participantLeft, data: { conferenceId: this.conference.conferenceId, participantId: participant.participantId } });
                     break;
                 }
 
@@ -1806,12 +1852,12 @@ export class ConferenceClient {
                     if (!participant) return;
 
                     participant.tracksInfo = peer.tracksInfo;
-                    await this.onEvent(EventTypes.participantTrackInfoUpdated, { type: EventTypes.participantTrackInfoUpdated, data: { participantId: participant.participantId, tracksInfo: participant.tracksInfo } });
+                    await this.emitEvent(EventTypes.participantTrackInfoUpdated, { type: EventTypes.participantTrackInfoUpdated, data: { participantId: participant.participantId, tracksInfo: participant.tracksInfo } });
                     break;
                 }
 
                 case EventTypes.conferencePing:
-                    await this.onEvent(EventTypes.conferencePing, payload);
+                    await this.emitEvent(EventTypes.conferencePing, payload);
                     break;
             }
         });

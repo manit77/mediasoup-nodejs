@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Button, ListGroup } from 'react-bootstrap';
-import { useCall } from '@client/hooks/useCall';
+import { useCall } from '@client/contexts/CallContext';
 import { ConferenceScheduledInfo, GetUserMediaConfig, ParticipantInfo } from '@conf/conf-models';
 import ThrottledButton from '@client/components/ui/ThrottledButton';
 import { XCircleFill, PersonCircle, PersonPlus, PersonPlusFill, CheckLg } from 'react-bootstrap-icons';
-import { useAPI } from '@client/hooks/useAPI';
+import { useAPI } from '@client/contexts/APIContext';
 import { Conference } from '@conf-client/models';
 
 const InviteParticipantsModal: React.FC<{ conference: Conference | null, show: boolean, onClose: () => void }> = ({ conference, show, onClose }) => {

@@ -3,7 +3,7 @@ import CallTopMenu from './CallTopMenu';
 import ParticipantsPane from './ParticipantsPane';
 import PresenterVideo from './PresenterVideo';
 import SettingsPopup from '@client/components/popups/SettingsPopup';
-import { useCall } from '@client/hooks/useCall';
+import { useCall } from '@client/contexts/CallContext';
 import { Navigate } from 'react-router-dom';
 import { Participant } from '@conf/conf-client';
 import { conferenceLayout } from '@conf/conf-models';

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAPI } from '@client/hooks/useAPI';
-import { useUI } from '@client/hooks/useUI';
+import { useAPI } from '@client/contexts/APIContext';
+import { useUI } from '@client/contexts/UIContext';
 import { Form, Button, Container, Card, Alert, Spinner, Badge } from 'react-bootstrap';
 import { generateRandomDisplayName, getQueryParams } from '@client/utils/utils';
 import { getConferenceConfig } from '@client/services/ConferenceConfig';

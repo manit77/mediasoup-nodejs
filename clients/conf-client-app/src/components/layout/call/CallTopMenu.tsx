@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Navbar, Nav, Button, Container, Dropdown } from 'react-bootstrap';
 import { BoxArrowRight, GearFill, PersonPlusFill, DisplayFill, XSquareFill, CameraVideoFill, Easel, ThreeDotsVertical } from 'react-bootstrap-icons';
-import { useCall } from '@client/hooks/useCall';
+import { useCall } from '@client/contexts/CallContext';
 import { useNavigate } from 'react-router-dom';
-import { useAPI } from '@client/hooks/useAPI';
+import { useAPI } from '@client/contexts/APIContext';
 import ConfirmPopUp from '@client/components/ui/ConfirmPopUp';
 import styles from './CallTopMenu.module.css'; // Import the styles
 import '@client/css/modal.css';

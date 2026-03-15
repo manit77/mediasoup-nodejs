@@ -1,12 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Card, Badge } from 'react-bootstrap';
-import { useCall } from '@client/hooks/useCall';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAPI } from '@client/hooks/useAPI';
-import { useUI } from '@client/hooks/useUI';
+import { useAPI } from '@client/contexts/APIContext';
 import { ConferenceScheduledInfo, GetUserMediaConfig } from '@conf/conf-models';
 import ThrottledButton from '../ThrottledButton';
-import { getBrowserUserMedia } from '@conf/conf-client';
 import {
     CameraVideo, CameraVideoOff,
     Mic, MicMute,  
@@ -16,12 +13,14 @@ import {
     Circle
 } from 'react-bootstrap-icons';
 import { useDevice } from '@client/contexts/DeviceContext';
+import { usePresence } from '@client/contexts/PresenceContext';
+import { useUI } from '@client/contexts/UIContext';
+import { useCall } from '@client/contexts/CallContext';
 
 interface RoomLobbyProps {
     conferenceScheduled?: ConferenceScheduledInfo;
     showJoinButton?: boolean;
     onJoinActionReady?: (action: () => void) => void;
-    /** When provided (e.g. from JoinRoomPopUp), use for device labels so they stay in sync after Settings changes */
     deviceMicName?: string;
     deviceCameraName?: string;
 }
@@ -29,8 +28,9 @@ interface RoomLobbyProps {
 const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButton = true, onJoinActionReady, deviceMicName, deviceCameraName }) => {
     const api = useAPI();
     const ui = useUI();
-    const { conferencesOnline, localParticipant, isCallActive, createOrJoinConference, joinConference, isWaiting } = useCall();
+    const { localParticipant, isCallActive, createOrJoinConference, joinConference } = useCall();
     const { availableDevices, getMediaConstraints, selectedDevices, getLocalMedia } = useDevice();
+    const { conferencesOnline } = usePresence();
 
     const navigate = useNavigate();
 
@@ -317,7 +317,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButt
                                                 onChange={(e) => setConferenceCode(e.target.value)}
                                                 placeholder="Enter 5-digit code"
                                                 required
-                                                disabled={isWaiting}
+                                                disabled={isCallActive}
                                             />
                                         </Form.Group>
                                     )}
@@ -335,7 +335,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButt
                                                         label={micEnabled ? <span><Mic className="me-1" /> Mic On</span> : <span><MicMute className="me-1" /> Mic Off</span>}
                                                         checked={micEnabled}
                                                         onChange={(e) => toggleMic(e.target.checked)}
-                                                        disabled={isWaiting}
+                                                        disabled={isCallActive}
                                                         className="mb-2"
                                                     />
                                                 </Form.Group>
@@ -359,7 +359,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButt
                                                         label={cameraEnabled ? <span><CameraVideo className="me-1" /> Video On</span> : <span><CameraVideoOff className="me-1" /> Video Off</span>}
                                                         checked={cameraEnabled && !!displayCameraName}
                                                         onChange={(e) => toggleCamera(e.target.checked)}
-                                                        disabled={isWaiting || !displayCameraName}
+                                                        disabled={isCallActive || !displayCameraName}
                                                         className="mb-2"
                                                     />
                                                 </Form.Group>
@@ -398,8 +398,8 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButt
 
                                     {showJoinButton && (
                                         <div className="d-grid gap-2 mt-4">
-                                            <ThrottledButton onClick={() => { void handleJoinConf(); }} variant="primary" size="lg" disabled={isWaiting}>
-                                                {isWaiting ? 'Connecting...' : 'Enter Room'}
+                                            <ThrottledButton onClick={() => { void handleJoinConf(); }} variant="primary" size="lg" disabled={isCallActive}>
+                                                {isCallActive ? 'Connecting...' : 'Enter Room'}
                                             </ThrottledButton>
                                         </div>
                                     )}

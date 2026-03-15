@@ -6,12 +6,13 @@ import { DeviceProvider } from '@client/contexts/DeviceContext';
 import LoginPage from '@client/components/layout/auth/LoginPage';
 import AuthenticatedLayout from './components/layout/home/AuthenticatedLayout';
 import OnCallScreen from '@client/components/layout/call/OnCallScreen';
-import { useAPI } from '@client/hooks/useAPI';
-import { useCall } from '@client/hooks/useCall';
+import { useAPI } from '@client/contexts/APIContext';
+import { useCall } from '@client/contexts/CallContext';
 import { UIProvider } from '@client/contexts/UIContext';
 import LoginGuestPage from '@client/components/layout/auth/LoginGuestPage';
 import LogoutPage from '@client/components/layout/auth/LogoutPage';
 import Lobby from '@client/components/layout/lobby/Lobby'
+import { PresenceProvider } from './contexts/PresenceContext';
 
 const GUEST_IDLE_LOGOUT_MS = 25 * 60 * 1000;
 const GUEST_ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'] as const;
@@ -133,7 +134,7 @@ const AppRoutes: React.FC = () => {
         /* Authenticated Logic */
         <>
           {isCallActive ? (
-             <Route path="/on-call" element={<OnCallScreen />} />
+            <Route path="/on-call" element={<OnCallScreen />} />
           ) : (
             <>
               <Route path="/app" element={<AuthenticatedLayout />} />
@@ -163,9 +164,11 @@ function App() {
       <UIProvider>
         <APIProvider>
           <DeviceProvider>
-            <CallProvider>
-              <AppRoutes />            
-            </CallProvider>
+            <PresenceProvider>
+              <CallProvider>
+                <AppRoutes />
+              </CallProvider>
+            </PresenceProvider>
           </DeviceProvider>
         </APIProvider>
       </UIProvider>

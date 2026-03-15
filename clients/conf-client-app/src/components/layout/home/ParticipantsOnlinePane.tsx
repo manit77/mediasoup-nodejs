@@ -1,25 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { useCall } from '@client/hooks/useCall';
+import { useCall } from '@client/contexts/CallContext';
 import { GetUserMediaConfig, ParticipantInfo } from '@conf/conf-models';
 import ThrottledButton from '../../ui/ThrottledButton';
-import { useUI } from '@client/hooks/useUI';
-import { useAPI } from '@client/hooks/useAPI';
+import { useUI } from '@client/contexts/UIContext';
+import { useAPI } from '@client/contexts/APIContext';
 import { ArrowRepeat, MicFill, CameraVideoFill, CircleFill, Circle, PersonCircle } from 'react-bootstrap-icons';
 import { Button, ListGroup, Badge, Spinner } from 'react-bootstrap';
 import { useDevice } from '@client/contexts/DeviceContext';
+import { usePresence } from '@client/contexts/PresenceContext';
 
 const ParticipantsOnlinePane: React.FC = () => {
     const ui = useUI()
-    const { localParticipant, isAuthenticated, isConnected, sendInvite, isCallActive, inviteInfoSend, participantsOnline } = useCall();
+    const { localParticipant, sendInvite, isCallActive, inviteInfoSend } = useCall();
     const { availableDevices, getMediaConstraints, selectedDevices, getLocalMedia } = useDevice();
+    const { isRegistered, conferencesOnline, participantsOnline } = usePresence();
+    
     const api = useAPI();
     const [participantsToDisplay, setParticipantsToDisplay] = useState<ParticipantInfo[]>([]);
-
-    // Handle initial loading state
-    useEffect(() => {
-        console.log(`isAuthenticated: ${isAuthenticated} isConnected: ${isConnected}`)
-
-    }, [isAuthenticated, isConnected]);
 
     useEffect(() => {
         setParticipantsToDisplay(api.participantsOnline);
@@ -59,20 +56,20 @@ const ParticipantsOnlinePane: React.FC = () => {
         <div className="p-1">
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h6 className="text-uppercase text-muted fw-bold small mb-0 tracking-wider">
-                    Active Participants
+                    Participants
                 </h6>
                 <Button
-                    variant="ghost-primary" // Assuming a custom ghost style or just outline
+                    variant="ghost-primary"
                     size="sm"
                     className="rounded-circle border-0 text-primary"
                     onClick={handleRefreshParticipants}
-                    disabled={!isConnected || !isAuthenticated}
+                    disabled={!isRegistered}
                 >
-                    <ArrowRepeat className={!isConnected ? "animate-spin" : ""} />
+                    <ArrowRepeat className={!isRegistered ? "animate-spin" : ""} />
                 </Button>
             </div>
 
-            {!isConnected || !isAuthenticated ? (
+            {!isRegistered ? (
                 <div className="text-center py-5 text-muted">
                     <Spinner size="sm" className="me-2" />
                     <small>Syncing directory...</small>

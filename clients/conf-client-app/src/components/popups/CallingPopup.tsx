@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Modal, Button, Spinner, Badge } from 'react-bootstrap';
-import { useCall } from '@client/hooks/useCall';
+import { useCall } from '@client/contexts/CallContext';
 import { CameraVideoFill, CameraVideoOffFill, MicFill, MicMuteFill, TelephoneOutboundFill, XCircleFill } from 'react-bootstrap-icons';
 import '@client/css/modal.css';
 

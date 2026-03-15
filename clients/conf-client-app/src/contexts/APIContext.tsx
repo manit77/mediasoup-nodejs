@@ -4,7 +4,8 @@ import React, {
     ReactNode,
     useEffect,
     useCallback,
-    useMemo
+    useMemo,
+    useContext
 } from 'react';
 import { apiService, LoginResponse } from '@client/services/ApiService';
 import { useConfig } from '@client/hooks/useConfig';
@@ -247,4 +248,12 @@ export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             {children}
         </APIContext.Provider>
     );
+};
+
+export const useAPI = () => {
+    const context = useContext(APIContext);
+    if (context === undefined) {
+        throw new Error('useAPI must be used within an APIProvider');
+    }
+    return context;
 };

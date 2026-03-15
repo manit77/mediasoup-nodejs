@@ -6,7 +6,7 @@ import {
     ExclamationCircle, FilePersonFill,
     InfoCircle, SpeakerFill
 } from 'react-bootstrap-icons';
-import { useUI } from '@client/hooks/useUI';
+import { useUI } from '@client/contexts/UIContext';
 import '@client/css/modal.css';
 import '@client/css/buttons.css';
 import { useDevice } from '@client/contexts/DeviceContext';

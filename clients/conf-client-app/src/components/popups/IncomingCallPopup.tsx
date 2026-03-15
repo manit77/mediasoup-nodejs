@@ -1,15 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { Modal, Button, Badge } from 'react-bootstrap';
-import { useCall } from '@client/hooks/useCall';
+import { useCall } from '@client/contexts/CallContext';
 import { useNavigate } from 'react-router-dom';
-import { useUI } from '@client/hooks/useUI';
+import { useUI } from '@client/contexts/UIContext';
 import { GetUserMediaConfig } from '@conf/conf-models';
 import ThrottledButton from '@client/components/ui/ThrottledButton';
 import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { TelephoneInboundFill, CameraVideoFill, MicFill, XCircleFill } from 'react-bootstrap-icons';
 import '@client/css/modal.css';
 import { useDevice } from '@client/contexts/DeviceContext';
-import { useAPI } from '@client/hooks/useAPI';
+import { useAPI } from '@client/contexts/APIContext';
 
 const IncomingCallPopup: React.FC = () => {
     const { isCallActive, inviteInfoReceived, acceptInvite, declineInvite, localParticipant } = useCall();

@@ -32,6 +32,7 @@
       {
         "aria-valid-attr-value": "off"
       }
-    ]
+    ],
+    "no-inline-styles": "off"
   }
 }
