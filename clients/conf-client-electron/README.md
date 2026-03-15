@@ -92,7 +92,10 @@ npm run start
 
 when running on a mac:
 ```
-open ConferenceClient.app --env CONFCLIENT_START_URL="https://192.168.40.43:3000/login"
+open ConferenceClient.app --env CONFCLIENT_START_URL="https://localhost:3000/login" \
+  --env CONFCLIENT_ENABLE_JSCONSOLE=true \
+  --env CONFCLIENT_ENABLE_KEYBOARD=true \
+  --env CONFCLIENT_IS_KIOSK=true
 ```
 
 ## Architecture
