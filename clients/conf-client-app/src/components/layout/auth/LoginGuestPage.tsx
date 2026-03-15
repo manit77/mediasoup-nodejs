@@ -7,6 +7,7 @@ import { generateRandomDisplayName, getQueryParams } from '@client/utils/utils';
 import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { ClientConfig } from '@conf/conf-models';
 import { Person, KeyFill, DoorOpenFill, ExclamationOctagon } from 'react-bootstrap-icons';
+import { enableKeyboard } from '@client/utils/kiosk';
 
 
 const LoginGuestPage: React.FC = () => {
@@ -139,7 +140,9 @@ const LoginGuestPage: React.FC = () => {
 
         fetchConfig();
 
-    }, []);
+        enableKeyboard();
+
+    }, [api, config.conf_require_participant_group]);
 
     const handleSubmitGuest = async (e: React.FormEvent) => {
         e.preventDefault();

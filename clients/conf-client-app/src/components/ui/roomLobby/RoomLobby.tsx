@@ -71,32 +71,9 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButt
         if (conferenceScheduled != null) {
             setConference(prev => conferenceScheduled);
             setIsComponentLoading(false);
-        } else {
-
-            setIsComponentLoading(true);
-            let __load = async () => {
-                if (!conferenceScheduled && !trackingId) {
-                    console.error('invalid room lobby props');
-                    setIsComponentLoading(false);
-                    return;
-                }
-
-                if (!conferenceScheduled && trackingId) {
-
-                    let scheduled = api.conferencesScheduled.find(c => c.externalId === trackingId);
-                    if (!scheduled) {
-                        console.error('cannot find scheduled conference for id ', trackingId);
-
-                        scheduled = await api.fetchConferenceScheduled(trackingId);
-                        if (!scheduled) {
-                            console.error('cannot fetch scheduled conference for id ', trackingId);
-                            setIsComponentLoading(false);
-                            return;
-                        }
-                    }
-                    conferenceScheduled = scheduled;
-                }
-
+            
+            let __applyConfig = async () => {
+               
                 if (!conferenceScheduled.config) {
                     setRequireConfCode(false);
                     console.error('no conference config');
@@ -110,8 +87,6 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButt
                     setIsComponentLoading(false);
                     return;
                 }
-
-                let tempStream = await getBrowserUserMedia(getMediaConstraints(true, true));
 
                 if (user.role === "guest" && conferenceScheduled.config.guestsRequireConferenceCode) {
                     setRequireConfCode(true);
@@ -161,12 +136,9 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButt
                     localParticipant.tracksInfo.isAudioEnabled = true;
                     localParticipant.tracksInfo.isVideoEnabled = false;
                 }
-
-                setConference(conferenceScheduled);
-                setIsComponentLoading(false);
             };
 
-            __load();
+            __applyConfig();
         }
     }, [conferenceScheduled]);
 
@@ -237,9 +209,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ conferenceScheduled, showJoinButt
         }
 
         try {
-            //make sure we have a stream before making a call           
-
-
+            //make sure we have a stream before making a call
             //up the tracksInfo for localParticipant from the check boxes on the form 
             localParticipant.tracksInfo.isAudioEnabled = micEnabled;
             localParticipant.tracksInfo.isVideoEnabled = cameraEnabled;

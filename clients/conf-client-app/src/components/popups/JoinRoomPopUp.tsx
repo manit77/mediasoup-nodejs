@@ -31,9 +31,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
     const [micEnabled, setMicEnabled] = useState<boolean>(true); // Default to true
     const [cameraEnabled, setCameraEnabled] = useState<boolean>(true); // Default to true
-    const [showMicOption, setShowMicOption] = useState<boolean>(true); // Default to true
-    const [showCameraOption, setShowCameraOption] = useState<boolean>(true); // Default to true
-
+ 
     useEffect(() => {
 
         if (!conferenceScheduled.config) {
@@ -67,25 +65,21 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             //hide the checkboxes for camera and mic
             if (!conferenceScheduled.config.guestsAllowCamera) {
                 localParticipant.tracksInfo.isVideoEnabled = false;
-                setShowCameraOption(false);
                 toggleCamera(false);
             }
             if (!conferenceScheduled.config.guestsAllowMic) {
                 localParticipant.tracksInfo.isAudioEnabled = false;
-                setShowMicOption(false);
                 toggleMic(false);
             }
 
             if (conferenceScheduled.config.guestsRequireCamera) {
                 localParticipant.tracksInfo.isVideoEnabled = true;
                 setCameraEnabled(true);
-                setShowCameraOption(false);
             }
 
             if (conferenceScheduled.config.guestsRequireMic) {
                 localParticipant.tracksInfo.isVideoEnabled = true;
                 setMicEnabled(true);
-                setShowMicOption(false);
             }
 
         } else {
@@ -119,42 +113,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
         localParticipant.tracksInfo.isVideoEnabled = enabled;
         setCameraEnabled(enabled);
     }, [localParticipant]);
-
-    const handleJoinConf = async (event: React.FormEvent) => {
-        event.preventDefault();
-
-        try {
-            //make sure we have a stream before making a call
-
-            //up the tracksInfo for localParticipant from the check boxes on the form 
-            localParticipant.tracksInfo.isAudioEnabled = micEnabled;
-            localParticipant.tracksInfo.isVideoEnabled = cameraEnabled;
-            console.log(`localParticipant.tracksInfo`, localParticipant.tracksInfo);
-
-            let joinMediaConfig = new GetUserMediaConfig();
-            joinMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
-            joinMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
-            console.log('conferenceScheduled', conferenceScheduled);
-
-            joinMediaConfig.constraints = getMediaConstraints(joinMediaConfig.isAudioEnabled, joinMediaConfig.isVideoEnabled);
-
-            if (api.isUser()) {
-                createOrJoinConference(conferenceScheduled.externalId, conferenceCode, joinMediaConfig);
-            } else {
-                if (conferenceScheduled.conferenceId) {
-                    joinConference(conferenceCode, conferenceScheduled, joinMediaConfig);
-                } else {
-                    ui.showToast("conference is not active.");
-                }
-            }
-        } catch (error) {
-            console.error('Failed to join conference:', error);
-            ui.showPopUp('Failed to join the conferenceScheduled. Please try again.');
-        } finally {
-
-        }
-    };
-
+  
     const handleCancelClick = () => {
         onClose();
     };
@@ -189,8 +148,6 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                     conferenceScheduled={conferenceScheduled}
                     showJoinButton={false}
                     onJoinActionReady={handleJoinActionReady}
-                    deviceMicName={selectedDevices.audioInLabel ?? ''}
-                    deviceCameraName={selectedDevices.videoLabel ?? ''}
                 />
             </Modal.Body>
 

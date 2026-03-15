@@ -9,6 +9,7 @@ import IncomingCallPopup from '@client/components/popups/IncomingCallPopup';
 import CallingPopup from '@client/components/popups/CallingPopup';
 import { useAPI } from '@client/hooks/useAPI';
 import { useNavigate } from 'react-router-dom';
+import { disableKeyboard } from '@client/utils/kiosk';
 
 const AuthenticatedLayout: React.FC = () => {
   const api = useAPI();
@@ -21,6 +22,8 @@ const AuthenticatedLayout: React.FC = () => {
       api.logout();
       //navigate("/login");  
       setIsLoggedOff(false);
+    } else {
+      disableKeyboard();
     }
   }, [api, isLoggedOff, navigate, setIsLoggedOff]);
 

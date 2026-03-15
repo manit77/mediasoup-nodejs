@@ -7,6 +7,7 @@ import { PersonCircle, LockFill, ShieldLockFill, InfoCircle, ExclamationTriangle
 import { getQueryParams } from '@client/utils/utils';
 import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { ClientConfig } from '@conf/conf-models';
+import { enableKeyboard } from '@client/utils/kiosk';
 
 const LoginPage: React.FC = () => {
     const [username, setUsername] = useState("");
@@ -121,7 +122,9 @@ const LoginPage: React.FC = () => {
 
         fetchConfig();
 
-    }, []);
+        enableKeyboard();
+
+    }, [api, config.conf_require_participant_group]);
 
     const handleSubmitAdmin = async (e: React.FormEvent) => {
         e.preventDefault();
