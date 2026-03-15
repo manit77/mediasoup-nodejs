@@ -43,7 +43,7 @@ const IncomingCallPopup: React.FC = () => {
             });
         }
 
-        if (inviteInfoReceived.data.conferenceType == "p2p") {
+        if (inviteInfoReceived.data?.conferenceType == "p2p") {
             //this is p2p call, user can decide to accept with audio for video
         } else {
             //this is a conference room

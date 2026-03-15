@@ -18,7 +18,7 @@ interface LobbyMenuProps {
 const LobbyMenu: React.FC<LobbyMenuProps> = ({ onShowSettings }) => {
     const { getCurrentUser } = useAPI();    
     const { isRegistered, isConnecting, isConnected} = usePresence();
-    const [config, setConfig] = useState<ConferenceClientConfig>(null);
+    const [config, setConfig] = useState<ConferenceClientConfig>(new ConferenceClientConfig());
     const ui = useUI();
 
     useEffect(() => {

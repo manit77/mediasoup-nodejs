@@ -5,7 +5,7 @@ import { useCall } from '@client/contexts/CallContext';
 import { useNavigate } from 'react-router-dom';
 import { useAPI } from '@client/contexts/APIContext';
 import ConfirmPopUp from '@client/components/ui/ConfirmPopUp';
-import styles from './CallTopMenu.module.css'; // Import the styles
+import styles from './CallTopMenu.module.css';
 import '@client/css/modal.css';
 import '@client/css/buttons.css';
 
