@@ -18,6 +18,19 @@ interface DeviceContextType {
 const STORAGE_KEY = 'preferred_devices';
 export const DeviceContext = createContext<DeviceContextType | undefined>(undefined);
 
+const VIRTUAL_DEVICE_KEYWORDS = ['virtual', 'microsoft teams', 'zoom', 'obs', 'cable', 'mdaudio', 'fake', 'cisco', 'chromecast'];
+
+const isVirtual = (label: string): boolean =>
+    VIRTUAL_DEVICE_KEYWORDS.some(keyword => label.toLowerCase().includes(keyword));
+
+/** Prefer a real (non-virtual) device when choosing a default; fall back to virtual if no real device. */
+function getPreferredDefaultDevice(devices: Device[]): Device | undefined {
+    if (devices.length === 0) return undefined;
+    const real = devices.filter(d => !isVirtual(d.label));
+    const virtual = devices.filter(d => isVirtual(d.label));
+    return real.length > 0 ? real[0] : virtual[0];
+}
+
 export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [isCameraAvailable, setCameraAvailable] = useState(false);
     const [isMicAvailable, setMicAvailable] = useState(false);
@@ -68,12 +81,15 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     newSelection[labelKey] = undefined;
                     changed = true;
                 } else {
-                    // If current device is missing from available list, fallback to first available
+                    // If current device is missing or no selection, use preferred default (real over virtual)
                     const exists = devices.some(d => d.id === currentId);
                     if (!currentId || !exists) {
-                        newSelection[idKey] = devices[0].id as any;
-                        newSelection[labelKey] = devices[0].label as any;
-                        changed = true;
+                        const defaultDevice = getPreferredDefaultDevice(devices);
+                        if (defaultDevice) {
+                            newSelection[idKey] = defaultDevice.id as any;
+                            newSelection[labelKey] = defaultDevice.label as any;
+                            changed = true;
+                        }
                     }
                 }
             };
@@ -134,9 +150,6 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             videoTrack.enabled = options.isVideoEnabled;
             console.log(`videoTrack:`, videoTrack.enabled);
         }
-
-        //setIsLocalStreamUpdated(true);
-        console.log("setIsLocalStreamUpdated");
 
         return tracks;
 
