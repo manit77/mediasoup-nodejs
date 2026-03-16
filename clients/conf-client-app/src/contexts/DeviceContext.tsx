@@ -42,10 +42,12 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     // Fetch devices and handle hardware changes
     useEffect(() => {
-
         const checkDevices = async () => {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
+
+                // Log this to verify it's firing after wake
+                console.log("Devices enumerated:", devices.length);
 
                 const video = devices.filter(d => d.kind === 'videoinput').map(d => ({ id: d.deviceId, label: d.label || 'Camera' }));
                 const audioIn = devices.filter(d => d.kind === 'audioinput').map(d => ({ id: d.deviceId, label: d.label || 'Mic' }));
@@ -58,9 +60,25 @@ export const DeviceProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 console.error("Error enumerating devices:", error);
             }
         };
-       
+
+        // 1. Initial check
+        checkDevices();
+
+        // 2. Listen for hardware plug/unplug
         navigator.mediaDevices.addEventListener('devicechange', checkDevices);
-        return () => navigator.mediaDevices.removeEventListener('devicechange', checkDevices);
+
+        // 3. ELECTRON FIX: Listen for window focus/visibility
+        // When the Mac unlocks, the Electron window receives focus.
+        window.addEventListener('focus', checkDevices);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') checkDevices();
+        });
+
+        return () => {
+            navigator.mediaDevices.removeEventListener('devicechange', checkDevices);
+            window.removeEventListener('focus', checkDevices);
+            // remove visibility listener as well
+        };
     }, []);
 
     // Sync selected devices when available devices change (e.g. plug/unplug)
