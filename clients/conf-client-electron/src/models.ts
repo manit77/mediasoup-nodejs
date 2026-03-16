@@ -11,7 +11,7 @@ export interface AppConfig {
    */
   enableJSConsole?: boolean;
 
-  inactiveTimeoutMinutes?: number;
+  idleTimeoutMinutes?: number;
 
 }
 
