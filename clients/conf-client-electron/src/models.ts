@@ -10,6 +10,9 @@ export interface AppConfig {
    * Can be set via config.json or the CONFCLIENT_ENABLE_JSCONSOLE env var.
    */
   enableJSConsole?: boolean;
+
+  inactiveTimeoutMinutes?: number;
+
 }
 
 export enum ipcCommands {

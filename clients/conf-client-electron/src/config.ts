@@ -17,7 +17,8 @@ export function loadConfig() : AppConfig {
   if (!config) {
     config = {
       startUrl: process.env['CONFCLIENT_START_URL'] ?? "",
-      enableJSConsole: undefined
+      enableJSConsole: undefined,
+      idleTimeoutMinutes: undefined
     };
   }
 
@@ -46,6 +47,18 @@ export function loadConfig() : AppConfig {
     config.enableJSConsole = lowered === '1' || lowered === 'true' || lowered === 'yes';
   } else if (typeof config.enableJSConsole === 'undefined') {
     config.enableJSConsole = false;
+  }
+
+  // Idle timeout in minutes (default 30). Can be set in config.json or via CONFCLIENT_IDLE_TIMEOUT_MINUTES.
+  const idleEnv = process.env['CONFCLIENT_IDLE_TIMEOUT_MINUTES'];
+  if (idleEnv !== undefined) {
+    const parsed = parseInt(idleEnv, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      config.idleTimeoutMinutes = parsed;
+    }
+  }
+  if (typeof config.idleTimeoutMinutes !== 'number' || !Number.isFinite(config.idleTimeoutMinutes) || config.idleTimeoutMinutes <= 0) {
+    config.idleTimeoutMinutes = 30;
   }
 
   return config;

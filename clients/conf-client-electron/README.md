@@ -69,6 +69,7 @@ The app is configured via **`config.json`** (built app uses `dist/config.json`) 
 | `isKiosk` | boolean | When `true`, run in kiosk mode. Default: `false`. | `isKiosk` | `CONFCLIENT_IS_KIOSK` (`1`, `true`, `yes` = true) |
 | `enableKeyboard` | boolean | When `true`, the on-screen keyboard can be shown. Default: `false`. | `enableKeyboard` | `CONFCLIENT_ENABLE_KEYBOARD` (`1`, `true`, `yes` = true) |
 | `enableJSConsole` | boolean | When `true`, F12 toggles DevTools for the remote and keyboard views. Default: `false`. | `enableJSConsole` | `CONFCLIENT_ENABLE_JSCONSOLE` (`1`, `true`, `yes` = true) |
+| `idleTimeoutMinutes` | number | Idle timeout (minutes) before returning to `startUrl`. Default: `30`. | `idleTimeoutMinutes` | `CONFCLIENT_IDLE_TIMEOUT_MINUTES` (integer > 0) |
 
 ### Example config.json
 
@@ -77,7 +78,8 @@ The app is configured via **`config.json`** (built app uses `dist/config.json`) 
   "startUrl": "https://example.com/app",
   "isKiosk": false,
   "enableKeyboard": false,
-  "enableJSConsole": false
+  "enableJSConsole": false,
+  "idleTimeoutMinutes": 30
 }
 ```
 
@@ -87,6 +89,7 @@ To override via environment (e.g. for debugging):
 export CONFCLIENT_START_URL="https://localhost:3000/login"
 export CONFCLIENT_ENABLE_JSCONSOLE=true
 export CONFCLIENT_ENABLE_KEYBOARD=true
+export CONFCLIENT_IDLE_TIMEOUT_MINUTES=30
 npm run start
 ```
 
@@ -95,7 +98,8 @@ when running on a mac:
 open ConferenceClient.app --env CONFCLIENT_START_URL="https://localhost:3000/login" \
   --env CONFCLIENT_ENABLE_JSCONSOLE=true \
   --env CONFCLIENT_ENABLE_KEYBOARD=true \
-  --env CONFCLIENT_IS_KIOSK=true
+  --env CONFCLIENT_IS_KIOSK=true \
+  --env CONFCLIENT_IDLE_TIMEOUT_MINUTES=30
 ```
 
 ## Architecture

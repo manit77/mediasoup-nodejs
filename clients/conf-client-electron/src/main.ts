@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, systemPreferences, session, BrowserView, Certificate, Event, WebContents, desktopCapturer } from 'electron';
+import { app, BrowserWindow, ipcMain, systemPreferences, session, WebContentsView, Certificate, Event, WebContents, desktopCapturer } from 'electron';
 import * as path from 'path';
 import { KEYBOARD_HEIGHT, KEYBOARD_TOOLBAR_HEIGHT } from './keyboardLayout';
 import {  AppConfig, ipcCommands } from './models';
@@ -10,22 +10,48 @@ if (!config.startUrl) {
   config.startUrl = 'error_noconfig.html';
 }
 
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+function getIdleTimeoutMs(): number {
+  const minutes = typeof config.idleTimeoutMinutes === 'number' && config.idleTimeoutMinutes > 0
+    ? config.idleTimeoutMinutes
+    : 30;
+  return minutes * 60 * 1000;
+}
+
 const IDLE_CHECK_INTERVAL_MS = 60 * 1000; // check every minute
 let isKeyboardVisible = false;
 let keyboardEnabled = config.enableKeyboard ?? false;
 let mainWindow: BrowserWindow | null = null;
-let remoteView: BrowserView | null = null;
-let keyboardView: BrowserView | null = null;
+let remoteView: WebContentsView | null = null;
+let keyboardView: WebContentsView | null = null;
 let lastActivityTime = Date.now();
 let idleCheckInterval: NodeJS.Timeout | null = null;
+
+// --- Single Instance Lock ---
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  // If we didn't get the lock, another instance is already running. Quit immediately.
+  console.log('Another instance is already running. Quitting...');
+  app.quit();
+} else {
+  // We have the lock. Listen for anyone else trying to open a second instance.
+  app.on('second-instance', (_event, _commandLine, _workingDirectory) => {
+    // Someone tried to run a second instance; focus our existing window instead.
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
+      mainWindow.focus();
+    }
+  });
+}
 
 function loadStartTarget(): void {
   if (!remoteView) return;
   const target = config.startUrl;
 
   // Treat http/https as remote URLs, everything else as a local file path
-  if (/^https?:\/\//i.test(target)) {
+  if (/^https?:\/\//i.test(target)) {    
     remoteView.webContents.loadURL(target);
   } else {
     const filePath = path.isAbsolute(target)
@@ -44,7 +70,8 @@ function startIdleCheck(): void {
     clearInterval(idleCheckInterval);
 
   idleCheckInterval = setInterval(() => {
-    if (Date.now() - lastActivityTime >= IDLE_TIMEOUT_MS) {
+    const timeoutMs = getIdleTimeoutMs();
+    if (Date.now() - lastActivityTime >= timeoutMs) {
       loadStartTarget();
       resetIdleTimer();
     }
@@ -86,7 +113,8 @@ function updateLayout(showKeyboard: boolean) {
 
 function bringKeyboardToFront() {
   if (mainWindow && keyboardView) {
-    mainWindow.setTopBrowserView(keyboardView);
+    // Re-adding the same view will reorder it to the top.
+    mainWindow.contentView.addChildView(keyboardView);
   }
 }
 
@@ -121,7 +149,7 @@ function createWindow(): void {
   });
 
   // --- Remote App View ---
-  remoteView = new BrowserView({
+  remoteView = new WebContentsView({
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -131,7 +159,7 @@ function createWindow(): void {
     }
   });
 
-  mainWindow.addBrowserView(remoteView);
+  mainWindow.contentView.addChildView(remoteView);
 
   // Show custom error page when the site cannot be reached (main frame only)
   remoteView.webContents.on('did-fail-load', (_event, errorCode, _errorDescription, _validatedURL, isMainFrame) => {
@@ -142,27 +170,50 @@ function createWindow(): void {
     remoteView?.webContents.loadFile(errorPath);
   });
 
+  remoteView.webContents.on('render-process-gone', (event, details) => {
+    console.error(`Remote view crashed! Reason: ${details.reason}. Recovering in 1s...`);
+    setTimeout(() => {
+      loadStartTarget(); 
+    }, 1000);
+  });
+
   loadStartTarget();
   //remoteView.webContents.openDevTools();
 
   // --- Keyboard View (only when enableKeyboard is true) ---
   if (keyboardEnabled) {
-    keyboardView = new BrowserView({
+    keyboardView = new WebContentsView({
       webPreferences: {
         nodeIntegration: true, // Keyboard needs access to ipcRenderer
         contextIsolation: false,
         devTools: true,
       }
     });
-    mainWindow.addBrowserView(keyboardView);
+    mainWindow.contentView.addChildView(keyboardView);
     // In the built app, __dirname points to dist, where keyboard.html is emitted
     const keyboardPath = path.join(__dirname, 'keyboard.html');
-    keyboardView.webContents.loadFile(keyboardPath);
+    
+    keyboardView.webContents.on('render-process-gone', (event, details) => {
+      console.error(`Keyboard view crashed! Reason: ${details.reason}. Recovering in 1s...`);
+      setTimeout(() => {
+        keyboardView?.webContents.reload();
+      }, 1000);
+    });
+    
     keyboardView.webContents.once('did-finish-load', () => {
       keyboardView?.webContents.send('keyboard-enabled', keyboardEnabled);
       const media = getMediaStatus();
       keyboardView?.webContents.send('media-status', media);
     });
+
+    keyboardView.webContents.on('did-finish-load', () => {
+      keyboardView?.webContents.send('keyboard-enabled', keyboardEnabled);
+      const media = getMediaStatus();
+      keyboardView?.webContents.send('media-status', media);
+    });
+
+    keyboardView.webContents.loadFile(keyboardPath);    
+
   }
 
   // --- Initial Layout ---
