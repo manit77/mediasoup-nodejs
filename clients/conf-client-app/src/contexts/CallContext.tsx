@@ -1,32 +1,17 @@
-import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
-import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetConferencesScheduledResultMsg, GetParticipantsResultMsg, GetUserMediaConfig, InviteMsg, JoinConferenceParams, LoggedOffMsg, ParticipantInfo } from '@conf/conf-models';
-import { Conference, Device, getBrowserDisplayMedia, getBrowserUserMedia, Participant, SelectedDevices } from '@conf/conf-client';
-import { useUI } from '../hooks/useUI';
-import { useAPI } from '../hooks/useAPI';
+import React, { createContext, useState, ReactNode, useEffect, useCallback, useRef, useContext } from 'react';
+import { ConferenceClosedMsg, ConferenceScheduledInfo, CreateConferenceParams, GetUserMediaConfig, InviteMsg, JoinConferenceParams, LoggedOffMsg, ParticipantInfo } from '@conf/conf-models';
+import { Conference, getBrowserUserMedia, Participant } from '@conf/conf-client';
+import { useUI } from '@client/contexts/UIContext';
+import { useAPI } from './APIContext';
 import { useConfig } from '../hooks/useConfig';
 import { IMsg } from '@rooms/rooms-models';
 import { EventParticpantNewTrackMsg, EventTypes } from '@conf/conf-client';
+import { useDevice } from './DeviceContext';
 import { getConferenceClient } from '../services/ConferenceService';
 
-export const conferenceClient = getConferenceClient();
+const conferenceClient = getConferenceClient();
 
 interface CallContextType {
-
-    /**
-     * websocket is connecting
-     */
-    isConnecting: boolean;
-    /**
-     * websocket is connected
-     */
-    isConnected: boolean;
-    /**
-     * whether the connected socket is authenticated
-     */
-    isAuthenticated: boolean;
-
-    isLoggedOff: boolean;
-    setIsLoggedOff: React.Dispatch<React.SetStateAction<boolean>>;
 
     /**
      * local conference participant
@@ -36,11 +21,6 @@ interface CallContextType {
      * the presenter of the conference
      */
     presenter: Participant;
-
-    /**
-     * waiting state for connection
-     */
-    isWaiting: boolean;
 
     /**
      * where or not on an active call/conference
@@ -69,14 +49,6 @@ interface CallContextType {
     isScreenSharing: boolean;
 
     /**
-     * list of all participants authenticated "contacts list"
-     */
-    participantsOnline: ParticipantInfo[];
-    /**
-     * list of all active conferences
-     */
-    conferencesOnline: ConferenceScheduledInfo[];
-    /**
      * invite message sent
      */
     inviteInfoSend: InviteMsg;
@@ -84,28 +56,14 @@ interface CallContextType {
      * invite message received
      */
     inviteInfoReceived: InviteMsg;
+
     setInviteInfoSend: React.Dispatch<React.SetStateAction<InviteMsg>>;
-
-    /**
-     * all avaialable devices for local participant
-     */
-    availableDevices: { video: Device[]; audioIn: Device[]; audioOut: Device[] };
-    /**
-     * the selected device for the local participant
-     */
-    selectedDevices: SelectedDevices;
-    setSelectedDevices: React.Dispatch<React.SetStateAction<SelectedDevices>>;
-
-    getLocalMedia: (options: GetUserMediaConfig) => Promise<MediaStreamTrack[]>;
-    getMediaConstraints: (getAudio: boolean, getVideo: boolean) => MediaStreamConstraints;
-    getConferenceRoomsOnline: () => void;
-    getParticipantsOnline: () => void;
-
     createConference: (externalId: string, roomName: string) => void;
     joinConference: (conferenceCode: string, scheduled: ConferenceScheduledInfo, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
     createOrJoinConference: (externalId: string, conferenceCode: string, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
 
     sendInvite: (participantInfo: ParticipantInfo, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
+    sendInviteConf: (participantInfo: ParticipantInfo, joinMediaConfig: GetUserMediaConfig) => Promise<void>;
     acceptInvite: (joinMediaConfig: GetUserMediaConfig) => Promise<void>;
     declineInvite: () => void;
     cancelInvite: () => void;
@@ -121,7 +79,6 @@ interface CallContextType {
     startScreenShare: () => Promise<boolean>;
     stopScreenShare: () => void;
 
-    getMediaDevices: () => Promise<SelectedDevices>;
     switchDevicesOnCall: () => Promise<void>;//, isAudioEnabled: boolean, isVideoEnabled: boolean) => Promise<void>;
 
     disconnect: () => void;
@@ -133,31 +90,18 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const ui = useUI();
     const api = useAPI();
     const { config } = useConfig();
-
-    const [isConnected, setIsConnected] = useState<boolean>(conferenceClient.isConnected());
-    const [isConnecting, setIsConnecting] = useState<boolean>(conferenceClient.isConnecting());
-
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(conferenceClient.isRegistered());
-    const [isLoggedOff, setIsLoggedOff] = useState<boolean>(false);
-
+    const { selectedDevices } = useDevice();
+    const [isRegistered, setIsRegistered] = useState<boolean>(conferenceClient.isRegistered());
     const localParticipant = useRef<Participant>(conferenceClient.localParticipant);
     const [presenter, setPresenter] = useState<Participant>(conferenceClient.conference?.presenter);
-
-    const [isWaiting, setIsWaiting] = useState<boolean>(false);
     const [isCallActive, setIsCallActive] = useState<boolean>(conferenceClient.isInConference());
     const conference = useRef<Conference>(conferenceClient.conference);
     const [callParticipants, setCallParticipants] = useState<Map<string, Participant>>(new Map());
     const [isScreenSharing, setIsScreenSharing] = useState<boolean>(conferenceClient.isScreenSharing);
-    const [selectedDevices, setSelectedDevices] = useState<SelectedDevices>(conferenceClient.selectedDevices);
-
-    const [participantsOnline, setParticipantsOnline] = useState<ParticipantInfo[]>(conferenceClient.participantsOnline);
-    const [conferencesOnline, setConferencesOnline] = useState<ConferenceScheduledInfo[]>(conferenceClient.conferencesOnline);
     const [inviteInfoSend, setInviteInfoSend] = useState<InviteMsg | null>(conferenceClient.inviteSendMsg);
     const [inviteInfoReceived, setInviteInfoReceived] = useState<InviteMsg | null>(conferenceClient.inviteReceivedMsg);
-
-    //const [isLocalStreamUpdated, setIsLocalStreamUpdated] = useState<boolean>(false);
-    const [availableDevices, setAvailableDevices] = useState<{ video: Device[]; audioIn: Device[]; audioOut: Device[] }>({ video: [], audioIn: [], audioOut: [] });
     const [onConferencePing, setOnConferencePing] = useState({});
+    const { getMediaConstraints } = useDevice();
 
     useEffect(() => {
         conferenceClient.init(config);
@@ -170,293 +114,62 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         conference.current = conferenceClient.conference;
         updateCallParticipants();
 
-        setIsConnected(conferenceClient.isConnected());
-        setIsConnecting(conferenceClient.isConnecting());
-        setIsAuthenticated(conferenceClient.isRegistered());
+        setIsRegistered(conferenceClient.isRegistered());
 
         setIsCallActive(conferenceClient.isInConference());
         setIsScreenSharing(conferenceClient.isScreenSharing);
-        setSelectedDevices(conferenceClient.selectedDevices);
         setPresenter(conferenceClient.conference.presenter);
-
-        setParticipantsOnline(conferenceClient.participantsOnline);
-        setConferencesOnline(conferenceClient.conferencesOnline);
         setInviteInfoSend(conferenceClient.inviteSendMsg);
         setInviteInfoReceived(conferenceClient.inviteReceivedMsg);
-        setIsWaiting(false);
-
     }
 
     useEffect(() => {
-        console.log(`** CallProvider mounted isAuthenticated:${isAuthenticated} isConnected: ${isConnected}`);
+        console.log(`** CallProvider mounted isRegistered:${isRegistered}`);
         console.log(`** CallProvider mounted conferenceClient.localParticipant.peerId:${conferenceClient.localParticipant.peerId} conferenceClient.isConnected: ${conferenceClient.isConnected}`);
 
         return () => console.log("CallProvider unmounted");
-    }, [isAuthenticated, isConnected]);
-
-    const getMediaDevices = useCallback(async () => {
-        try {
-            if (!navigator.mediaDevices) {
-                console.error(`cannot access mediaDevices, use https`);
-                return;
-            }
-
-            const devices = await navigator.mediaDevices?.enumerateDevices();
-            const video: Device[] = [];
-            const audioIn: Device[] = [];
-            const audioOut: Device[] = [];
-            devices.forEach(device => {
-                if (device.kind === 'videoinput') video.push({ id: device.deviceId, label: device.label || `Camera ${video.length + 1}` });
-                else if (device.kind === 'audioinput') audioIn.push({ id: device.deviceId, label: device.label || `Mic ${audioIn.length + 1}` });
-                else if (device.kind === 'audiooutput') audioOut.push({ id: device.deviceId, label: device.label || `Speaker ${audioOut.length + 1}` });
-            });
-            setAvailableDevices({ video, audioIn, audioOut });
-
-            // Set defaults of selected devices if not already set
-            if (!selectedDevices.videoId && video.length > 0) {
-                selectedDevices.videoId = video[0].id;
-                selectedDevices.videoLabel = video[0].label;
-            }
-            if (!selectedDevices.audioInId && audioIn.length > 0) {
-                selectedDevices.audioInId = audioIn[0].id;
-                selectedDevices.audioInLabel = audioIn[0].label;
-            }
-            if (!selectedDevices.audioOutId && audioOut.length > 0) {
-                selectedDevices.audioOutId = audioOut[0].id;
-                selectedDevices.audioOutLabel = audioOut[0].label;
-            }
-
-            return selectedDevices;
-
-        } catch (error) {
-            console.error('Error enumerating devices:', error);
-        }
-
-        return null;
-
-    }, [selectedDevices]);
-
-    const getMediaConstraints = useCallback((getAudio: boolean, getVideo: boolean): MediaStreamConstraints => {
-        const constraints: { audio?: any, video?: any } = {};
-
-        if (getAudio) {
-            constraints.audio = selectedDevices.audioInId ? { deviceId: { exact: selectedDevices.audioInId } } : true;
-        }
-        if (getVideo) {
-            constraints.video = selectedDevices.videoId ? { deviceId: { exact: selectedDevices.videoId, aspectRatio: 16 / 9, facingMode: "user" } } : true;
-        }
-        return constraints;
-    }, [selectedDevices]);
-
-    const getLocalMedia = useCallback(async (options: GetUserMediaConfig) => {
-        console.log("getLocalMedia");
-
-        if (!options.isAudioEnabled && !options.isVideoEnabled) {
-            return [];
-        }
-
-        if (!options.constraints) {
-            options.constraints = getMediaConstraints(options.isAudioEnabled, options.isVideoEnabled);
-        }
-
-        const tracks = await conferenceClient.getNewTracksForLocalParticipant(options);
-
-        console.log('conferenceClient.localParticipant', conferenceClient.localParticipant.stream.getTracks());
-        console.log('localParticipant', localParticipant.current.stream.getTracks());
-
-        const audioTrack = tracks.find(t => t.kind === "audio");
-        if (audioTrack) {
-            audioTrack.enabled = options.isAudioEnabled;
-            console.log(`audioTrack:`, audioTrack.enabled);
-        }
-
-        const videoTrack = tracks.find(t => t.kind === "video");
-        if (videoTrack) {
-            videoTrack.enabled = options.isVideoEnabled;
-            console.log(`videoTrack:`, videoTrack.enabled);
-        }
-
-        //setIsLocalStreamUpdated(true);
-        console.log("setIsLocalStreamUpdated");
-
-        return tracks;
-
-    }, [getMediaConstraints]);
-
-    useEffect(() => {
-        getMediaDevices();
-        navigator.mediaDevices?.addEventListener('devicechange', getMediaDevices);
-        return () => {
-            navigator.mediaDevices?.removeEventListener('devicechange', getMediaDevices);
-        };
-    }, [getMediaDevices]);
-
-    function cloneParticipant(participant: Participant): Participant {
-        const cloned = new Participant();
-        cloned.participantId = participant.participantId;
-        cloned.displayName = participant.displayName;
-        cloned.role = participant.role;
-        cloned.peerId = participant.peerId;
-
-        // Clone tracksInfo
-        cloned.tracksInfo = {
-            isAudioEnabled: participant.tracksInfo.isAudioEnabled,
-            isVideoEnabled: participant.tracksInfo.isVideoEnabled
-        };
-
-        // Clone prevTracksInfo if it exists
-        if (participant.prevTracksInfo) {
-            cloned.prevTracksInfo = {
-                isAudioEnabled: participant.prevTracksInfo.isAudioEnabled,
-                isVideoEnabled: participant.prevTracksInfo.isVideoEnabled,
-                screenShareTrackId: participant.prevTracksInfo.screenShareTrackId
-            };
-        }
-
-        // Note: MediaStream and HTMLVideoElement are not deeply cloned as they are managed by the browser
-        // The video element is already created in the Participant constructor
-        cloned.stream = participant.stream; // MediaStream is typically managed externally
-        cloned.videoEle.srcObject = participant.stream; // Reassign stream to video element
-
-        return cloned;
-    }
-
-    function hasTracksInfoChanged(prev: Participant | undefined, next: Participant): boolean {
-        if (!prev) return true; // No previous participant means tracksInfo is new
-        return (
-            prev.tracksInfo.isAudioEnabled !== next.tracksInfo.isAudioEnabled ||
-            prev.tracksInfo.isVideoEnabled !== next.tracksInfo.isVideoEnabled
-        );
-    }
-
-    function hasParticipantChanged(prev: Participant | undefined, next: Participant): boolean {
-        if (!prev) return true;
-
-        // 1. Check Track State (Muted/Unmuted)
-        if (
-            prev.tracksInfo.isAudioEnabled !== next.tracksInfo.isAudioEnabled ||
-            prev.tracksInfo.isVideoEnabled !== next.tracksInfo.isVideoEnabled
-        ) {
-            return true;
-        }
-
-        // 2. Check Metadata
-        if (prev.displayName !== next.displayName || prev.role !== next.role) {
-            return true;
-        }
-
-        // 3. CRITICAL: Check if tracks were added/removed/swapped on the same stream
-        const prevTrackIds = prev.stream ? prev.stream.getTracks().map(t => t.id).sort().join(',') : '';
-        const nextTrackIds = next.stream ? next.stream.getTracks().map(t => t.id).sort().join(',') : '';
-
-        if (prevTrackIds !== nextTrackIds) {
-            return true;
-        }
-
-        return false;
-    }
+    }, [isRegistered]);
 
     const updateCallParticipants = useCallback(() => {
-        console.warn(`updateCallParticipants`);
-
-        // 1. Grab the external state BEFORE entering the React setter
         const latestParticipants = conferenceClient.conference?.participants;
         if (!latestParticipants) return;
 
         setCallParticipants(prev => {
-            let hasChanges = false;
-            const next = new Map(prev);
+            // Create a new Map to ensure React detects a reference change
+            const next = new Map();
 
-            // 2. Check for additions or updates
-            for (const [id, participant] of latestParticipants.entries()) {
-                const prevParticipant = prev.get(id);
-
-                if (hasParticipantChanged(prevParticipant, participant)) {
-                    next.set(id, cloneParticipant(participant));
-                    hasChanges = true;
-                    console.warn(`updateCallParticipants - participant ${id} changed.`);
-                } else {
-                    next.set(id, prevParticipant);
-                }
-            }
-
-            // 3. Check for removals
-            for (const id of prev.keys()) {
-                if (!latestParticipants.has(id)) {
-                    next.delete(id);
-                    hasChanges = true;
-                    console.warn(`updateCallParticipants - participant ${id} removed.`);
-                }
-            }
-
-            if (!hasChanges) {
-                console.warn(`updateCallParticipants - no changes.`);
-            }
-
-            // 4. Return previous Map if no changes, otherwise return new Map
-            return hasChanges ? next : prev;
-        });
-    }, []);
-
-
-    const updateTracksInfo = useCallback((participantId: string) => {
-        console.error(`updateTracksInfo`);
-
-        setCallParticipants(prev => {
-            const next = new Map(prev);
-            const prevPart = prev.get(participantId);
-
-            const latest = conferenceClient.conference.participants;
-            const latestPart = latest.get(participantId);
-
-            if (latestPart && prevPart) {
-                const latestTracks = latestPart.tracksInfo;
-                const currTracks = prevPart.tracksInfo;
-
-                // Compare tracksInfo properties
-                if (latestTracks.isAudioEnabled === currTracks.isAudioEnabled &&
-                    latestTracks.isVideoEnabled === currTracks.isVideoEnabled) {
-                    // No changes, return the existing Map
-                    console.warn(`latestTracks no changes`);
-                    return prev;
-                }
-
-                // Create updated participant with new tracksInfo
-                const updatedPart = {
-                    ...prevPart,
-                    tracksInfo: { ...latestTracks },
-                };
-                next.set(participantId, updatedPart);
-                console.warn(`latestTracks changed`);
-            }
+            latestParticipants.forEach((participant, id) => {
+                // We pass the actual instance. React components should 
+                // handle the internal property changes.
+                next.set(id, participant);
+            });
 
             return next;
         });
     }, []);
 
-    const getParticipantsOnline = useCallback(() => {
-        conferenceClient.getParticipantsOnline();
-    }, []);
+    // Ensure we only ever register a single CallContext listener with ConferenceClient
+    const conferenceEventHandlerRef = useRef<((eventType: string, msgIn: IMsg) => Promise<void> | void) | null>(null);
 
-    const getConferenceRoomsOnline = useCallback(() => {
-        conferenceClient.getConferenceRoomsOnline();
-    }, []);
+    const setupConferenceEvents = useCallback(() => {
 
-    const setupWebRTCEvents = useCallback(() => {
+        // If we've already registered our listener, don't add it again.
+        if (conferenceEventHandlerRef.current) {
+            return;
+        }
 
-        conferenceClient.onEvent = async (eventType: string, msgIn: IMsg) => {
+        const onEvent = async (eventType: string, msgIn: IMsg) => {
             switch (eventType) {
                 case EventTypes.registerResult: {
                     console.log("CallContext: registerResult", msgIn.data);
 
                     if (msgIn.error) {
                         console.log("CallContext: onRegisterFailed: error", msgIn.error);
-                        setIsAuthenticated(false);
+                        setIsRegistered(false);
                         ui.showPopUp(`socket registration failed. ${msgIn.error}`, "error");
                         return;
                     }
-                    getConferenceRoomsOnline();
-                    setIsAuthenticated(true);
+                    setIsRegistered(true);
                     ui.hidePopUp();
                     break;
                 }
@@ -471,10 +184,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         api.logout();
                     });
 
-                    //api.logout();
                     conferenceClient.disconnect();
-                    setIsConnected(false);
-
                     break;
                 }
                 case EventTypes.connected: {
@@ -492,18 +202,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     initState();
                     ui.showToast("disconnected from server. trying to reconnect...");
 
-                    break;
-                }
-                case EventTypes.participantsReceived: {
-                    let msg = msgIn as GetParticipantsResultMsg;
-                    console.log("CallContext: onContactsReceived", msg.data.participants);
-                    setParticipantsOnline(msg.data.participants);
-                    break;
-                }
-                case EventTypes.conferencesReceived: {
-                    const msg = msgIn as GetConferencesScheduledResultMsg
-                    //console.log("CallContext: onConferencesReceived", msg.data.conferences);
-                    setConferencesOnline(msg.data.conferences);
                     break;
                 }
                 case EventTypes.participantNewTrack: {
@@ -611,7 +309,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     break;
                 }
                 case EventTypes.participantLeft: {
-                    console.log(`CallContext: onParticipantJoined ${msgIn.data.displayName} (${msgIn.data.participantId})`);
+                    console.log(`CallContext: participantLeft ${msgIn.data.displayName} (${msgIn.data.participantId})`);
                     updateCallParticipants();
                     setPresenter(conference.current.presenter);
                     break;
@@ -627,13 +325,66 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     break;
                 }
             }
-
         };
-        return () => { // Cleanup
-            //don't disconnec the conferenceClient
-            //the callcontext can get recreated
+
+        conferenceEventHandlerRef.current = onEvent;
+        conferenceClient.addEventListener(onEvent);
+
+        return () => { // Cleanup for this hook instance (we keep the client alive globally)
+            // We intentionally do not disconnect the conferenceClient here.
+        };
+    }, [callParticipants, ui, conferenceEventHandlerRef]);
+
+    const sendInviteConf = useCallback(async (participantInfo: ParticipantInfo, joinMediaConfig: GetUserMediaConfig) => {
+        console.log(`sendInviteConf to ${participantInfo.participantId} ${participantInfo.displayName}`);
+
+        try {
+
+            if (!isCallActive) {
+                console.error(`call is not active`);
+                ui.showPopUp("error: call is not active.", "error");
+                return;
+            }
+
+            if (inviteInfoSend) {
+                console.error(`inviteInfoSend is not null`);
+                ui.showPopUp("error: there is a pending invite.", "error");
+                return;
+            }
+
+            if (!conferenceClient.conference) {
+                console.error(`no active conference`);
+                ui.showPopUp("error: no active conference.", "error");
+                return;
+            }
+
+            let joinArgs: JoinConferenceParams = {
+                joinMediaConfig: joinMediaConfig,
+                clientData: api.getCurrentUser()?.clientData,
+                conferenceCode: conferenceClient.conference.conferenceConfig.conferenceCode,
+                conferenceId: conferenceClient.conference.conferenceId,
+                roomName: conferenceClient.conference.conferenceName,
+                externalId: conferenceClient.conference.conferenceExternalId,
+            }
+
+            if (!await waitTryRegister()) {
+                console.error('wait for registration failed.');
+                return;
+            }
+
+            let inviteMsg = conferenceClient.sendInviteConf(participantInfo.participantId, joinArgs);
+            if (!inviteMsg) {
+                ui.showPopUp("error unable to initiate a new call", "error");
+                return;
+            }
+            ui.showToast(`invite sent`);
+
+            console.log(`Call initiated to ${participantInfo.displayName}`);
+        } catch (error) {
+            console.error('Failed to initiate call:');
+            ui.showPopUp("Failed to initialized call.", "error");
         }
-    }, [callParticipants, getConferenceRoomsOnline, ui]);
+    }, [api, inviteInfoSend, isCallActive, ui]);
 
     const sendInvite = useCallback(async (participantInfo: ParticipantInfo, joinMediaConfig: GetUserMediaConfig) => {
         console.log(`sendInvite to ${participantInfo.participantId} ${participantInfo.displayName}`);
@@ -681,7 +432,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error('Failed to initiate call:');
             ui.showPopUp("Failed to initialized call.", "error");
         }
-    }, [api, getLocalMedia, inviteInfoSend, isCallActive, ui]);
+    }, [api, inviteInfoSend, isCallActive, ui]);
 
     const acceptInvite = useCallback(async (joinMediaConfig: GetUserMediaConfig) => {
         console.warn(`acceptInvite with `, joinMediaConfig);
@@ -1024,8 +775,12 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log(`constraints:`, constraints);
 
         let newStream = await getBrowserUserMedia(constraints);
-        await conferenceClient.publishTracks(newStream.getTracks(), "switchDevicesOnCall");;
+        if (!newStream) {
+            console.error(`could not get new stream.`);
+            return;
+        }
 
+        await conferenceClient.publishTracks(newStream.getTracks(), "switchDevicesOnCall");;
 
         videoTrack = newStream.getVideoTracks()[0];
         if (videoTrack) {
@@ -1040,7 +795,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [getMediaConstraints, selectedDevices]);
 
     const waitTryRegister = useCallback(async () => {
-        setIsWaiting(true);
         let isRegistered = conferenceClient.isRegistered();
         if (!isRegistered) {
             ui.showToast('waiting to connect.', "warning");
@@ -1056,7 +810,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error("waitTryRegister: not registered");
             ui.showPopUp("waitTryRegister: not connected to server, please try again.", "error");
         }
-        setIsWaiting(false);
         return isRegistered;
     }, [])
 
@@ -1065,68 +818,41 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         conferenceClient.sendConferencePong(conferenceClient.conference.conferenceId);
     }, []);
 
-
     useEffect(() => {
-        setupWebRTCEvents();
-    }, [setupWebRTCEvents]);
+        setupConferenceEvents();
+    }, [setupConferenceEvents]);
 
     const disconnect = useCallback(async () => {
         console.log("CallContext disconnect()");
-
         conferenceClient.disconnect();
-
-        setIsConnected(false);
-        setIsAuthenticated(false);
         localParticipant.current = conferenceClient.localParticipant;
         setIsCallActive(false);
         setCallParticipants(conferenceClient.conference.participants);
         setIsScreenSharing(conferenceClient.isScreenSharing);
-        setSelectedDevices(conferenceClient.selectedDevices);
-        setParticipantsOnline(conferenceClient.participantsOnline);
-        setConferencesOnline(conferenceClient.conferencesOnline);
         setInviteInfoSend(conferenceClient.inviteSendMsg);
         setInviteInfoReceived(conferenceClient.inviteReceivedMsg);
-
-
     }, []);
 
     return (
         <CallContext.Provider value={{
-            isConnecting,
-            isConnected,
-            isAuthenticated,
-            isLoggedOff, setIsLoggedOff,
             localParticipant: localParticipant.current,
             presenter,
             onConferencePing,
             conferencePong,
 
-            isWaiting,
             isCallActive: isCallActive,
             conference: conference.current,
             callParticipants,
             isScreenSharing: isScreenSharing,
-            participantsOnline: participantsOnline,
-            conferencesOnline: conferencesOnline,
-
             inviteInfoSend,
             inviteInfoReceived,
 
             setInviteInfoSend,
-            availableDevices,
-            selectedDevices,
-            setSelectedDevices,
-
-            getLocalMedia,
-            getMediaConstraints,
-
-            getConferenceRoomsOnline,
-            getParticipantsOnline,
 
             createConference,
             joinConference,
             createOrJoinConference,
-
+            sendInviteConf,
             sendInvite,
             acceptInvite,
             declineInvite,
@@ -1142,7 +868,6 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             startScreenShare,
             stopScreenShare,
 
-            getMediaDevices,
             switchDevicesOnCall,
             disconnect,
 
@@ -1150,4 +875,12 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             {children}
         </CallContext.Provider>
     );
+};
+
+export const useCall = () => {
+    const context = useContext(CallContext);
+    if (context === undefined) {
+        throw new Error('useCall must be used within a CallProvider');
+    }
+    return context;
 };

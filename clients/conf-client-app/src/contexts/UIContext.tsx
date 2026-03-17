@@ -1,4 +1,4 @@
-import React, { createContext, useState, useRef, useCallback, useMemo } from 'react';
+import React, { createContext, useState, useRef, useCallback, useMemo, useContext } from 'react';
 import { Modal, Button } from 'react-bootstrap';
 import { CheckCircleFill, ExclamationCircleFill, ExclamationTriangleFill } from 'react-bootstrap-icons';
 import "./UIContext.css";
@@ -138,4 +138,12 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
       </div>
     </UIContext.Provider>
   );
+};
+
+export const useUI = (): UIContextType => {
+  const context = useContext(UIContext);
+  if (!context) {
+    throw new Error('useUI must be used within a UIProvider');
+  }
+  return context;
 };

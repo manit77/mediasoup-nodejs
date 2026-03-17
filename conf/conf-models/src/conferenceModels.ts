@@ -46,33 +46,34 @@ export interface JoinConferenceParams {
 }
 
 export class ConferenceConfig {
-    roomTimeoutSecs: number = 0;
-    conferenceCode: string = "";
-    conferenceGroup: string = "";
-    usersMax = 99;
-    usersRequireConferenceCode: boolean = false;
-    guestsMax: number = 99;
-    guestsAllowed = true;
-    guestsAllowMic: boolean = true;
-    guestsAllowCamera: boolean = true;
-    guestsAllowScreenShare: boolean = true;
-    guestsRequireConferenceCode: boolean = false;
-    guestsAllowDeviceControls: boolean = true; //guests can enabled disable devices
-    guestsRequireMic: boolean = false;
-    guestsRequireCamera : boolean = false;
-    guestsInviteOnly : boolean = false;
-    isRecordable = false;
-    isRecorded = false;
-    isPrivate = false;
-    leaderTrackingId : string = "";
-    layout: conferenceLayout = "auto";
+    roomTimeoutSecs?: number = 0;
+    conferenceCode?: string = "";
+    conferenceGroup?: string = "";
+    usersMax? = 99;
+    usersRequireConferenceCode?: boolean = false;
+    isRecordable? = false;
+    isRecorded? = false;
+    isPrivate? = false;
+    leaderTrackingId?: string = "";
+    layout?: conferenceLayout = "auto";
+
+    guestsMax?: number = 99;
+    guestsAllowed? = true;
+    guestsAllowMic?: boolean = true;
+    guestsAllowCamera?: boolean = true;
+    guestsAllowScreenShare?: boolean = true;
+    guestsRequireConferenceCode?: boolean = false;
+    guestsAllowDeviceControls?: boolean = true; //guests can enabled disable devices
+    guestsRequireMic?: boolean = false;
+    guestsRequireCamera?: boolean = false;
+    guestsInviteOnly?: boolean = false;
 }
 
 export class ConferenceScheduledInfo {
     conferenceId: string = "";
     externalId: string = "";
     name: string = "";
-    description: string = "";   
+    description: string = "";
     config: ConferenceConfig = new ConferenceConfig();
 }
 
@@ -81,8 +82,8 @@ export class ConferenceRoomJoinConfig {
     cameraEnabled: boolean;
 }
 
-export class GetUserMediaConfig {  
-    isAudioEnabled: boolean = false;   
+export class GetUserMediaConfig {
+    isAudioEnabled: boolean = false;
     isVideoEnabled: boolean = false;
     constraints: MediaStreamConstraints;
 }
@@ -93,12 +94,12 @@ export class TestObject {
     }
 }
 
-export class ClientConfig  {
+export class ClientConfig {
     guest_login_require_password = false;
     guest_login_require_participant_group = false;
     guest_login_require_conference_group = false;
     guest_login_generate_username = false;
-    
+
     user_login_require_participant_group = false;
-    user_login_require_conference_group  = false;
+    user_login_require_conference_group = false;
 }

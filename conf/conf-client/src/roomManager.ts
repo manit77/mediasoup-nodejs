@@ -11,18 +11,28 @@ export class RoomManager {
 
     constructor(private conference: Conference, private localParticipant: Participant, private username: string) {}
 
-    public async initialize(roomURI: string, roomRtpCapabilities: string): Promise<void> {
-        console.log("RoomManager: Initializing RoomsClient");
+    public async initialize(wsURI: string, roomRtpCapabilities: string): Promise<void> {
+        console.log("RoomManager: Initializing RoomsClient", wsURI);
 
         if (this.roomsClient) {
-            console.log("RoomManager: RoomsClient already initialized.");
+            console.error("RoomManager: RoomsClient already initialized.");
             return;
         }
 
+         if (!wsURI) {
+            console.error("wsURI is required.");
+            return;
+        }
+
+        if (!roomRtpCapabilities) {
+            console.error("roomRtpCapabilities is required.");
+            return;
+        }
+      
         this.roomsClient = new RoomsClient({
             socket_auto_reconnect: true,
             socket_enable_logs: false, // Or get from config
-            socket_ws_uri: roomURI,
+            socket_ws_uri: wsURI,
         });
 
         this.setupRoomsClientEvents();

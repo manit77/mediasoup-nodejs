@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { useCall } from '@client/hooks/useCall';
-import { useUI } from '@client/hooks/useUI';
+import { useCall } from '@client/contexts/CallContext';
+import { useUI } from '@client/contexts/UIContext';
 import { Participant } from '@conf/conf-client';
 
 const PresenterVideo: React.FC<{ presenter: Participant }> = ({ presenter }) => {

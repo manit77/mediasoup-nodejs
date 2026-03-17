@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAPI } from '@client/hooks/useAPI';
-import { useUI } from '@client/hooks/useUI';
+import { useAPI } from '@client/contexts/APIContext';
+import { useUI } from '@client/contexts/UIContext';
 import { Form, Button, Container, Card, Alert, Spinner } from 'react-bootstrap';
 import { PersonCircle, LockFill, ShieldLockFill, InfoCircle, ExclamationTriangleFill } from 'react-bootstrap-icons';
 import { getQueryParams } from '@client/utils/utils';
 import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { ClientConfig } from '@conf/conf-models';
+import { enableKeyboard } from '@client/utils/kiosk';
 
 const LoginPage: React.FC = () => {
     const [username, setUsername] = useState("");
@@ -45,13 +46,13 @@ const LoginPage: React.FC = () => {
         let _participantGroupName = "";
         let _conferenceGroup = "";
 
-        _participantGroup = query.participantGroup || clientData.participantGroup;
+        _participantGroup = query.pg || query.participantGroup || clientData.participantGroup;
         setParticipantGroup(_participantGroup);
 
         _participantGroupName = query.participantGroupName || clientData.participantGroupName;
         setParticipantGroupName(_participantGroupName);
 
-        _conferenceGroup = query.conferenceGroup || clientData.conferenceGroup;
+        _conferenceGroup = query.cg || query.conferenceGroup || clientData.conferenceGroup;
         setConferenceGroup(_conferenceGroup);
 
         if (config.conf_require_participant_group && !_participantGroup) {
@@ -121,7 +122,9 @@ const LoginPage: React.FC = () => {
 
         fetchConfig();
 
-    }, []);
+        enableKeyboard();
+
+    }, [api, config.conf_require_participant_group]);
 
     const handleSubmitAdmin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -235,7 +238,7 @@ const LoginPage: React.FC = () => {
                 {/* Footer Info */}
                 <div className="bg-body p-2 border-top d-flex justify-content-between px-3" style={{ fontSize: '0.7rem' }}>
                     <span className="text-muted">v{config.version}</span>
-                    <span className="text-muted">build: {config.commit?.substring(0, 7)}</span>
+                    <span className="text-muted">build: {config.commit}</span>
                 </div>
             </Card>
 

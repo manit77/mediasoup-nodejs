@@ -1,29 +1,23 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Button, Form, Tab, Row, Col, Nav } from 'react-bootstrap';
-import { useCall } from '@client/hooks/useCall';
 import {
     Mic, CameraVideo, PersonVideo,
     GearFill, Cpu, CheckCircleFill,
     ExclamationCircle, FilePersonFill,
-    InfoCircle
-} from 'react-bootstrap-icons'; import { useUI } from '@client/hooks/useUI';
+    InfoCircle, SpeakerFill
+} from 'react-bootstrap-icons';
+import { useUI } from '@client/contexts/UIContext';
 import '@client/css/modal.css';
 import '@client/css/buttons.css';
+import { useDevice } from '@client/contexts/DeviceContext';
 
 
-const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ show, handleClose }) => {
-    const {
-        availableDevices,
-        selectedDevices,
-        setSelectedDevices,
-        getMediaDevices,
-        getMediaConstraints,
-    } = useCall();
+const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ show, handleClose }) => {   
+    const { availableDevices, getMediaConstraints, selectedDevices, setSelectedDevices } = useDevice();
     const ui = useUI();
-
     const [audioId, setAudioId] = useState("");
     const [videoId, setVideoId] = useState("");
-    //const [speakerId, setSpeakerId] = useState("");
+    const [speakerId, setSpeakerId] = useState("");
     const [showingPreview, setShowingPreview] = useState(false);
     const [audioLevel, setAudioLevel] = useState(0); // 🔊 audio meter state
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -46,34 +40,32 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
         }
     }, [show]);
 
-    const handleDeviceChange = (type: 'video' | 'audioIn' | 'audioOut', deviceId: string, deviceName: string) => {
-        console.log(`handleDeviceChange type=${type} deviceId=${deviceId} deviceName=${deviceName}`);
-
-        if (type === "video") {
-
-            setVideoId(deviceId);
-            selectedDevices.videoId = deviceId;
-            selectedDevices.videoLabel = deviceName;
-
-        } else if (type === "audioIn") {
-
-            setAudioId(deviceId);
-            selectedDevices.audioInId = deviceId;
-            selectedDevices.audioInLabel = deviceName
-        } else {
-            //setSpeakerId(deviceId);
-            selectedDevices.audioOutId = deviceId;
-            selectedDevices.audioOutLabel = deviceName;
+    // When modal opens or selectedDevices change while open, sync dropdowns to context
+    useEffect(() => {
+        if (show) {
+            setAudioId(selectedDevices.audioInId ?? '');
+            setVideoId(selectedDevices.videoId ?? '');
+            setSpeakerId(selectedDevices.audioOutId ?? '');
         }
+    }, [show, selectedDevices.audioInId, selectedDevices.videoId, selectedDevices.audioOutId]);
 
+    const handleDeviceChange = (type: 'video' | 'audioIn' | 'audioOut', deviceId: string, deviceName: string) => {
+        if (type === 'video') {
+            setVideoId(deviceId);
+            setSelectedDevices(prev => ({ ...prev, videoId: deviceId, videoLabel: deviceName }));
+        } else if (type === 'audioIn') {
+            setAudioId(deviceId);
+            setSelectedDevices(prev => ({ ...prev, audioInId: deviceId, audioInLabel: deviceName }));
+        } else {
+            setSpeakerId(deviceId);
+            setSelectedDevices(prev => ({ ...prev, audioOutId: deviceId, audioOutLabel: deviceName }));
+        }
         if (showingPreview) {
             startPreview();
         }
-
     };
 
-    const closeButtonClick = async () => {
-        setSelectedDevices(prev => ({ ...selectedDevices }));
+    const closeButtonClick = () => {
         handleClose();
     };
 
@@ -105,25 +97,16 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                 console.error("Error accessing media devices:", err);
                 ui.showPopUp("Error accessing media devices.", 'error', 30);
                 return;
-            }
+            }           
 
-            try {
-                await getMediaDevices();
-            } catch (err) {
-                console.error("Error getting list of media devices:", err);
-                ui.showPopUp("Unable to get list of media devices. Please check permissions and try again.", 'error', 30);
-                return;
-            }
-
-            setAudioId(selectedDevices.audioInId);
-            setVideoId(selectedDevices.videoId);
+            setAudioId(selectedDevices.audioInId ?? '');
+            setVideoId(selectedDevices.videoId ?? '');
             startAudioMeter(stream);
             startVideoPreview(stream);
             setShowingPreview(true);
 
         } catch (err) {
             console.error("Permission or device error:", err);
-            //ui.showPopUp("Please grant camera and microphone permissions to access devices.", 'error', 30);
             ui.showPopUp(err.message, 'error', 30);
         }
     };
@@ -302,6 +285,28 @@ const SettingsPopup: React.FC<{ show: boolean; handleClose: () => void }> = ({ s
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* Audio Output (Speaker) */}
+                                    {availableDevices.audioOut.length > 0 && (
+                                        <>
+                                            <hr className="my-4" />
+                                            <div className="mb-4">
+                                                <h6 className="text-uppercase text-muted fw-bold small mb-3">
+                                                    <SpeakerFill className="me-2" /> Audio Output
+                                                </h6>
+                                                <Form.Select
+                                                    id="ctlSpeaker"
+                                                    value={speakerId || ''}
+                                                    onChange={(e) => handleDeviceChange('audioOut', e.target.value, e.target.selectedOptions[0].text)}
+                                                    className="shadow-sm border-primary-subtle"
+                                                >
+                                                    {availableDevices.audioOut.map(device => (
+                                                        <option key={device.id} value={device.id}>{device.label}</option>
+                                                    ))}
+                                                </Form.Select>
+                                            </div>
+                                        </>
+                                    )}
 
                                     <hr className="my-4" />
 

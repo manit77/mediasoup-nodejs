@@ -277,7 +277,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         };
 
         conference.onNewParticipant = (part: Participant) => {
-           
+
         }
 
         consoleLog(`conference created: ${conference.id} ${conference.roomName} `);
@@ -355,16 +355,23 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return errorMsg;
         }
 
+
+        let authTokenObject: IAuthPayload;
+        authTokenObject = jwtVerify(this.config.conf_secret_key, msgIn.data.authToken) as IAuthPayload;
+
+        if (!authTokenObject) {
+            let errorMsg = new RegisterResultMsg();
+            errorMsg.error = "invalid auth token.";
+            return errorMsg;
+        }
+
         let participant: Participant = this.createParticipant({
             username: msgIn.data.username,
-            displayName: msgIn.data.username,
+            displayName: msgIn.data.displayName,
             participantGroup: msgIn.data.participantGroup,
             conferenceGroup: msgIn.data.conferenceGroup,
             clientData: msgIn.data.clientData
         });
-
-        let authTokenObject: IAuthPayload;
-        authTokenObject = jwtVerify(this.config.conf_secret_key, msgIn.data.authToken) as IAuthPayload;
 
         participant.role = authTokenObject.role;
 
@@ -494,7 +501,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
     }
 
     /**
-     * invite a peer to a p2p call
+     * invite a peer to a p2p call or conference
      * @param ws 
      * @param msgIn 
      * @returns 
@@ -579,7 +586,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.withAudio = msgIn.data.withAudio;
         msg.data.withVideo = msgIn.data.withVideo;
 
-        msg.data.ticket = jwtSign(this.config.conf_secret_key, { conferenceId: conference.id, participantId: remote.participantId });    
+
+        msg.data.ticket = jwtSign(this.config.conf_secret_key, { conferenceId: conference.id, participantId: remote.participantId });
 
         if (!this.send(remote, msg)) {
             consoleError("failed to send invite to receiver");
@@ -694,11 +702,18 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         if (remote.role == AuthUserRoles.guest) {
             withAudio = conference.config.guestsRequireMic || (withAudio && conference.config.guestsAllowMic);
             withVideo = conference.config.guestsRequireCamera || (withVideo && conference.config.guestsAllowCamera);
+            msg.data.conferenceConfig = {
+                guestsRequireCamera: conference.config.guestsRequireCamera,
+                guestsRequireMic: conference.config.guestsRequireMic,
+            }
         }
-
+        
         msg.data.withAudio = withAudio;
         msg.data.withVideo = withVideo;
         msg.data.ticket = jwtSign(this.config.conf_secret_key, { conferenceId: conference.id, participantId: remote.participantId });
+
+        //send the config
+
 
         if (!this.send(remote, msg)) {
             consoleError("failed to send invite to receiver");
@@ -1080,7 +1095,7 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             msg.error = "unable to join conference";
             return msg;
         }
-     
+
         if (!conference.addParticipant(participant)) {
             let errorMsg = new JoinConfResultMsg();
             errorMsg.error = "unable to add you to the conference.";
@@ -1151,7 +1166,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         msg.data.roomId = conference.roomId;
         msg.data.roomToken = accessTokenResult.data.roomToken;
         msg.data.roomAuthToken = authUserTokenResult.data.authToken;
-        msg.data.roomURI = conference.roomURI;
+        let wsURI = conference.roomURI.replace("https://", "wss://").replace("http://", "ws://");
+        msg.data.roomURI = wsURI;
         msg.data.roomRtpCapabilities = conference.roomRtpCapabilities;
 
         this.send(participant, msg);
@@ -1181,8 +1197,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
         //caller sent an invite
         //receiver accepted the invite
         //send room ready to both parties
-        let roomURI = this.getNextRoomServerURI();
-        let roomsAPI = new RoomsAPI(roomURI, this.config.room_access_token);
+        let roomAPIURL = this.getNextRoomServerAPIURL();
+        let roomsAPI = new RoomsAPI(roomAPIURL, this.config.room_access_token);
 
         let roomTokenResult = await roomsAPI.newRoomToken();
         if (!roomTokenResult || roomTokenResult?.error) {
@@ -1220,11 +1236,8 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
             return false;
         }
 
-        //let roomAccessToken = roomNewResult.data.roomToken;
-
         conference.roomId = roomId;
-        //conference.roomToken = roomAccessToken;
-        conference.roomURI = roomURI;
+        conference.roomURI = roomAPIURL;
         conference.roomRtpCapabilities = roomNewResult.data.roomRtpCapabilities;
         conference.startTimers();
 
@@ -1382,10 +1395,10 @@ export class ConferenceServer extends AbstractEventHandler<ConferenceServerEvent
 
     /**
      * you can load balance the room server using simple round robin
-     * @returns url of room server 
+     * @returns api url of room server 
      */
-    getNextRoomServerURI(): string {
-        consoleLog("getNextRoomServerURI");
+    getNextRoomServerAPIURL(): string {
+        consoleLog("getNextRoomServerAPIURL");
         let uri = this.config.room_servers_uris[this.nextRoomURIIdx];
         this.nextRoomURIIdx++;
         if (this.nextRoomURIIdx >= this.config.room_servers_uris.length) {

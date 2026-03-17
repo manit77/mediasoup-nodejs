@@ -24,9 +24,9 @@ export class RoomsAPI {
         accessToken: ""
     }
 
-    constructor(uri: string, accessToken: string) {
-        if (uri) {
-            this.config.apiURI = uri;
+    constructor(apiURL: string, accessToken: string) {
+        if (apiURL) {
+            this.config.apiURI = apiURL;
         }
         if (accessToken) {
             this.config.accessToken = accessToken;

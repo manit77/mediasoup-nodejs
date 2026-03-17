@@ -3,14 +3,16 @@ import CallTopMenu from './CallTopMenu';
 import ParticipantsPane from './ParticipantsPane';
 import PresenterVideo from './PresenterVideo';
 import SettingsPopup from '@client/components/popups/SettingsPopup';
-import { useCall } from '@client/hooks/useCall';
+import { useCall } from '@client/contexts/CallContext';
 import { Navigate } from 'react-router-dom';
 import { Participant } from '@conf/conf-client';
 import { conferenceLayout } from '@conf/conf-models';
+import { useDevice } from '@client/contexts/DeviceContext';
 
 const OnCallScreen: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
-    const { conference, localParticipant, isCallActive, callParticipants, selectedDevices, switchDevicesOnCall, presenter, onConferencePing, conferencePong } = useCall();
+    const { conference, localParticipant, isCallActive, callParticipants, switchDevicesOnCall, presenter, onConferencePing, conferencePong } = useCall();
+    const { availableDevices, getMediaConstraints, selectedDevices, getLocalMedia } = useDevice();
     const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
     const [remoteParticipant, setRemoteParticipant] = useState<Participant>(null)
     const localVideoPreview = React.useRef<HTMLDivElement>(null);

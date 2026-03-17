@@ -203,7 +203,7 @@ class ApiService {
                 return;
             }
             let result = await this.conferenceAPIClient.getParticipantsOnline(user.authToken, user.username, this.getClientData());
-
+            console.warn("fetchParticipantsOnline", result);
             if (result.error) {
                 this.onError(result.error);
                 return this.participantsOnline;

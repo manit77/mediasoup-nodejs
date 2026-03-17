@@ -320,11 +320,11 @@ export class Room {
             return;
         }
         let producer = await roomPeer.createProducer(kind, rtpParameters);
-        if (this.onProducerCreated) {
+        if (producer && this.onProducerCreated) {
             this.onProducerCreated(peer, producer);
         }
 
-        if (this.config.isRecorded && this.config.closeOnRecordingFailed && this.config.closeOnRecordingTimeoutSecs) {
+        if (producer && this.config.isRecorded && this.config.closeOnRecordingFailed && this.config.closeOnRecordingTimeoutSecs) {
             this.createRecPeer(peer, producer);
         }
 

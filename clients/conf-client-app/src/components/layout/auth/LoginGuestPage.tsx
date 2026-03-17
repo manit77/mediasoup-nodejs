@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAPI } from '@client/hooks/useAPI';
-import { useUI } from '@client/hooks/useUI';
+import { useAPI } from '@client/contexts/APIContext';
+import { useUI } from '@client/contexts/UIContext';
 import { Form, Button, Container, Card, Alert, Spinner, Badge } from 'react-bootstrap';
 import { generateRandomDisplayName, getQueryParams } from '@client/utils/utils';
 import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { ClientConfig } from '@conf/conf-models';
 import { Person, KeyFill, DoorOpenFill, ExclamationOctagon } from 'react-bootstrap-icons';
+import { enableKeyboard } from '@client/utils/kiosk';
 
 
 const LoginGuestPage: React.FC = () => {
@@ -46,13 +47,13 @@ const LoginGuestPage: React.FC = () => {
         let _participantGroupName = "";
         let _conferenceGroup = "";
 
-        _participantGroup = query.participantGroup || clientData.participantGroup;
+        _participantGroup = query.pg || query.participantGroup || clientData.participantGroup;
         setParticipantGroup(_participantGroup);
 
         _participantGroupName = query.participantGroupName || clientData.participantGroupName;
         setParticipantGroupName(_participantGroupName);
 
-        _conferenceGroup = query.conferenceGroup || clientData.conferenceGroup;
+        _conferenceGroup = query.cg || query.conferenceGroup || clientData.conferenceGroup;
         setConferenceGroup(_conferenceGroup);
 
         if (config.conf_require_participant_group && !_participantGroup) {
@@ -139,7 +140,9 @@ const LoginGuestPage: React.FC = () => {
 
         fetchConfig();
 
-    }, []);
+        enableKeyboard();
+
+    }, [api, config.conf_require_participant_group]);
 
     const handleSubmitGuest = async (e: React.FormEvent) => {
         e.preventDefault();

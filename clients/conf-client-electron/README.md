@@ -1,0 +1,147 @@
+# conf-client-electron
+
+Electron wrapper for the conference web application. It loads the hosted app in a main webview and provides an on-screen keyboard in a separate bottom panel, with a toolbar (Home, Language, Show/Hide keyboard).
+
+## Run and build (development)
+
+- **Start (dev):** `npm run start` — builds TypeScript, copies assets to `dist/`, then launches Electron.
+- **Build only:** `npm run build` — compiles `src/` to `dist/` and runs the postbuild copy step.
+
+## Building for distribution (Mac and Windows)
+
+Packaged installers and executables are produced with [electron-builder](https://www.electron.build/). Output goes to the `release/` directory.
+
+### Prerequisites
+
+- **Node.js** (LTS) and **npm**
+- **macOS:** Xcode Command Line Tools (for Mac builds). For signing/notarization, configure code signing in the `build` section of `package.json` and set env vars as per electron-builder docs.
+- **Windows:** Builds can be run from macOS (using Wine for some installers) or on Windows. For native Windows builds, run the commands below on a Windows machine.
+
+### Install dependencies
+
+From the `clients/conf-client-electron` directory (or the repo root if using a monorepo):
+
+```bash
+npm install
+```
+
+### Build for macOS
+
+1. Run the build and package for the current platform (mac):
+
+   ```bash
+   npm run dist:mac
+   ```
+
+2. Find the app and/or DMG in `release/`:
+   - **App:** `release/mac/Conference Client.app`
+   - **DMG (if configured):** `release/Conference Client-1.0.0.dmg` (or similar)
+
+### Build for Windows
+
+1. On a Windows machine (or with Wine on macOS/Linux for some targets), run:
+
+   ```bash
+   npm run dist:win
+   ```
+
+2. Find installers in `release/`:
+   - **NSIS installer:** `release/Conference Client Setup 1.0.0.exe` (or similar)
+   - **Portable:** `release/Conference Client 1.0.0.exe` (portable executable)
+
+### Build for both platforms
+
+To build for the current OS only (mac on Mac, win on Windows):
+
+```bash
+npm run dist
+```
+
+To build for Mac and Windows from one machine, run `npm run dist:mac` and `npm run dist:win` (Windows build may require Wine on non-Windows hosts for full support).
+
+## Configuration (AppConfig)
+
+The app is configured via **`config.json`** (built app uses `dist/config.json`) and optional **environment variables**. Environment values override the config file when set.
+
+| Field | Type | Description | Config key | Env override |
+|-------|------|-------------|------------|--------------|
+| `startUrl` | string | URL or path to load in the main webview (e.g. `https://host:3000/login` or a local file like `test.html`). | `startUrl` | `CONFCLIENT_START_URL` |
+| `isKiosk` | boolean | When `true`, run in kiosk mode. Default: `false`. | `isKiosk` | `CONFCLIENT_IS_KIOSK` (`1`, `true`, `yes` = true) |
+| `enableKeyboard` | boolean | When `true`, the on-screen keyboard can be shown. Default: `false`. | `enableKeyboard` | `CONFCLIENT_ENABLE_KEYBOARD` (`1`, `true`, `yes` = true) |
+| `enableJSConsole` | boolean | When `true`, F12 toggles DevTools for the remote and keyboard views. Default: `false`. | `enableJSConsole` | `CONFCLIENT_ENABLE_JSCONSOLE` (`1`, `true`, `yes` = true) |
+| `idleTimeoutMinutes` | number | Idle timeout (minutes) before returning to `startUrl`. Default: `30`. | `idleTimeoutMinutes` | `CONFCLIENT_IDLE_TIMEOUT_MINUTES` (integer > 0) |
+
+### Example config.json
+
+```json
+{
+  "startUrl": "https://example.com/app",
+  "isKiosk": false,
+  "enableKeyboard": false,
+  "enableJSConsole": false,
+  "idleTimeoutMinutes": 30
+}
+```
+
+To override via environment (e.g. for debugging):
+
+```bash
+export CONFCLIENT_START_URL="https://localhost:3000/login"
+export CONFCLIENT_ENABLE_JSCONSOLE=true
+export CONFCLIENT_ENABLE_KEYBOARD=true
+export CONFCLIENT_IDLE_TIMEOUT_MINUTES=30
+npm run start
+```
+
+when running on a mac:
+```
+open ConferenceClient.app --env CONFCLIENT_START_URL="https://localhost:3000/login" \
+  --env CONFCLIENT_ENABLE_JSCONSOLE=true \
+  --env CONFCLIENT_ENABLE_KEYBOARD=true \
+  --env CONFCLIENT_IS_KIOSK=true \
+  --env CONFCLIENT_IDLE_TIMEOUT_MINUTES=30
+```
+
+## Architecture
+
+- **Main window** — No web content; only hosts the two views.
+- **Remote view (BrowserView)** — Loads the conference app from `startUrl`. Has a preload script that exposes the keyboard hooks and auto-shows the keyboard when an input or textarea is focused (unless the keyboard is disabled).
+- **Keyboard view (BrowserView)** — Renders the on-screen keyboard (simple-keyboard) and a bottom toolbar:
+  - **Home** — Reloads the remote app to the start URL.
+  - **Language** — Opens a language picker and shows the keyboard; supports multiple layouts (e.g. en, es, fr, de, ru, ar, zh, ja, ko).
+  - **Show / Hide keyboard** — Toggles the keyboard panel (toolbar stays visible).
+
+Keyboard key events are sent from the keyboard view to the main process and then injected into the remote view, so the hosted app receives them as if from a physical keyboard (including Tab, Enter, Backspace, and characters).
+
+Screen sharing in the hosted app is supported via Electron’s `setDisplayMediaRequestHandler` and `desktopCapturer` (e.g. grant Screen Recording on macOS).
+
+---
+
+## JavaScript hooks for the hosted web app
+
+The preload script exposes a small API on `window.electronKeyboard` so the **hosted conference app** can control the on-screen keyboard from JavaScript. Use optional chaining if the app might run in a normal browser where this API is absent.
+
+| Method | Description |
+|--------|-------------|
+| `showKeyboard()` | Shows the on-screen keyboard panel. |
+| `hideKeyboard()` | Hides the keyboard panel (toolbar remains). |
+| `disableKeyboard()` | Hides the keyboard and disables it: it will not auto-show on input focus, and `showKeyboard()` is ignored until `enableKeyboard()` is called. |
+| `enableKeyboard()` | Re-enables the keyboard so it can be shown again and auto-show on focus works. |
+
+### Example usage
+
+```javascript
+// Show or hide the keyboard
+window.electronKeyboard?.showKeyboard();
+window.electronKeyboard?.hideKeyboard();
+
+// Disable the keyboard (e.g. when not needed on a page)
+window.electronKeyboard?.disableKeyboard();
+
+// Re-enable the keyboard
+window.electronKeyboard?.enableKeyboard();
+```
+
+### Auto-show behavior
+
+When the keyboard is **enabled**, focusing an `<input>` or `<textarea>` in the hosted app automatically shows the keyboard. When the keyboard is **disabled**, that behavior is turned off until `enableKeyboard()` is called again.

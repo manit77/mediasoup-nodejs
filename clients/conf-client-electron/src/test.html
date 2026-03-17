@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kiosk Security Test</title>
+  <style>
+    html {
+      touch-action: pan-x pan-y;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      padding: 24px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin: 0 0 8px 0;
+      color: #f9fafb;
+    }
+    h2 {
+      font-size: 1.1rem;
+      margin: 24px 0 8px 0;
+      color: #e5e7eb;
+    }
+    p {
+      margin: 0 0 16px 0;
+      color: #9ca3af;
+      max-width: 520px;
+    }
+    section {
+      max-width: 640px;
+      width: 100%;
+      text-align: left;
+      background: #0b1120;
+      border-radius: 10px;
+      padding: 16px 20px;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
+      border: 1px solid #1e293b;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 8px 0 0 0;
+    }
+    button {
+      padding: 8px 14px;
+      font-size: 0.9rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #1d4ed8;
+      color: #f9fafb;
+      font-weight: 500;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    input {
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #374151;
+      background: #020617;
+      color: #e5e7eb;
+      min-width: 0;
+      flex: 1 1 160px;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.85rem;
+      background: #020617;
+      padding: 2px 4px;
+      border-radius: 4px;
+      color: #e5e7eb;
+    }
+    .note {
+      font-size: 0.8rem;
+      color: #6b7280;
+      margin-top: 8px;
+    }
+    .form-controls-test label {
+      display: block;
+      margin: 12px 0 4px 0;
+      font-size: 0.9rem;
+      color: #d1d5db;
+    }
+    .form-controls-test label:first-of-type {
+      margin-top: 0;
+    }
+    .form-controls-test input[type="text"],
+    .form-controls-test input[type="email"],
+    .form-controls-test input[type="number"],
+    .form-controls-test input[type="password"],
+    .form-controls-test input[type="url"],
+    .form-controls-test input[type="date"],
+    .form-controls-test textarea,
+    .form-controls-test select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #374151;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+    }
+    .form-controls-test textarea {
+      min-height: 72px;
+      resize: vertical;
+    }
+    .form-controls-test .checkbox-row,
+    .form-controls-test .radio-row {
+      margin: 12px 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+    }
+    .form-controls-test .checkbox-row label,
+    .form-controls-test .radio-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      cursor: pointer;
+    }
+    .form-controls-test input[type="checkbox"],
+    .form-controls-test input[type="radio"] {
+      width: auto;
+      flex: none;
+    }
+    .form-controls-test button[type="submit"],
+    .form-controls-test button[type="button"].form-btn {
+      margin-top: 16px;
+      padding: 8px 14px;
+      font-size: 0.9rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #1d4ed8;
+      color: #f9fafb;
+      font-weight: 500;
+    }
+    .form-controls-test button[type="submit"]:hover,
+    .form-controls-test button[type="button"].form-btn:hover {
+      background: #2563eb;
+    }
+  </style>
+</head>
+<body>
+  <h1>Kiosk Security Test Page</h1>
+  <p>
+    Use this page to manually verify that the Electron kiosk shell correctly restricts navigation,
+    window opening, and keyboard shortcuts.
+  </p>
+
+  <section>
+    <h2>1. Navigation restrictions</h2>
+    <p>Try navigating away from the allowed start URL. In a locked-down kiosk, these should be blocked or redirected by the host app / web app.</p>
+    <div class="row">
+      <button type="button" id="nav-http-google">Open http://google.com</button>
+      <button type="button" id="nav-https-google">Open https://google.com</button>
+      <button type="button" id="nav-file-root">Try file:/// etc</button>
+    </div>
+    <div class="row" style="margin-top: 10px;">
+      <input id="custom-url" type="text" placeholder="Custom URL (e.g. https://example.com)" />
+      <button type="button" id="nav-custom">Open custom URL</button>
+    </div>
+    <p class="note">
+      Expected: the kiosk wrapper or hosted app should ignore / redirect disallowed URLs.
+    </p>
+  </section>
+
+  <section style="margin-top: 16px;">
+    <h2>2. Window and popup restrictions</h2>
+    <p>Attempt to open new windows or popups. A kiosk shell usually prevents new top-level windows.</p>
+    <div class="row">
+      <button type="button" id="btn-window-open">window.open('https://google.com')</button>
+      <button type="button" id="btn-window-blank">window.open('about:blank')</button>
+      <button type="button" id="btn-alert">Run alert()</button>
+    </div>
+    <p class="note">
+      Expected: new windows should not appear as separate OS windows; ideally, they should be blocked or contained by the app.
+    </p>
+  </section>
+
+  <section style="margin-top: 16px;">
+    <h2>3. File upload restrictions</h2>
+    <p>Try to select a file from disk. A locked-down kiosk should prevent file uploads.</p>
+    <div class="row">
+      <input type="file" id="file-input" />
+      <button type="button" id="btn-file-info">Show selected file name</button>
+    </div>
+    <p class="note">
+      Expected: the kiosk shell should block file selection so no file name appears and the OS file picker is not useful.
+    </p>
+  </section>
+
+  <section style="margin-top: 16px;">
+    <h2>4. Keyboard & shortcut behavior</h2>
+    <p>Use the physical or on-screen keyboard to test restricted shortcuts: <code>Alt+Tab</code>, <code>Cmd/Ctrl+Q</code>, <code>Cmd/Ctrl+W</code>, <code>F11</code>, etc.</p>
+    <p class="note">
+      Expected: the Electron shell or OS kiosk mode should prevent leaving the app, closing the window, or toggling fullscreen in ways you don't intend.
+    </p>
+  </section>
+
+  <section style="margin-top: 16px;">
+    <h2>5. Clipboard & selection</h2>
+    <p>Try selecting text and copying it. In a kiosk, you may want to minimize accidental selection and clipboard leaks.</p>
+    <p class="note">
+      Tip: This page disables text selection at the HTML level; the hosted kiosk app can do the same if desired.
+    </p>
+  </section>
+
+  <section style="margin-top: 16px;">
+    <h2>6. Electron keyboard IPC commands</h2>
+    <p>Call the exposed Electron hooks from the hosted web app and verify that the kiosk shell responds as expected.</p>
+    <div class="row">
+      <button type="button" id="btn-show-keyboard">Show keyboard</button>
+      <button type="button" id="btn-hide-keyboard">Hide keyboard</button>
+      <button type="button" id="btn-disable-keyboard">Disable keyboard</button>
+      <button type="button" id="btn-enable-keyboard">Enable keyboard</button>
+      <button type="button" id="btn-go-home">Go home</button>
+    </div>
+    <p class="note">
+      Expected: these buttons should call <code>window.electron.*</code> and trigger the corresponding IPC commands in the Electron main process.
+    </p>
+  </section>
+
+  <section style="margin-top: 16px;" class="form-controls-test">
+    <h2>7. Form controls test</h2>
+    <p>Use TAB to move between all form controls. The on-screen keyboard and scroll-into-view should work for INPUT, TEXTAREA, SELECT, and BUTTON.</p>
+    <form id="test-form" action="#" method="get" onsubmit="return false;">
+      <label for="fc-text">Text</label>
+      <input id="fc-text" name="text" type="text" value="Sample text value" placeholder="Enter text" />
+
+      <label for="fc-email">Email</label>
+      <input id="fc-email" name="email" type="email" value="test@example.com" placeholder="you@example.com" />
+
+      <label for="fc-number">Number</label>
+      <input id="fc-number" name="number" type="number" value="42" min="0" max="100" placeholder="0–100" />
+
+      <label for="fc-password">Password</label>
+      <input id="fc-password" name="password" type="password" value="test123" placeholder="Password" />
+
+      <label for="fc-url">URL</label>
+      <input id="fc-url" name="url" type="url" value="https://example.com" placeholder="https://..." />
+
+      <label for="fc-date">Date</label>
+      <input id="fc-date" name="date" type="date" value="2025-03-13" />
+
+      <label for="fc-textarea">Textarea</label>
+      <textarea id="fc-textarea" name="bio" placeholder="Multi-line text...">First line of test data.
+Second line.
+Third line.</textarea>
+
+      <label for="fc-select">Select</label>
+      <select id="fc-select" name="country">
+        <option value="">Choose one…</option>
+        <option value="us" selected>United States</option>
+        <option value="uk">United Kingdom</option>
+        <option value="ca">Canada</option>
+        <option value="de">Germany</option>
+        <option value="fr">France</option>
+      </select>
+
+      <div class="checkbox-row">
+        <span style="display:block; margin-bottom:4px; color:#d1d5db;">Checkboxes</span>
+        <label><input type="checkbox" name="opt1" value="a" checked /> Option A</label>
+        <label><input type="checkbox" name="opt2" value="b" /> Option B</label>
+        <label><input type="checkbox" name="opt3" value="c" checked /> Option C</label>
+      </div>
+
+      <div class="radio-row">
+        <span style="display:block; margin-bottom:4px; color:#d1d5db;">Radio</span>
+        <label><input type="radio" name="choice" value="one" /> One</label>
+        <label><input type="radio" name="choice" value="two" checked /> Two</label>
+        <label><input type="radio" name="choice" value="three" /> Three</label>
+      </div>
+
+      <button type="button" class="form-btn" id="fc-button">Form button (focusable)</button>
+      <button type="submit" id="fc-submit">Submit</button>
+    </form>
+    <p class="note">
+      Expected: focusing any control (click or TAB) shows the keyboard and scrolls it into view. All controls are pre-filled with test data.
+    </p>
+  </section>
+
+  <section style="margin-top: 16px;">
+    <h2>8. Full keyboard input test</h2>
+    <p>
+      Use the on-screen keyboard (simple-keyboard) together with the physical keyboard to exercise all keys,
+      including function keys (<code>F1-F12</code>), Tab, Enter, Backspace, arrows, and symbol keys.
+    </p>
+    <div class="row" style="flex-direction: column; gap: 8px;">
+      <label for="full-keyboard-textarea">Keyboard test area</label>
+      <textarea
+        id="full-keyboard-textarea"
+        rows="6"
+        style="
+          width: 100%;
+          resize: none;
+          padding: 8px;
+          border-radius: 8px;
+          border: 1px solid #374151;
+          background: #020617;
+          color: #e5e7eb;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+        "
+        placeholder="Type here using the on-screen keyboard and the physical keyboard to verify all keys are forwarded correctly..."
+      ></textarea>
+    </div>
+    <p class="note">
+      Expected: all characters and navigation keys supported by the kiosk keyboard should appear and behave correctly in this textarea.
+    </p>
+  </section>
+
+  <script>
+    function safeOpen(url) {
+      try {
+        window.location.href = url;
+      } catch (e) {
+        console.error("Navigation blocked:", e);
+      }
+    }
+
+    document.getElementById('nav-http-google').addEventListener('click', () => {
+      safeOpen('http://google.com');
+    });
+    document.getElementById('nav-https-google').addEventListener('click', () => {
+      safeOpen('https://google.com');
+    });
+    document.getElementById('nav-file-root').addEventListener('click', () => {
+      safeOpen('file:///');
+    });
+    document.getElementById('nav-custom').addEventListener('click', () => {
+      const value = (document.getElementById('custom-url').value || '').trim();
+      if (value) {
+        safeOpen(value);
+      }
+    });
+
+    document.getElementById('btn-window-open').addEventListener('click', () => {
+      try {
+        window.open('https://google.com', '_blank');
+      } catch (e) {
+        console.error('window.open blocked:', e);
+      }
+    });
+
+    document.getElementById('btn-window-blank').addEventListener('click', () => {
+      try {
+        window.open('about:blank', '_blank');
+      } catch (e) {
+        console.error('window.open blocked:', e);
+      }
+    });
+
+    document.getElementById('btn-alert').addEventListener('click', () => {
+      alert('If you can see this, JavaScript execution is allowed (expected).');
+    });
+
+    document.getElementById('btn-file-info').addEventListener('click', () => {
+      const input = document.getElementById('file-input');
+      const file = input && input.files && input.files[0];
+      if (file) {
+        alert('Selected file: ' + file.name);
+      } else {
+        alert('No file selected (expected in a locked-down kiosk).');
+      }
+    });
+
+    function callElectron(method) {
+      if (window.electron && typeof window.electron[method] === 'function') {
+        window.electron[method]();
+      } else {
+        alert('window.electron.' + method + ' is not available in this environment.');
+      }
+    }
+
+    document.getElementById('btn-show-keyboard').addEventListener('click', () => {
+      callElectron('showKeyboard');
+    });
+    document.getElementById('btn-hide-keyboard').addEventListener('click', () => {
+      callElectron('hideKeyboard');
+    });
+    document.getElementById('btn-disable-keyboard').addEventListener('click', () => {
+      callElectron('disableKeyboard');
+    });
+    document.getElementById('btn-enable-keyboard').addEventListener('click', () => {
+      callElectron('enableKeyboard');
+    });
+    document.getElementById('btn-go-home').addEventListener('click', () => {
+      callElectron('goHome');
+    });
+
+    document.getElementById('test-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      alert('Form submit prevented for test page.');
+    });
+    document.getElementById('fc-button').addEventListener('click', () => {
+      alert('Form button clicked.');
+    });
+  </script>
+</body>
+</html>
+

@@ -1,63 +1,55 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
-import ReactDOM from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import '@client/index.css';
 import App from '@client/App';
 import { loadConferenceConfig } from '@client/services/ConferenceConfig';
 import { apiService } from "@client/services/ApiService";
 import { ConfigProvider } from '@client/contexts/ConfigContext';
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+import { StrictMode } from 'react';
+
+const container = document.getElementById('root');
+if (!container) throw new Error('Failed to find the root element');
+const root = createRoot(container);
 
 let currentCommit: string | null = null;
+
 async function checkForUpdate() {
   try {
-    console.warn('checkForUpdate');
-
     const res = await fetch(`/config.json?ts=${Date.now()}`, { cache: 'no-store' });
     const config = await res.json();
-
-    if (!currentCommit) {
-      currentCommit = config.commit; // store first loaded commit
-    } else if (currentCommit !== config.commit) {
-      console.log(
-        `New version detected: ${config.commit}, reloading (was ${currentCommit})`
-      );
+    if (currentCommit && currentCommit !== config.commit) {
       window.location.reload();
     }
+    currentCommit = config.commit;
   } catch (err) {
-    console.error('Failed to check for updates:', err);
+    console.error('Update check failed:', err);
   }
 }
 
-loadConferenceConfig().then(config => {
-  console.log("config loaded", config);
+async function initApp() {
+  try {
+    const config = await loadConferenceConfig();
+    apiService.init(config);
+    currentCommit = config.commit;
 
-  apiService.init(config);
+    root.render(
+      <StrictMode>
+        <ConfigProvider>
+        <App />
+      </ConfigProvider>
+      </StrictMode>
+    );
 
-  currentCommit = config.commit;
+    // Visibility Listener
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') checkForUpdate();
+    });
+    setInterval(checkForUpdate, 60 * 60 * 1000);
 
-  const root = ReactDOM.createRoot(
-    document.getElementById('root') as HTMLElement
-  );
+  } catch (error) {
+    console.error('Bootstrap error:', error);
+    root.render(<div style={{ color: 'red', padding: '20px' }}>Failed to load app.</div>);
+  }
+}
 
-  root.render(
-    // <React.StrictMode>
-    <ConfigProvider>
-      <App />
-    </ConfigProvider>
-    //</React.StrictMode>
-  );
-
-  // Check on tab wake
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      checkForUpdate();
-    }
-  });
-
-  setInterval(checkForUpdate, 60 * 60 * 1000);
-
-}).catch(error => {
-  console.error('Error loading config:', error);
-  const root = ReactDOM.createRoot(document.getElementById('root'));
-  root.render(<div style={{ color: 'red', textAlign: 'center' }}>Failed to load configuration.</div>);
-});
+initApp();

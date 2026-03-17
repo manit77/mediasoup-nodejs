@@ -1,15 +1,15 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { use, useCallback, useEffect, useState } from 'react';
 import { Modal, Button } from 'react-bootstrap';
-import { useCall } from '@client/hooks/useCall';
 import { useNavigate } from 'react-router-dom';
-import { useAPI } from '@client/hooks/useAPI';
-import { useUI } from '@client/hooks/useUI';
+import { useAPI } from '@client/contexts/APIContext';
+import { useUI } from '@client/contexts/UIContext';
 import { ConferenceScheduledInfo, GetUserMediaConfig } from '@conf/conf-models';
-import { getBrowserUserMedia } from '@conf/conf-client';
 import RoomLobby from '@client/components/ui/roomLobby/RoomLobby';
 import { DoorOpen, Gear } from 'react-bootstrap-icons';
 import '@client/css/modal.css';
 import '@client/css/buttons.css';
+import { useDevice } from '@client/contexts/DeviceContext';
+import { useCall } from '@client/contexts/CallContext';
 
 interface JoinRoomPopUpProps {
     conferenceScheduled: ConferenceScheduledInfo;
@@ -20,7 +20,9 @@ interface JoinRoomPopUpProps {
 const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show, onClose }) => {
     const api = useAPI();
     const ui = useUI();
-    const { localParticipant, isCallActive, createOrJoinConference, joinConference, getMediaConstraints, availableDevices, selectedDevices, setSelectedDevices, getMediaDevices, getLocalMedia, isWaiting } = useCall();
+    const call = useCall();
+    const device = useDevice();
+
     const navigate = useNavigate();
     const [joinAction, setJoinAction] = useState<(() => void) | null>(null);
 
@@ -29,12 +31,7 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
 
     const [micEnabled, setMicEnabled] = useState<boolean>(true); // Default to true
     const [cameraEnabled, setCameraEnabled] = useState<boolean>(true); // Default to true
-    const [showMicOption, setShowMicOption] = useState<boolean>(true); // Default to true
-    const [showCameraOption, setShowCameraOption] = useState<boolean>(true); // Default to true
-
-    const [micName, setMicName] = useState<string>(selectedDevices.audioInLabel);
-    const [cameraName, setCameraName] = useState<string>(selectedDevices.videoLabel);
-
+ 
     useEffect(() => {
 
         if (!conferenceScheduled.config) {
@@ -67,26 +64,22 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             //guests cannot override conference configs
             //hide the checkboxes for camera and mic
             if (!conferenceScheduled.config.guestsAllowCamera) {
-                localParticipant.tracksInfo.isVideoEnabled = false;
-                setShowCameraOption(false);
+                call.localParticipant.tracksInfo.isVideoEnabled = false;
                 toggleCamera(false);
             }
             if (!conferenceScheduled.config.guestsAllowMic) {
-                localParticipant.tracksInfo.isAudioEnabled = false;
-                setShowMicOption(false);
+                call.localParticipant.tracksInfo.isAudioEnabled = false;
                 toggleMic(false);
             }
 
             if (conferenceScheduled.config.guestsRequireCamera) {
-                localParticipant.tracksInfo.isVideoEnabled = true;
+                call.localParticipant.tracksInfo.isVideoEnabled = true;
                 setCameraEnabled(true);
-                setShowCameraOption(false);
             }
 
             if (conferenceScheduled.config.guestsRequireMic) {
-                localParticipant.tracksInfo.isVideoEnabled = true;
+                call.localParticipant.tracksInfo.isVideoEnabled = true;
                 setMicEnabled(true);
-                setShowMicOption(false);
             }
 
         } else {
@@ -94,73 +87,33 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
             setMicEnabled(true);
             setCameraEnabled(false);
 
-            localParticipant.tracksInfo.isAudioEnabled = true;
-            localParticipant.tracksInfo.isVideoEnabled = false;
+            call.localParticipant.tracksInfo.isAudioEnabled = true;
+            call.localParticipant.tracksInfo.isVideoEnabled = false;
         }
         
-    }, [])
+    }, []);
 
     useEffect(() => {
-        setMicName(selectedDevices.audioInLabel);
-        setCameraName(selectedDevices.videoLabel);
-    }, [selectedDevices]);
-
-    useEffect(() => {
-        console.log(`isCallActive`, isCallActive);
-        if (isCallActive) {
+        console.log(`isCallActive`, call.isCallActive);
+        if (call.isCallActive) {
             console.log("Navigating to on-call screen.");
             navigate('/on-call');
             onClose();
         }
-    }, [isCallActive, navigate, onClose]);
+    }, [call.isCallActive, navigate, onClose]);
 
     const toggleMic = useCallback((enabled: boolean) => {
         console.log(`toggleMic`);
-        localParticipant.tracksInfo.isAudioEnabled = enabled;
+        call.localParticipant.tracksInfo.isAudioEnabled = enabled;
         setMicEnabled(enabled);
-    }, [localParticipant]);
+    }, [call.localParticipant]);
 
     const toggleCamera = useCallback((enabled: boolean) => {
         console.log(`toggleCamera`);
-        localParticipant.tracksInfo.isVideoEnabled = enabled;
+        call.localParticipant.tracksInfo.isVideoEnabled = enabled;
         setCameraEnabled(enabled);
-    }, [localParticipant]);
-
-    const handleJoinConf = async (event: React.FormEvent) => {
-        event.preventDefault();
-
-        try {
-            //make sure we have a stream before making a call
-
-            //up the tracksInfo for localParticipant from the check boxes on the form 
-            localParticipant.tracksInfo.isAudioEnabled = micEnabled;
-            localParticipant.tracksInfo.isVideoEnabled = cameraEnabled;
-            console.log(`localParticipant.tracksInfo`, localParticipant.tracksInfo);
-
-            let joinMediaConfig = new GetUserMediaConfig();
-            joinMediaConfig.isAudioEnabled = localParticipant.tracksInfo.isAudioEnabled;
-            joinMediaConfig.isVideoEnabled = localParticipant.tracksInfo.isVideoEnabled;
-            console.log('conferenceScheduled', conferenceScheduled);
-
-            joinMediaConfig.constraints = getMediaConstraints(joinMediaConfig.isAudioEnabled, joinMediaConfig.isVideoEnabled);
-
-            if (api.isUser()) {
-                createOrJoinConference(conferenceScheduled.externalId, conferenceCode, joinMediaConfig);
-            } else {
-                if (conferenceScheduled.conferenceId) {
-                    joinConference(conferenceCode, conferenceScheduled, joinMediaConfig);
-                } else {
-                    ui.showToast("conference is not active.");
-                }
-            }
-        } catch (error) {
-            console.error('Failed to join conference:', error);
-            ui.showPopUp('Failed to join the conferenceScheduled. Please try again.');
-        } finally {
-
-        }
-    };
-
+    }, [call.localParticipant]);
+  
     const handleCancelClick = () => {
         onClose();
     };
@@ -185,21 +138,25 @@ const JoinRoomPopUp: React.FC<JoinRoomPopUpProps> = ({ conferenceScheduled, show
                         <DoorOpen className="me-2 text-primary" size={24} />
                         <span>Conference Lobby</span>
                     </div>
-                    <Button variant="outline-secondary" size="sm" onClick={handleSettingsClick} disabled={isWaiting}>
+                    <Button variant="outline-secondary" size="sm" onClick={handleSettingsClick} disabled={call.isCallActive}>
                         <Gear className="me-1" size={14} /> Settings
                     </Button>
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                <RoomLobby conferenceScheduled={conferenceScheduled} showJoinButton={false} onJoinActionReady={handleJoinActionReady}></RoomLobby>
+                <RoomLobby
+                    conferenceScheduled={conferenceScheduled}
+                    showJoinButton={false}
+                    onJoinActionReady={handleJoinActionReady}
+                />
             </Modal.Body>
 
             <Modal.Footer className="border-0 pt-0">
                 <div className="d-flex align-items-center justify-content-end gap-2 w-100">
-                    <Button variant="primary" className="submit-btn px-4 shadow-sm" onClick={() => joinAction && joinAction()} disabled={isWaiting || !joinAction}>
-                        {isWaiting ? 'Connecting...' : 'Enter Room'}
+                    <Button variant="primary" className="submit-btn px-4 shadow-sm" onClick={() => joinAction && joinAction()} disabled={call.isCallActive || !joinAction}>
+                        {call.isCallActive ? 'Connecting...' : 'Enter Room'}
                     </Button>
-                    <Button variant="link" className="text-decoration-none text-muted" onClick={handleCancelClick} disabled={isWaiting}>
+                    <Button variant="link" className="text-decoration-none text-muted" onClick={handleCancelClick} disabled={call.isCallActive}>
                         Cancel
                     </Button>
                 </div>

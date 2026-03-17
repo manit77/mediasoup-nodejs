@@ -1,23 +1,24 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Navbar, Nav, NavDropdown, Container } from 'react-bootstrap';
-import { useAPI } from '@client/hooks/useAPI';
+import { useAPI } from '@client/contexts/APIContext';
 import { useNavigate } from 'react-router-dom';
 import { BoxArrowRight, CircleFill, Gear, Person, PersonGear } from 'react-bootstrap-icons';
 import { flushSync } from 'react-dom';
-import { useCall } from '@client/hooks/useCall';
+import { useCall } from '@client/contexts/CallContext';
 import { getConferenceConfig } from '@client/services/ConferenceConfig';
 import { ConferenceClientConfig } from '@conf/conf-client';
 import SettingsPopup from '@client/components/popups/SettingsPopup';
-import { useUI } from '@client/hooks/useUI';
+import { useUI } from '@client/contexts/UIContext';
+import { usePresence } from '@client/contexts/PresenceContext';
 
 interface LobbyMenuProps {
     onShowSettings: () => void;
 }
 
 const LobbyMenu: React.FC<LobbyMenuProps> = ({ onShowSettings }) => {
-    const { getCurrentUser } = useAPI();
-    const { isConnected, isAuthenticated, isConnecting } = useCall();
-    const [config, setConfig] = useState<ConferenceClientConfig>(null);
+    const { getCurrentUser } = useAPI();    
+    const { isRegistered, isConnecting, isConnected} = usePresence();
+    const [config, setConfig] = useState<ConferenceClientConfig>(new ConferenceClientConfig());
     const ui = useUI();
 
     useEffect(() => {
@@ -96,11 +97,11 @@ const LobbyMenu: React.FC<LobbyMenuProps> = ({ onShowSettings }) => {
                         }}
                     >
                         <CircleFill
-                            className={`me-2 ${isConnecting ? "text-warning" : isConnected && isAuthenticated ? 'text-success' : 'text-danger'}`}
+                            className={`me-2 ${isConnecting ? "text-warning" : isConnected && isRegistered ? 'text-success' : 'text-danger'}`}
                             size={7}
                         />
                         <span className="text-light opacity-75">
-                            {isConnecting ? "SYNCING" : isConnected && isAuthenticated ? 'CONNECTED' : 'OFFLINE'}
+                            {isConnecting ? "SYNCING" : isConnected && isRegistered ? 'CONNECTED' : 'OFFLINE'}
                         </span>
                     </div>
                 </Navbar.Brand>

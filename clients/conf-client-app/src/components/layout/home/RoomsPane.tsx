@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ListGroup, Badge, Button, Spinner } from 'react-bootstrap';
-import { useCall } from '@client/hooks/useCall';
-import { useAPI } from '@client/hooks/useAPI';
-import { useUI } from '@client/hooks/useUI';
+import { useCall } from '@client/contexts/CallContext';
+import { useAPI } from '@client/contexts/APIContext';
+import { useUI } from '@client/contexts/UIContext';
 import { ArrowRepeat, ChevronRight, Circle, CircleFill, DoorOpenFill } from 'react-bootstrap-icons';
 import JoinRoomPopUp from '../../popups/JoinRoomPopUp';
 import { ConferenceScheduledInfo, conferenceLayout } from '@conf/conf-models';
+import { usePresence } from '@client/contexts/PresenceContext';
 
 const RoomsPane: React.FC = () => {
-  const { isAuthenticated, isCallActive, inviteInfoSend, conferencesOnline } = useCall();
+  const { isCallActive, inviteInfoSend } = useCall();
   const { isAdmin, isUser, conferencesScheduled, fetchConferencesScheduled } = useAPI();
+  const { isRegistered, conferencesOnline } = usePresence();
   const ui = useUI();
 
   const [loading, setLoading] = useState(false);
@@ -41,10 +43,10 @@ const RoomsPane: React.FC = () => {
   useEffect(() => {
     // Initial load of conference rooms
     console.log("RoomsPane useEffect triggered for initial load.");
-    if (isAuthenticated) {
+    if (isRegistered) {
       handleRefreshRooms();
     }
-  }, [handleRefreshRooms, isAuthenticated]);
+  }, [handleRefreshRooms, isRegistered]);
 
   useEffect(() => {
     // Merge whenever either data source changes
@@ -74,14 +76,15 @@ const RoomsPane: React.FC = () => {
       return;
     } else {
 
-      if (conference.config.guestsInviteOnly) {
-        ui.showToast(`conference ${conference.name} is invite-only for guests.`);
-        return;
-      }
-
+      //conferenceId is present when the room is active
       if (!conference.conferenceId) {
         console.log(`conference not started. guests cannot create a room.`);
         ui.showToast(`conference ${conference.name} not started`);
+        return;
+      }
+
+      if (conference.config.guestsInviteOnly) {
+        ui.showToast(`conference ${conference.name} is invite-only for guests.`);
         return;
       }
 
@@ -111,7 +114,7 @@ const RoomsPane: React.FC = () => {
     <div className="p-1">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h6 className="text-uppercase text-muted fw-bold small mb-0 tracking-wider">
-          Available Conference Rooms
+          Conference Rooms
         </h6>
         <Button
           variant="ghost-primary"
@@ -177,7 +180,7 @@ const RoomsPane: React.FC = () => {
                     style={{ fontWeight: '600' }}
                   >
                     {isActive ? (
-                      <><CircleFill className="me-1" size={8} /> Active</>
+                      <><CircleFill className="me-1" size={8} /> Join</>
                     ) : (
                       <><Circle className="me-1" size={8} /> Offline</>
                     )}
