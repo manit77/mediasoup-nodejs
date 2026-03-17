@@ -12,12 +12,12 @@
     "package": "cp -rf dist/ ../../deploy/rooms-client"
   },
   "dependencies": {
-    "@rooms/rooms-models": "1.0.0",
     "@rooms/webrtc-client": "1.0.0",
     "@rooms/websocket-client": "1.0.0",
     "mediasoup-client": "^3.18.7"
   },
   "devDependencies": {
+    "@rooms/rooms-models": "1.0.0",
     "tsconfig-paths": "^4.2.0"
   }
 }

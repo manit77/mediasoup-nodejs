@@ -31,8 +31,6 @@
     "concurrently": "^9.2.0"   
   },
   "version": "",
-  "dependencies": {
-    "mitt": "^3.0.1",
-    "typescript": "^5.9.3"
+  "dependencies": {       
   }
 }
