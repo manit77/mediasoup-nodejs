@@ -25,14 +25,14 @@
     "delete-tsbuildinfo": "find . -type f -name \"tsconfig.tsbuildinfo\" -delete ",
     "delete-package-lock": "find . -type f -name \"package-lock.json\" -delete ",
     "package-all": "npm rum build && node scripts/package.js"
-  },
+  },  
   "devDependencies": {
     "@rollup/plugin-babel": "^5.3.1",
-    "concurrently": "^9.2.0",
-    "typescript": "^5.8.3"
+    "concurrently": "^9.2.0"   
   },
   "version": "",
   "dependencies": {
-    "mitt": "^3.0.1"
+    "mitt": "^3.0.1",
+    "typescript": "^5.9.3"
   }
 }

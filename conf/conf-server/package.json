@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "tsc --build --force",
+    "build": "npx tsc --build --force",
     "cp-rooms": "mkdir -p dist/node_modules/@rooms/rooms-models && cp -rf ../../rooms/rooms-models/dist/. dist/node_modules/@rooms/rooms-models",
     "cp-conf": "mkdir -p dist/node_modules/@conf/conf-models && cp -rf ../conf-models/dist/. dist/node_modules/@conf/conf-models",
     "package": "node package.js && npm run cp-rooms && npm run cp-conf",
@@ -42,7 +42,7 @@
     "supertest": "^7.1.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.8.3",
+    "typescript": "^5.9.3",
     "why-is-node-running": "^3.2.2"
   }
 }
