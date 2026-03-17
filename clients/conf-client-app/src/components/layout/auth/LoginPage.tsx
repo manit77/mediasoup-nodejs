@@ -238,7 +238,7 @@ const LoginPage: React.FC = () => {
                 {/* Footer Info */}
                 <div className="bg-body p-2 border-top d-flex justify-content-between px-3" style={{ fontSize: '0.7rem' }}>
                     <span className="text-muted">v{config.version}</span>
-                    <span className="text-muted">build: {config.commit?.substring(0, 7)}</span>
+                    <span className="text-muted">build: {config.commit}</span>
                 </div>
             </Card>
 
