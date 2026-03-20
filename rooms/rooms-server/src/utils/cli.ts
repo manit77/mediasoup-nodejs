@@ -19,17 +19,46 @@ if (!secretKey) {
   console.error("no env variable set for room_secret_key: export room_secret_key=your-secure-secret-key");
 }
 
-function generateToken(type: string, role: AuthUserRoles, username: string): string {
+function generateToken(
+  type: string,
+  role: AuthUserRoles,
+  username: string,
+  expiresInMin: number = 60 * 24,
+  issuer: string = "",
+  audience: string = ""
+): string {
+
+  console.log(`generateToken ${type} ${role} ${username} ${expiresInMin} ${issuer} ${audience}`);
+  
   const payload: AuthUserTokenPayload = {
     username: username,
     type: type,
     role: role,
-    claims: getClaimsByRole(role)
+    claims: getClaimsByRole(role),
+    iss: issuer,
+    aud: audience
   };
 
-  console.log(payload);  
+  return jwtSign(secretKey, payload, expiresInMin);
+}
 
-  return jwtSign(secretKey, payload);
+function promptTokenDetails(type: string, role: AuthUserRoles, defaultName: string) {
+  rl.question(`Enter username (default ${defaultName}): `, (username) => {
+    const name = username.trim() || defaultName;
+    rl.question('Enter expiration in days (default 1): ', (expiresInput) => {
+      const days = Number.parseFloat(expiresInput);
+      const mins = Number.isFinite(days) && days > 0 ? days * 1440 : 1440;
+
+      rl.question('Enter issuer (default empty): ', (issuerInput) => {
+        const issuer = issuerInput.trim();
+        rl.question('Enter audience (default empty): ', (audienceInput) => {
+          const audience = audienceInput.trim();
+          console.log(`${role} Token:`, generateToken(type, role, name, mins, issuer, audience));
+          promptUser();
+        });
+      });
+    });
+  });
 }
 
 function promptUser(): void {
@@ -43,20 +72,16 @@ function promptUser(): void {
   rl.question('Enter your choice (1-4): ', (choice) => {
     switch (choice) {
       case '1':
-        console.log('Service Token:', generateToken("service", AuthUserRoles.service, "service"));
-        promptUser();
+        promptTokenDetails("service", AuthUserRoles.service, "service");
         break;
       case '2':
-        console.log('Admin Token:', generateToken("service", AuthUserRoles.admin, "admin"));
-        promptUser();
+        promptTokenDetails("admin_session", AuthUserRoles.admin, "admin");
         break;
       case '3':
-        console.log('User Token:', generateToken("service", AuthUserRoles.user, "user"));
-        promptUser();
+        promptTokenDetails("user_session", AuthUserRoles.user, "user");
         break;
       case '4':
-        console.log('Guest Token:', generateToken("service", AuthUserRoles.guest, "guest"));
-        promptUser();
+        promptTokenDetails("guest_session", AuthUserRoles.guest, "guest");
         break;
       case '0':
         console.log('Exiting...');
