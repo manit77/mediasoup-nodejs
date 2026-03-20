@@ -12,6 +12,8 @@ export interface AuthUserTokenPayload {
     role: AuthUserRoles,
     username: string,
     claims: AuthClaims[];
+    iss?: string;
+    aud?: string;
 }
 
 export interface RoomTokenPayload {
